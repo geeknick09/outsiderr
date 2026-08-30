@@ -4,11 +4,18 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { BadgeCheck, CalendarDays, Info, MapPin, Users } from "lucide-react";
 
+import { MapEmbed } from "@/components/events/map-embed";
+import { PhotoGallery } from "@/components/events/photo-gallery";
+import { ShareEventButton } from "@/components/events/share-event-button";
+import { TagPills } from "@/components/events/tag-pills";
 import { TermsAccordion } from "@/components/events/terms-accordion";
 import { TicketTiers } from "@/components/events/ticket-tiers";
+import { WaitlistButton } from "@/components/events/waitlist-button";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORY_LABELS, CITY_LABELS } from "@/lib/constants";
+import { getCurrentUser } from "@/lib/auth";
 import { getEvent } from "@/lib/data/events";
+import { getWaitlistEntry, getWaitlistCount } from "@/lib/data/waitlist";
 import { formatDateRange, mapsLink } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -30,10 +37,24 @@ export default async function EventDetailsPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const event = await getEvent((await params).id);
+  const { id } = await params;
+  const [event, user] = await Promise.all([getEvent(id), getCurrentUser()]);
   if (!event) notFound();
 
   const banner = event.bannerPosterUrl ?? event.cardPosterUrl;
+
+  // Waitlist data for sold-out tiers
+  const soldOutTiers = event.tiers.filter((t) => t.quantitySold >= t.quantity);
+  const waitlistData = await Promise.all(
+    soldOutTiers.map(async (tier) => ({
+      tier,
+      entry: user ? await getWaitlistEntry(user, tier.id) : null,
+      count: await getWaitlistCount(tier.id),
+    })),
+  );
+
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "https://outsiderr.in";
+  const eventUrl = `${baseUrl}/events/${event.id}`;
 
   return (
     <div className="-mt-6">
@@ -63,15 +84,23 @@ export default async function EventDetailsPage({
               {event.isFeatured ? <Badge tone="lime">Sponsored</Badge> : null}
             </div>
 
-            <h1 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl">
-              {event.title}
-            </h1>
+            <TagPills tags={event.tags} />
+
+            <div className="flex items-start justify-between gap-3">
+              <h1 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl">
+                {event.title}
+              </h1>
+              <ShareEventButton title={event.title} url={eventUrl} />
+            </div>
 
             <p className="text-sm text-muted">
               Hosted by{" "}
-              <span className="font-semibold text-zinc-900 dark:text-white">
+              <Link
+                href={`/organizers/${event.organizer.id}`}
+                className="font-semibold text-zinc-900 hover:text-violet-neon dark:text-white"
+              >
                 {event.organizer.name}
-              </span>
+              </Link>
             </p>
 
             <div className="flex flex-col gap-2 pt-2 text-sm">
@@ -100,6 +129,12 @@ export default async function EventDetailsPage({
                 {event.registrationsCount} people registered
               </span>
             </div>
+
+            <MapEmbed
+              latitude={event.latitude}
+              longitude={event.longitude}
+              venueName={event.venueName}
+            />
           </div>
 
           <section className="glass rounded-3xl p-5">
@@ -108,6 +143,8 @@ export default async function EventDetailsPage({
               {event.description}
             </p>
           </section>
+
+          <PhotoGallery photos={event.photoUrls} title={event.title} />
 
           {event.thingsToKnow.length > 0 ? (
             <section className="glass rounded-3xl p-5">
@@ -128,7 +165,10 @@ export default async function EventDetailsPage({
 
           <section className="glass rounded-3xl p-5">
             <h2 className="mb-3 text-base font-bold">Organized By</h2>
-            <div className="flex items-center gap-4">
+            <Link
+              href={`/organizers/${event.organizer.id}`}
+              className="flex items-center gap-4 hover:opacity-80"
+            >
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-neon-gradient text-lg font-black text-white">
                 {event.organizer.name.slice(0, 1)}
               </div>
@@ -143,7 +183,7 @@ export default async function EventDetailsPage({
                   <p className="text-xs text-muted">{event.organizer.bio}</p>
                 ) : null}
               </div>
-            </div>
+            </Link>
           </section>
 
           <TermsAccordion terms={event.terms} />
@@ -151,6 +191,26 @@ export default async function EventDetailsPage({
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
           <TicketTiers event={event} />
+
+          {/* Waitlist for sold-out tiers */}
+          {waitlistData.length > 0 ? (
+            <section className="glass rounded-3xl p-5">
+              <h2 className="mb-3 text-sm font-bold text-muted">Join the Waitlist</h2>
+              <div className="space-y-3">
+                {waitlistData.map(({ tier, entry, count }) => (
+                  <WaitlistButton
+                    key={tier.id}
+                    tierId={tier.id}
+                    eventId={event.id}
+                    tierName={tier.name}
+                    waitlistEntry={entry}
+                    waitlistCount={count}
+                  />
+                ))}
+              </div>
+            </section>
+          ) : null}
+
           <p className="px-2 text-center text-xs text-muted">
             Payments are verified manually by the organizer.{" "}
             <Link href="/tickets" className="underline hover:text-violet-neon">

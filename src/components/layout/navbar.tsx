@@ -5,9 +5,27 @@ import { LocationSelector } from "@/components/layout/location-selector";
 import { UserMenu } from "@/components/layout/user-menu";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { getCurrentUser } from "@/lib/auth";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { createClient } from "@/lib/supabase/server";
 
 export async function Navbar() {
   const user = await getCurrentUser();
+
+  let isAdmin = false;
+  if (user) {
+    if (!isSupabaseConfigured()) {
+      // Demo mode: treat every signed-in user as admin so they can explore.
+      isAdmin = true;
+    } else {
+      const supabase = await createClient();
+      const { data } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user.id)
+        .maybeSingle();
+      isAdmin = data?.is_admin === true;
+    }
+  }
 
   return (
     <header className="sticky top-0 z-40 border-b border-zinc-200 bg-zinc-50/80 backdrop-blur-xl dark:border-white/10 dark:bg-ink/80">
@@ -23,7 +41,7 @@ export async function Navbar() {
             <LocationSelector />
           </Suspense>
           <ThemeToggle />
-          <UserMenu name={user?.name ?? null} />
+          <UserMenu name={user?.name ?? null} isAdmin={isAdmin} />
         </div>
       </nav>
     </header>

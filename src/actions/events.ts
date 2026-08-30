@@ -65,7 +65,11 @@ export async function createEventAction(
       title,
       description: String(formData.get("description") ?? "").trim(),
       thingsToKnow: lines(formData.get("thingsToKnow")),
-      category: String(formData.get("category") ?? "GIG") as EventCategory,
+      tags: String(formData.get("tags") ?? "")
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
+      category: String(formData.get("category") ?? "JAM_GIG") as EventCategory,
       city: String(formData.get("city") ?? "KOLKATA") as City,
       venueName: String(formData.get("venueName") ?? "").trim(),
       venueAddress: String(formData.get("venueAddress") ?? "").trim(),

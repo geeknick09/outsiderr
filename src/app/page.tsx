@@ -42,12 +42,19 @@ export default async function DiscoveryPage({
   return (
     <div>
       <div className="mb-6">
-        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-violet-neon">
+        <h1 className="bg-neon-gradient bg-clip-text text-3xl font-black tracking-tight text-transparent sm:text-4xl">
+          Outsiderr
+        </h1>
+        <p className="mt-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+          Cyphers, block parties, battles, stunts, skates, meetups, jams &amp; real
+          communities.
+        </p>
+        <p className="mt-1 text-sm text-muted">
+          Discover raw underground events happening today near you.
+        </p>
+        <p className="mt-3 text-xs font-semibold uppercase tracking-[0.3em] text-violet-neon">
           {CITY_LABELS[city]}
         </p>
-        <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
-          What&apos;s happening underground
-        </h1>
       </div>
 
       <Suspense fallback={<div className="mb-6 h-14" />}>

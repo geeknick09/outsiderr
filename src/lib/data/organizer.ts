@@ -7,6 +7,8 @@ import { DEMO_ORGANIZERS } from "@/lib/data/demo-data";
 import { demoStore } from "@/lib/data/demo-store";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
+import { DEMO_ORGANIZER_COOKIE } from "@/lib/auth";
 import type { CurrentUser } from "@/lib/auth";
 import type {
   City,
@@ -28,6 +30,7 @@ export interface CreateEventInput {
   title: string;
   description: string;
   thingsToKnow: string[];
+  tags: string[];
   category: EventCategory;
   city: City;
   venueName: string;
@@ -47,7 +50,12 @@ export interface CreateEventInput {
 export async function getOrganizerProfile(
   user: CurrentUser,
 ): Promise<Organizer | null> {
-  if (!isSupabaseConfigured()) return DEMO_ORGANIZERS.basement;
+  if (!isSupabaseConfigured()) {
+    // Demo mode: only return the demo organizer if the user has "become" one.
+    const hasOrg = (await cookies()).get(DEMO_ORGANIZER_COOKIE)?.value;
+    if (!hasOrg) return null;
+    return DEMO_ORGANIZERS.basement;
+  }
 
   const supabase = await createClient();
   const { data } = await supabase
@@ -84,6 +92,8 @@ export async function listOrganizerEvents(
       minPricePaise: Math.min(...event.tiers.map((tier) => tier.pricePaise)),
       isFeatured: event.isFeatured,
       registrationsCount: event.registrationsCount,
+      tags: event.tags ?? [],
+      status: event.status,
     }));
   }
 
@@ -122,6 +132,8 @@ export async function listOrganizerEvents(
       minPricePaise: prices.length ? Math.min(...prices) : 0,
       isFeatured: event.is_featured,
       registrationsCount: event.registrations_count,
+      tags: event.tags ?? [],
+      status: event.status as import("@/lib/types").EventStatus,
     };
   });
 }
@@ -148,6 +160,8 @@ export async function createEvent(
       minPricePaise: Math.min(...input.tiers.map((tier) => tier.pricePaise)),
       isFeatured: false,
       registrationsCount: 0,
+      tags: input.tags ?? [],
+      photoUrls: [],
       description: input.description,
       thingsToKnow: input.thingsToKnow,
       latitude: input.latitude,
@@ -198,6 +212,7 @@ export async function createEvent(
       fee_payer: input.feePayer,
       needs_door_staff: input.needsDoorStaff,
       terms,
+      tags: input.tags ?? [],
       status: "PUBLISHED",
     })
     .select("id")
@@ -217,4 +232,99 @@ export async function createEvent(
   if (tierError) throw tierError;
 
   return event.id;
+}
+
+export async function getOrganizerEventAnalytics(
+  user: CurrentUser,
+  eventId: string,
+): Promise<import("@/lib/types").EventAnalytics | null> {
+  const { getEventAnalytics } = await import("@/lib/data/admin");
+  if (!isSupabaseConfigured()) return getEventAnalytics(eventId);
+  // Verify the event belongs to this organizer
+  const organizer = await getOrganizerProfile(user);
+  if (!organizer) return null;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("events")
+    .select("id")
+    .eq("id", eventId)
+    .eq("organizer_id", organizer.id)
+    .maybeSingle();
+  if (!data) return null;
+  return getEventAnalytics(eventId);
+}
+
+export async function updateEventStatus(
+  user: CurrentUser,
+  eventId: string,
+  status: import("@/lib/types").EventStatus,
+): Promise<void> {
+  if (!isSupabaseConfigured()) {
+    const event = (await import("@/lib/data/demo-store")).demoStore().events.find((e) => e.id === eventId);
+    if (event) event.status = status;
+    return;
+  }
+  const organizer = await getOrganizerProfile(user);
+  if (!organizer) throw new Error("No organizer profile.");
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("events")
+    .update({ status })
+    .eq("id", eventId)
+    .eq("organizer_id", organizer.id);
+  if (error) throw error;
+}
+
+export interface CreateOrganizerInput {
+  name: string;
+  bio: string;
+  upiId: string;
+  avatarUrl: string | null;
+}
+
+/**
+ * Creates an organizer profile for the current user.
+ * In demo mode this is a no-op — every signed-in user is already an organizer.
+ * Returns the new organizer's id.
+ */
+export async function createOrganizerProfile(
+  user: CurrentUser,
+  input: CreateOrganizerInput,
+): Promise<string> {
+  if (!isSupabaseConfigured()) {
+    // Demo mode: set a cookie marking this user as an organizer.
+    (await cookies()).set(DEMO_ORGANIZER_COOKIE, "1", {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30,
+    });
+    return DEMO_ORGANIZERS.basement.id;
+  }
+
+  // If the user already has a profile, return its id.
+  const existing = await getOrganizerProfile(user);
+  if (existing) return existing.id;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("organizers")
+    .insert({
+      owner_id: user.id,
+      name: input.name,
+      bio: input.bio || null,
+      upi_id: input.upiId || null,
+      avatar_url: input.avatarUrl,
+      verified: false,
+    })
+    .select("id")
+    .single();
+
+  if (error) throw error;
+
+  // Flip the is_organizer flag on the profile row.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await supabase.from("profiles").update({ is_organizer: true } as any).eq("id", user.id);
+
+  return data.id;
 }

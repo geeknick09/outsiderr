@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { Check, Minus, Plus, Sparkles } from "lucide-react";
+import { useState, useTransition } from "react";
+import { BellRing, Check, Minus, Plus, Sparkles } from "lucide-react";
 
+import { joinWaitlistAction } from "@/actions/waitlist";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MAX_TICKETS_PER_ORDER } from "@/lib/constants";
@@ -148,7 +149,17 @@ export function TicketTiers({ event }: { event: EventDetail }) {
           </Button>
         </div>
       ) : (
-        <p className="mt-5 text-sm text-muted">All tiers are sold out.</p>
+        <div className="mt-5 space-y-3">
+          <p className="text-sm font-semibold text-muted">All tiers sold out</p>
+          {event.tiers.map((tier) => (
+            <WaitlistJoinRow
+              key={tier.id}
+              tierId={tier.id}
+              eventId={event.id}
+              tierName={tier.name}
+            />
+          ))}
+        </div>
       )}
     </section>
   );
@@ -184,5 +195,46 @@ function QuantityButton({
     >
       {children}
     </button>
+  );
+}
+
+function WaitlistJoinRow({
+  tierId,
+  eventId,
+  tierName,
+}: {
+  tierId: string;
+  eventId: string;
+  tierName: string;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [joined, setJoined] = useState(false);
+
+  function handleJoin() {
+    startTransition(async () => {
+      await joinWaitlistAction(eventId, tierId);
+      setJoined(true);
+    });
+  }
+
+  return (
+    <div className="flex items-center justify-between rounded-2xl border border-zinc-200 px-4 py-3 dark:border-white/10">
+      <span className="text-sm font-semibold">{tierName}</span>
+      {joined ? (
+        <span className="flex items-center gap-1.5 text-xs text-lime-neon">
+          <Check className="h-3.5 w-3.5" /> On waitlist
+        </span>
+      ) : (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={handleJoin}
+          className="flex items-center gap-1.5 text-xs font-semibold text-violet-neon hover:underline disabled:opacity-50"
+        >
+          <BellRing className="h-3.5 w-3.5" />
+          {pending ? "Joining…" : "Join Waitlist"}
+        </button>
+      )}
+    </div>
   );
 }

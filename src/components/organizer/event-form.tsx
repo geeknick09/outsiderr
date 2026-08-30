@@ -53,7 +53,7 @@ export function EventForm() {
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Category">
-            <select name="category" className={INPUT} defaultValue="GIG">
+            <select name="category" className={INPUT} defaultValue="JAM_GIG">
               {CATEGORIES.filter((category) => category.value !== "ALL").map((category) => (
                 <option key={category.value} value={category.value}>
                   {category.label}
@@ -102,6 +102,9 @@ export function EventForm() {
         </Field>
         <Field label="Things to know (one per line)">
           <textarea name="thingsToKnow" rows={3} className={INPUT} />
+        </Field>
+        <Field label="Tags (comma-separated, e.g. Cypher, Battle, Free)">
+          <input name="tags" placeholder="Cypher, Battle, Hip-hop" className={INPUT} />
         </Field>
         <Field label="Terms & conditions (one per line, defaults applied when empty)">
           <textarea name="terms" rows={3} className={INPUT} />

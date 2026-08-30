@@ -65,6 +65,7 @@ function toSummary(row: EventRow, tiers: TicketTier[]): EventSummary {
     minPricePaise: minPrice(tiers),
     isFeatured: row.is_featured,
     registrationsCount: row.registrations_count,
+    tags: row.tags ?? [],
   };
 }
 
@@ -87,6 +88,7 @@ function toDetail(
     terms: row.terms ?? [],
     organizer,
     tiers: tiers.sort((a, b) => a.sortOrder - b.sortOrder),
+    photoUrls: row.photo_urls ?? [],
   };
 }
 
@@ -103,6 +105,7 @@ function summarise(event: EventDetail): EventSummary {
     minPricePaise: minPrice(event.tiers),
     isFeatured: event.isFeatured,
     registrationsCount: event.registrationsCount,
+    tags: event.tags ?? [],
   };
 }
 

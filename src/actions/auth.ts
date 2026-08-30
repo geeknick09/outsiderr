@@ -17,13 +17,13 @@ export async function demoSignInAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const name = String(formData.get("name") ?? "").trim();
-  const phone = String(formData.get("phone") ?? "").trim();
-  if (!name || !phone) return { error: "Enter your name and phone number." };
+  const email = String(formData.get("email") ?? "").trim();
+  const password = String(formData.get("password") ?? "").trim();
+  if (!email || !password) return { error: "Enter your email and password." };
 
   (await cookies()).set(
     DEMO_USER_COOKIE,
-    encodeURIComponent(`${name}|${phone}`),
+    encodeURIComponent(email),
     { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 },
   );
 

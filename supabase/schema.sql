@@ -5,7 +5,7 @@ create extension if not exists "pgcrypto";
 
 -- ---------------------------------------------------------------- enums
 do $$ begin
-  create type event_category as enum ('JAM','BATTLE','GIG','WORKSHOP','STANDUP','SPORTS');
+  create type event_category as enum ('CYPHER_BATTLE','SKATE_STUNT','MEETUP_RUN','JAM_GIG','WORKSHOP','OTHER');
 exception when duplicate_object then null; end $$;
 
 do $$ begin
@@ -353,3 +353,130 @@ create policy "buyers create their own orders" on public.orders
 drop policy if exists "tickets are visible to holder and organizer" on public.tickets;
 create policy "tickets are visible to holder and organizer" on public.tickets
   for select using (auth.uid() = user_id or public.is_event_staff(event_id));
+
+-- ---------------------------------------------------------------- 2025 migration — v2 features
+
+-- profiles: admin flag
+alter table public.profiles add column if not exists is_admin boolean not null default false;
+
+-- events: tags + photo gallery
+alter table public.events add column if not exists tags text[] not null default '{}';
+alter table public.events add column if not exists photo_urls text[] not null default '{}';
+
+-- ---------------------------------------------------------------- waitlist
+create table if not exists public.waitlist (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid not null references public.events(id) on delete cascade,
+  tier_id uuid not null references public.ticket_tiers(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  position integer not null,
+  status text not null default 'WAITING' check (status in ('WAITING','OFFERED','EXPIRED')),
+  offered_at timestamptz,
+  expires_at timestamptz,
+  created_at timestamptz not null default now(),
+  constraint waitlist_unique_user_tier unique (tier_id, user_id)
+);
+create index if not exists waitlist_tier_pos_idx on public.waitlist(tier_id, position);
+create index if not exists waitlist_user_idx on public.waitlist(user_id);
+
+-- ---------------------------------------------------------------- push_subscriptions
+create table if not exists public.push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  endpoint text not null,
+  p256dh text not null,
+  auth text not null,
+  created_at timestamptz not null default now(),
+  constraint push_subscriptions_endpoint_unique unique (endpoint)
+);
+create index if not exists push_subs_user_idx on public.push_subscriptions(user_id);
+
+-- ---------------------------------------------------------------- boosts
+create table if not exists public.boosts (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid not null references public.events(id) on delete cascade,
+  organizer_id uuid not null references public.organizers(id) on delete cascade,
+  slot integer not null check (slot between 1 and 10),
+  amount_paid_paise integer not null check (amount_paid_paise > 0),
+  status text not null default 'PENDING'
+    check (status in ('PENDING','ACTIVE','EXPIRED','REJECTED')),
+  starts_at timestamptz not null,
+  ends_at timestamptz not null,
+  utr_reference text,
+  reviewed_by uuid references public.profiles(id),
+  reviewed_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists boosts_status_slot_idx on public.boosts(status, slot);
+create index if not exists boosts_event_idx on public.boosts(event_id);
+
+-- ---------------------------------------------------------------- boost_slot_prices (admin-configurable)
+create table if not exists public.boost_slot_prices (
+  slot integer primary key check (slot between 1 and 10),
+  price_paise integer not null check (price_paise > 0)
+);
+insert into public.boost_slot_prices (slot, price_paise) values
+  (1,500000),(2,400000),(3,300000),(4,250000),(5,200000),
+  (6,175000),(7,150000),(8,125000),(9,100000),(10,75000)
+on conflict do nothing;
+
+-- ---------------------------------------------------------------- RLS for new tables
+alter table public.waitlist enable row level security;
+alter table public.push_subscriptions enable row level security;
+alter table public.boosts enable row level security;
+alter table public.boost_slot_prices enable row level security;
+
+drop policy if exists "waitlist self or staff" on public.waitlist;
+create policy "waitlist self or staff" on public.waitlist
+  for select using (auth.uid() = user_id or public.is_event_staff(event_id));
+
+drop policy if exists "waitlist self insert" on public.waitlist;
+create policy "waitlist self insert" on public.waitlist
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists "waitlist self delete" on public.waitlist;
+create policy "waitlist self delete" on public.waitlist
+  for delete using (auth.uid() = user_id);
+
+drop policy if exists "push subs self" on public.push_subscriptions;
+create policy "push subs self" on public.push_subscriptions
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "boosts active public" on public.boosts;
+create policy "boosts active public" on public.boosts
+  for select using (status = 'ACTIVE' or public.is_event_staff(event_id));
+
+drop policy if exists "boosts organizer insert" on public.boosts;
+create policy "boosts organizer insert" on public.boosts
+  for insert with check (
+    exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
+  );
+
+drop policy if exists "boost prices public" on public.boost_slot_prices;
+create policy "boost prices public" on public.boost_slot_prices
+  for select using (true);
+
+-- ---------------------------------------------------------------- RPC: offer next person on waitlist
+create or replace function public.offer_waitlist_next(p_tier_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_next public.waitlist;
+begin
+  select * into v_next
+  from public.waitlist
+  where tier_id = p_tier_id and status = 'WAITING'
+  order by position asc
+  limit 1
+  for update;
+  if not found then return; end if;
+  update public.waitlist
+  set status = 'OFFERED',
+      offered_at = now(),
+      expires_at = now() + interval '24 hours'
+  where id = v_next.id;
+end;
+$$;

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" fill="none">
+  <defs>
+    <linearGradient id="gbM" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#E2F163"/>
+      <stop offset="55%" stop-color="#131320"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <radialGradient id="rbM" cx="0.2" cy="0.15" r="0.9">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1600" height="900" fill="#0A0A0E"/>
+  <rect width="1600" height="900" fill="url(#gbM)"/>
+  <rect width="1600" height="900" fill="url(#rbM)"/>
+  <g stroke="#ffffff" stroke-opacity="0.08">
+    <line x1="0" y1="0" x2="1600" y2="108"/><line x1="0" y1="75" x2="1600" y2="183"/><line x1="0" y1="150" x2="1600" y2="258"/><line x1="0" y1="225" x2="1600" y2="333"/><line x1="0" y1="300" x2="1600" y2="408"/><line x1="0" y1="375" x2="1600" y2="483"/><line x1="0" y1="450" x2="1600" y2="558"/><line x1="0" y1="525" x2="1600" y2="633"/><line x1="0" y1="600" x2="1600" y2="708"/><line x1="0" y1="675" x2="1600" y2="783"/><line x1="0" y1="750" x2="1600" y2="858"/><line x1="0" y1="825" x2="1600" y2="933"/>
+  </g>
+  <text x="112.00000000000001" y="648" font-family="Helvetica,Arial,sans-serif" font-size="120" font-weight="700" fill="#ffffff" letter-spacing="6.4">SUNRISE RUN</text>
+  <text x="112.00000000000001" y="792" font-family="Helvetica,Arial,sans-serif" font-size="88" font-weight="700" fill="#E2F163" letter-spacing="6.4">5K · CUBBON PARK</text>
+  <text x="112.00000000000001" y="117" font-family="Helvetica,Arial,sans-serif" font-size="51.2" font-weight="700" fill="#ffffff" fill-opacity="0.7" letter-spacing="16">OUTSIDERR</text>
+</svg>

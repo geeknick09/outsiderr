@@ -2,12 +2,18 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { LayoutDashboard, LogOut, ScanLine, Ticket, User } from "lucide-react";
+import { LayoutDashboard, LogOut, ScanLine, ShieldCheck, Ticket, User } from "lucide-react";
 
 import { signOutAction } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 
-export function UserMenu({ name }: { name: string | null }) {
+export function UserMenu({
+  name,
+  isAdmin,
+}: {
+  name: string | null;
+  isAdmin: boolean;
+}) {
   const [open, setOpen] = useState(false);
 
   if (!name) {
@@ -52,6 +58,11 @@ export function UserMenu({ name }: { name: string | null }) {
             <MenuLink href="/organizer/scan" onSelect={() => setOpen(false)}>
               <ScanLine className="h-4 w-4" /> Door Scanner
             </MenuLink>
+            {isAdmin ? (
+              <MenuLink href="/admin" onSelect={() => setOpen(false)}>
+                <ShieldCheck className="h-4 w-4 text-violet-neon" /> Admin
+              </MenuLink>
+            ) : null}
             <form action={signOutAction}>
               <button
                 type="submit"

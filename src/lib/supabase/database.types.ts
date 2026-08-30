@@ -15,6 +15,7 @@ export type ProfileRow = {
   avatar_url: string | null;
   theme_preference: ThemePreference;
   is_organizer: boolean;
+  is_admin: boolean;
   created_at: string;
 }
 
@@ -52,6 +53,8 @@ export type EventRow = {
   needs_door_staff: boolean;
   terms: string[];
   registrations_count: number;
+  tags: string[];
+  photo_urls: string[];
   created_at: string;
 }
 
@@ -101,6 +104,47 @@ export type TicketRow = {
   created_at: string;
 }
 
+export type WaitlistRow = {
+  id: string;
+  event_id: string;
+  tier_id: string;
+  user_id: string;
+  position: number;
+  status: string;
+  offered_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+}
+
+export type PushSubscriptionRow = {
+  id: string;
+  user_id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  created_at: string;
+}
+
+export type BoostRow = {
+  id: string;
+  event_id: string;
+  organizer_id: string;
+  slot: number;
+  amount_paid_paise: number;
+  status: string;
+  starts_at: string;
+  ends_at: string;
+  utr_reference: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+}
+
+export type BoostSlotPriceRow = {
+  slot: number;
+  price_paise: number;
+}
+
 type Table<Row, Required extends keyof Row = never> = {
   Row: Row;
   Insert: Partial<Row> & Pick<Row, Required>;
@@ -123,6 +167,10 @@ export type Database = {
         "event_id" | "tier_id" | "user_id" | "quantity" | "unit_price_paise"
       >;
       tickets: Table<TicketRow, "order_id" | "event_id" | "tier_id" | "user_id" | "qr_hash">;
+      waitlist: Table<WaitlistRow, "event_id" | "tier_id" | "user_id" | "position">;
+      push_subscriptions: Table<PushSubscriptionRow, "user_id" | "endpoint" | "p256dh" | "auth">;
+      boosts: Table<BoostRow, "event_id" | "organizer_id" | "slot" | "amount_paid_paise" | "starts_at" | "ends_at">;
+      boost_slot_prices: Table<BoostSlotPriceRow, "slot" | "price_paise">;
     };
     Views: Record<string, never>;
     Functions: {
@@ -143,6 +191,10 @@ export type Database = {
           holder_name: string | null;
           checked_in_at: string | null;
         }[];
+      };
+      offer_waitlist_next: {
+        Args: { p_tier_id: string };
+        Returns: void;
       };
     };
     Enums: Record<string, never>;

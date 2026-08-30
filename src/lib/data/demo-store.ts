@@ -1,5 +1,5 @@
 import { DEMO_EVENTS } from "@/lib/data/demo-data";
-import type { EventDetail, Order, Ticket } from "@/lib/types";
+import type { Boost, EventDetail, Order, Ticket, WaitlistEntry } from "@/lib/types";
 
 /**
  * Process-local store backing demo mode (no Supabase credentials configured).
@@ -9,6 +9,8 @@ interface DemoStore {
   events: EventDetail[];
   orders: Order[];
   tickets: Ticket[];
+  waitlist: WaitlistEntry[];
+  boosts: Boost[];
 }
 
 const globalStore = globalThis as typeof globalThis & {
@@ -23,6 +25,8 @@ export function demoStore(): DemoStore {
     })),
     orders: [],
     tickets: [],
+    waitlist: [],
+    boosts: [],
   };
   return globalStore.__outsiderrDemoStore;
 }

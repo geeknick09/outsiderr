@@ -52,7 +52,7 @@ export const DEMO_EVENTS: EventDetail[] = [
   {
     id: "evt-warehouse-jam",
     title: "Warehouse Jam Vol. 9",
-    category: "JAM",
+    category: "JAM_GIG",
     city: "KOLKATA",
     venueName: "Dock 14 Warehouse",
     venueAddress: "14 Strand Road, Kolkata 700001",
@@ -65,6 +65,8 @@ export const DEMO_EVENTS: EventDetail[] = [
     minPricePaise: 29900,
     isFeatured: true,
     registrationsCount: 412,
+    tags: ["Jam", "Live Music", "Open Decks"],
+    photoUrls: [],
     description:
       "Nine editions in, the Warehouse Jam is still the loudest room in the city. Open decks from 8pm, three live acts, and a closing back-to-back set that runs until the lights come up.",
     thingsToKnow: [
@@ -113,7 +115,7 @@ export const DEMO_EVENTS: EventDetail[] = [
   {
     id: "evt-cypher-battle",
     title: "Cypher Battles: Monsoon Rounds",
-    category: "BATTLE",
+    category: "CYPHER_BATTLE",
     city: "MUMBAI",
     venueName: "Antisocial Khar",
     venueAddress: "Rohan Plaza, 5th Road, Khar West, Mumbai 400052",
@@ -126,6 +128,8 @@ export const DEMO_EVENTS: EventDetail[] = [
     minPricePaise: 0,
     isFeatured: true,
     registrationsCount: 980,
+    tags: ["Cypher", "Battle", "Hip-hop", "Rap"],
+    photoUrls: [],
     description:
       "Sixteen emcees, four rounds, one crown. Judged by a rotating panel of the city's most respected writers with a live band backing every round.",
     thingsToKnow: [
@@ -164,7 +168,7 @@ export const DEMO_EVENTS: EventDetail[] = [
   {
     id: "evt-terrace-gig",
     title: "Terrace Gig — Indie Doubleheader",
-    category: "GIG",
+    category: "JAM_GIG",
     city: "BENGALURU",
     venueName: "The Humming Tree",
     venueAddress: "949, 12th Main Rd, Indiranagar, Bengaluru 560038",
@@ -177,6 +181,8 @@ export const DEMO_EVENTS: EventDetail[] = [
     minPricePaise: 59900,
     isFeatured: true,
     registrationsCount: 320,
+    tags: ["Gig", "Indie", "Live Music"],
+    photoUrls: [],
     description:
       "Two bands, one terrace, zero barricades. An intimate 200-cap show with a shared line-up curated by the artists themselves.",
     thingsToKnow: [
@@ -228,6 +234,8 @@ export const DEMO_EVENTS: EventDetail[] = [
     minPricePaise: 149900,
     isFeatured: false,
     registrationsCount: 44,
+    tags: ["Workshop", "Photography", "Darkroom"],
+    photoUrls: [],
     description:
       "Shoot a roll, develop it, print it. A hands-on darkroom day covering exposure, chemistry and scanning, capped at 15 seats.",
     thingsToKnow: [
@@ -256,7 +264,7 @@ export const DEMO_EVENTS: EventDetail[] = [
   {
     id: "evt-open-mic-standup",
     title: "Basement Standup Open Mic",
-    category: "STANDUP",
+    category: "OTHER",
     city: "DELHI",
     venueName: "Canvas Laugh Club",
     venueAddress: "Ambience Mall, Vasant Kunj, New Delhi 110070",
@@ -269,6 +277,8 @@ export const DEMO_EVENTS: EventDetail[] = [
     minPricePaise: 19900,
     isFeatured: false,
     registrationsCount: 156,
+    tags: ["Standup", "Open Mic", "Comedy"],
+    photoUrls: [],
     description:
       "Fifteen comics, five minutes each, no filter. New material only — heckling is part of the deal.",
     thingsToKnow: [
@@ -307,7 +317,7 @@ export const DEMO_EVENTS: EventDetail[] = [
   {
     id: "evt-midnight-football",
     title: "Midnight Turf Football",
-    category: "SPORTS",
+    category: "SKATE_STUNT",
     city: "MUMBAI",
     venueName: "Powai Turf Arena",
     venueAddress: "Central Ave, Hiranandani Gardens, Powai, Mumbai 400076",
@@ -320,6 +330,8 @@ export const DEMO_EVENTS: EventDetail[] = [
     minPricePaise: 24900,
     isFeatured: true,
     registrationsCount: 210,
+    tags: ["Skate", "Stunt", "Sports", "Street"],
+    photoUrls: [],
     description:
       "5-a-side knockouts under floodlights. Teams of six, twelve-minute halves, winner takes the pot.",
     thingsToKnow: [
@@ -348,7 +360,7 @@ export const DEMO_EVENTS: EventDetail[] = [
   {
     id: "evt-sunrise-jam",
     title: "Sunrise Rooftop Jam",
-    category: "JAM",
+    category: "JAM_GIG",
     city: "BENGALURU",
     venueName: "Church Street Rooftop",
     venueAddress: "Church Street, Bengaluru 560001",
@@ -361,6 +373,8 @@ export const DEMO_EVENTS: EventDetail[] = [
     minPricePaise: 0,
     isFeatured: false,
     registrationsCount: 74,
+    tags: ["Jam", "Acoustic", "Rooftop", "Free"],
+    photoUrls: [],
     description:
       "Acoustic sets, filter coffee and the skyline waking up. Bring an instrument or just bring yourself.",
     thingsToKnow: ["Free entry with RSVP", "Coffee cart opens at 6 AM", "All ages welcome"],
@@ -398,6 +412,8 @@ export const DEMO_EVENTS: EventDetail[] = [
     minPricePaise: 79900,
     isFeatured: false,
     registrationsCount: 28,
+    tags: ["Workshop", "Zine", "DIY", "Art"],
+    photoUrls: [],
     description:
       "Cut, paste, photocopy, staple. Walk out with twenty printed copies of a zine you made from scratch.",
     thingsToKnow: [
@@ -420,6 +436,102 @@ export const DEMO_EVENTS: EventDetail[] = [
         quantitySold: 12,
         perks: ["Materials kit", "20 printed copies"],
         sortOrder: 0,
+      },
+    ],
+  },
+  {
+    id: "evt-sunrise-run-club",
+    title: "Sunrise Run Club — 5K",
+    category: "MEETUP_RUN",
+    city: "BENGALURU",
+    venueName: "Cubbon Park Bandstand",
+    venueAddress: "Cubbon Park, Kasturba Rd, Bengaluru 560001",
+    latitude: 12.9759,
+    longitude: 77.5946,
+    startsAt: at(2, 6),
+    endsAt: at(2, 8),
+    cardPosterUrl: "/posters/meetup-card.svg",
+    bannerPosterUrl: "/posters/meetup-banner.svg",
+    minPricePaise: 0,
+    isFeatured: false,
+    registrationsCount: 320,
+    tags: ["Run Club", "5K", "Meetup", "Free"],
+    photoUrls: [],
+    description:
+      "A free weekly 5K through Cubbon Park. Open to all paces — walkers, joggers and sub-20 runners. Coffee and chit-chat after.",
+    thingsToKnow: [
+      "Free entry, RSVP so we know headcount",
+      "Bring your own water bottle",
+      "We meet at the bandstand at 5:45 AM",
+    ],
+    feePayer: "ORGANIZER",
+    status: "PUBLISHED",
+    needsDoorStaff: false,
+    terms: DEFAULT_EVENT_TERMS,
+    organizer: organizers.cypher,
+    tiers: [
+      {
+        id: "tier-run-rsvp",
+        eventId: "evt-sunrise-run-club",
+        name: "Free RSVP",
+        pricePaise: 0,
+        quantity: 500,
+        quantitySold: 320,
+        perks: ["Route map", "Post-run coffee"],
+        sortOrder: 0,
+      },
+    ],
+  },
+  {
+    id: "evt-skate-jam-bowl",
+    title: "Bowl Skate Jam — Open Session",
+    category: "SKATE_STUNT",
+    city: "MUMBAI",
+    venueName: "Hill Road Skatepark",
+    venueAddress: "Hill Rd, Bandra West, Mumbai 400050",
+    latitude: 19.0596,
+    longitude: 72.8295,
+    startsAt: at(4, 16),
+    endsAt: at(4, 20),
+    cardPosterUrl: "/posters/skate-card.svg",
+    bannerPosterUrl: "/posters/skate-banner.svg",
+    minPricePaise: 0,
+    isFeatured: true,
+    registrationsCount: 180,
+    tags: ["Skate", "Bowl", "BMX", "Stunt", "Free"],
+    photoUrls: [],
+    description:
+      "Open bowl session for skaters, BMX and scooter riders. Best trick wins a deck. Helmets mandatory, pads recommended.",
+    thingsToKnow: [
+      "Free entry, RSVP required for the best-trick contest",
+      "Helmets mandatory — no helmet, no skate",
+      "Music, food truck and a merch pop-up on site",
+    ],
+    feePayer: "ORGANIZER",
+    status: "PUBLISHED",
+    needsDoorStaff: true,
+    terms: DEFAULT_EVENT_TERMS,
+    organizer: organizers.cypher,
+    tiers: [
+      {
+        id: "tier-skate-rsvp",
+        eventId: "evt-skate-jam-bowl",
+        name: "Free RSVP",
+        pricePaise: 0,
+        quantity: 200,
+        quantitySold: 180,
+        perks: ["Open session entry", "Best-trick contest slot"],
+        sortOrder: 0,
+      },
+      {
+        id: "tier-skate-vip",
+        eventId: "evt-skate-jam-bowl",
+        name: "Rider VIP",
+        pricePaise: 49900,
+        quantity: 30,
+        quantitySold: 14,
+        perks: ["Priority drop-in", "Event tee", "GoPro mount station"],
+        sortOrder: 1,
       },
     ],
   },

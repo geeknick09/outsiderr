@@ -2,12 +2,12 @@ import type { EventCategory, City } from "@/lib/types";
 
 export const CATEGORIES: { value: EventCategory | "ALL"; label: string }[] = [
   { value: "ALL", label: "All" },
-  { value: "JAM", label: "Jams" },
-  { value: "BATTLE", label: "Battles" },
-  { value: "GIG", label: "Gigs" },
+  { value: "CYPHER_BATTLE", label: "Cyphers & Battles" },
+  { value: "SKATE_STUNT", label: "Skate & Stunts" },
+  { value: "MEETUP_RUN", label: "Meetups & Run Clubs" },
+  { value: "JAM_GIG", label: "Jams & Gigs" },
   { value: "WORKSHOP", label: "Workshops" },
-  { value: "STANDUP", label: "Standup" },
-  { value: "SPORTS", label: "Sports" },
+  { value: "OTHER", label: "Others" },
 ];
 
 export const CITIES: { value: City; label: string; lat: number; lng: number }[] = [
@@ -42,10 +42,10 @@ export const CITY_LABELS: Record<City, string> = CITIES.reduce(
 );
 
 export const CATEGORY_LABELS: Record<EventCategory, string> = {
-  JAM: "Jams",
-  BATTLE: "Battles",
-  GIG: "Gigs",
+  CYPHER_BATTLE: "Cyphers & Battles",
+  SKATE_STUNT: "Skate & Stunts",
+  MEETUP_RUN: "Meetups & Run Clubs",
+  JAM_GIG: "Jams & Gigs",
   WORKSHOP: "Workshops",
-  STANDUP: "Standup",
-  SPORTS: "Sports",
+  OTHER: "Others",
 };

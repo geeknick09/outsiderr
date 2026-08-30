@@ -6,6 +6,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 
 export const DEMO_USER_COOKIE = "outsiderr_demo_user";
+export const DEMO_ORGANIZER_COOKIE = "outsiderr_demo_organizer";
 
 export interface CurrentUser {
   id: string;
@@ -19,12 +20,13 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   if (!isSupabaseConfigured()) {
     const raw = (await cookies()).get(DEMO_USER_COOKIE)?.value;
     if (!raw) return null;
-    const [name, phone] = decodeURIComponent(raw).split("|");
+    const email = decodeURIComponent(raw);
+    const name = email.split("@")[0] || "Demo Outsider";
     return {
       id: "demo-user",
-      name: name || "Demo Outsider",
-      phone: phone || null,
-      email: null,
+      name,
+      phone: null,
+      email,
       isDemo: true,
     };
   }
