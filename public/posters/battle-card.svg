@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000" fill="none">
+  <defs>
+    <linearGradient id="gc1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#EC4899"/>
+      <stop offset="55%" stop-color="#131320"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <radialGradient id="rc1" cx="0.2" cy="0.15" r="0.9">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="800" height="1000" fill="#0A0A0E"/>
+  <rect width="800" height="1000" fill="url(#gc1)"/>
+  <rect width="800" height="1000" fill="url(#rc1)"/>
+  <g stroke="#ffffff" stroke-opacity="0.08">
+    <line x1="0" y1="0" x2="800" y2="120"/><line x1="0" y1="83.33333333333333" x2="800" y2="203.33333333333331"/><line x1="0" y1="166.66666666666666" x2="800" y2="286.66666666666663"/><line x1="0" y1="250" x2="800" y2="370"/><line x1="0" y1="333.3333333333333" x2="800" y2="453.3333333333333"/><line x1="0" y1="416.66666666666663" x2="800" y2="536.6666666666666"/><line x1="0" y1="500" x2="800" y2="620"/><line x1="0" y1="583.3333333333333" x2="800" y2="703.3333333333333"/><line x1="0" y1="666.6666666666666" x2="800" y2="786.6666666666666"/><line x1="0" y1="750" x2="800" y2="870"/><line x1="0" y1="833.3333333333333" x2="800" y2="953.3333333333333"/><line x1="0" y1="916.6666666666666" x2="800" y2="1036.6666666666665"/>
+  </g>
+  <text x="56.00000000000001" y="720" font-family="Helvetica,Arial,sans-serif" font-size="60" font-weight="700" fill="#ffffff" letter-spacing="3.2">CYPHER BATTLES</text>
+  <text x="56.00000000000001" y="792" font-family="Helvetica,Arial,sans-serif" font-size="44" font-weight="700" fill="#8B5CF6" letter-spacing="3.2">MONSOON ROUNDS</text>
+  <text x="56.00000000000001" y="130" font-family="Helvetica,Arial,sans-serif" font-size="25.6" font-weight="700" fill="#ffffff" fill-opacity="0.7" letter-spacing="8">OUTSIDERR</text>
+</svg>

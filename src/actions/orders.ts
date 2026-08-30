@@ -1,0 +1,81 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+
+import { getCurrentUser } from "@/lib/auth";
+import {
+  approveOrder,
+  checkInTicket,
+  createOrder,
+  rejectOrder,
+} from "@/lib/data/orders";
+import type { ScanResult } from "@/lib/types";
+
+export interface CheckoutState {
+  error: string | null;
+}
+
+export async function submitPaymentAction(
+  _prev: CheckoutState,
+  formData: FormData,
+): Promise<CheckoutState> {
+  const user = await getCurrentUser();
+  const eventId = String(formData.get("eventId") ?? "");
+  const tierId = String(formData.get("tierId") ?? "");
+  const quantity = Number(formData.get("quantity") ?? 1);
+
+  if (!user) {
+    redirect(
+      `/login?next=${encodeURIComponent(`/checkout?event=${eventId}&tier=${tierId}&qty=${quantity}`)}`,
+    );
+  }
+
+  const utrReference = String(formData.get("utrReference") ?? "").trim();
+  if (utrReference.length < 6) {
+    return { error: "Enter the UTR / transaction reference from your UPI app." };
+  }
+
+  try {
+    await createOrder(user, {
+      eventId,
+      tierId,
+      quantity,
+      utrReference,
+      paymentProofUrl: (String(formData.get("paymentProofUrl") ?? "") || null),
+      buyerName: String(formData.get("buyerName") ?? "").trim() || user.name,
+      buyerPhone: String(formData.get("buyerPhone") ?? "").trim() || (user.phone ?? ""),
+    });
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Could not submit payment." };
+  }
+
+  revalidatePath("/tickets");
+  redirect("/tickets?submitted=1");
+}
+
+export async function approveOrderAction(formData: FormData): Promise<void> {
+  await approveOrder(String(formData.get("orderId") ?? ""));
+  revalidatePath("/organizer");
+  revalidatePath("/tickets");
+}
+
+export async function rejectOrderAction(formData: FormData): Promise<void> {
+  await rejectOrder(
+    String(formData.get("orderId") ?? ""),
+    String(formData.get("reason") ?? "").trim(),
+  );
+  revalidatePath("/organizer");
+  revalidatePath("/tickets");
+}
+
+export async function checkInTicketAction(qrHash: string): Promise<ScanResult> {
+  try {
+    return await checkInTicket(qrHash);
+  } catch (error) {
+    return {
+      outcome: "INVALID",
+      message: error instanceof Error ? error.message : "Scan failed.",
+    };
+  }
+}

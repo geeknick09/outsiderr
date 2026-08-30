@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #fafafa;
+  --foreground: #18181b;
+}
+
+.dark {
+  --background: #0a0a0e;
+  --foreground: #fafafa;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+}
+
+@layer utilities {
+  /* Frosted surface that adapts between the neon dark theme and the clean light theme. */
+  .glass {
+    @apply border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none dark:backdrop-blur-md;
+  }
+
+  .glass-muted {
+    @apply border border-zinc-200 bg-zinc-100/80 dark:border-white/10 dark:bg-white/[0.03];
+  }
+
+  .text-muted {
+    @apply text-zinc-500 dark:text-zinc-400;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
