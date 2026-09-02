@@ -204,20 +204,29 @@ export async function activateHeroBoost(
   }
 
   const supabase = await createClient();
-  const { data: boost } = await supabase
+  const { data: boost, error: boostError } = await supabase
     .from("hero_boosts")
     .select("*")
     .eq("id", boostId)
     .maybeSingle();
-  if (!boost) throw new Error("Boost not found.");
+  if (boostError) {
+    console.error("activateHeroBoost: select error:", boostError);
+    const msg = typeof boostError === "object" && "message" in boostError ? String(boostError.message) : "Failed to load boost.";
+    throw new Error(msg);
+  }
+  if (!boost) throw new Error("Boost not found. Check RLS policies on hero_boosts table.");
   if (boost.status !== "PENDING") throw new Error("Boost is not pending.");
 
   // Get event start time
-  const { data: event } = await supabase
+  const { data: event, error: eventError } = await supabase
     .from("events")
     .select("starts_at, status")
     .eq("id", boost.event_id)
     .maybeSingle();
+  if (eventError) {
+    console.error("activateHeroBoost: event select error:", eventError);
+    throw new Error("Failed to load event data.");
+  }
   if (!event) throw new Error("Event not found.");
   if (new Date(event.starts_at).getTime() <= Date.now()) {
     throw new Error("Cannot boost an event that has already started.");
@@ -413,12 +422,12 @@ export async function getHeroEvents(
       .map((b) => ({ boost: b, eventId: b.eventId, startedAt: b.startedAt ?? b.createdAt }));
   } else {
     const supabase = await createClient();
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("hero_boosts")
       .select("*")
       .eq("status", "ACTIVE")
       .gt("expires_at", nowIso);
-    if (!data || data.length === 0) return [];
+    if (error || !data || data.length === 0) return [];
     eligibleBoosts = data.map((row) => ({
       boost: toBoost(row),
       eventId: row.event_id,

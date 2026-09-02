@@ -17,9 +17,14 @@ export default async function AdminHeroBoostsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight">Hero Boosts</h1>
-        <p className="text-sm text-muted">Manage Hero/Featured event boosts.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-black tracking-tight">Hero Boosts</h1>
+          <p className="text-sm text-muted">Manage Hero/Featured event boosts.</p>
+        </div>
+        <Link href="/admin/boosts" className="text-sm font-semibold text-violet-neon hover:underline">
+          Slot Boosts →
+        </Link>
       </div>
 
       {/* Summary cards */}

@@ -27,26 +27,31 @@ export async function getAdminStats(): Promise<AdminStats> {
         .filter((o) => o.status === "CONFIRMED")
         .reduce((sum, o) => sum + o.totalPaise, 0),
       activeBoosts: store.boosts.filter((b) => b.status === "ACTIVE").length,
-      pendingBoosts: store.boosts.filter((b) => b.status === "PENDING").length,
+      pendingBoosts: store.boosts.filter((b) => b.status === "PENDING").length
+        + store.heroBoosts.filter((b) => b.status === "PENDING").length,
     };
   }
   const supabase = await createClient();
-  const [events, orders, boosts] = await Promise.all([
+  const [events, orders, boosts, heroBoosts] = await Promise.all([
     supabase.from("events").select("id, status"),
     supabase.from("orders").select("id, status, total_paise"),
     supabase.from("boosts").select("id, status"),
+    supabase.from("hero_boosts").select("id, status"),
   ]);
   const evts = events.data ?? [];
   const ords = orders.data ?? [];
   const bsts = boosts.data ?? [];
+  const hbsts = heroBoosts.data ?? [];
   return {
     totalEvents: evts.length,
     activeEvents: evts.filter((e) => e.status === "PUBLISHED").length,
     totalOrders: ords.length,
     pendingOrders: ords.filter((o) => o.status === "PENDING_VERIFICATION").length,
     totalRevenuePaise: ords.filter((o) => o.status === "CONFIRMED").reduce((s, o) => s + o.total_paise, 0),
-    activeBoosts: bsts.filter((b) => b.status === "ACTIVE").length,
-    pendingBoosts: bsts.filter((b) => b.status === "PENDING").length,
+    activeBoosts: bsts.filter((b) => b.status === "ACTIVE").length
+      + hbsts.filter((b) => b.status === "ACTIVE").length,
+    pendingBoosts: bsts.filter((b) => b.status === "PENDING").length
+      + hbsts.filter((b) => b.status === "PENDING").length,
   };
 }
 

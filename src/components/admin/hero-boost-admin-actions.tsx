@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 import {
   activateHeroBoostAction,
@@ -33,7 +34,7 @@ export function HeroBoostAdminActions({ boost }: { boost: HeroBoostWithEvent }) 
           <input type="hidden" name="boostId" value={boost.id} />
           <Button type="submit" size="sm" variant="secondary">
             <CheckCircle2 className="h-4 w-4 text-lime-neon" />
-            Verify & Activate
+            Verify &amp; Activate
           </Button>
         </form>
         <form action={cancelAction}>

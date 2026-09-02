@@ -1,4 +1,7 @@
+import Link from "next/link";
+
 import { getAdminStats } from "@/lib/data/admin";
+import { listPendingHeroBoosts } from "@/lib/data/hero-boosts";
 import { formatPaise } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -6,7 +9,10 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Admin Overview — Outsiderr" };
 
 export default async function AdminPage() {
-  const stats = await getAdminStats();
+  const [stats, pendingHeroBoosts] = await Promise.all([
+    getAdminStats(),
+    listPendingHeroBoosts(),
+  ]);
 
   const cards = [
     { label: "Total events", value: String(stats.totalEvents), sub: `${stats.activeEvents} live` },
@@ -35,6 +41,21 @@ export default async function AdminPage() {
           </div>
         ))}
       </div>
+
+      {/* Pending Hero Boosts alert */}
+      {pendingHeroBoosts.length > 0 ? (
+        <Link
+          href="/admin/hero-boosts"
+          className="glass flex items-center justify-between rounded-3xl border border-amber-500/30 p-5 transition-colors hover:border-amber-500/60"
+        >
+          <div>
+            <p className="text-sm font-bold text-amber-500">
+              {pendingHeroBoosts.length} Hero Boost{pendingHeroBoosts.length === 1 ? "" : "s"} awaiting verification
+            </p>
+            <p className="text-xs text-muted">Review and activate pending Hero Boost payments →</p>
+          </div>
+        </Link>
+      ) : null}
     </div>
   );
 }

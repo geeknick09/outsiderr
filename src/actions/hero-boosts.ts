@@ -15,17 +15,31 @@ import { getHeroBoostDurationDays, getHeroBoostPrice } from "@/lib/data/platform
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 
+/**
+ * Check if the current user is an admin.
+ * Mirrors the requireAdmin() logic from src/actions/admin.ts, including
+ * the fallback that allows the first user when no admin exists yet.
+ */
 async function checkAdmin(): Promise<boolean> {
   const user = await getCurrentUser();
   if (!user) return false;
   if (!isSupabaseConfigured()) return true; // Demo mode: everyone is admin
+
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data: profile } = await supabase
     .from("profiles")
     .select("is_admin")
     .eq("id", user.id)
     .maybeSingle();
-  return data?.is_admin === true;
+
+  if (profile?.is_admin) return true;
+
+  // Fallback: if no admin exists in the system yet, allow any authenticated user
+  const { count } = await supabase
+    .from("profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("is_admin", true);
+  return count === 0;
 }
 
 export async function purchaseHeroBoostAction(eventId: string): Promise<{

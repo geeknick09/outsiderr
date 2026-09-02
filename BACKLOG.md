@@ -70,12 +70,13 @@ This document tracks all product, engineering, infrastructure, payment, organize
 
 ## 7. Admin Dashboard
 
-- [x] **P15. Centralized Admin Dashboard** — Overview, events, orders, boosts, hero boosts, clubs, users, door staff, settings, legal pages. RBAC deferred.
+- [x] **P15. Centralized Admin Dashboard** — Overview, events, orders, boosts, hero boosts, clubs, users, door staff, settings, legal pages. Admin overview stats include both slot + hero boost counts. Pending hero boost alert banner. RBAC deferred.
 - [x] Admin settings page (`/admin/settings`) — saves in both demo and Supabase mode with success indicator.
 - [x] Admin door staff page (`/admin/door-staff`)
-- [x] Admin hero boosts page (`/admin/hero-boosts`) — summary cards, full boost list, verify/activate/reject/cancel actions.
+- [x] Admin hero boosts page (`/admin/hero-boosts`) — summary cards, full boost list, verify/activate/reject/cancel actions. Cross-linked to slot boosts page.
 - [x] Admin legal pages page (`/admin/legal`) — CRUD for database-backed legal pages.
 - [x] Admin users page — shows multiple demo users (not collapsed to one).
+- [x] Admin boosts page (`/admin/boosts`) — approve/reject slot-based boosts. Cross-linked to hero boosts page.
 - [ ] Admin policy management (beyond legal pages CRUD)
 - [ ] Admin analytics (DAU/MAU/trends)
 
@@ -123,6 +124,10 @@ This document tracks all product, engineering, infrastructure, payment, organize
 - [~] **P22. Loading / Buffering Animation** — Loading skeletons added. Branded animation deferred.
 - [x] **P34. Profile Dropdown UX** — Auto-close on navigation and outside click. Fixed z-index overlay (z-40 overlay, z-50 menu). Dark-mode mobile styling fixed.
 - [x] **P35. Post-Payment Success UI** — Green confirmation message + WhatsApp instructions for UTR submission on checkout and tickets pages.
+- [x] **P37. Leaflet SSR Fix** — MapPicker changed from `React.lazy()` to `next/dynamic` with `ssr: false` in both event-form and edit-event-form. Fixes `window is not defined` error on `/organizer/events/[id]`.
+- [x] **P38. Hero Boost Error Handling** — Supabase errors (PostgrestError) now properly extracted in all hero boost actions. Added `console.error` logging. `getHeroBoostForEvent` and `getHeroEvents` catch errors gracefully instead of crashing pages.
+- [x] **P39. Admin/Hero Boost Sync** — Admin overview stats now include hero boost counts (active + pending). Pending hero boost alert banner on admin overview with link to `/admin/hero-boosts`. Cross-links between Slot Boosts and Hero Boosts admin pages.
+- [x] **P40. Standalone Hero Boosts Migration** — Created `supabase/migrations/hero_boosts.sql` with table creation, settings inserts, indexes, and RLS policies for easy one-shot execution in Supabase SQL Editor.
 
 ---
 
@@ -152,10 +157,11 @@ This document tracks all product, engineering, infrastructure, payment, organize
 - [x] **Rule 1 — Inspect before modifying** — Existing patterns reused.
 - [ ] **Rule 2 — Never expose secrets** — Razorpay keys not yet in use. Must use server-only env vars.
 - [ ] **Rule 3 — Financial operations server-side** — Razorpay verification will be server-side. Hero boost activation is server-side (admin only).
-- [x] **Rule 4 — Database is source of truth** — Payment status only changes after server verification. Hero boost status managed server-side.
+- [x] **Rule 4 — Database is source of truth** — Payment status only changes after server verification. Hero boost status managed server-side. Supabase errors properly propagated to user-facing messages.
 - [x] **Rule 5 — Idempotency** — Hero boost unique index prevents duplicate active boosts. Manual UPI flow is inherently idempotent (admin verifies before activating).
 - [x] **Rule 6 — Soft delete financial records** — No hard deletes. Events use status lifecycle. Hero boosts use CANCELLED/EXPIRED, never deleted.
 - [x] **Rule 7 — Configurable business rules** — `platform_settings` table implemented. Hero boost price, duration, rotation, max visible all configurable.
+- [x] **Rule 9 — Graceful degradation** — Hero boost queries return empty arrays / null on database errors instead of crashing pages. Missing table doesn't break the homepage or organizer event page.
 - [ ] **Rule 8 — Audit important actions** — Audit log table not yet created.
 
 ---
@@ -211,10 +217,12 @@ This document tracks all product, engineering, infrastructure, payment, organize
 - [x] Centralized admin dashboard (overview, events, orders, boosts, hero boosts, clubs, users, door staff, settings, legal)
 - [x] Admin settings page (saves in demo + Supabase, success indicator)
 - [x] Admin door staff management page
-- [x] Admin hero boosts management page (verify/activate/cancel)
+- [x] Admin hero boosts management page (verify/activate/cancel, summary cards)
+- [x] Admin overview includes hero boost stats + pending alert banner
 - [x] Admin legal pages CRUD
 - [x] Admin users page (multiple demo users tracked separately)
 - [x] Admin boosts page (approve/reject slot-based boosts)
+- [x] Cross-links between Slot Boosts and Hero Boosts admin pages
 
 ### Door Staff
 - [x] Door staff tiered pricing from settings
@@ -236,10 +244,21 @@ This document tracks all product, engineering, infrastructure, payment, organize
 - [x] PWA support (manifest, service worker, icons)
 - [x] Loading skeletons
 - [x] Profile dropdown UX (auto-close, dark-mode mobile, z-index)
+- [x] Leaflet SSR fix (next/dynamic ssr:false instead of React.lazy)
+- [x] Hero boost error handling (Supabase error extraction, graceful degradation)
+- [x] Admin/hero boost sync (overview stats include hero boosts, pending alert banner, cross-links)
+- [x] Standalone hero_boosts migration SQL file (`supabase/migrations/hero_boosts.sql`)
 
 ---
 
-## 17. Remaining Work (Not Started)
+## 17. Known Issues & Action Required
+
+- [ ] **Run `supabase/migrations/hero_boosts.sql`** in Supabase SQL Editor — The `hero_boosts` table, `contact_email`/`contact_phone` columns, and hero platform settings must be created in your Supabase project. Without this, Hero Boost purchases will fail with a database error.
+- [ ] **Set `NEXT_PUBLIC_PLATFORM_UPI_ID`** env var — Required for the UPI QR code displayed in the Hero Boost payment panel.
+
+---
+
+## 18. Remaining Work (Not Started)
 
 ### High Priority
 - [ ] **Razorpay Integration** — Server-side order creation, Checkout, payment verification, webhook handling, auto-refunds.
@@ -270,7 +289,7 @@ This document tracks all product, engineering, infrastructure, payment, organize
 
 ---
 
-## 18. Recommended Development Order
+## 19. Recommended Development Order
 
 ### PHASE 1 — Core launch (P0)
 1. [x] Platform settings table

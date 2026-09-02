@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { adminApproveBoostAction, adminRejectBoostAction } from "@/actions/admin";
 import { Badge } from "@/components/ui/badge";
 import { listBoostSlotPrices, listOccupiedSlots, listPendingBoosts } from "@/lib/data/boosts";
@@ -17,9 +19,14 @@ export default async function AdminBoostsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-black">Boosts</h1>
-        <p className="text-sm text-muted">{pending.length} pending approval</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-black">Slot Boosts</h1>
+          <p className="text-sm text-muted">{pending.length} pending approval</p>
+        </div>
+        <Link href="/admin/hero-boosts" className="text-sm font-semibold text-violet-neon hover:underline">
+          Hero Boosts →
+        </Link>
       </div>
 
       {/* Slot grid */}
