@@ -1,10 +1,25 @@
-// Outsiderr service worker — offline shell caching.
-const CACHE = "outsiderr-v1";
-const PRECACHE = ["/", "/manifest.webmanifest", "/icon.svg"];
+// Outsiderr service worker — app-like caching with stale-while-revalidate
+const CACHE_VERSION = "outsiderr-v2";
+const STATIC_CACHE = `${CACHE_VERSION}-static`;
+const PAGE_CACHE = `${CACHE_VERSION}-pages`;
+const IMAGE_CACHE = `${CACHE_VERSION}-images`;
+
+// Precache the app shell
+const PRECACHE = [
+  "/",
+  "/manifest.webmanifest",
+  "/icon.svg",
+];
+
+// Max items in image cache (LRU eviction)
+const IMAGE_CACHE_MAX = 60;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting()),
+    caches
+      .open(STATIC_CACHE)
+      .then((cache) => cache.addAll(PRECACHE))
+      .then(() => self.skipWaiting()),
   );
 });
 
@@ -12,46 +27,113 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((k) => !k.startsWith(CACHE_VERSION))
+            .map((k) => caches.delete(k)),
+        ),
+      )
       .then(() => self.clients.claim()),
   );
 });
+
+// Helper: limit cache size (LRU)
+async function trimCache(cacheName, maxItems) {
+  const cache = await caches.open(cacheName);
+  const keys = await cache.keys();
+  if (keys.length > maxItems) {
+    for (let i = 0; i < keys.length - maxItems; i++) {
+      await cache.delete(keys[i]);
+    }
+  }
+}
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
 
   const url = new URL(request.url);
-  if (url.origin !== self.location.origin) return;
+  const sameOrigin = url.origin === self.location.origin;
 
-  // Network-first for navigations so users always get fresh HTML.
+  // --- Navigations: network-first, fall back to cache, then to "/" ---
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
         .then((response) => {
           const copy = response.clone();
-          caches.open(CACHE).then((cache) => cache.put(request, copy));
+          caches.open(PAGE_CACHE).then((cache) => cache.put(request, copy));
           return response;
         })
-        .catch(() => caches.match(request).then((cached) => cached || caches.match("/"))),
+        .catch(async () => {
+          const cached = await caches.match(request);
+          if (cached) return cached;
+          const fallback = await caches.match("/");
+          return fallback || Response.error();
+        }),
     );
     return;
   }
 
-  // Cache-first for static assets.
-  event.respondWith(
-    caches.match(request).then(
-      (cached) =>
-        cached ||
-        fetch(request).then((response) => {
-          if (response.ok && url.pathname.startsWith("/_next/static/")) {
+  // --- Same-origin static assets: stale-while-revalidate ---
+  if (sameOrigin && url.pathname.startsWith("/_next/static/")) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        const fetchPromise = fetch(request).then((response) => {
+          if (response.ok) {
             const copy = response.clone();
-            caches.open(CACHE).then((cache) => cache.put(request, copy));
+            caches.open(STATIC_CACHE).then((cache) => cache.put(request, copy));
           }
           return response;
-        }),
-    ),
-  );
+        });
+        return cached || fetchPromise;
+      }),
+    );
+    return;
+  }
+
+  // --- Images (same-origin or Supabase Storage): cache-first with background update ---
+  const isImage =
+    request.destination === "image" ||
+    /\.(?:png|jpg|jpeg|gif|webp|svg|avif)$/i.test(url.pathname);
+
+  if (isImage) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        const fetchPromise = fetch(request)
+          .then((response) => {
+            if (response.ok) {
+              const copy = response.clone();
+              caches
+                .open(IMAGE_CACHE)
+                .then((cache) => cache.put(request, copy))
+                .then(() => trimCache(IMAGE_CACHE, IMAGE_CACHE_MAX));
+            }
+            return response;
+          })
+          .catch(() => cached);
+        return cached || fetchPromise;
+      }),
+    );
+    return;
+  }
+
+  // --- Other same-origin GET: stale-while-revalidate ---
+  if (sameOrigin) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        const fetchPromise = fetch(request).then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(STATIC_CACHE).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        });
+        return cached || fetchPromise;
+      }),
+    );
+    return;
+  }
 });
 
 // Push notifications
@@ -85,4 +167,9 @@ self.addEventListener("notificationclick", (event) => {
         if (self.clients.openWindow) return self.clients.openWindow(url);
       }),
   );
+});
+
+// Allow page to trigger immediate SW activation
+self.addEventListener("message", (event) => {
+  if (event.data === "SKIP_WAITING") self.skipWaiting();
 });

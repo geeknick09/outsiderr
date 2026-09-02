@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { LayoutDashboard, LogOut, ScanLine, ShieldCheck, Ticket, User } from "lucide-react";
+import { LayoutDashboard, LogOut, Info, Mail, Megaphone, ShieldCheck, Ticket, User } from "lucide-react";
 
 import { signOutAction } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
@@ -10,9 +10,11 @@ import { Button } from "@/components/ui/button";
 export function UserMenu({
   name,
   isAdmin,
+  isOrganizer,
 }: {
   name: string | null;
   isAdmin: boolean;
+  isOrganizer: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -47,16 +49,19 @@ export function UserMenu({
           />
           <div
             role="menu"
-            className="glass absolute right-0 z-50 mt-2 w-52 overflow-hidden rounded-2xl p-2"
+            className="glass absolute right-0 z-50 mt-2 w-52 overflow-hidden rounded-2xl border border-zinc-200 bg-white p-2 dark:border-white/10 dark:bg-zinc-900"
           >
             <MenuLink href="/tickets" onSelect={() => setOpen(false)}>
               <Ticket className="h-4 w-4" /> My Tickets
             </MenuLink>
             <MenuLink href="/organizer" onSelect={() => setOpen(false)}>
-              <LayoutDashboard className="h-4 w-4" /> Organizer
+              <Megaphone className="h-4 w-4" /> {isOrganizer ? "Organize Events" : "Become an Organizer"}
             </MenuLink>
-            <MenuLink href="/organizer/scan" onSelect={() => setOpen(false)}>
-              <ScanLine className="h-4 w-4" /> Door Scanner
+            <MenuLink href="/about" onSelect={() => setOpen(false)}>
+              <Info className="h-4 w-4" /> About Us
+            </MenuLink>
+            <MenuLink href="/contact" onSelect={() => setOpen(false)}>
+              <Mail className="h-4 w-4" /> Contact Us
             </MenuLink>
             {isAdmin ? (
               <MenuLink href="/admin" onSelect={() => setOpen(false)}>

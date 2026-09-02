@@ -2,6 +2,43 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Leaflet map CSS */
+@import "leaflet/dist/leaflet.css";
+
+/* App-like scrolling: smooth, momentum, no overscroll bounce */
+html {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: none;
+}
+
+body {
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Hide scrollbars on horizontal scroll containers for app feel */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Faster tap response on mobile */
+button, a, [role="button"] {
+  touch-action: manipulation;
+}
+
+/* Prevent text selection on UI elements for app feel */
+button, [role="button"] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 :root {
   --background: #fafafa;
   --foreground: #18181b;

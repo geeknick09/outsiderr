@@ -1,0 +1,78 @@
+﻿   Γû▓ Next.js 15.5.23
+   - Environments: .env
+
+   Creating an optimized production build ...
+npx : <w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (107kiB) impacts deserialization performance 
+(consider using Buffer instead and decode when needed)
+At line:1 char:188
++ ... ntinue; $env:NEXT_TELEMETRY_DISABLED="1"; npx next build 2>&1 | Out-F ...
++                                               ~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (<w> [webpack.ca...de when needed):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (259kiB) impacts deserialization performance 
+(consider using Buffer instead and decode when needed)
+ Γ£ô Compiled successfully in 48s
+   Linting and checking validity of types ...
+
+./src/components/layout/user-menu.tsx
+5:10  Warning: 'LayoutDashboard' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/organizer/hero-boost-panel.tsx
+4:48  Warning: 'Loader2' is defined but never used.  @typescript-eslint/no-unused-vars
+90:13  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+   Collecting page data ...
+   Generating static pages (0/10) ...
+   Generating static pages (2/10) 
+   Generating static pages (4/10) 
+   Generating static pages (7/10) 
+ Γ£ô Generating static pages (10/10)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+Γöî ╞Æ /                                    4.35 kB         125 kB
+Γö£ ╞Æ /_not-found                            999 B         104 kB
+Γö£ ╞Æ /about                                 175 B         103 kB
+Γö£ ╞Æ /admin                                 175 B         103 kB
+Γö£ ╞Æ /admin/boosts                          175 B         103 kB
+Γö£ ╞Æ /admin/clubs                           175 B         103 kB
+Γö£ ╞Æ /admin/door-staff                      175 B         103 kB
+Γö£ ╞Æ /admin/events                          165 B         106 kB
+Γö£ ╞Æ /admin/hero-boosts                   1.58 kB         117 kB
+Γö£ ╞Æ /admin/legal                         2.14 kB         114 kB
+Γö£ ╞Æ /admin/orders                        2.32 kB         105 kB
+Γö£ ╞Æ /admin/settings                      2.06 kB         114 kB
+Γö£ ╞Æ /admin/users                           175 B         103 kB
+Γö£ Γùï /apple-icon                            175 B         103 kB
+Γö£ ╞Æ /auth/callback                         175 B         103 kB
+Γö£ ╞Æ /checkout                            3.13 kB         201 kB
+Γö£ ╞Æ /clubs                                 825 B         107 kB
+Γö£ ╞Æ /clubs/[id]                          3.02 kB         127 kB
+Γö£ ╞Æ /clubs/create                        4.08 kB         188 kB
+Γö£ ╞Æ /contact                               175 B         103 kB
+Γö£ ╞Æ /events/[id]                         5.35 kB         126 kB
+Γö£ Γùï /icon                                  175 B         103 kB
+Γö£ ╞Æ /legal/[slug]                          175 B         103 kB
+Γö£ ╞Æ /login                               2.33 kB         183 kB
+Γö£ Γùï /manifest.webmanifest                  175 B         103 kB
+Γö£ ╞Æ /organizer                           8.73 kB         215 kB
+Γö£ ╞Æ /organizer/boost                     2.97 kB         127 kB
+Γö£ ╞Æ /organizer/events/[id]               10.2 kB         211 kB
+Γö£ ╞Æ /organizer/events/[id]/report        1.31 kB         104 kB
+Γö£ ╞Æ /organizer/scan                       110 kB         226 kB
+Γö£ ╞Æ /organizers/[id]                       827 B         112 kB
+Γöö ╞Æ /tickets                              1.6 kB         116 kB
++ First Load JS shared by all             103 kB
+  Γö£ chunks/1255-a20f6c5e797a687b.js      46.4 kB
+  Γö£ chunks/4bd1b696-f785427dddbba9fb.js  54.2 kB
+  Γöö other shared chunks (total)          2.06 kB
+
+
+╞Æ Middleware                             93.3 kB
+
+Γùï  (Static)   prerendered as static content
+╞Æ  (Dynamic)  server-rendered on demand
+

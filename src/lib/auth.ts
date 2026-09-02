@@ -22,8 +22,23 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     if (!raw) return null;
     const email = decodeURIComponent(raw);
     const name = email.split("@")[0] || "Demo Outsider";
+    const id = `demo-${email.toLowerCase()}`;
+    // Track this user in the demo store so admin can see all users
+    const { demoStore } = await import("@/lib/data/demo-store");
+    const store = demoStore();
+    if (!store.users.find((u) => u.id === id)) {
+      store.users.push({
+        id,
+        fullName: name,
+        phone: null,
+        avatarUrl: null,
+        isOrganizer: false,
+        isAdmin: false,
+        createdAt: new Date().toISOString(),
+      });
+    }
     return {
-      id: "demo-user",
+      id,
       name,
       phone: null,
       email,

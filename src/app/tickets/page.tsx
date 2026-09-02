@@ -6,6 +6,7 @@ import { QrCode } from "@/components/ui/qr-code";
 import { DownloadQrButton } from "@/components/ui/download-qr-button";
 import { getCurrentUser } from "@/lib/auth";
 import { listMyOrders, listMyTickets } from "@/lib/data/orders";
+import { getOrganizerWhatsappNumber } from "@/lib/data/platform-settings";
 import { formatDateTime, formatPaise } from "@/lib/format";
 import type { OrderStatus } from "@/lib/types";
 
@@ -18,6 +19,7 @@ const STATUS_TONE: Record<OrderStatus, "warning" | "success" | "danger" | "neutr
   CONFIRMED: "success",
   REJECTED: "danger",
   CANCELLED: "neutral",
+  REFUNDED: "neutral",
 };
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
@@ -25,6 +27,7 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
   CONFIRMED: "Confirmed",
   REJECTED: "Rejected",
   CANCELLED: "Cancelled",
+  REFUNDED: "Refunded",
 };
 
 export default async function TicketsPage({
@@ -36,9 +39,10 @@ export default async function TicketsPage({
   if (!user) redirect("/login?next=%2Ftickets");
 
   const { submitted } = await searchParams;
-  const [orders, tickets] = await Promise.all([
+  const [orders, tickets, whatsappNumber] = await Promise.all([
     listMyOrders(user),
     listMyTickets(user),
+    getOrganizerWhatsappNumber(),
   ]);
 
   return (
@@ -51,9 +55,22 @@ export default async function TicketsPage({
       </div>
 
       {submitted ? (
-        <p className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-700 dark:text-emerald-300">
-          Payment submitted. The organizer will verify your UTR shortly.
-        </p>
+        <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-5 text-sm text-emerald-700 dark:text-emerald-300">
+          <p className="text-base font-black">✓ Booking done!</p>
+          <p className="mt-1">
+            Send your payment screenshot to{" "}
+            <a
+              href={`https://wa.me/91${whatsappNumber}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-bold underline"
+            >
+              +91 {whatsappNumber}
+            </a>{" "}
+            on WhatsApp. Your ticket will be shared via email or WhatsApp after the
+            organizer confirms your payment.
+          </p>
+        </div>
       ) : null}
 
       <section className="space-y-3">

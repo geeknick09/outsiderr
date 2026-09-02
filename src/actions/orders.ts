@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/lib/auth";
 import {
   approveOrder,
   checkInTicket,
+  createFreeOrder,
   createOrder,
   rejectOrder,
 } from "@/lib/data/orders";
@@ -24,6 +25,7 @@ export async function submitPaymentAction(
   const eventId = String(formData.get("eventId") ?? "");
   const tierId = String(formData.get("tierId") ?? "");
   const quantity = Number(formData.get("quantity") ?? 1);
+  const isFree = formData.get("isFree") === "1";
 
   if (!user) {
     redirect(
@@ -31,6 +33,28 @@ export async function submitPaymentAction(
     );
   }
 
+  // Free events: skip UTR, auto-confirm
+  if (isFree) {
+    try {
+      await createFreeOrder(user, {
+        eventId,
+        tierId,
+        quantity,
+        buyerName: String(formData.get("buyerName") ?? "").trim() || user.name,
+        buyerPhone: String(formData.get("buyerPhone") ?? "").trim() || (user.phone ?? ""),
+        buyerEmail: String(formData.get("buyerEmail") ?? "").trim() || null,
+        buyerGender: String(formData.get("buyerGender") ?? "").trim() || null,
+      });
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : "Could not complete RSVP.",
+      };
+    }
+    revalidatePath("/tickets");
+    redirect("/tickets?submitted=1");
+  }
+
+  // Paid events: require UTR
   const utrReference = String(formData.get("utrReference") ?? "").trim();
   if (utrReference.length < 6) {
     return { error: "Enter the UTR / transaction reference from your UPI app." };
@@ -45,6 +69,8 @@ export async function submitPaymentAction(
       paymentProofUrl: (String(formData.get("paymentProofUrl") ?? "") || null),
       buyerName: String(formData.get("buyerName") ?? "").trim() || user.name,
       buyerPhone: String(formData.get("buyerPhone") ?? "").trim() || (user.phone ?? ""),
+      buyerEmail: String(formData.get("buyerEmail") ?? "").trim() || null,
+      buyerGender: String(formData.get("buyerGender") ?? "").trim() || null,
     });
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Could not submit payment." };
@@ -69,9 +95,9 @@ export async function rejectOrderAction(formData: FormData): Promise<void> {
   revalidatePath("/tickets");
 }
 
-export async function checkInTicketAction(qrHash: string): Promise<ScanResult> {
+export async function checkInTicketAction(qrHash: string, eventId: string): Promise<ScanResult> {
   try {
-    return await checkInTicket(qrHash);
+    return await checkInTicket(qrHash, eventId);
   } catch (error) {
     return {
       outcome: "INVALID",

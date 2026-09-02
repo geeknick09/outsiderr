@@ -19,6 +19,18 @@ export interface CreateOrderInput {
   paymentProofUrl: string | null;
   buyerName: string;
   buyerPhone: string;
+  buyerEmail: string | null;
+  buyerGender: string | null;
+}
+
+export interface CreateFreeOrderInput {
+  eventId: string;
+  tierId: string;
+  quantity: number;
+  buyerName: string;
+  buyerPhone: string;
+  buyerEmail: string | null;
+  buyerGender: string | null;
 }
 
 function ticketHash(orderId: string, index: number): string {
@@ -51,6 +63,7 @@ export async function createOrder(
       eventTitle: event.title,
       tierId: tier.id,
       tierName: tier.name,
+      userId: user.id,
       quantity: input.quantity,
       unitPricePaise: tier.pricePaise,
       subtotalPaise: price.subtotalPaise,
@@ -62,6 +75,8 @@ export async function createOrder(
       paymentProofUrl: input.paymentProofUrl,
       buyerName: input.buyerName,
       buyerPhone: input.buyerPhone,
+      buyerEmail: input.buyerEmail,
+      buyerGender: input.buyerGender,
       rejectionReason: null,
       createdAt: new Date().toISOString(),
     };
@@ -87,6 +102,8 @@ export async function createOrder(
       payment_proof_url: input.paymentProofUrl,
       buyer_name: input.buyerName,
       buyer_phone: input.buyerPhone,
+      buyer_email: input.buyerEmail,
+      buyer_gender: input.buyerGender,
     })
     .select("*")
     .single();
@@ -98,6 +115,7 @@ export async function createOrder(
     eventTitle: event.title,
     tierId: tier.id,
     tierName: tier.name,
+    userId: data.user_id,
     quantity: data.quantity,
     unitPricePaise: data.unit_price_paise,
     subtotalPaise: data.subtotal_paise,
@@ -109,6 +127,112 @@ export async function createOrder(
     paymentProofUrl: data.payment_proof_url,
     buyerName: data.buyer_name,
     buyerPhone: data.buyer_phone,
+    buyerEmail: data.buyer_email ?? null,
+    buyerGender: data.buyer_gender ?? null,
+    rejectionReason: data.rejection_reason,
+    createdAt: data.created_at,
+  };
+}
+
+/**
+ * Create a free order — auto-confirmed with tickets minted immediately.
+ * No UTR, no organizer verification needed.
+ */
+export async function createFreeOrder(
+  user: CurrentUser,
+  input: CreateFreeOrderInput,
+): Promise<Order> {
+  if (input.quantity < 1 || input.quantity > MAX_TICKETS_PER_ORDER) {
+    throw new Error(`Choose between 1 and ${MAX_TICKETS_PER_ORDER} tickets.`);
+  }
+
+  const event = await getEvent(input.eventId);
+  const tier = event?.tiers.find((candidate) => candidate.id === input.tierId);
+  if (!event || !tier) throw new Error("This ticket tier is no longer available.");
+  if (tier.pricePaise !== 0) throw new Error("This tier is not free.");
+  if (tier.quantity - tier.quantitySold < input.quantity) {
+    throw new Error("Not enough tickets left.");
+  }
+
+  if (!isSupabaseConfigured()) {
+    const order: Order = {
+      id: `order-${randomUUID()}`,
+      eventId: event.id,
+      eventTitle: event.title,
+      tierId: tier.id,
+      tierName: tier.name,
+      userId: user.id,
+      quantity: input.quantity,
+      unitPricePaise: 0,
+      subtotalPaise: 0,
+      platformFeePaise: 0,
+      totalPaise: 0,
+      feePayer: event.feePayer,
+      status: "CONFIRMED",
+      utrReference: null,
+      paymentProofUrl: null,
+      buyerName: input.buyerName,
+      buyerPhone: input.buyerPhone,
+      buyerEmail: input.buyerEmail,
+      buyerGender: input.buyerGender,
+      rejectionReason: null,
+      createdAt: new Date().toISOString(),
+    };
+    demoStore().orders.unshift(order);
+
+    // Mint tickets immediately
+    tier.quantitySold += input.quantity;
+    event.registrationsCount += input.quantity;
+    for (let index = 0; index < input.quantity; index += 1) {
+      demoStore().tickets.unshift({
+        id: `ticket-${randomUUID()}`,
+        orderId: order.id,
+        eventId: event.id,
+        eventTitle: event.title,
+        tierName: tier.name,
+        qrHash: ticketHash(order.id, index),
+        status: "VALID",
+        checkedInAt: null,
+        startsAt: event.startsAt,
+        venueName: event.venueName,
+      });
+    }
+    return order;
+  }
+
+  // Supabase: use the create_free_order RPC (auto-confirms + mints tickets)
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("create_free_order", {
+    p_event_id: input.eventId,
+    p_tier_id: input.tierId,
+    p_quantity: input.quantity,
+    p_buyer_name: input.buyerName || null,
+    p_buyer_phone: input.buyerPhone || null,
+    p_buyer_email: input.buyerEmail || null,
+    p_buyer_gender: input.buyerGender || null,
+  });
+  if (error) throw error;
+
+  return {
+    id: data.id,
+    eventId: event.id,
+    eventTitle: event.title,
+    tierId: tier.id,
+    tierName: tier.name,
+    userId: data.user_id,
+    quantity: data.quantity,
+    unitPricePaise: data.unit_price_paise,
+    subtotalPaise: data.subtotal_paise,
+    platformFeePaise: data.platform_fee_paise,
+    totalPaise: data.total_paise,
+    feePayer: data.fee_payer,
+    status: data.status,
+    utrReference: data.utr_reference,
+    paymentProofUrl: data.payment_proof_url,
+    buyerName: data.buyer_name,
+    buyerPhone: data.buyer_phone,
+    buyerEmail: data.buyer_email ?? null,
+    buyerGender: data.buyer_gender ?? null,
     rejectionReason: data.rejection_reason,
     createdAt: data.created_at,
   };
@@ -119,6 +243,7 @@ async function hydrateOrders(
     id: string;
     event_id: string;
     tier_id: string;
+    user_id: string | null;
     quantity: number;
     unit_price_paise: number;
     subtotal_paise: number;
@@ -130,6 +255,8 @@ async function hydrateOrders(
     payment_proof_url: string | null;
     buyer_name: string | null;
     buyer_phone: string | null;
+    buyer_email: string | null;
+    buyer_gender: string | null;
     rejection_reason: string | null;
     created_at: string;
   }[],
@@ -149,6 +276,7 @@ async function hydrateOrders(
     eventTitle: events?.find((event) => event.id === row.event_id)?.title ?? "Event",
     tierId: row.tier_id,
     tierName: tiers?.find((tier) => tier.id === row.tier_id)?.name ?? "Ticket",
+    userId: row.user_id,
     quantity: row.quantity,
     unitPricePaise: row.unit_price_paise,
     subtotalPaise: row.subtotal_paise,
@@ -160,6 +288,8 @@ async function hydrateOrders(
     paymentProofUrl: row.payment_proof_url,
     buyerName: row.buyer_name,
     buyerPhone: row.buyer_phone,
+    buyerEmail: row.buyer_email ?? null,
+    buyerGender: row.buyer_gender ?? null,
     rejectionReason: row.rejection_reason,
     createdAt: row.created_at,
   }));
@@ -291,13 +421,17 @@ export async function rejectOrder(orderId: string, reason: string): Promise<void
   if (error) throw error;
 }
 
-export async function checkInTicket(qrHash: string): Promise<ScanResult> {
+export async function checkInTicket(qrHash: string, eventId: string): Promise<ScanResult> {
   const hash = qrHash.trim();
 
   if (!isSupabaseConfigured()) {
     const ticket = demoStore().tickets.find((candidate) => candidate.qrHash === hash);
     if (!ticket) {
       return { outcome: "INVALID", message: "Ticket not recognised." };
+    }
+    // Validate ticket belongs to the selected event
+    if (ticket.eventId !== eventId) {
+      return { outcome: "INVALID", message: "This ticket is for a different event." };
     }
     if (ticket.status !== "VALID") {
       return {
@@ -326,7 +460,7 @@ export async function checkInTicket(qrHash: string): Promise<ScanResult> {
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("check_in_ticket", { p_qr_hash: hash });
+  const { data, error } = await supabase.rpc("check_in_ticket", { p_qr_hash: hash, p_event_id: eventId });
   if (error) throw error;
 
   const row = data?.[0];

@@ -4,7 +4,7 @@ import { DEMO_ORGANIZERS } from "@/lib/data/demo-data";
 import { demoStore } from "@/lib/data/demo-store";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
-import type { Organizer, EventSummary } from "@/lib/types";
+import type { Organizer, EventSummary, PricingMode } from "@/lib/types";
 
 export async function getPublicOrganizer(id: string): Promise<Organizer | null> {
   if (!isSupabaseConfigured()) {
@@ -49,6 +49,7 @@ export async function listPublicOrganizerEvents(
         isFeatured: ev.isFeatured,
         registrationsCount: ev.registrationsCount,
         tags: ev.tags ?? [],
+        pricingMode: ev.pricingMode ?? "PAID",
       }));
   }
 
@@ -88,6 +89,7 @@ export async function listPublicOrganizerEvents(
       isFeatured: event.is_featured,
       registrationsCount: event.registrations_count,
       tags: event.tags ?? [],
+      pricingMode: (event.pricing_mode ?? "PAID") as PricingMode,
     };
   });
 }

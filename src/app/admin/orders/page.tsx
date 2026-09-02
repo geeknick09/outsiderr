@@ -14,6 +14,7 @@ const TONE: Record<OrderStatus, "warning" | "success" | "danger" | "neutral"> = 
   CONFIRMED: "success",
   REJECTED: "danger",
   CANCELLED: "neutral",
+  REFUNDED: "neutral",
 };
 
 export default async function AdminOrdersPage({

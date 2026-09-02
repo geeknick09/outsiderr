@@ -4,9 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/lib/auth";
-import { createOrganizerProfile } from "@/lib/data/organizer";
+import { createOrganizerProfile, updateOrganizerProfile } from "@/lib/data/organizer";
 
 export interface CreateOrganizerState {
+  error: string | null;
+}
+
+export interface UpdateOrganizerState {
   error: string | null;
 }
 
@@ -35,4 +39,31 @@ export async function createOrganizerAction(
 
   revalidatePath("/organizer");
   redirect("/organizer");
+}
+
+export async function updateOrganizerAction(
+  _prev: UpdateOrganizerState,
+  formData: FormData,
+): Promise<UpdateOrganizerState> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?next=%2Forganizer");
+
+  const name = String(formData.get("name") ?? "").trim();
+  const bio = String(formData.get("bio") ?? "").trim();
+  const upiId = String(formData.get("upiId") ?? "").trim();
+  const avatarUrl = String(formData.get("avatarUrl") ?? "").trim() || null;
+
+  if (!name) return { error: "Enter your organizer name." };
+  if (!upiId) return { error: "Enter a UPI ID so attendees can pay you." };
+
+  try {
+    await updateOrganizerProfile(user, { name, bio, upiId, avatarUrl });
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Could not update organizer profile.",
+    };
+  }
+
+  revalidatePath("/organizer");
+  return { error: null };
 }

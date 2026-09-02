@@ -4,7 +4,7 @@ export const CATEGORIES: { value: EventCategory | "ALL"; label: string }[] = [
   { value: "ALL", label: "All" },
   { value: "CYPHER_BATTLE", label: "Cyphers & Battles" },
   { value: "SKATE_STUNT", label: "Skate & Stunts" },
-  { value: "MEETUP_RUN", label: "Meetups & Run Clubs" },
+  { value: "FITNESS", label: "Fitness" },
   { value: "JAM_GIG", label: "Jams & Gigs" },
   { value: "WORKSHOP", label: "Workshops" },
   { value: "OTHER", label: "Others" },
@@ -23,7 +23,7 @@ export const DEFAULT_CITY: City = "KOLKATA";
 export const PLATFORM_FEE_BPS = 500;
 
 /** Hard cap on tickets a single order may contain. */
-export const MAX_TICKETS_PER_ORDER = 5;
+export const MAX_TICKETS_PER_ORDER = 1;
 
 export const MAX_FEATURED_EVENTS = 5;
 
@@ -44,8 +44,26 @@ export const CITY_LABELS: Record<City, string> = CITIES.reduce(
 export const CATEGORY_LABELS: Record<EventCategory, string> = {
   CYPHER_BATTLE: "Cyphers & Battles",
   SKATE_STUNT: "Skate & Stunts",
-  MEETUP_RUN: "Meetups & Run Clubs",
+  FITNESS: "Fitness",
   JAM_GIG: "Jams & Gigs",
   WORKSHOP: "Workshops",
   OTHER: "Others",
 };
+
+export const PREDEFINED_EVENT_TAGS: string[] = [
+  // Access
+  "Free Entry", "Limited Seats", "18+", "All Ages",
+  // Setting
+  "Outdoor", "Indoor", "Underground", "Street", "Collab",
+  // Cypher / Battle / Rap
+  "Cypher", "Rap Cypher", "Rap Battle", "Dance Battle", "Graffiti Cypher",
+  "Freestyle", "Open Mic", "Beatbox",
+  // Skate / Stunt / MTB
+  "Skate", "Street Skate", "BMX", "MTB", "MTB Stunt", "Stunt Riding",
+  // Fitness / Run
+  "Run Club", "5K", "10K", "Marathon", "Walkathon", "Trail Run",
+  // Gig / Jam
+  "Live Music", "DJ Set", "Open Decks", "Electronic", "Acoustic",
+  // Workshop
+  "Workshop", "Masterclass", "Photo Walk",
+];

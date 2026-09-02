@@ -1,12 +1,59 @@
--- Outsider (outsiderr.in) — Phase 1 schema.
--- Run with: supabase db reset  (or paste into the Supabase SQL editor).
+-- ================================================================
+-- Outsiderr — complete schema (idempotent, safe to re-run)
+-- Paste into the Supabase SQL Editor and click Run.
+--
+-- The schema will also create the "event-media" storage bucket and
+-- its RLS policies automatically (see the Storage section below).
+-- ================================================================
 
 create extension if not exists "pgcrypto";
 
 -- ---------------------------------------------------------------- enums
+-- Event status: DRAFT → PUBLISHED → CANCELLATION_REQUESTED → CANCELLED
+--                                     or → POSTPONED
 do $$ begin
-  create type event_category as enum ('CYPHER_BATTLE','SKATE_STUNT','MEETUP_RUN','JAM_GIG','WORKSHOP','OTHER');
+  create type public.event_status as enum ('DRAFT','PUBLISHED','CANCELLATION_REQUESTED','CANCELLED','POSTPONED');
 exception when duplicate_object then null; end $$;
+
+-- Refund status
+do $$ begin
+  create type public.refund_status as enum ('PENDING','INITIATED','COMPLETED','FAILED');
+exception when duplicate_object then null; end $$;
+
+-- Notification type for event updates
+do $$ begin
+  create type public.event_notification_type as enum ('CANCELLATION','POSTPONEMENT','RESCHEDULE');
+exception when duplicate_object then null; end $$;
+do $$ begin
+  create type event_category as enum (
+    'CYPHER_BATTLE','SKATE_STUNT','FITNESS','JAM_GIG','WORKSHOP','OTHER'
+  );
+exception when duplicate_object then null; end $$;
+
+-- Ensure FITNESS exists — handles DBs that still have MEETUP_RUN or are missing FITNESS
+do $$
+begin
+  if not exists (
+    select 1 from pg_enum e join pg_type t on e.enumtypid = t.oid
+    where t.typname = 'event_category' and e.enumlabel = 'FITNESS'
+  ) then
+    if exists (
+      select 1 from pg_enum e join pg_type t on e.enumtypid = t.oid
+      where t.typname = 'event_category' and e.enumlabel = 'MEETUP_RUN'
+    ) then
+      alter type event_category rename value 'MEETUP_RUN' to 'FITNESS';
+    else
+      alter type event_category add value 'FITNESS';
+    end if;
+  end if;
+end $$;
+
+-- Ensure all category values exist (handles DBs with partial old enums)
+alter type event_category add value if not exists 'CYPHER_BATTLE';
+alter type event_category add value if not exists 'SKATE_STUNT';
+alter type event_category add value if not exists 'JAM_GIG';
+alter type event_category add value if not exists 'WORKSHOP';
+alter type event_category add value if not exists 'OTHER';
 
 do $$ begin
   create type city as enum ('KOLKATA','MUMBAI','DELHI','BENGALURU');
@@ -16,12 +63,12 @@ do $$ begin
   create type fee_payer as enum ('BUYER','ORGANIZER');
 exception when duplicate_object then null; end $$;
 
-do $$ begin
-  create type event_status as enum ('DRAFT','PUBLISHED','CANCELLED');
-exception when duplicate_object then null; end $$;
+-- (event_status, order_status, ticket_status, etc. are defined above)
 
 do $$ begin
-  create type order_status as enum ('PENDING_VERIFICATION','CONFIRMED','REJECTED','CANCELLED');
+  create type order_status as enum (
+    'PENDING_VERIFICATION','CONFIRMED','REJECTED','CANCELLED'
+  );
 exception when duplicate_object then null; end $$;
 
 do $$ begin
@@ -29,110 +76,402 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 
 -- ---------------------------------------------------------------- tables
+
 create table if not exists public.profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  full_name text,
-  phone text,
-  avatar_url text,
-  theme_preference text not null default 'dark' check (theme_preference in ('dark','light','system')),
-  is_organizer boolean not null default false,
-  created_at timestamptz not null default now()
+  id               uuid        primary key references auth.users(id) on delete cascade,
+  full_name        text,
+  phone            text,
+  avatar_url       text,
+  theme_preference text        not null default 'dark'
+                               check (theme_preference in ('dark','light','system')),
+  is_organizer     boolean     not null default false,
+  is_admin         boolean     not null default false,
+  created_at       timestamptz not null default now()
 );
 
 create table if not exists public.organizers (
-  id uuid primary key default gen_random_uuid(),
-  owner_id uuid not null references public.profiles(id) on delete cascade,
-  name text not null,
-  bio text,
-  avatar_url text,
-  upi_id text,
-  upi_qr_url text,
-  verified boolean not null default false,
-  created_at timestamptz not null default now()
+  id          uuid        primary key default gen_random_uuid(),
+  owner_id    uuid        not null references public.profiles(id) on delete cascade,
+  name        text        not null,
+  bio         text,
+  avatar_url  text,
+  upi_id      text,
+  upi_qr_url  text,
+  verified    boolean     not null default false,
+  created_at  timestamptz not null default now()
 );
 create index if not exists organizers_owner_idx on public.organizers(owner_id);
 
 create table if not exists public.events (
-  id uuid primary key default gen_random_uuid(),
-  organizer_id uuid not null references public.organizers(id) on delete cascade,
-  title text not null,
-  description text not null default '',
-  things_to_know text[] not null default '{}',
-  category event_category not null,
-  city city not null,
-  venue_name text not null,
-  venue_address text not null default '',
-  latitude double precision,
-  longitude double precision,
-  starts_at timestamptz not null,
-  ends_at timestamptz,
-  card_poster_url text,
-  banner_poster_url text,
-  fee_payer fee_payer not null default 'BUYER',
-  status event_status not null default 'PUBLISHED',
-  is_featured boolean not null default false,
-  needs_door_staff boolean not null default false,
-  terms text[] not null default '{}',
-  registrations_count integer not null default 0,
-  created_at timestamptz not null default now()
+  id                  uuid            primary key default gen_random_uuid(),
+  organizer_id        uuid            not null references public.organizers(id) on delete cascade,
+  title               text            not null,
+  description         text            not null default '',
+  things_to_know      text[]          not null default '{}',
+  tags                text[]          not null default '{}',
+  photo_urls          text[]          not null default '{}',
+  category            event_category  not null,
+  city                city            not null,
+  venue_name          text            not null,
+  venue_address       text            not null default '',
+  latitude            double precision,
+  longitude           double precision,
+  google_maps_link    text,
+  starts_at           timestamptz     not null,
+  ends_at             timestamptz,
+  card_poster_url     text,
+  banner_poster_url   text,
+  fee_payer           fee_payer       not null default 'BUYER',
+  status              event_status    not null default 'PUBLISHED',
+  is_featured         boolean         not null default false,
+  needs_door_staff    boolean         not null default false,
+  terms               text[]          not null default '{}',
+  registrations_count integer         not null default 0,
+  pricing_mode        text            not null default 'PAID'
+                      check (pricing_mode in ('FREE','FLAT','PAID')),
+  contact_email       text,
+  contact_phone       text,
+  created_at          timestamptz     not null default now()
 );
 create index if not exists events_city_starts_idx on public.events(city, starts_at);
-create index if not exists events_category_idx on public.events(category);
-create index if not exists events_featured_idx on public.events(is_featured) where is_featured;
+create index if not exists events_category_idx    on public.events(category);
+create index if not exists events_featured_idx    on public.events(is_featured) where is_featured;
 
 create table if not exists public.ticket_tiers (
-  id uuid primary key default gen_random_uuid(),
-  event_id uuid not null references public.events(id) on delete cascade,
-  name text not null,
-  price_paise integer not null check (price_paise >= 0),
-  quantity integer not null check (quantity >= 0),
+  id            uuid    primary key default gen_random_uuid(),
+  event_id      uuid    not null references public.events(id) on delete cascade,
+  name          text    not null,
+  price_paise   integer not null check (price_paise >= 0),
+  quantity      integer not null check (quantity >= 0),
   quantity_sold integer not null default 0 check (quantity_sold >= 0),
-  perks text[] not null default '{}',
-  sort_order integer not null default 0,
+  perks         text[]  not null default '{}',
+  sort_order    integer not null default 0,
   constraint ticket_tiers_not_oversold check (quantity_sold <= quantity)
 );
 create index if not exists ticket_tiers_event_idx on public.ticket_tiers(event_id);
 
 create table if not exists public.orders (
-  id uuid primary key default gen_random_uuid(),
-  event_id uuid not null references public.events(id) on delete cascade,
-  tier_id uuid not null references public.ticket_tiers(id) on delete restrict,
-  user_id uuid not null references public.profiles(id) on delete cascade,
-  quantity integer not null check (quantity between 1 and 5),
-  unit_price_paise integer not null check (unit_price_paise >= 0),
-  subtotal_paise integer not null,
-  platform_fee_paise integer not null,
-  total_paise integer not null,
-  fee_payer fee_payer not null,
-  status order_status not null default 'PENDING_VERIFICATION',
-  utr_reference text,
-  payment_proof_url text,
-  buyer_name text,
-  buyer_phone text,
-  rejection_reason text,
-  reviewed_by uuid references public.profiles(id),
-  reviewed_at timestamptz,
-  created_at timestamptz not null default now()
+  id                  uuid         primary key default gen_random_uuid(),
+  event_id            uuid         not null references public.events(id) on delete cascade,
+  tier_id             uuid         not null references public.ticket_tiers(id) on delete restrict,
+  user_id             uuid         not null references public.profiles(id) on delete cascade,
+  quantity            integer      not null check (quantity between 1 and 5),
+  unit_price_paise    integer      not null check (unit_price_paise >= 0),
+  subtotal_paise      integer      not null,
+  platform_fee_paise  integer      not null,
+  total_paise         integer      not null,
+  fee_payer           fee_payer    not null,
+  status              order_status not null default 'PENDING_VERIFICATION',
+  utr_reference       text,
+  payment_proof_url   text,
+  buyer_name          text,
+  buyer_phone         text,
+  buyer_email         text,
+  buyer_gender        text,
+  rejection_reason    text,
+  reviewed_by         uuid         references public.profiles(id),
+  reviewed_at         timestamptz,
+  created_at          timestamptz  not null default now()
 );
-create index if not exists orders_user_idx on public.orders(user_id, created_at desc);
+create index if not exists orders_user_idx         on public.orders(user_id, created_at desc);
 create index if not exists orders_event_status_idx on public.orders(event_id, status);
 
 create table if not exists public.tickets (
-  id uuid primary key default gen_random_uuid(),
-  order_id uuid not null references public.orders(id) on delete cascade,
-  event_id uuid not null references public.events(id) on delete cascade,
-  tier_id uuid not null references public.ticket_tiers(id) on delete restrict,
-  user_id uuid not null references public.profiles(id) on delete cascade,
-  qr_hash text not null unique,
-  status ticket_status not null default 'VALID',
+  id            uuid          primary key default gen_random_uuid(),
+  order_id      uuid          not null references public.orders(id) on delete cascade,
+  event_id      uuid          not null references public.events(id) on delete cascade,
+  tier_id       uuid          not null references public.ticket_tiers(id) on delete restrict,
+  user_id       uuid          not null references public.profiles(id) on delete cascade,
+  qr_hash       text          not null unique,
+  status        ticket_status not null default 'VALID',
   checked_in_at timestamptz,
-  checked_in_by uuid references public.profiles(id),
-  created_at timestamptz not null default now()
+  checked_in_by uuid          references public.profiles(id),
+  created_at    timestamptz   not null default now()
 );
 create index if not exists tickets_event_idx on public.tickets(event_id);
-create index if not exists tickets_user_idx on public.tickets(user_id);
+create index if not exists tickets_user_idx  on public.tickets(user_id);
+create index if not exists tickets_hash_idx  on public.tickets(qr_hash);
 
--- ---------------------------------------------------------------- helpers
+create table if not exists public.waitlist (
+  id          uuid        primary key default gen_random_uuid(),
+  event_id    uuid        not null references public.events(id) on delete cascade,
+  tier_id     uuid        not null references public.ticket_tiers(id) on delete cascade,
+  user_id     uuid        not null references public.profiles(id) on delete cascade,
+  position    integer     not null,
+  status      text        not null default 'WAITING'
+              check (status in ('WAITING','OFFERED','EXPIRED')),
+  offered_at  timestamptz,
+  expires_at  timestamptz,
+  created_at  timestamptz not null default now(),
+  constraint waitlist_unique_user_tier unique (tier_id, user_id)
+);
+create index if not exists waitlist_tier_pos_idx on public.waitlist(tier_id, position);
+create index if not exists waitlist_user_idx     on public.waitlist(user_id);
+
+create table if not exists public.push_subscriptions (
+  id         uuid        primary key default gen_random_uuid(),
+  user_id    uuid        not null references public.profiles(id) on delete cascade,
+  endpoint   text        not null,
+  p256dh     text        not null,
+  auth       text        not null,
+  created_at timestamptz not null default now(),
+  constraint push_subscriptions_endpoint_unique unique (endpoint)
+);
+create index if not exists push_subs_user_idx on public.push_subscriptions(user_id);
+
+-- Refunds table — tracks refund records when events are cancelled/postponed
+create table if not exists public.refunds (
+  id                  uuid          primary key default gen_random_uuid(),
+  order_id            uuid          not null references public.orders(id) on delete cascade,
+  event_id            uuid          not null references public.events(id) on delete cascade,
+  user_id             uuid          not null references auth.users(id) on delete cascade,
+  amount_paise        integer       not null,
+  platform_fee_paise  integer       not null default 0,
+  status              refund_status not null default 'PENDING',
+  reason              text          not null default '',
+  initiated_at        timestamptz   not null default now(),
+  completed_at        timestamptz
+);
+create index if not exists refunds_event_idx  on public.refunds(event_id);
+create index if not exists refunds_user_idx   on public.refunds(user_id);
+create index if not exists refunds_order_idx  on public.refunds(order_id);
+create index if not exists refunds_status_idx on public.refunds(status);
+
+-- Event notifications — informs users of cancellations/postponements/reschedules
+create table if not exists public.event_notifications (
+  id          uuid                       primary key default gen_random_uuid(),
+  event_id    uuid                       not null references public.events(id) on delete cascade,
+  user_id     uuid                       not null references auth.users(id) on delete cascade,
+  type        event_notification_type    not null,
+  message     text                       not null default '',
+  read        boolean                    not null default false,
+  created_at  timestamptz                not null default now()
+);
+create index if not exists event_notif_user_idx  on public.event_notifications(user_id, read);
+create index if not exists event_notif_event_idx on public.event_notifications(event_id);
+
+-- ------------------------------------------------------- platform_settings
+-- Centralized, admin-configurable business rules.
+-- Never hard-code commission %, charges, pricing, etc. in application logic.
+create table if not exists public.platform_settings (
+  key         text primary key,
+  value       jsonb not null,
+  description text,
+  updated_at  timestamptz not null default now(),
+  updated_by  uuid references auth.users(id)
+);
+
+-- ------------------------------------------------------- legal_pages
+-- DB-backed legal/policy pages (Terms, Privacy, Refund, etc.)
+-- Admin can edit content; public routes render the latest version.
+create table if not exists public.legal_pages (
+  slug         text primary key,         -- e.g. 'terms', 'privacy', 'refund', 'cancellation'
+  title        text not null,
+  content      text not null,            -- markdown or plain text
+  version      integer not null default 1,
+  is_published boolean not null default true,
+  updated_at   timestamptz not null default now(),
+  updated_by   uuid references public.profiles(id) on delete set null
+);
+
+insert into public.legal_pages (slug, title, content) values
+  ('terms',        'Terms & Conditions',     '# Terms & Conditions\n\nBy using Outsiderr, you agree to these terms.\n\n- Event organizers are responsible for their events.\n- Tickets are non-refundable unless the event is cancelled.\n- Outsiderr is a platform and does not guarantee event quality.'),
+  ('privacy',      'Privacy Policy',         '# Privacy Policy\n\nWe respect your privacy.\n\n- We collect only the information needed to process bookings.\n- We do not sell your data to third parties.\n- You can request data deletion at any time.'),
+  ('refund',       'Refund Policy',          '# Refund Policy\n\n- Full refund if the organizer cancels the event.\n- No refund for no-shows.\n- Postponed events: tickets remain valid for the new date.'),
+  ('cancellation', 'Cancellation Policy',    '# Cancellation Policy\n\n- Organizers may cancel events with full refund to attendees.\n- Cancellation charges apply to organizers as per platform settings.\n- Door staff charges are non-refundable once paid.')
+on conflict (slug) do nothing;
+
+-- Seed default values (on conflict do nothing — preserves admin edits)
+insert into public.platform_settings (key, value, description) values
+  ('platform_fee_bps',                '500',                                         'Platform commission in basis points (5%)'),
+  ('cancellation_charge_percent',     '20',                                          'Organizer cancellation charge as % of total tickets sold'),
+  ('postponement_charge_percent',     '10',                                          'Organizer postponement charge as % of refunded tickets'),
+  ('door_staff_pricing',              '{"1":1500,"2":2500,"3":3500,"4":5000,"5":6500}', 'Door staff pricing per staff count (in INR)'),
+  ('door_staff_max',                  '5',                                           'Maximum door staff per event'),
+  ('boost_slot_prices',               '{"carousel_1":1000,"carousel_2":750,"carousel_3":500}', 'Boost slot pricing per day (in INR)'),
+  ('max_tickets_per_order',           '1',                                           'Maximum tickets per single order'),
+  ('terms_version',                   '"organizer-v1.0"',                            'Current organizer terms & conditions version'),
+  ('venue_announcement_deadline_hours','48',                                         'Minimum hours before event to announce venue'),
+  ('door_staff_available',            '10',                                          'Total door staff currently available across all events'),
+  ('organizer_whatsapp_number',       '7980085212',                                  'WhatsApp number for attendees to send payment screenshots'),
+  ('hero_boost_enabled',              'true',                                        'Enable/disable the Hero Boost feature'),
+  ('hero_boost_price',                '99900',                                       'Price for a 7-day Hero Boost in paise (₹999)'),
+  ('hero_boost_duration_days',        '7',                                           'Hero Boost duration in days'),
+  ('hero_rotation_interval_minutes',  '30',                                          'Hero carousel rotation interval in minutes'),
+  ('hero_max_visible_events',         '7',                                           'Maximum Hero events displayed at once')
+on conflict (key) do nothing;
+
+-- --------------------------------------------- event_terms_acceptances
+-- Immutable record of which terms version an organizer accepted.
+-- Never store just "accepted = true" — always store the version.
+create table if not exists public.event_terms_acceptances (
+  id             uuid primary key default gen_random_uuid(),
+  organizer_id   uuid not null references public.organizers(id) on delete cascade,
+  event_id       uuid references public.events(id) on delete cascade,
+  terms_version  text not null,
+  accepted_at    timestamptz not null default now(),
+  ip_address     inet,
+  user_agent     text
+);
+create index if not exists terms_accept_org_idx   on public.event_terms_acceptances(organizer_id);
+create index if not exists terms_accept_event_idx on public.event_terms_acceptances(event_id);
+
+-- --------------------------------------------------- door_staff_orders
+-- Tracks door staff requests, payment status, and service status.
+-- Payment uses manual UPI + UTR verification (Razorpay integration deferred).
+create table if not exists public.door_staff_orders (
+  id                   uuid primary key default gen_random_uuid(),
+  event_id             uuid not null references public.events(id) on delete cascade,
+  organizer_id         uuid not null references public.organizers(id) on delete cascade,
+  number_of_staff      integer not null check (number_of_staff between 1 and 5),
+  service_amount_paise integer not null,
+  payment_status       text not null default 'PENDING',   -- PENDING, PAID, FAILED, REFUNDED
+  service_status       text not null default 'REQUESTED',  -- REQUESTED, CONFIRMED, CANCELLED, COMPLETED
+  utr_reference        text,
+  created_at           timestamptz not null default now(),
+  updated_at           timestamptz not null default now()
+);
+create index if not exists door_staff_event_idx  on public.door_staff_orders(event_id);
+create index if not exists door_staff_org_idx    on public.door_staff_orders(organizer_id);
+
+create table if not exists public.boosts (
+  id                uuid        primary key default gen_random_uuid(),
+  event_id          uuid        not null references public.events(id) on delete cascade,
+  organizer_id      uuid        not null references public.organizers(id) on delete cascade,
+  slot              integer     not null check (slot between 1 and 10),
+  amount_paid_paise integer     not null check (amount_paid_paise > 0),
+  status            text        not null default 'PENDING'
+                    check (status in ('PENDING','ACTIVE','EXPIRED','REJECTED')),
+  starts_at         timestamptz not null,
+  ends_at           timestamptz not null,
+  utr_reference     text,
+  reviewed_by       uuid        references public.profiles(id),
+  reviewed_at       timestamptz,
+  created_at        timestamptz not null default now()
+);
+create index if not exists boosts_status_slot_idx on public.boosts(status, slot);
+create index if not exists boosts_event_idx       on public.boosts(event_id);
+
+create table if not exists public.boost_slot_prices (
+  slot        integer primary key check (slot between 1 and 10),
+  price_paise integer not null check (price_paise > 0)
+);
+
+-- ------------------------------------------------------- hero_boosts
+-- Hero/Featured Event Boost system.
+-- Organizers pay to feature their event in the homepage Hero carousel.
+-- Duration: 7 days or until event starts (whichever is earlier).
+-- Rotation: up to 7 shown at a time, rotated every 30 minutes.
+create table if not exists public.hero_boosts (
+  id              uuid        primary key default gen_random_uuid(),
+  event_id        uuid        not null references public.events(id) on delete cascade,
+  organizer_id    uuid        not null references public.organizers(id) on delete cascade,
+  status          text        not null default 'PENDING'
+                  check (status in ('PENDING','ACTIVE','EXPIRED','CANCELLED','REFUNDED','FAILED')),
+  amount_paise    integer     not null check (amount_paise > 0),
+  currency        text        not null default 'INR',
+  utr_reference   text,
+  started_at      timestamptz,   -- set when boost becomes ACTIVE
+  expires_at      timestamptz,   -- min(started_at + 7 days, event.starts_at)
+  cancelled_at    timestamptz,
+  expired_at      timestamptz,
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now()
+);
+create index if not exists hero_boosts_event_idx     on public.hero_boosts(event_id);
+create index if not exists hero_boosts_organizer_idx on public.hero_boosts(organizer_id);
+create index if not exists hero_boosts_status_idx    on public.hero_boosts(status);
+create index if not exists hero_boosts_expires_idx   on public.hero_boosts(expires_at);
+create index if not exists hero_boosts_started_idx   on public.hero_boosts(started_at);
+-- Prevent duplicate active boosts for the same event
+create unique index if not exists hero_boosts_one_active_per_event
+  on public.hero_boosts(event_id)
+  where status = 'ACTIVE';
+insert into public.boost_slot_prices (slot, price_paise) values
+  (1,500000),(2,400000),(3,300000),(4,250000),(5,200000),
+  (6,175000),(7,150000),(8,125000),(9,100000),(10,75000)
+on conflict do nothing;
+
+create table if not exists public.clubs (
+  id                  uuid        primary key default gen_random_uuid(),
+  owner_id            uuid        not null references public.organizers(id) on delete cascade,
+  name                text        not null,
+  bio                 text,
+  type                text        not null default 'CLUB'
+                      check (type in ('CLUB','CREW')),
+  city                text        check (city in ('KOLKATA','MUMBAI','DELHI','BENGALURU')),
+  avatar_url          text,
+  cover_url           text,
+  instagram_handle    text,
+  upi_id              text,
+  membership_type     text        not null default 'FREE'
+                      check (membership_type in ('FREE','PAID','AUDITION')),
+  membership_fee_paise integer   not null default 0,
+  terms               text[]      not null default '{}',
+  member_count        integer     not null default 0,
+  verified            boolean     not null default false,
+  created_at          timestamptz not null default now()
+);
+create index if not exists clubs_owner_idx on public.clubs(owner_id);
+create index if not exists clubs_city_idx  on public.clubs(city);
+
+create table if not exists public.club_members (
+  id             uuid        primary key default gen_random_uuid(),
+  club_id        uuid        not null references public.clubs(id) on delete cascade,
+  user_id        uuid        not null references public.profiles(id) on delete cascade,
+  status         text        not null default 'PENDING'
+                 check (status in ('PENDING','ACCEPTED','REJECTED')),
+  instagram_link text,
+  utr_reference  text,
+  created_at     timestamptz not null default now(),
+  unique(club_id, user_id)
+);
+create index if not exists club_members_club_idx on public.club_members(club_id);
+create index if not exists club_members_user_idx on public.club_members(user_id);
+
+-- ---------------------------------------------------------------- column migrations (idempotent)
+-- Add any columns that older live DBs might be missing
+alter table public.profiles       add column if not exists is_admin     boolean not null default false;
+alter table public.events         add column if not exists tags         text[]  not null default '{}';
+alter table public.events         add column if not exists photo_urls   text[]  not null default '{}';
+alter table public.events         add column if not exists pricing_mode text    not null default 'PAID' check (pricing_mode in ('FREE','FLAT','PAID'));
+alter table public.events         add column if not exists google_maps_link text;
+alter table public.orders         add column if not exists buyer_email  text;
+alter table public.orders         add column if not exists buyer_gender text;
+
+-- Auto-promote the first registered user to admin (one-time, idempotent)
+do $$
+begin
+  if (select count(*) from public.profiles) = 1 and (select count(*) from public.profiles where is_admin = true) = 0 then
+    update public.profiles set is_admin = true where id = (select id from public.profiles limit 1);
+  end if;
+end $$;
+
+-- Migrate event_status enum: add new values for cancellation/postpone flow
+do $$ begin
+  if exists (select 1 from pg_type where typname = 'event_status') then
+    if not exists (select 1 from pg_enum where enumlabel = 'CANCELLATION_REQUESTED' and enumtypid = (select oid from pg_type where typname = 'event_status')) then
+      alter type event_status add value 'CANCELLATION_REQUESTED';
+    end if;
+    if not exists (select 1 from pg_enum where enumlabel = 'POSTPONED' and enumtypid = (select oid from pg_type where typname = 'event_status')) then
+      alter type event_status add value 'POSTPONED';
+    end if;
+  end if;
+end $$;
+
+-- Add CANCELLED + REFUNDED to ticket_status if missing
+do $$ begin
+  if exists (select 1 from pg_type where typname = 'ticket_status') then
+    if not exists (select 1 from pg_enum where enumlabel = 'CANCELLED' and enumtypid = (select oid from pg_type where typname = 'ticket_status')) then
+      alter type ticket_status add value 'CANCELLED';
+    end if;
+  end if;
+end $$;
+alter table public.clubs          add column if not exists upi_id       text;
+alter table public.clubs          add column if not exists instagram_handle text;
+
+-- ---------------------------------------------------------------- helper functions
+
 create or replace function public.is_event_staff(p_event_id uuid)
 returns boolean
 language sql
@@ -169,12 +508,12 @@ $$;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
-after insert on auth.users
-for each row execute function public.handle_new_user();
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
 
--- ---------------------------------------------------------------- rpc
--- Confirms a manually verified UPI payment: mints ticket QR hashes,
--- decrements tier availability and bumps the event registration counter.
+-- ---------------------------------------------------------------- RPCs
+
+-- Approve a UPI payment: mints ticket QR hashes, decrements tier stock.
 create or replace function public.approve_order(p_order_id uuid)
 returns setof public.tickets
 language plpgsql
@@ -208,17 +547,22 @@ begin
    where id = v_order.event_id;
 
   return query
-  insert into public.tickets (order_id, event_id, tier_id, user_id, qr_hash)
-  select v_order.id,
-         v_order.event_id,
-         v_order.tier_id,
-         v_order.user_id,
-         encode(sha256((v_order.id::text || ':' || g::text || ':' || gen_random_uuid()::text)::bytea), 'hex')
+    insert into public.tickets (order_id, event_id, tier_id, user_id, qr_hash)
+    select
+      v_order.id,
+      v_order.event_id,
+      v_order.tier_id,
+      v_order.user_id,
+      encode(
+        sha256((v_order.id::text || ':' || g::text || ':' || gen_random_uuid()::text)::bytea),
+        'hex'
+      )
     from generate_series(1, v_order.quantity) g
-  returning *;
+    returning *;
 end;
 $$;
 
+-- Reject a payment order.
 create or replace function public.reject_order(p_order_id uuid, p_reason text default null)
 returns public.orders
 language plpgsql
@@ -237,10 +581,10 @@ begin
   end if;
 
   update public.orders
-     set status = 'REJECTED',
+     set status           = 'REJECTED',
          rejection_reason = p_reason,
-         reviewed_by = auth.uid(),
-         reviewed_at = now()
+         reviewed_by      = auth.uid(),
+         reviewed_at      = now()
    where id = p_order_id
   returning * into v_order;
 
@@ -248,13 +592,91 @@ begin
 end;
 $$;
 
--- Door scanner: single round-trip validate + check-in.
-create or replace function public.check_in_ticket(p_qr_hash text)
+-- Create a free order + mint tickets immediately (auto-confirmed, no UTR needed).
+-- Called by the buyer; RLS-safe because it only allows free tiers.
+create or replace function public.create_free_order(
+  p_event_id uuid,
+  p_tier_id  uuid,
+  p_quantity integer,
+  p_buyer_name   text default null,
+  p_buyer_phone  text default null,
+  p_buyer_email  text default null,
+  p_buyer_gender text default null
+)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order   public.orders;
+  v_tier    public.ticket_tiers;
+  v_event   public.events;
+begin
+  -- Load tier + event
+  select * into v_tier from public.ticket_tiers where id = p_tier_id for update;
+  if not found then
+    raise exception 'Ticket tier not found';
+  end if;
+  if v_tier.price_paise <> 0 then
+    raise exception 'This function is for free tickets only';
+  end if;
+  if v_tier.quantity - v_tier.quantity_sold < p_quantity then
+    raise exception 'Not enough tickets left';
+  end if;
+
+  select * into v_event from public.events where id = p_event_id;
+  if not found then
+    raise exception 'Event not found';
+  end if;
+
+  -- Insert order as CONFIRMED
+  insert into public.orders (
+    event_id, tier_id, user_id, quantity,
+    unit_price_paise, subtotal_paise, platform_fee_paise, total_paise,
+    fee_payer, status, buyer_name, buyer_phone, buyer_email, buyer_gender
+  ) values (
+    p_event_id, p_tier_id, auth.uid(), p_quantity,
+    0, 0, 0, 0,
+    v_event.fee_payer, 'CONFIRMED', p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender
+  )
+  returning * into v_order;
+
+  -- Mint tickets
+  insert into public.tickets (order_id, event_id, tier_id, user_id, qr_hash)
+  select
+    v_order.id,
+    p_event_id,
+    p_tier_id,
+    auth.uid(),
+    encode(
+      sha256((v_order.id::text || ':' || g::text || ':' || gen_random_uuid()::text)::bytea),
+      'hex'
+    )
+  from generate_series(1, p_quantity) g;
+
+  -- Update tier sold count
+  update public.ticket_tiers
+     set quantity_sold = quantity_sold + p_quantity
+   where id = p_tier_id;
+
+  -- Update event registration count
+  update public.events
+     set registrations_count = registrations_count + p_quantity
+   where id = p_event_id;
+
+  return v_order;
+end;
+$$;
+
+-- Door scanner: validate + mark USED in one round-trip.
+-- Returns VALID, ALREADY_USED, or INVALID.
+create or replace function public.check_in_ticket(p_qr_hash text, p_event_id uuid)
 returns table (
-  outcome text,
-  event_title text,
-  tier_name text,
-  holder_name text,
+  outcome       text,
+  event_title   text,
+  tier_name     text,
+  holder_name   text,
   checked_in_at timestamptz
 )
 language plpgsql
@@ -264,10 +686,21 @@ as $$
 declare
   v_ticket public.tickets;
 begin
-  select * into v_ticket from public.tickets where qr_hash = p_qr_hash for update;
+  select * into v_ticket
+    from public.tickets
+   where qr_hash = p_qr_hash
+     for update;
 
   if not found then
-    return query select 'INVALID'::text, null::text, null::text, null::text, null::timestamptz;
+    return query
+      select 'INVALID'::text, null::text, null::text, null::text, null::timestamptz;
+    return;
+  end if;
+
+  -- Validate ticket belongs to the selected event
+  if v_ticket.event_id <> p_event_id then
+    return query
+      select 'INVALID'::text, null::text, null::text, null::text, null::timestamptz;
     return;
   end if;
 
@@ -277,37 +710,95 @@ begin
 
   if v_ticket.status <> 'VALID' then
     return query
-      select case when v_ticket.status = 'USED' then 'ALREADY_USED' else 'INVALID' end,
-             e.title, t.name, p.full_name, v_ticket.checked_in_at
-        from public.events e
-        join public.ticket_tiers t on t.id = v_ticket.tier_id
-        left join public.profiles p on p.id = v_ticket.user_id
-       where e.id = v_ticket.event_id;
+      select
+        case when v_ticket.status = 'USED' then 'ALREADY_USED' else 'INVALID' end,
+        e.title,
+        t.name,
+        p.full_name,
+        v_ticket.checked_in_at
+      from public.events       e
+      join public.ticket_tiers t on t.id = v_ticket.tier_id
+      left join public.profiles p on p.id = v_ticket.user_id
+      where e.id = v_ticket.event_id;
     return;
   end if;
 
   update public.tickets
-     set status = 'USED', checked_in_at = now(), checked_in_by = auth.uid()
+     set status        = 'USED',
+         checked_in_at = now(),
+         checked_in_by = auth.uid()
    where id = v_ticket.id
   returning * into v_ticket;
 
   return query
-    select 'VALID'::text, e.title, t.name, p.full_name, v_ticket.checked_in_at
-      from public.events e
-      join public.ticket_tiers t on t.id = v_ticket.tier_id
-      left join public.profiles p on p.id = v_ticket.user_id
-     where e.id = v_ticket.event_id;
+    select
+      'VALID'::text,
+      e.title,
+      t.name,
+      p.full_name,
+      v_ticket.checked_in_at
+    from public.events       e
+    join public.ticket_tiers t on t.id = v_ticket.tier_id
+    left join public.profiles p on p.id = v_ticket.user_id
+    where e.id = v_ticket.event_id;
 end;
 $$;
 
--- ---------------------------------------------------------------- rls
-alter table public.profiles enable row level security;
-alter table public.organizers enable row level security;
-alter table public.events enable row level security;
-alter table public.ticket_tiers enable row level security;
-alter table public.orders enable row level security;
-alter table public.tickets enable row level security;
+-- Offer the next person on a tier's waitlist.
+create or replace function public.offer_waitlist_next(p_tier_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_next public.waitlist;
+begin
+  select * into v_next
+    from public.waitlist
+   where tier_id = p_tier_id and status = 'WAITING'
+   order by position asc
+   limit 1
+     for update;
 
+  if not found then return; end if;
+
+  update public.waitlist
+     set status     = 'OFFERED',
+         offered_at = now(),
+         expires_at = now() + interval '24 hours'
+   where id = v_next.id;
+end;
+$$;
+
+-- Increment club member count (called after free join accepted).
+create or replace function public.increment_club_member_count(p_club_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.clubs set member_count = member_count + 1 where id = p_club_id;
+end;
+$$;
+
+-- ---------------------------------------------------------------- RLS
+
+alter table public.profiles          enable row level security;
+alter table public.organizers        enable row level security;
+alter table public.events            enable row level security;
+alter table public.ticket_tiers      enable row level security;
+alter table public.orders            enable row level security;
+alter table public.tickets           enable row level security;
+alter table public.waitlist          enable row level security;
+alter table public.push_subscriptions enable row level security;
+alter table public.boosts            enable row level security;
+alter table public.boost_slot_prices enable row level security;
+alter table public.clubs             enable row level security;
+alter table public.club_members      enable row level security;
+
+-- profiles
 drop policy if exists "profiles are self readable" on public.profiles;
 create policy "profiles are self readable" on public.profiles
   for select using (auth.uid() = id);
@@ -316,32 +807,48 @@ drop policy if exists "profiles are self writable" on public.profiles;
 create policy "profiles are self writable" on public.profiles
   for update using (auth.uid() = id) with check (auth.uid() = id);
 
+-- organizers
 drop policy if exists "organizers are public" on public.organizers;
-create policy "organizers are public" on public.organizers for select using (true);
+create policy "organizers are public" on public.organizers
+  for select using (true);
 
 drop policy if exists "organizers are owner managed" on public.organizers;
 create policy "organizers are owner managed" on public.organizers
   for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
 
+-- events
 drop policy if exists "published events are public" on public.events;
 create policy "published events are public" on public.events
   for select using (status = 'PUBLISHED' or public.is_event_staff(id));
 
 drop policy if exists "events are organizer managed" on public.events;
 create policy "events are organizer managed" on public.events
-  for all using (
-    exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
-  ) with check (
-    exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
+  for all
+  using (
+    exists (
+      select 1 from public.organizers o
+      where o.id = organizer_id and o.owner_id = auth.uid()
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.organizers o
+      where o.id = organizer_id and o.owner_id = auth.uid()
+    )
   );
 
+-- ticket_tiers
 drop policy if exists "tiers are public" on public.ticket_tiers;
-create policy "tiers are public" on public.ticket_tiers for select using (true);
+create policy "tiers are public" on public.ticket_tiers
+  for select using (true);
 
 drop policy if exists "tiers are organizer managed" on public.ticket_tiers;
 create policy "tiers are organizer managed" on public.ticket_tiers
-  for all using (public.is_event_staff(event_id)) with check (public.is_event_staff(event_id));
+  for all
+  using (public.is_event_staff(event_id))
+  with check (public.is_event_staff(event_id));
 
+-- orders
 drop policy if exists "orders are visible to buyer and organizer" on public.orders;
 create policy "orders are visible to buyer and organizer" on public.orders
   for select using (auth.uid() = user_id or public.is_event_staff(event_id));
@@ -350,82 +857,12 @@ drop policy if exists "buyers create their own orders" on public.orders;
 create policy "buyers create their own orders" on public.orders
   for insert with check (auth.uid() = user_id);
 
+-- tickets
 drop policy if exists "tickets are visible to holder and organizer" on public.tickets;
 create policy "tickets are visible to holder and organizer" on public.tickets
   for select using (auth.uid() = user_id or public.is_event_staff(event_id));
 
--- ---------------------------------------------------------------- 2025 migration — v2 features
-
--- profiles: admin flag
-alter table public.profiles add column if not exists is_admin boolean not null default false;
-
--- events: tags + photo gallery
-alter table public.events add column if not exists tags text[] not null default '{}';
-alter table public.events add column if not exists photo_urls text[] not null default '{}';
-
--- ---------------------------------------------------------------- waitlist
-create table if not exists public.waitlist (
-  id uuid primary key default gen_random_uuid(),
-  event_id uuid not null references public.events(id) on delete cascade,
-  tier_id uuid not null references public.ticket_tiers(id) on delete cascade,
-  user_id uuid not null references public.profiles(id) on delete cascade,
-  position integer not null,
-  status text not null default 'WAITING' check (status in ('WAITING','OFFERED','EXPIRED')),
-  offered_at timestamptz,
-  expires_at timestamptz,
-  created_at timestamptz not null default now(),
-  constraint waitlist_unique_user_tier unique (tier_id, user_id)
-);
-create index if not exists waitlist_tier_pos_idx on public.waitlist(tier_id, position);
-create index if not exists waitlist_user_idx on public.waitlist(user_id);
-
--- ---------------------------------------------------------------- push_subscriptions
-create table if not exists public.push_subscriptions (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.profiles(id) on delete cascade,
-  endpoint text not null,
-  p256dh text not null,
-  auth text not null,
-  created_at timestamptz not null default now(),
-  constraint push_subscriptions_endpoint_unique unique (endpoint)
-);
-create index if not exists push_subs_user_idx on public.push_subscriptions(user_id);
-
--- ---------------------------------------------------------------- boosts
-create table if not exists public.boosts (
-  id uuid primary key default gen_random_uuid(),
-  event_id uuid not null references public.events(id) on delete cascade,
-  organizer_id uuid not null references public.organizers(id) on delete cascade,
-  slot integer not null check (slot between 1 and 10),
-  amount_paid_paise integer not null check (amount_paid_paise > 0),
-  status text not null default 'PENDING'
-    check (status in ('PENDING','ACTIVE','EXPIRED','REJECTED')),
-  starts_at timestamptz not null,
-  ends_at timestamptz not null,
-  utr_reference text,
-  reviewed_by uuid references public.profiles(id),
-  reviewed_at timestamptz,
-  created_at timestamptz not null default now()
-);
-create index if not exists boosts_status_slot_idx on public.boosts(status, slot);
-create index if not exists boosts_event_idx on public.boosts(event_id);
-
--- ---------------------------------------------------------------- boost_slot_prices (admin-configurable)
-create table if not exists public.boost_slot_prices (
-  slot integer primary key check (slot between 1 and 10),
-  price_paise integer not null check (price_paise > 0)
-);
-insert into public.boost_slot_prices (slot, price_paise) values
-  (1,500000),(2,400000),(3,300000),(4,250000),(5,200000),
-  (6,175000),(7,150000),(8,125000),(9,100000),(10,75000)
-on conflict do nothing;
-
--- ---------------------------------------------------------------- RLS for new tables
-alter table public.waitlist enable row level security;
-alter table public.push_subscriptions enable row level security;
-alter table public.boosts enable row level security;
-alter table public.boost_slot_prices enable row level security;
-
+-- waitlist
 drop policy if exists "waitlist self or staff" on public.waitlist;
 create policy "waitlist self or staff" on public.waitlist
   for select using (auth.uid() = user_id or public.is_event_staff(event_id));
@@ -438,10 +875,12 @@ drop policy if exists "waitlist self delete" on public.waitlist;
 create policy "waitlist self delete" on public.waitlist
   for delete using (auth.uid() = user_id);
 
+-- push subscriptions
 drop policy if exists "push subs self" on public.push_subscriptions;
 create policy "push subs self" on public.push_subscriptions
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+-- boosts
 drop policy if exists "boosts active public" on public.boosts;
 create policy "boosts active public" on public.boosts
   for select using (status = 'ACTIVE' or public.is_event_staff(event_id));
@@ -449,34 +888,323 @@ create policy "boosts active public" on public.boosts
 drop policy if exists "boosts organizer insert" on public.boosts;
 create policy "boosts organizer insert" on public.boosts
   for insert with check (
-    exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
+    exists (
+      select 1 from public.organizers o
+      where o.id = organizer_id and o.owner_id = auth.uid()
+    )
   );
 
+-- boost slot prices
 drop policy if exists "boost prices public" on public.boost_slot_prices;
 create policy "boost prices public" on public.boost_slot_prices
   for select using (true);
 
--- ---------------------------------------------------------------- RPC: offer next person on waitlist
-create or replace function public.offer_waitlist_next(p_tier_id uuid)
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_next public.waitlist;
-begin
-  select * into v_next
-  from public.waitlist
-  where tier_id = p_tier_id and status = 'WAITING'
-  order by position asc
-  limit 1
-  for update;
-  if not found then return; end if;
-  update public.waitlist
-  set status = 'OFFERED',
-      offered_at = now(),
-      expires_at = now() + interval '24 hours'
-  where id = v_next.id;
-end;
-$$;
+-- clubs
+drop policy if exists "clubs are publicly readable" on public.clubs;
+create policy "clubs are publicly readable" on public.clubs
+  for select using (true);
+
+drop policy if exists "organizers can insert clubs" on public.clubs;
+create policy "organizers can insert clubs" on public.clubs
+  for insert with check (
+    exists (
+      select 1 from public.organizers o
+      where o.id = owner_id and o.owner_id = auth.uid()
+    )
+  );
+
+drop policy if exists "organizers can update own clubs" on public.clubs;
+create policy "organizers can update own clubs" on public.clubs
+  for update using (
+    exists (
+      select 1 from public.organizers o
+      where o.id = owner_id and o.owner_id = auth.uid()
+    )
+  );
+
+-- club members
+drop policy if exists "members are visible to club owner and self" on public.club_members;
+create policy "members are visible to club owner and self" on public.club_members
+  for select using (
+    user_id = auth.uid()
+    or exists (
+      select 1 from public.clubs c
+      join public.organizers o on o.id = c.owner_id
+      where c.id = club_id and o.owner_id = auth.uid()
+    )
+  );
+
+drop policy if exists "users can request to join" on public.club_members;
+create policy "users can request to join" on public.club_members
+  for insert with check (user_id = auth.uid());
+
+drop policy if exists "users can update own membership" on public.club_members;
+create policy "users can update own membership" on public.club_members
+  for update using (user_id = auth.uid());
+
+drop policy if exists "club owners can update membership status" on public.club_members;
+create policy "club owners can update membership status" on public.club_members
+  for update using (
+    exists (
+      select 1 from public.clubs c
+      join public.organizers o on o.id = c.owner_id
+      where c.id = club_id and o.owner_id = auth.uid()
+    )
+  );
+
+-- ---------------------------------------------------------------- refunds RLS
+alter table public.refunds enable row level security;
+
+drop policy if exists "users can read own refunds" on public.refunds;
+create policy "users can read own refunds" on public.refunds
+  for select using (user_id = auth.uid());
+
+drop policy if exists "organizers can read event refunds" on public.refunds;
+create policy "organizers can read event refunds" on public.refunds
+  for select using (
+    exists (
+      select 1 from public.events e
+      join public.organizers o on o.id = e.organizer_id
+      where e.id = event_id and o.owner_id = auth.uid()
+    )
+  );
+
+drop policy if exists "organizers can create refunds" on public.refunds;
+create policy "organizers can create refunds" on public.refunds
+  for insert with check (
+    exists (
+      select 1 from public.events e
+      join public.organizers o on o.id = e.organizer_id
+      where e.id = event_id and o.owner_id = auth.uid()
+    )
+  );
+
+drop policy if exists "organizers can update refund status" on public.refunds;
+create policy "organizers can update refund status" on public.refunds
+  for update using (
+    exists (
+      select 1 from public.events e
+      join public.organizers o on o.id = e.organizer_id
+      where e.id = event_id and o.owner_id = auth.uid()
+    )
+  );
+
+-- ------------------------------------------------ event_notifications RLS
+alter table public.event_notifications enable row level security;
+
+drop policy if exists "users can read own notifications" on public.event_notifications;
+create policy "users can read own notifications" on public.event_notifications
+  for select using (user_id = auth.uid());
+
+drop policy if exists "users can mark own notifications read" on public.event_notifications;
+create policy "users can mark own notifications read" on public.event_notifications
+  for update using (user_id = auth.uid());
+
+drop policy if exists "organizers can create event notifications" on public.event_notifications;
+create policy "organizers can create event notifications" on public.event_notifications
+  for insert with check (
+    exists (
+      select 1 from public.events e
+      join public.organizers o on o.id = e.organizer_id
+      where e.id = event_id and o.owner_id = auth.uid()
+    )
+  );
+
+-- ------------------------------------------------ platform_settings RLS
+alter table public.platform_settings enable row level security;
+
+-- Anyone can read settings (fees, pricing displayed publicly)
+drop policy if exists "public read platform settings" on public.platform_settings;
+create policy "public read platform settings" on public.platform_settings
+  for select using (true);
+
+-- Only admins can insert/update/delete settings
+drop policy if exists "admin insert platform settings" on public.platform_settings;
+create policy "admin insert platform settings" on public.platform_settings
+  for insert with check (
+    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
+  );
+
+drop policy if exists "admin update platform settings" on public.platform_settings;
+create policy "admin update platform settings" on public.platform_settings
+  for update using (
+    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
+  );
+
+drop policy if exists "admin delete platform settings" on public.platform_settings;
+create policy "admin delete platform settings" on public.platform_settings
+  for delete using (
+    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
+  );
+
+-- ----------------------------------------------------- legal_pages RLS
+alter table public.legal_pages enable row level security;
+
+-- Anyone can read published legal pages
+drop policy if exists "public read legal pages" on public.legal_pages;
+create policy "public read legal pages" on public.legal_pages
+  for select using (is_published = true);
+
+-- Only admins can insert/update/delete
+drop policy if exists "admin insert legal pages" on public.legal_pages;
+create policy "admin insert legal pages" on public.legal_pages
+  for insert with check (
+    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
+  );
+
+drop policy if exists "admin update legal pages" on public.legal_pages;
+create policy "admin update legal pages" on public.legal_pages
+  for update using (
+    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
+  );
+
+drop policy if exists "admin delete legal pages" on public.legal_pages;
+create policy "admin delete legal pages" on public.legal_pages
+  for delete using (
+    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
+  );
+
+-- ----------------------------------------------------- hero_boosts RLS
+alter table public.hero_boosts enable row level security;
+
+-- Organizers can read their own boosts
+drop policy if exists "organizer read own hero boosts" on public.hero_boosts;
+create policy "organizer read own hero boosts" on public.hero_boosts
+  for select using (
+    exists (select 1 from public.organizers o
+            join public.profiles p on p.id = o.owner_id
+            where o.id = hero_boosts.organizer_id and p.id = auth.uid())
+  );
+
+-- Organizers can insert boosts (pending only)
+drop policy if exists "organizer insert hero boosts" on public.hero_boosts;
+create policy "organizer insert hero boosts" on public.hero_boosts
+  for insert with check (
+    exists (select 1 from public.organizers o
+            join public.profiles p on p.id = o.owner_id
+            where o.id = hero_boosts.organizer_id and p.id = auth.uid())
+    and status = 'PENDING'
+  );
+
+-- Admins can read/update/delete all boosts
+drop policy if exists "admin read hero boosts" on public.hero_boosts;
+create policy "admin read hero boosts" on public.hero_boosts
+  for select using (
+    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
+  );
+
+drop policy if exists "admin update hero boosts" on public.hero_boosts;
+create policy "admin update hero boosts" on public.hero_boosts
+  for update using (
+    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
+  );
+
+drop policy if exists "admin delete hero boosts" on public.hero_boosts;
+create policy "admin delete hero boosts" on public.hero_boosts
+  for delete using (
+    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
+  );
+
+-- --------------------------------------------- event_terms_acceptances RLS
+alter table public.event_terms_acceptances enable row level security;
+
+-- Organizers can read their own acceptance records
+drop policy if exists "organizers read own terms acceptances" on public.event_terms_acceptances;
+create policy "organizers read own terms acceptances" on public.event_terms_acceptances
+  for select using (
+    exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
+  );
+
+-- Authenticated users can insert (organizer creating event)
+drop policy if exists "insert terms acceptances" on public.event_terms_acceptances;
+create policy "insert terms acceptances" on public.event_terms_acceptances
+  for insert with check (auth.uid() is not null);
+
+-- Admins can read all acceptance records
+drop policy if exists "admin read all terms acceptances" on public.event_terms_acceptances;
+create policy "admin read all terms acceptances" on public.event_terms_acceptances
+  for select using (
+    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
+  );
+
+-- No update or delete policies — records are immutable
+
+-- --------------------------------------------------- door_staff_orders RLS
+alter table public.door_staff_orders enable row level security;
+
+-- Organizers can read their own door staff orders
+drop policy if exists "organizers read own door staff orders" on public.door_staff_orders;
+create policy "organizers read own door staff orders" on public.door_staff_orders
+  for select using (
+    exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
+  );
+
+-- Organizers can insert door staff orders for their events
+drop policy if exists "organizers insert door staff orders" on public.door_staff_orders;
+create policy "organizers insert door staff orders" on public.door_staff_orders
+  for insert with check (
+    exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
+  );
+
+-- Organizers can update their own door staff orders (e.g. submit UTR)
+drop policy if exists "organizers update own door staff orders" on public.door_staff_orders;
+create policy "organizers update own door staff orders" on public.door_staff_orders
+  for update using (
+    exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
+  );
+
+-- Admins can read all door staff orders
+drop policy if exists "admin read all door staff orders" on public.door_staff_orders;
+create policy "admin read all door staff orders" on public.door_staff_orders
+  for select using (
+    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
+  );
+
+-- Admins can update door staff orders (e.g. confirm service status)
+drop policy if exists "admin update door staff orders" on public.door_staff_orders;
+create policy "admin update door staff orders" on public.door_staff_orders
+  for update using (
+    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
+  );
+
+-- ================================================================
+-- Storage: event-media bucket + RLS policies
+-- ================================================================
+
+-- Create the bucket if it doesn't exist (public = true so anyone can read)
+insert into storage.buckets (id, name, public)
+values ('event-media', 'event-media', true)
+on conflict (id) do nothing;
+
+-- Allow anyone to read (public bucket)
+drop policy if exists "public read on event-media" on storage.objects;
+create policy "public read on event-media"
+  on storage.objects for select
+  using (bucket_id = 'event-media');
+
+-- Allow authenticated users to upload to event-media
+drop policy if exists "authenticated upload on event-media" on storage.objects;
+create policy "authenticated upload on event-media"
+  on storage.objects for insert
+  with check (
+    bucket_id = 'event-media'
+    and auth.role() = 'authenticated'
+  );
+
+-- Allow authenticated users to update their own files
+drop policy if exists "authenticated update on event-media" on storage.objects;
+create policy "authenticated update on event-media"
+  on storage.objects for update
+  using (
+    bucket_id = 'event-media'
+    and auth.role() = 'authenticated'
+  );
+
+-- Allow authenticated users to delete their own files
+drop policy if exists "authenticated delete on event-media" on storage.objects;
+create policy "authenticated delete on event-media"
+  on storage.objects for delete
+  using (
+    bucket_id = 'event-media'
+    and auth.role() = 'authenticated'
+  );

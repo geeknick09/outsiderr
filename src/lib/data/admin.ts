@@ -77,10 +77,12 @@ export async function listAllAdminEvents(): Promise<AdminEvent[]> {
 
 export async function listAllAdminUsers(): Promise<AdminUser[]> {
   if (!isSupabaseConfigured()) {
-    return [{
-      id: "demo-user", fullName: "Demo User", phone: null, avatarUrl: null,
-      isOrganizer: true, isAdmin: true, createdAt: new Date().toISOString(),
-    }];
+    const store = demoStore();
+    // Ensure the current demo user is admin
+    return store.users.map((u) => ({
+      ...u,
+      isAdmin: true, // In demo mode, all users are treated as admin
+    }));
   }
   const supabase = await createClient();
   const { data } = await supabase
@@ -206,6 +208,7 @@ export async function listAllAdminOrders(): Promise<Order[]> {
     eventTitle: eventMap[row.event_id] ?? "Event",
     tierId: row.tier_id,
     tierName: tierMap[row.tier_id] ?? "Ticket",
+    userId: row.user_id,
     quantity: row.quantity,
     unitPricePaise: row.unit_price_paise,
     subtotalPaise: row.subtotal_paise,
@@ -217,6 +220,8 @@ export async function listAllAdminOrders(): Promise<Order[]> {
     paymentProofUrl: row.payment_proof_url,
     buyerName: row.buyer_name,
     buyerPhone: row.buyer_phone,
+    buyerEmail: row.buyer_email ?? null,
+    buyerGender: row.buyer_gender ?? null,
     rejectionReason: row.rejection_reason,
     createdAt: row.created_at,
   }));
@@ -243,6 +248,7 @@ export async function listEventOrders(eventId: string): Promise<Order[]> {
     eventTitle: title,
     tierId: row.tier_id,
     tierName: tierMap[row.tier_id] ?? "Ticket",
+    userId: row.user_id,
     quantity: row.quantity,
     unitPricePaise: row.unit_price_paise,
     subtotalPaise: row.subtotal_paise,
@@ -254,6 +260,8 @@ export async function listEventOrders(eventId: string): Promise<Order[]> {
     paymentProofUrl: row.payment_proof_url,
     buyerName: row.buyer_name,
     buyerPhone: row.buyer_phone,
+    buyerEmail: row.buyer_email ?? null,
+    buyerGender: row.buyer_gender ?? null,
     rejectionReason: row.rejection_reason,
     createdAt: row.created_at,
   }));

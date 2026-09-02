@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { CategoryFilter } from "@/components/events/category-filter";
 import { EventSection } from "@/components/events/event-section";
 import { FeaturedCarousel } from "@/components/events/featured-carousel";
+import { HeroCarousel } from "@/components/events/hero-carousel";
 import {
   CATEGORY_LABELS,
   CITY_LABELS,
@@ -10,6 +11,12 @@ import {
   MAX_FEATURED_EVENTS,
 } from "@/lib/constants";
 import { listEvents } from "@/lib/data/events";
+import { getHeroEvents } from "@/lib/data/hero-boosts";
+import {
+  getHeroBoostEnabled,
+  getHeroMaxVisibleEvents,
+  getHeroRotationIntervalMinutes,
+} from "@/lib/data/platform-settings";
 import { isToday } from "@/lib/format";
 import type { City, EventCategory } from "@/lib/types";
 
@@ -39,6 +46,14 @@ export default async function DiscoveryPage({
     .sort((a, b) => b.registrationsCount - a.registrationsCount)
     .slice(0, 8);
 
+  // Hero Boost events
+  const heroEnabled = await getHeroBoostEnabled();
+  const heroRotationInterval = await getHeroRotationIntervalMinutes();
+  const heroMaxVisible = await getHeroMaxVisibleEvents();
+  const heroEvents = heroEnabled
+    ? await getHeroEvents(heroRotationInterval, heroMaxVisible)
+    : [];
+
   return (
     <div>
       <div className="mb-6">
@@ -46,8 +61,7 @@ export default async function DiscoveryPage({
           Outsiderr
         </h1>
         <p className="mt-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-          Cyphers, block parties, battles, stunts, skates, meetups, jams &amp; real
-          communities.
+          Find what&apos;s happening outside the mainstream.
         </p>
         <p className="mt-1 text-sm text-muted">
           Discover raw underground events happening today near you.
@@ -60,6 +74,9 @@ export default async function DiscoveryPage({
       <Suspense fallback={<div className="mb-6 h-14" />}>
         <CategoryFilter active={category ?? "ALL"} />
       </Suspense>
+
+      {/* Hero Boost carousel — shown above featured when active boosts exist */}
+      {heroEvents.length > 0 ? <HeroCarousel events={heroEvents} /> : null}
 
       <FeaturedCarousel events={featured} />
 

@@ -6,6 +6,18 @@ import { ThemeProvider } from "@/components/theme/theme-provider";
 
 import "./globals.css";
 
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+    { media: "(prefers-color-scheme: dark)", color: "#0A0A0E" },
+  ],
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
+  userScalable: true,
+};
+
 export const metadata: Metadata = {
   title: "Outsiderr — Underground events, discovered",
   description:
@@ -22,17 +34,9 @@ export const metadata: Metadata = {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
     apple: [{ url: "/apple-icon.png" }],
   },
-};
-
-export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
-    { media: "(prefers-color-scheme: dark)", color: "#0A0A0E" },
-  ],
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 5,
-  viewportFit: "cover",
+  appLinks: {
+    web: { url: "https://outsiderr.app", should_fallback: true },
+  },
 };
 
 export default function RootLayout({

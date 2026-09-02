@@ -4,11 +4,43 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/lib/auth";
-import { createEvent, type TicketTierInput } from "@/lib/data/organizer";
-import type { City, EventCategory, FeePayer } from "@/lib/types";
+import { createEvent, updateEvent, type TicketTierInput } from "@/lib/data/organizer";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import type { City, EventCategory, FeePayer, PricingMode } from "@/lib/types";
 
 export interface CreateEventState {
   error: string | null;
+  values?: {
+    title: string;
+    category: string;
+    city: string;
+    startsAt: string;
+    endsAt: string;
+    venueName: string;
+    venueAddress: string;
+    latitude: string;
+    longitude: string;
+    googleMapsLink: string;
+    description: string;
+    thingsToKnow: string;
+    terms: string;
+    tags: string;
+    pricingMode: string;
+    freeQuantity: string;
+    flatPrice: string;
+    flatQuantity: string;
+    tiers: { name: string; price: string; quantity: string; perks: string }[];
+    feePayer: string;
+    needsDoorStaff: boolean;
+    doorStaffTerms: boolean;
+    doorStaffCount: string;
+    organizerTerms: boolean;
+    cardPosterUrl: string;
+    bannerPosterUrl: string;
+    photoUrls: string[];
+    contactEmail: string;
+    contactPhone: string;
+  };
 }
 
 function lines(value: FormDataEntryValue | null): string[] {
@@ -37,6 +69,66 @@ function parseTiers(formData: FormData): TicketTierInput[] {
     .filter((tier) => tier.name.length > 0);
 }
 
+function extractFormValues(formData: FormData): CreateEventState["values"] {
+  const pricingMode = String(formData.get("pricingMode") ?? "PAID");
+  const tierNames = formData.getAll("tierName").map(String);
+  const tierPrices = formData.getAll("tierPrice").map(String);
+  const tierQuantities = formData.getAll("tierQuantity").map(String);
+  const tierPerks = formData.getAll("tierPerks").map(String);
+
+  return {
+    title: String(formData.get("title") ?? ""),
+    category: String(formData.get("category") ?? "JAM_GIG"),
+    city: String(formData.get("city") ?? "KOLKATA"),
+    startsAt: String(formData.get("startsAt") ?? ""),
+    endsAt: String(formData.get("endsAt") ?? ""),
+    venueName: String(formData.get("venueName") ?? ""),
+    venueAddress: String(formData.get("venueAddress") ?? ""),
+    latitude: String(formData.get("latitude") ?? ""),
+    longitude: String(formData.get("longitude") ?? ""),
+    googleMapsLink: String(formData.get("googleMapsLink") ?? ""),
+    description: String(formData.get("description") ?? ""),
+    thingsToKnow: String(formData.get("thingsToKnow") ?? ""),
+    terms: String(formData.get("terms") ?? ""),
+    tags: String(formData.get("tags") ?? ""),
+    pricingMode,
+    freeQuantity: String(formData.get("freeQuantity") ?? ""),
+    flatPrice: tierPrices[0] ?? "",
+    flatQuantity: tierQuantities[0] ?? "",
+    tiers: tierNames.map((name, i) => ({
+      name,
+      price: tierPrices[i] ?? "",
+      quantity: tierQuantities[i] ?? "",
+      perks: tierPerks[i] ?? "",
+    })),
+    feePayer: String(formData.get("feePayer") ?? "BUYER"),
+    needsDoorStaff: formData.get("needsDoorStaff") === "on",
+    doorStaffTerms: formData.get("doorStaffTerms") === "on",
+    doorStaffCount: String(formData.get("doorStaffCount") ?? "1"),
+    organizerTerms: formData.get("organizerTerms") === "on",
+    cardPosterUrl: String(formData.get("cardPosterUrl") ?? ""),
+    bannerPosterUrl: String(formData.get("bannerPosterUrl") ?? ""),
+    photoUrls: formData.getAll("photoUrls").map(String).filter(Boolean),
+    contactEmail: String(formData.get("contactEmail") ?? ""),
+    contactPhone: String(formData.get("contactPhone") ?? ""),
+  };
+}
+
+function buildTiers(formData: FormData, pricingMode: PricingMode): TicketTierInput[] {
+  if (pricingMode === "FREE") {
+    const qty = Number(formData.get("freeQuantity") ?? 0);
+    return [{ name: "Entry", pricePaise: 0, quantity: qty, perks: [] }];
+  }
+
+  if (pricingMode === "FLAT") {
+    const price = Number(formData.getAll("tierPrice")[0] ?? 0);
+    const qty = Number(formData.getAll("tierQuantity")[0] ?? 0);
+    return [{ name: "Entry", pricePaise: Math.round(price * 100), quantity: qty, perks: [] }];
+  }
+
+  return parseTiers(formData);
+}
+
 export async function createEventAction(
   _prev: CreateEventState,
   formData: FormData,
@@ -46,18 +138,86 @@ export async function createEventAction(
 
   const title = String(formData.get("title") ?? "").trim();
   const startsAt = String(formData.get("startsAt") ?? "");
-  const tiers = parseTiers(formData);
+  const pricingMode = String(formData.get("pricingMode") ?? "PAID") as PricingMode;
 
-  if (!title) return { error: "Give the event a title." };
-  if (!startsAt) return { error: "Pick a start date and time." };
-  if (tiers.length === 0) return { error: "Add at least one ticket tier." };
+  const tiers = buildTiers(formData, pricingMode);
+
+  if (!title) return { error: "Give the event a title.", values: extractFormValues(formData) };
+  if (!startsAt)
+    return { error: "Pick a start date and time.", values: extractFormValues(formData) };
+
+  // Validate tiers
+  if (pricingMode !== "FREE") {
+    for (const tier of tiers) {
+      if (!tier.name || tier.name.trim().length < 2) {
+        return { error: "Each tier must have a name (at least 2 characters).", values: extractFormValues(formData) };
+      }
+      if (tier.pricePaise < 100) {
+        return { error: "Each tier price must be at least ₹1.", values: extractFormValues(formData) };
+      }
+      if (tier.quantity < 1) {
+        return { error: "Each tier must have at least 1 ticket.", values: extractFormValues(formData) };
+      }
+    }
+  }
+
+  // Validate end date is after start date
+  const endsAtRaw = String(formData.get("endsAt") ?? "");
+  if (endsAtRaw) {
+    const startMs = new Date(startsAt).getTime();
+    const endMs = new Date(endsAtRaw).getTime();
+    if (endMs <= startMs) {
+      return {
+        error: "End date and time must be after the start date and time.",
+        values: extractFormValues(formData),
+      };
+    }
+  }
+
+  if (tiers.length === 0)
+    return { error: "Add at least one ticket tier.", values: extractFormValues(formData) };
   if (tiers.some((tier) => tier.quantity <= 0)) {
-    return { error: "Every tier needs a quantity of at least 1." };
+    return {
+      error: "Every tier needs a quantity of at least 1.",
+      values: extractFormValues(formData),
+    };
+  }
+
+  // Validate door staff terms
+  const needsDoorStaff = formData.get("needsDoorStaff") === "on";
+  const doorStaffTerms = formData.get("doorStaffTerms") === "on";
+  if (needsDoorStaff && !doorStaffTerms) {
+    return {
+      error: "Please accept the door staff terms & refund policy.",
+      values: extractFormValues(formData),
+    };
+  }
+
+  // Validate general organizer terms
+  const organizerTerms = formData.get("organizerTerms") === "on";
+  if (!organizerTerms) {
+    return {
+      error: "Please accept the Outsiderr terms to publish the event.",
+      values: extractFormValues(formData),
+    };
   }
 
   const endsAt = String(formData.get("endsAt") ?? "");
+  const venueMode = String(formData.get("venueMode") ?? "NOW");
   const latitude = String(formData.get("latitude") ?? "").trim();
   const longitude = String(formData.get("longitude") ?? "").trim();
+  const googleMapsLink = String(formData.get("googleMapsLink") ?? "").trim() || null;
+
+  // Validate Google Maps link if venue mode is NOW
+  if (venueMode === "NOW" && googleMapsLink) {
+    const { isGoogleMapsLink } = await import("@/lib/upi");
+    if (!isGoogleMapsLink(googleMapsLink)) {
+      return {
+        error: "Google Maps link must be a valid maps.google.com or maps.app.goo.gl URL.",
+        values: extractFormValues(formData),
+      };
+    }
+  }
 
   let eventId: string;
   try {
@@ -71,26 +231,230 @@ export async function createEventAction(
         .filter(Boolean),
       category: String(formData.get("category") ?? "JAM_GIG") as EventCategory,
       city: String(formData.get("city") ?? "KOLKATA") as City,
-      venueName: String(formData.get("venueName") ?? "").trim(),
-      venueAddress: String(formData.get("venueAddress") ?? "").trim(),
+      venueName: venueMode === "TBA" ? "TBA" : String(formData.get("venueName") ?? "").trim(),
+      venueAddress: venueMode === "TBA" ? "" : String(formData.get("venueAddress") ?? "").trim(),
       latitude: latitude ? Number(latitude) : null,
       longitude: longitude ? Number(longitude) : null,
+      googleMapsLink,
       startsAt: new Date(startsAt).toISOString(),
       endsAt: endsAt ? new Date(endsAt).toISOString() : null,
       cardPosterUrl: String(formData.get("cardPosterUrl") ?? "") || null,
       bannerPosterUrl: String(formData.get("bannerPosterUrl") ?? "") || null,
       feePayer: String(formData.get("feePayer") ?? "BUYER") as FeePayer,
-      needsDoorStaff: formData.get("needsDoorStaff") === "on",
+      needsDoorStaff,
       terms: lines(formData.get("terms")),
+      pricingMode,
       tiers,
+      photoUrls: formData.getAll("photoUrls").map(String).filter(Boolean),
+      contactEmail: String(formData.get("contactEmail") ?? "").trim() || null,
+      contactPhone: String(formData.get("contactPhone") ?? "").trim() || null,
     });
+
+    // Create door staff order if requested
+    if (needsDoorStaff) {
+      const doorStaffCount = Number(formData.get("doorStaffCount") ?? 1);
+      const doorStaffAmount = Number(formData.get("doorStaffAmount") ?? 0);
+      try {
+        const { createDoorStaffOrder } = await import("@/lib/data/door-staff");
+        await createDoorStaffOrder(user, eventId, doorStaffCount, doorStaffAmount * 100);
+      } catch {
+        // Best-effort — don't fail event creation if door staff order fails
+      }
+    }
+
+    // Store T&C acceptance with the current terms version
+    try {
+      const { getTermsVersion } = await import("@/lib/data/platform-settings");
+      const termsVersion = await getTermsVersion();
+      const { createClient } = await import("@/lib/supabase/server");
+      const { getOrganizerProfile } = await import("@/lib/data/organizer");
+      const organizer = await getOrganizerProfile(user);
+
+      if (organizer) {
+        if (!isSupabaseConfigured()) {
+          // Demo mode: no-op (no persistent storage)
+        } else {
+          const supabase = await createClient();
+          await supabase.from("event_terms_acceptances").insert({
+            organizer_id: organizer.id,
+            event_id: eventId,
+            terms_version: termsVersion,
+            accepted_at: new Date().toISOString(),
+          });
+        }
+      }
+    } catch {
+      // T&C acceptance logging is best-effort — don't fail the event creation
+    }
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Could not publish the event.",
+      values: extractFormValues(formData),
     };
   }
 
   revalidatePath("/");
   revalidatePath("/organizer");
-  redirect(`/events/${eventId}`);
+  redirect(`/organizer/events/${eventId}`);
+}
+
+// ---------------------------------------------------------------------------
+// Update event (core editable fields)
+// ---------------------------------------------------------------------------
+
+export interface UpdateEventState {
+  error: string | null;
+}
+
+export async function updateEventAction(
+  _prev: UpdateEventState,
+  formData: FormData,
+): Promise<UpdateEventState> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?next=%2Forganizer");
+
+  const eventId = String(formData.get("eventId") ?? "").trim();
+  const title = String(formData.get("title") ?? "").trim();
+  const startsAt = String(formData.get("startsAt") ?? "").trim();
+
+  if (!eventId) return { error: "Missing event ID." };
+  if (!title) return { error: "Give the event a title." };
+  if (!startsAt) return { error: "Pick a start date and time." };
+
+  const latitude = String(formData.get("latitude") ?? "").trim();
+  const longitude = String(formData.get("longitude") ?? "").trim();
+  const googleMapsLink = String(formData.get("googleMapsLink") ?? "").trim() || null;
+  const endsAt = String(formData.get("endsAt") ?? "").trim();
+
+  // Validate end date is after start date
+  if (endsAt) {
+    const startMs = new Date(startsAt).getTime();
+    const endMs = new Date(endsAt).getTime();
+    if (endMs <= startMs) {
+      return { error: "End date and time must be after the start date and time." };
+    }
+  }
+
+  try {
+    // Parse tier edits if present
+    const tierIds = formData.getAll("tierId[]").map(String);
+    const tierNames = formData.getAll("tierName[]").map(String);
+    const tierPrices = formData.getAll("tierPrice[]").map((v) => Number(v));
+    const tierQtys = formData.getAll("tierQty[]").map((v) => Number(v));
+    const tiers = tierIds.length > 0 && tierNames.length > 0
+      ? tierNames.map((name, i) => ({
+          id: tierIds[i] || undefined,
+          name,
+          pricePaise: Math.round((tierPrices[i] || 0) * 100),
+          quantity: tierQtys[i] || 0,
+          perks: [],
+        }))
+      : undefined;
+
+    await updateEvent(user, eventId, {
+      title,
+      description: String(formData.get("description") ?? "").trim(),
+      venueName: String(formData.get("venueName") ?? "").trim(),
+      venueAddress: String(formData.get("venueAddress") ?? "").trim(),
+      latitude: latitude ? Number(latitude) : null,
+      longitude: longitude ? Number(longitude) : null,
+      googleMapsLink,
+      startsAt: new Date(startsAt).toISOString(),
+      endsAt: endsAt ? new Date(endsAt).toISOString() : null,
+      tags: String(formData.get("tags") ?? "")
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
+      tiers,
+      photoUrls: formData.getAll("photoUrls[]").map(String).filter(Boolean),
+      contactEmail: String(formData.get("contactEmail") ?? "").trim() || null,
+      contactPhone: String(formData.get("contactPhone") ?? "").trim() || null,
+    });
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Could not save changes.",
+    };
+  }
+
+  revalidatePath("/");
+  revalidatePath("/organizer");
+  revalidatePath(`/events/${eventId}`);
+  redirect(`/organizer/events/${eventId}`);
+}
+
+// ---------------------------------------------------------------------------
+// Cancel event — stop sales, mark tickets CANCELLED, create refund records,
+// notify all ticket holders. Organizer pays platform fee (non-refundable).
+// ---------------------------------------------------------------------------
+
+export async function cancelEventAction(formData: FormData): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?next=%2Forganizer");
+
+  const eventId = String(formData.get("eventId") ?? "").trim();
+  const reason = String(formData.get("cancelReason") ?? "").trim();
+  if (!eventId) return;
+
+  const { cancelEvent } = await import("@/lib/data/organizer");
+  await cancelEvent(user, eventId, reason);
+
+  // Cancel any active Hero Boosts for this event
+  const { cancelHeroBoostsForEvent } = await import("@/lib/data/hero-boosts");
+  await cancelHeroBoostsForEvent(eventId);
+
+  revalidatePath("/");
+  revalidatePath("/organizer");
+  revalidatePath(`/events/${eventId}`);
+  redirect(`/organizer/events/${eventId}`);
+}
+
+// ---------------------------------------------------------------------------
+// Postpone event — update dates, notify all ticket holders.
+// Users can choose to keep their ticket or request a refund.
+// ---------------------------------------------------------------------------
+
+export async function postponeEventAction(formData: FormData): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?next=%2Forganizer");
+
+  const eventId = String(formData.get("eventId") ?? "").trim();
+  const newStartsAt = String(formData.get("newStartsAt") ?? "").trim();
+  const newEndsAt = String(formData.get("newEndsAt") ?? "").trim();
+  const reason = String(formData.get("postponeReason") ?? "").trim();
+
+  if (!eventId || !newStartsAt) return;
+
+  // Server-side date validation
+  const newStart = new Date(newStartsAt);
+  const now = new Date();
+  if (newStart <= now) {
+    throw new Error("New start date must be in the future.");
+  }
+  if (newEndsAt) {
+    const newEnd = new Date(newEndsAt);
+    if (newEnd <= newStart) {
+      throw new Error("New end date must be after the new start date.");
+    }
+  }
+
+  const { postponeEvent } = await import("@/lib/data/organizer");
+  await postponeEvent(
+    user,
+    eventId,
+    new Date(newStartsAt).toISOString(),
+    newEndsAt ? new Date(newEndsAt).toISOString() : null,
+    reason,
+  );
+
+  // Re-evaluate Hero Boost expiry based on new event date.
+  // The boost's expires_at is min(started_at + duration, event.starts_at).
+  // If the event is postponed, the expiry may need to be recalculated.
+  // Eligibility query already checks expires_at > now AND event.starts_at > now,
+  // so the boost will naturally be excluded if the event has started.
+  // No additional action needed — the query enforces eligibility by timestamp.
+
+  revalidatePath("/");
+  revalidatePath("/organizer");
+  revalidatePath(`/events/${eventId}`);
+  redirect(`/organizer/events/${eventId}`);
 }

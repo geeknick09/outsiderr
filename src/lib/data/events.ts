@@ -15,6 +15,7 @@ import type {
   EventDetail,
   EventSummary,
   Organizer,
+  PricingMode,
   TicketTier,
 } from "@/lib/types";
 
@@ -66,6 +67,7 @@ function toSummary(row: EventRow, tiers: TicketTier[]): EventSummary {
     isFeatured: row.is_featured,
     registrationsCount: row.registrations_count,
     tags: row.tags ?? [],
+    pricingMode: (row.pricing_mode ?? "PAID") as PricingMode,
   };
 }
 
@@ -81,6 +83,7 @@ function toDetail(
     venueAddress: row.venue_address,
     latitude: row.latitude,
     longitude: row.longitude,
+    googleMapsLink: row.google_maps_link ?? null,
     endsAt: row.ends_at,
     feePayer: row.fee_payer,
     status: row.status,
@@ -89,6 +92,8 @@ function toDetail(
     organizer,
     tiers: tiers.sort((a, b) => a.sortOrder - b.sortOrder),
     photoUrls: row.photo_urls ?? [],
+    contactEmail: row.contact_email ?? null,
+    contactPhone: row.contact_phone ?? null,
   };
 }
 
@@ -106,6 +111,7 @@ function summarise(event: EventDetail): EventSummary {
     isFeatured: event.isFeatured,
     registrationsCount: event.registrationsCount,
     tags: event.tags ?? [],
+    pricingMode: event.pricingMode ?? "PAID",
   };
 }
 
@@ -130,10 +136,15 @@ export async function listEvents(query: EventQuery = {}): Promise<EventSummary[]
     .order("starts_at", { ascending: true });
 
   if (query.city) request = request.eq("city", query.city);
-  if (query.category) request = request.eq("category", query.category);
+  // Use text cast to avoid 22P02 enum errors while DB migrations are in flight
+  if (query.category) request = (request as ReturnType<typeof request.eq>).filter("category::text", "eq", query.category);
 
   const { data: events, error } = await request;
-  if (error) throw error;
+  if (error) {
+    // 22P02 = invalid input value for enum — DB enum out of sync; return empty
+    if ((error as { code?: string }).code === "22P02") return [];
+    throw error;
+  }
   if (!events || events.length === 0) return [];
 
   const { data: tiers } = await supabase

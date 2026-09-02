@@ -12,7 +12,8 @@ export function ThemeToggle() {
 
   useEffect(() => setMounted(true), []);
 
-  const isDark = resolvedTheme !== "light";
+  // Only read resolvedTheme after mount to avoid server/client mismatch
+  const isDark = mounted ? resolvedTheme !== "light" : true;
 
   function toggle() {
     const next = isDark ? "light" : "dark";
@@ -25,8 +26,9 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={toggle}
-      aria-label={`Switch to ${isDark ? "light" : "dark"} mode`}
-      title={`Switch to ${isDark ? "light" : "dark"} mode`}
+      suppressHydrationWarning
+      aria-label={mounted ? `Switch to ${isDark ? "light" : "dark"} mode` : "Toggle theme"}
+      title={mounted ? `Switch to ${isDark ? "light" : "dark"} mode` : "Toggle theme"}
       className="glass flex h-10 w-10 items-center justify-center rounded-full transition-all hover:shadow-[0_0_20px_rgba(139,92,246,0.35)]"
     >
       {mounted && !isDark ? (

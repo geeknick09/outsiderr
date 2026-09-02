@@ -9,6 +9,7 @@ import {
   adminToggleUserAdmin,
 } from "@/lib/data/admin";
 import { approveBoost, rejectBoost } from "@/lib/data/boosts";
+import { setClubVerified } from "@/lib/data/clubs";
 import { approveOrder, rejectOrder } from "@/lib/data/orders";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
@@ -28,8 +29,17 @@ async function requireAdmin() {
     .eq("id", user.id)
     .single();
 
-  if (!profile?.is_admin) throw new Error("Not authorised.");
-  return user;
+  // If this user is explicitly admin, allow
+  if (profile?.is_admin) return user;
+
+  // Fallback: if no admin exists in the system yet, allow the first user
+  const { count } = await supabase
+    .from("profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("is_admin", true);
+  if (count === 0) return user;
+
+  throw new Error("Not authorised.");
 }
 
 export async function adminDeleteEventAction(eventId: string): Promise<void> {
@@ -77,4 +87,42 @@ export async function adminToggleAdminAction(userId: string, isAdmin: boolean): 
   await requireAdmin();
   await adminToggleUserAdmin(userId, isAdmin);
   revalidatePath("/admin/users");
+}
+
+export async function adminApproveClubAction(clubId: string): Promise<void> {
+  await requireAdmin();
+  await setClubVerified(clubId, true);
+  revalidatePath("/admin/clubs");
+  revalidatePath("/clubs");
+}
+
+export async function adminRejectClubAction(clubId: string): Promise<void> {
+  await requireAdmin();
+  await setClubVerified(clubId, false);
+  revalidatePath("/admin/clubs");
+}
+
+export async function updatePlatformSettingAction(
+  key: string,
+  value: string,
+): Promise<{ error: string | null }> {
+  const user = await requireAdmin();
+  if (!key) return { error: "Setting key is required." };
+
+  try {
+    // Try to parse as JSON for object/number values, otherwise keep as string
+    let parsedValue: string | number | boolean | Record<string, number>;
+    try {
+      parsedValue = JSON.parse(value);
+    } catch {
+      parsedValue = value;
+    }
+
+    const { updateSetting } = await import("@/lib/data/platform-settings");
+    await updateSetting(user.id, key, parsedValue);
+    revalidatePath("/admin/settings");
+    return { error: null };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to update setting." };
+  }
 }

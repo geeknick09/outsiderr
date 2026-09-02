@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 
+import { PrintButton } from "@/components/organizer/print-button";
 import { getCurrentUser } from "@/lib/auth";
 import { getEvent } from "@/lib/data/events";
 import { getEventAnalytics, listEventOrders, listEventTickets } from "@/lib/data/admin";
@@ -48,13 +49,7 @@ export default async function EventReportPage({
       {/* Print button — hidden when printing */}
       <div className="mb-8 flex items-center justify-between print:hidden">
         <p className="text-sm text-zinc-500">Print or save as PDF with Ctrl+P / ⌘+P</p>
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="rounded-xl bg-violet-600 px-5 py-2 text-sm font-bold text-white hover:bg-violet-700"
-        >
-          Print / Save PDF
-        </button>
+        <PrintButton />
       </div>
 
       {/* Report header */}

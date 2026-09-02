@@ -5,6 +5,7 @@ import { LocationSelector } from "@/components/layout/location-selector";
 import { UserMenu } from "@/components/layout/user-menu";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { getCurrentUser } from "@/lib/auth";
+import { getOrganizerProfile } from "@/lib/data/organizer";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 
@@ -12,18 +13,23 @@ export async function Navbar() {
   const user = await getCurrentUser();
 
   let isAdmin = false;
+  let isOrganizer = false;
   if (user) {
     if (!isSupabaseConfigured()) {
       // Demo mode: treat every signed-in user as admin so they can explore.
       isAdmin = true;
+      // Check organizer cookie
+      const organizer = await getOrganizerProfile(user);
+      isOrganizer = !!organizer;
     } else {
       const supabase = await createClient();
-      const { data } = await supabase
+      const { data: profile } = await supabase
         .from("profiles")
-        .select("is_admin")
+        .select("is_admin, is_organizer")
         .eq("id", user.id)
         .maybeSingle();
-      isAdmin = data?.is_admin === true;
+      isAdmin = profile?.is_admin === true;
+      isOrganizer = profile?.is_organizer === true;
     }
   }
 
@@ -41,7 +47,7 @@ export async function Navbar() {
             <LocationSelector />
           </Suspense>
           <ThemeToggle />
-          <UserMenu name={user?.name ?? null} isAdmin={isAdmin} />
+          <UserMenu name={user?.name ?? null} isAdmin={isAdmin} isOrganizer={isOrganizer} />
         </div>
       </nav>
     </header>

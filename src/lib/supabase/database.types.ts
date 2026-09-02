@@ -4,6 +4,8 @@ import type {
   EventStatus,
   FeePayer,
   OrderStatus,
+  PricingMode,
+  RefundStatus,
   ThemePreference,
   TicketStatus,
 } from "@/lib/types";
@@ -43,6 +45,7 @@ export type EventRow = {
   venue_address: string;
   latitude: number | null;
   longitude: number | null;
+  google_maps_link: string | null;
   starts_at: string;
   ends_at: string | null;
   card_poster_url: string | null;
@@ -55,6 +58,9 @@ export type EventRow = {
   registrations_count: number;
   tags: string[];
   photo_urls: string[];
+  pricing_mode: PricingMode;
+  contact_email: string | null;
+  contact_phone: string | null;
   created_at: string;
 }
 
@@ -85,6 +91,8 @@ export type OrderRow = {
   payment_proof_url: string | null;
   buyer_name: string | null;
   buyer_phone: string | null;
+  buyer_email: string | null;
+  buyer_gender: string | null;
   rejection_reason: string | null;
   reviewed_by: string | null;
   reviewed_at: string | null;
@@ -145,6 +153,115 @@ export type BoostSlotPriceRow = {
   price_paise: number;
 }
 
+export type ClubRow = {
+  id: string;
+  owner_id: string;
+  name: string;
+  bio: string | null;
+  type: string;
+  city: string | null;
+  avatar_url: string | null;
+  cover_url: string | null;
+  instagram_handle: string | null;
+  upi_id: string | null;
+  membership_type: string;
+  membership_fee_paise: number;
+  terms: string[];
+  member_count: number;
+  verified: boolean;
+  created_at: string;
+}
+
+export type LegalPageRow = {
+  slug: string;
+  title: string;
+  content: string;
+  version: number;
+  is_published: boolean;
+  updated_at: string;
+  updated_by: string | null;
+}
+
+export type HeroBoostRow = {
+  id: string;
+  event_id: string;
+  organizer_id: string;
+  status: string;
+  amount_paise: number;
+  currency: string;
+  utr_reference: string | null;
+  started_at: string | null;
+  expires_at: string | null;
+  cancelled_at: string | null;
+  expired_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ClubMemberRow = {
+  id: string;
+  club_id: string;
+  user_id: string;
+  status: string;
+  instagram_link: string | null;
+  utr_reference: string | null;
+  created_at: string;
+}
+
+export type PlatformSettingRow = {
+  key: string;
+  value: string | number | boolean | Record<string, number>;
+  description: string | null;
+  updated_at: string;
+  updated_by: string | null;
+}
+
+export type EventTermsAcceptanceRow = {
+  id: string;
+  organizer_id: string;
+  event_id: string | null;
+  terms_version: string;
+  accepted_at: string;
+  ip_address: string | null;
+  user_agent: string | null;
+}
+
+export type DoorStaffOrderRow = {
+  id: string;
+  event_id: string;
+  organizer_id: string;
+  number_of_staff: number;
+  service_amount_paise: number;
+  payment_status: string;
+  service_status: string;
+  utr_reference: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type RefundRow = {
+  id: string;
+  order_id: string;
+  event_id: string;
+  user_id: string;
+  amount_paise: number;
+  platform_fee_paise: number;
+  status: RefundStatus;
+  reason: string;
+  initiated_at: string;
+  completed_at: string | null;
+}
+
+export type EventNotificationRow = {
+  id: string;
+  event_id: string;
+  user_id: string;
+  type: "CANCELLATION" | "POSTPONEMENT" | "RESCHEDULE";
+  message: string;
+  read: boolean;
+  created_at: string;
+}
+
 type Table<Row, Required extends keyof Row = never> = {
   Row: Row;
   Insert: Partial<Row> & Pick<Row, Required>;
@@ -171,6 +288,15 @@ export type Database = {
       push_subscriptions: Table<PushSubscriptionRow, "user_id" | "endpoint" | "p256dh" | "auth">;
       boosts: Table<BoostRow, "event_id" | "organizer_id" | "slot" | "amount_paid_paise" | "starts_at" | "ends_at">;
       boost_slot_prices: Table<BoostSlotPriceRow, "slot" | "price_paise">;
+      clubs: Table<ClubRow, "owner_id" | "name" | "type" | "membership_type">;
+      club_members: Table<ClubMemberRow, "club_id" | "user_id" | "status">;
+      refunds: Table<RefundRow, "order_id" | "event_id" | "user_id" | "amount_paise" | "platform_fee_paise" | "status" | "reason" | "initiated_at">;
+      event_notifications: Table<EventNotificationRow, "event_id" | "user_id" | "type" | "message">;
+      platform_settings: Table<PlatformSettingRow, "key" | "value">;
+      event_terms_acceptances: Table<EventTermsAcceptanceRow, "organizer_id" | "terms_version">;
+      door_staff_orders: Table<DoorStaffOrderRow, "event_id" | "organizer_id" | "number_of_staff" | "service_amount_paise">;
+      legal_pages: Table<LegalPageRow, "slug" | "title" | "content">;
+      hero_boosts: Table<HeroBoostRow, "event_id" | "organizer_id" | "amount_paise">;
     };
     Views: Record<string, never>;
     Functions: {
@@ -180,6 +306,18 @@ export type Database = {
       };
       reject_order: {
         Args: { p_order_id: string; p_reason: string | null };
+        Returns: OrderRow;
+      };
+      create_free_order: {
+        Args: {
+          p_event_id: string;
+          p_tier_id: string;
+          p_quantity: number;
+          p_buyer_name: string | null;
+          p_buyer_phone: string | null;
+          p_buyer_email: string | null;
+          p_buyer_gender: string | null;
+        };
         Returns: OrderRow;
       };
       check_in_ticket: {
@@ -194,6 +332,10 @@ export type Database = {
       };
       offer_waitlist_next: {
         Args: { p_tier_id: string };
+        Returns: void;
+      };
+      increment_club_member_count: {
+        Args: { p_club_id: string };
         Returns: void;
       };
     };

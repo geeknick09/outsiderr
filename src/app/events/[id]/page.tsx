@@ -2,7 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { BadgeCheck, CalendarDays, Info, MapPin, Users } from "lucide-react";
+import { headers } from "next/headers";
+import { BadgeCheck, CalendarDays, Info, Mail, MapPin, Phone, Users } from "lucide-react";
 
 import { MapEmbed } from "@/components/events/map-embed";
 import { PhotoGallery } from "@/components/events/photo-gallery";
@@ -53,7 +54,11 @@ export default async function EventDetailsPage({
     })),
   );
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "https://outsiderr.in";
+  // Build share URL dynamically from request origin, falling back to env
+  const hdrs = await headers();
+  const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "localhost:3000";
+  const proto = hdrs.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? `${proto}://${host}`;
   const eventUrl = `${baseUrl}/events/${event.id}`;
 
   return (
@@ -109,11 +114,15 @@ export default async function EventDetailsPage({
                 {formatDateRange(event.startsAt, event.endsAt)}
               </span>
               <a
-                href={mapsLink(
-                  event.latitude,
-                  event.longitude,
-                  `${event.venueName}, ${event.venueAddress}`,
-                )}
+                href={
+                  event.googleMapsLink
+                    ? event.googleMapsLink
+                    : mapsLink(
+                        event.latitude,
+                        event.longitude,
+                        `${event.venueName}, ${event.venueAddress}`,
+                      )
+                }
                 target="_blank"
                 rel="noreferrer"
                 className="flex items-start gap-2 hover:text-violet-neon"
@@ -134,6 +143,7 @@ export default async function EventDetailsPage({
               latitude={event.latitude}
               longitude={event.longitude}
               venueName={event.venueName}
+              googleMapsLink={event.googleMapsLink}
             />
           </div>
 
@@ -185,6 +195,33 @@ export default async function EventDetailsPage({
               </div>
             </Link>
           </section>
+
+          {/* Contact details */}
+          {event.contactEmail || event.contactPhone ? (
+            <section className="glass rounded-3xl p-5">
+              <h2 className="mb-3 text-base font-bold">Contact Organizer</h2>
+              <div className="space-y-2 text-sm">
+                {event.contactEmail ? (
+                  <a
+                    href={`mailto:${event.contactEmail}`}
+                    className="flex items-center gap-2 text-muted hover:text-violet-neon"
+                  >
+                    <Mail className="h-4 w-4" />
+                    {event.contactEmail}
+                  </a>
+                ) : null}
+                {event.contactPhone ? (
+                  <a
+                    href={`tel:${event.contactPhone}`}
+                    className="flex items-center gap-2 text-muted hover:text-violet-neon"
+                  >
+                    <Phone className="h-4 w-4" />
+                    {event.contactPhone}
+                  </a>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
 
           <TermsAccordion terms={event.terms} />
         </div>

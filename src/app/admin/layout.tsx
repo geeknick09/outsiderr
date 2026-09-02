@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BarChart2, BellRing, CalendarDays, ShieldCheck, Users, Zap } from "lucide-react";
+import { BarChart2, BellRing, CalendarDays, Rocket, ShieldCheck, UserSquare2, Users, Zap, Settings, UsersRound, FileText } from "lucide-react";
 
 import { getCurrentUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -13,12 +13,23 @@ async function checkAdminAccess(): Promise<boolean> {
   if (!isSupabaseConfigured()) return true;
 
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data: profile } = await supabase
     .from("profiles")
     .select("is_admin")
     .eq("id", user.id)
     .single();
-  return data?.is_admin === true;
+
+  // If this user is explicitly admin, allow
+  if (profile?.is_admin === true) return true;
+
+  // Fallback: if no admin exists in the system yet, allow the first user
+  const { count } = await supabase
+    .from("profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("is_admin", true);
+  if (count === 0) return true;
+
+  return false;
 }
 
 const NAV = [
@@ -26,7 +37,12 @@ const NAV = [
   { href: "/admin/events", label: "Events", icon: CalendarDays },
   { href: "/admin/orders", label: "Orders", icon: Zap },
   { href: "/admin/boosts", label: "Boosts", icon: BellRing },
+  { href: "/admin/hero-boosts", label: "Hero Boosts", icon: Rocket },
+  { href: "/admin/clubs", label: "Clubs", icon: UserSquare2 },
   { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/door-staff", label: "Door Staff", icon: UsersRound },
+  { href: "/admin/settings", label: "Settings", icon: Settings },
+  { href: "/admin/legal", label: "Legal Pages", icon: FileText },
 ];
 
 export default async function AdminLayout({

@@ -1,14 +1,23 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { BarChart2, ChevronLeft } from "lucide-react";
+import { BarChart2, ChevronLeft, LayoutDashboard } from "lucide-react";
 
 import { AnalyticsPanel } from "@/components/organizer/analytics-panel";
+import { EditEventForm } from "@/components/organizer/edit-event-form";
+import { CancelPostponeButtons } from "@/components/organizer/cancel-postpone-buttons";
+import { DoorStaffPaymentPanel } from "@/components/organizer/door-staff-payment";
+import { DoorStaffRequest } from "@/components/organizer/door-staff-request";
+import { HeroBoostPanel } from "@/components/organizer/hero-boost-panel";
+import { ShareButton } from "@/components/events/share-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/auth";
 import { getEvent } from "@/lib/data/events";
+import { getDoorStaffOrder } from "@/lib/data/door-staff";
 import { getOrganizerEventAnalytics, updateEventStatus } from "@/lib/data/organizer";
+import { getCancellationChargePercent, getPostponementChargePercent, getDoorStaffPricing, getDoorStaffAvailable, getHeroBoostPrice, getHeroBoostDurationDays } from "@/lib/data/platform-settings";
+import { getHeroBoostForEvent } from "@/lib/data/hero-boosts";
 import { formatDateRange } from "@/lib/format";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import type { EventStatus } from "@/lib/types";
@@ -37,19 +46,46 @@ export default async function ManageEventPage({
   const { id } = await params;
   const { action } = await searchParams;
 
-  // Handle status toggle server-side via query param
-  if (action === "publish" || action === "cancel") {
-    const newStatus: EventStatus = action === "publish" ? "PUBLISHED" : "CANCELLED";
-    await updateEventStatus(user, id, newStatus);
+  // Handle publish action via query param
+  if (action === "publish") {
+    await updateEventStatus(user, id, "PUBLISHED" as EventStatus);
     redirect(`/organizer/events/${id}`);
   }
 
-  const [event, analytics] = await Promise.all([
+  const [event, analytics, cancelChargePct, postponeChargePct, doorStaffOrder, doorStaffPricing, doorStaffAvailable, heroBoost, heroBoostPrice, heroBoostDuration] = await Promise.all([
     getEvent(id),
     getOrganizerEventAnalytics(user, id),
+    getCancellationChargePercent(),
+    getPostponementChargePercent(),
+    getDoorStaffOrder(id),
+    getDoorStaffPricing(),
+    getDoorStaffAvailable(),
+    getHeroBoostForEvent(user, id),
+    getHeroBoostPrice(),
+    getHeroBoostDurationDays(),
   ]);
 
   if (!event || !analytics) notFound();
+
+  const statusTone =
+    event.status === "PUBLISHED"
+      ? "success"
+      : event.status === "CANCELLED" || event.status === "CANCELLATION_REQUESTED"
+      ? "danger"
+      : event.status === "POSTPONED"
+      ? "violet"
+      : "neutral";
+
+  const statusLabel =
+    event.status === "PUBLISHED"
+      ? "Live"
+      : event.status === "CANCELLED"
+      ? "Cancelled"
+      : event.status === "CANCELLATION_REQUESTED"
+      ? "Cancelling…"
+      : event.status === "POSTPONED"
+      ? "Postponed"
+      : "Draft";
 
   return (
     <div className="space-y-6 py-6">
@@ -61,21 +97,17 @@ export default async function ManageEventPage({
           <h1 className="truncate text-2xl font-black tracking-tight">{event.title}</h1>
           <p className="text-sm text-muted">{formatDateRange(event.startsAt, event.endsAt)}</p>
         </div>
+        <Link href="/organizer">
+          <Button variant="secondary" size="sm">
+            <LayoutDashboard className="h-4 w-4" />
+            Dashboard
+          </Button>
+        </Link>
       </div>
 
       <div className="flex flex-wrap gap-2">
         <Badge tone="violet">{CATEGORY_LABELS[event.category]}</Badge>
-        <Badge
-          tone={
-            event.status === "PUBLISHED"
-              ? "success"
-              : event.status === "CANCELLED"
-              ? "danger"
-              : "neutral"
-          }
-        >
-          {event.status === "PUBLISHED" ? "Live" : event.status === "CANCELLED" ? "Cancelled" : "Draft"}
-        </Badge>
+        <Badge tone={statusTone}>{statusLabel}</Badge>
         {event.isFeatured ? <Badge tone="lime">Boosted</Badge> : null}
       </div>
 
@@ -90,13 +122,13 @@ export default async function ManageEventPage({
             Print report
           </Button>
         </Link>
-        {event.status === "PUBLISHED" ? (
-          <form action={`/organizer/events/${event.id}?action=cancel`} method="GET">
-            <Button type="submit" variant="secondary" size="sm">
-              Cancel event
-            </Button>
-          </form>
-        ) : event.status === "DRAFT" ? (
+        <ShareButton
+          url={`/events/${event.id}`}
+          title={event.title}
+          variant="secondary"
+          size="sm"
+        />
+        {event.status === "DRAFT" ? (
           <form action={`/organizer/events/${event.id}?action=publish`} method="GET">
             <Button type="submit" size="sm">
               Publish event
@@ -118,6 +150,57 @@ export default async function ManageEventPage({
             {analytics.waitlistCount === 1 ? "person" : "people"} on the waitlist
           </p>
         </div>
+      ) : null}
+
+      {/* Edit form */}
+      {event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" ? (
+        <EditEventForm event={event} />
+      ) : null}
+
+      {/* Hero Boost */}
+      {event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" ? (
+        <HeroBoostPanel
+          eventId={event.id}
+          boost={heroBoost}
+          pricePaise={heroBoostPrice}
+          durationDays={heroBoostDuration}
+          eventStartsAt={event.startsAt}
+          platformUpiId={process.env.NEXT_PUBLIC_PLATFORM_UPI_ID ?? "outsiderr@upi"}
+        />
+      ) : null}
+
+      {/* Door staff — payment panel if order exists, request form if not */}
+      {doorStaffOrder ? (
+        <DoorStaffPaymentPanel
+          order={doorStaffOrder}
+          platformUpiId={process.env.NEXT_PUBLIC_PLATFORM_UPI_ID ?? "outsiderr@upi"}
+        />
+      ) : (event.status === "PUBLISHED" || event.status === "DRAFT") ? (
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold">Door Staff</h2>
+          <DoorStaffRequest
+            eventId={event.id}
+            pricing={doorStaffPricing}
+            maxStaff={Math.min(5, doorStaffAvailable)}
+          />
+        </section>
+      ) : null}
+
+      {/* Cancel / Postpone buttons */}
+      {event.status === "PUBLISHED" || event.status === "POSTPONED" ? (
+        <section className="rounded-3xl border border-red-500/30 p-5">
+          <h2 className="text-base font-bold text-red-500">Event actions</h2>
+          <p className="mt-1 text-sm text-muted">
+            Cancel or postpone this event. Ticket holders will be notified automatically.
+          </p>
+          <div className="mt-4">
+            <CancelPostponeButtons
+              event={event}
+              cancellationChargePercent={cancelChargePct}
+              postponementChargePercent={postponeChargePct}
+            />
+          </div>
+        </section>
       ) : null}
     </div>
   );

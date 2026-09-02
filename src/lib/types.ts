@@ -1,7 +1,7 @@
 export type EventCategory =
   | "CYPHER_BATTLE"
   | "SKATE_STUNT"
-  | "MEETUP_RUN"
+  | "FITNESS"
   | "JAM_GIG"
   | "WORKSHOP"
   | "OTHER";
@@ -10,17 +10,64 @@ export type City = "KOLKATA" | "MUMBAI" | "DELHI" | "BENGALURU";
 
 export type FeePayer = "BUYER" | "ORGANIZER";
 
-export type EventStatus = "DRAFT" | "PUBLISHED" | "CANCELLED";
+export type PricingMode = "FREE" | "FLAT" | "PAID";
+
+export type EventStatus =
+  | "DRAFT"
+  | "PUBLISHED"
+  | "CANCELLATION_REQUESTED"
+  | "CANCELLED"
+  | "POSTPONED";
+
+export type RefundStatus = "PENDING" | "INITIATED" | "COMPLETED" | "FAILED";
+
+export interface RefundRecord {
+  id: string;
+  orderId: string;
+  eventId: string;
+  userId: string;
+  amountPaise: number;
+  platformFeePaise: number;
+  status: RefundStatus;
+  reason: string;
+  initiatedAt: string;
+  completedAt: string | null;
+}
 
 export type OrderStatus =
   | "PENDING_VERIFICATION"
   | "CONFIRMED"
   | "REJECTED"
-  | "CANCELLED";
+  | "CANCELLED"
+  | "REFUNDED";
 
-export type TicketStatus = "VALID" | "USED" | "VOID";
+export type TicketStatus = "VALID" | "USED" | "VOID" | "CANCELLED";
 
 export type ThemePreference = "dark" | "light" | "system";
+
+export interface PlatformSetting {
+  key: string;
+  value: string | number | boolean | Record<string, number>;
+  description: string | null;
+  updatedAt: string;
+  updatedBy: string | null;
+}
+
+export type DoorStaffPaymentStatus = "PENDING" | "PAID" | "FAILED" | "REFUNDED";
+export type DoorStaffServiceStatus = "REQUESTED" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
+
+export interface DoorStaffOrder {
+  id: string;
+  eventId: string;
+  organizerId: string;
+  numberOfStaff: number;
+  serviceAmountPaise: number;
+  paymentStatus: DoorStaffPaymentStatus;
+  serviceStatus: DoorStaffServiceStatus;
+  utrReference: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface Organizer {
   id: string;
@@ -57,6 +104,7 @@ export interface EventSummary {
   registrationsCount: number;
   tags: string[];
   status?: EventStatus;
+  pricingMode: PricingMode;
 }
 
 export interface EventDetail extends EventSummary {
@@ -65,6 +113,7 @@ export interface EventDetail extends EventSummary {
   venueAddress: string;
   latitude: number | null;
   longitude: number | null;
+  googleMapsLink: string | null;
   endsAt: string | null;
   feePayer: FeePayer;
   status: EventStatus;
@@ -73,6 +122,8 @@ export interface EventDetail extends EventSummary {
   organizer: Organizer;
   tiers: TicketTier[];
   photoUrls: string[];
+  contactEmail: string | null;
+  contactPhone: string | null;
 }
 
 export interface Order {
@@ -81,6 +132,7 @@ export interface Order {
   eventTitle: string;
   tierId: string;
   tierName: string;
+  userId: string | null;
   quantity: number;
   unitPricePaise: number;
   subtotalPaise: number;
@@ -92,6 +144,8 @@ export interface Order {
   paymentProofUrl: string | null;
   buyerName: string | null;
   buyerPhone: string | null;
+  buyerEmail: string | null;
+  buyerGender: string | null;
   rejectionReason: string | null;
   createdAt: string;
 }
@@ -218,4 +272,73 @@ export interface AdminUser {
 export interface BoostWithEvent extends Boost {
   eventTitle: string;
   organizerName: string;
+}
+
+// ── Clubs & Crews ──────────────────────────────────────────────────────
+
+export type ClubType = "CLUB" | "CREW";
+export type MembershipType = "FREE" | "PAID" | "AUDITION";
+export type MembershipStatus = "PENDING" | "ACCEPTED" | "REJECTED";
+
+export interface Club {
+  id: string;
+  ownerId: string;
+  ownerName: string;
+  name: string;
+  bio: string | null;
+  type: ClubType;
+  city: City | null;
+  avatarUrl: string | null;
+  coverUrl: string | null;
+  instagramHandle: string | null;
+  upiId: string | null;
+  membershipType: MembershipType;
+  membershipFeePaise: number;
+  terms: string[];
+  memberCount: number;
+  verified: boolean;
+  createdAt: string;
+}
+
+export interface ClubMember {
+  id: string;
+  clubId: string;
+  userId: string;
+  userName: string;
+  status: MembershipStatus;
+  instagramLink: string | null;
+  utrReference: string | null;
+  createdAt: string;
+}
+
+// ── Hero Boosts ───────────────────────────────────────────────────────
+
+export type HeroBoostStatus = "PENDING" | "ACTIVE" | "EXPIRED" | "CANCELLED" | "REFUNDED" | "FAILED";
+
+export interface HeroBoost {
+  id: string;
+  eventId: string;
+  organizerId: string;
+  status: HeroBoostStatus;
+  amountPaise: number;
+  currency: string;
+  utrReference: string | null;
+  startedAt: string | null;
+  expiresAt: string | null;
+  cancelledAt: string | null;
+  expiredAt: string | null;
+  createdAt: string;
+}
+
+export interface HeroBoostWithEvent extends HeroBoost {
+  eventTitle: string;
+  eventStartsAt: string;
+  eventStatus: string;
+  organizerName: string;
+}
+
+export interface HeroEvent extends EventSummary {
+  heroBoostId: string;
+  heroStartedAt: string;
+  heroExpiresAt: string;
 }
