@@ -27,7 +27,7 @@ This document tracks all product, engineering, infrastructure, payment, organize
 
 - [ ] **P6. Phone + OTP Authentication** — Currently using email/password. Phone OTP deferred.
 - [ ] **P7. Guest Checkout / OTP Checkout** — Prefill profile for logged-in users. New users go through checkout flow.
-- [x] **P29. Profile Menu — Dynamic Organizer Label** — Shows "Become an Organizer" for non-organizers and "Organize Events" for organizers. Organizer status checked in navbar and passed to user menu.
+- [x] **P29. Profile Menu — Dynamic Organizer Label** — Shows "List Your Event" for non-organizers (links to `/list-your-event`) and "Manage Your Events" for organizers (links to `/organizer`). Organizer status checked in navbar and passed to user menu.
 
 ---
 
@@ -120,7 +120,7 @@ This document tracks all product, engineering, infrastructure, payment, organize
 
 ## 11. Branding & UI
 
-- [ ] **P21. Outsiderr Logo** — Primary, horizontal, icon, light/dark versions, social media, app icon.
+- [x] **P21. Outsiderr Logo** — Dark and light mode logos (`darkmode.png`, `lightmode.png`) with theme-aware switching via `ThemeLogo` component. Used in navbar, favicon, PWA manifest, and service worker.
 - [~] **P22. Loading / Buffering Animation** — Loading skeletons added. Branded animation deferred.
 - [x] **P34. Profile Dropdown UX** — Auto-close on navigation and outside click. Fixed z-index overlay (z-40 overlay, z-50 menu). Dark-mode mobile styling fixed.
 - [x] **P35. Post-Payment Success UI** — Green confirmation message + WhatsApp instructions for UTR submission on checkout and tickets pages.
@@ -128,6 +128,16 @@ This document tracks all product, engineering, infrastructure, payment, organize
 - [x] **P38. Hero Boost Error Handling** — Supabase errors (PostgrestError) now properly extracted in all hero boost actions. Added `console.error` logging. `getHeroBoostForEvent` and `getHeroEvents` catch errors gracefully instead of crashing pages.
 - [x] **P39. Admin/Hero Boost Sync** — Admin overview stats now include hero boost counts (active + pending). Pending hero boost alert banner on admin overview with link to `/admin/hero-boosts`. Cross-links between Slot Boosts and Hero Boosts admin pages.
 - [x] **P40. Standalone Hero Boosts Migration** — Created `supabase/migrations/hero_boosts.sql` with table creation, settings inserts, indexes, and RLS policies for easy one-shot execution in Supabase SQL Editor.
+- [x] **P41. Organizer KYC / Banking Onboarding** — 5-step wizard collecting PAN, GST (optional), bank account, UPI, and organizer agreement. Schema extended with `pan_number`, `pan_name`, `gst_number`, `gst_business_name`, `bank_account_number`, `bank_ifsc`, `bank_account_name`, `bank_account_type`, `kyc_submitted` columns. PAN format (`ABCDE1234F`) and IFSC format (`ABCD0123456`) validated server-side.
+- [x] **P42. List Your Event Landing Page** — Marketing page at `/list-your-event` with hero, stats, how-it-works, feature cards, category chips, and CTA. "Get Started" routes to `/organizer`. Navbar "List your event" link removed; access via profile menu and footer.
+- [x] **P43. Per-Event Door Scanner** — Scanner moved from universal (`/organizer/scan`) to per-event (`/organizer/events/[id]/scan`). Validates both ticket authenticity and event ID match. Door scanner button removed from organizer dashboard header; only visible on individual event management pages.
+- [x] **P44. Past Events Handling** — Events past their start date are excluded from Featured, Happening Today, Popular, and All Events sections. New "Past Events" section at bottom of homepage with disabled (non-clickable) cards showing "Completed" badge. Organizer dashboard and event management page show "Completed" status for past events. Past events are read-only — edit form, hero boost, door staff, cancel/postpone, publish, and door scanner all hidden.
+- [x] **P45. Platform Footer** — District-style footer with 4 columns: Brand + social icons (Instagram, Facebook, YouTube, WhatsApp), Help (Contact Us), Quick Links (Become an Organizer / Manage Your Events based on organizer status, Join a Club / Crew, About Us), Legal (Terms, Privacy, Refund, Cancellation). Bottom bar with copyright, legal links, and consent notice. Responsive (stacks on mobile).
+- [x] **P46. Dynamic Platform Commission** — Platform fee now sourced from admin settings (`platform_fee_bps`) instead of hardcoded constant. `calculatePrice()` and `platformFee()` accept `feeBps` parameter. Checkout, order creation, and ticket tier preview all fetch the dynamic fee. Fee percentage label updates automatically (e.g. "Platform fee (5%)").
+- [x] **P47. Admin-Configurable Taglines** — Three new platform settings: `tagline_header`, `tagline_subheader`, `tagline_footer`. Homepage header and footer render dynamic taglines from settings. Admins can change them from the Settings panel.
+- [x] **P48. Legal Page Markdown Rendering** — Lightweight markdown parser for legal pages (`#`/`##` headings, `-` bullet lists, paragraphs). Handles both real newlines and literal `\n` escape sequences from PostgreSQL. SQL seeds updated to use `E''` escape syntax.
+- [x] **P49. Expandable Ticket Cards** — Ticket wallet cards are now click-to-expand. Compact card shows small QR + event details; clicking opens a full-size modal with large QR (220px), event name, tier, date/time, venue, check-in time, and download button. Expired tickets (past event date) are dimmed, grayscale, non-clickable, with "EXPIRED" stamp over QR and "Event Ended" badge.
+- [x] **P50. Homepage Copy Update** — Tagline changed from "Discover raw underground events happening today near you." to "Discover raw events happening today near you." (removed "underground" since run clubs/marathons aren't underground). Footer tagline updated to match.
 
 ---
 
@@ -186,17 +196,20 @@ This document tracks all product, engineering, infrastructure, payment, organize
 - [x] UPI ID validation + QR code generation
 - [x] Dynamic organizer heading on dashboard (name, avatar, bio, verified badge)
 - [x] Public organizer profile page (`/organizers/[id]`)
-- [x] "Become an Organizer" / "Organize Events" dynamic label in profile menu
+- [x] "List Your Event" / "Manage Your Events" dynamic label in profile menu
 - [x] Back to dashboard button on event management pages
+- [x] 5-step KYC onboarding wizard (profile, PAN, GST optional, bank+UPI, agreement)
+- [x] List Your Event landing page (`/list-your-event`)
 
 ### Booking & Tickets
 - [x] Booking system (manual UPI + UTR)
 - [x] Ticket generation with QR codes
-- [x] Ticket wallet (`/tickets`)
+- [x] Ticket wallet (`/tickets`) with expandable ticket cards
+- [x] Expired tickets (past event date) shown dimmed, grayscale, non-clickable with "EXPIRED" stamp
 - [x] RSVP form with email/gender (optional)
 - [x] Share event button (Web Share API + clipboard fallback, dynamic origin URLs)
 - [x] Print report (window.print in client component)
-- [x] Door scanner (html5-qrcode, lazy loaded, organizer-only, per-event validation, cooldown)
+- [x] Per-event door scanner (html5-qrcode, lazy loaded, organizer-only, event ID validation, cooldown)
 - [x] Post-payment green success message + WhatsApp instructions
 
 ### Event Lifecycle
@@ -229,19 +242,24 @@ This document tracks all product, engineering, infrastructure, payment, organize
 - [x] Door staff order creation + UPI QR payment + UTR submission
 - [x] Door staff availability count in admin settings
 - [x] Door staff request from event management page
-- [x] Door scanner removed from user profile menu (organizer-only)
+- [x] Door scanner removed from organizer dashboard (per-event only)
 
 ### Legal & Info Pages
 - [x] Database-backed legal pages (Terms, Refund, Cancellation, Privacy, etc.)
 - [x] Admin legal pages CRUD at `/admin/legal`
-- [x] Public legal pages at `/legal/[slug]`
+- [x] Public legal pages at `/legal/[slug]` with markdown rendering
 - [x] About Us page (`/about`)
 - [x] Contact Us page (`/contact`)
+- [x] Platform footer with social links, quick links, legal links, consent notice
 
 ### Platform & Infrastructure
 - [x] Platform settings table + admin settings page
+- [x] Dynamic platform commission from admin settings (not hardcoded)
+- [x] Admin-configurable taglines (header, subheader, footer)
+- [x] Past events excluded from active sections; "Past Events" section with disabled cards
 - [x] Demo mode with process-local store (events, orders, tickets, waitlist, boosts, clubs, clubMembers, doorStaffOrders, platformSettings, users, legalPages, heroBoosts)
 - [x] PWA support (manifest, service worker, icons)
+- [x] Theme-aware logo (dark/light mode switching)
 - [x] Loading skeletons
 - [x] Profile dropdown UX (auto-close, dark-mode mobile, z-index)
 - [x] Leaflet SSR fix (next/dynamic ssr:false instead of React.lazy)
@@ -254,6 +272,7 @@ This document tracks all product, engineering, infrastructure, payment, organize
 ## 17. Known Issues & Action Required
 
 - [ ] **Run `supabase/migrations/hero_boosts.sql`** in Supabase SQL Editor — The `hero_boosts` table, `contact_email`/`contact_phone` columns, and hero platform settings must be created in your Supabase project. Without this, Hero Boost purchases will fail with a database error.
+- [ ] **Run `supabase/migrations/fix_all.sql`** in Supabase SQL Editor — Must be re-run to apply: organizer KYC/banking columns (`pan_number`, `pan_name`, `gst_number`, `gst_business_name`, `bank_account_number`, `bank_ifsc`, `bank_account_name`, `bank_account_type`, `kyc_submitted`), tagline settings (`tagline_header`, `tagline_subheader`, `tagline_footer`), and legal page content with proper `E''` escape syntax for newlines.
 - [ ] **Set `NEXT_PUBLIC_PLATFORM_UPI_ID`** env var — Required for the UPI QR code displayed in the Hero Boost payment panel.
 
 ---
@@ -278,7 +297,6 @@ This document tracks all product, engineering, infrastructure, payment, organize
 - [ ] **Audit Log Table** — Track important admin/organizer actions.
 
 ### Low Priority
-- [ ] **Outsiderr Logo** — Full brand asset set.
 - [ ] **Branded Loading Animation** — Custom animation replacing skeletons.
 - [ ] **3-Month Data Retention / Archival** — Archive old data, preserve financial/legal records.
 - [ ] **Media Cleanup** — Reference-aware cleanup of orphaned files.
@@ -311,7 +329,7 @@ This document tracks all product, engineering, infrastructure, payment, organize
 17. [x] Legal/policy pages (database-backed, admin CRUD, public routes)
 
 ### PHASE 2 — Launch enhancements (P1)
-18. [x] Door staff (pricing, UPI payment, UTR submission, scanner)
+18. [x] Door staff (pricing, UPI payment, UTR submission, per-event scanner)
 19. [ ] Online events
 20. [ ] Advanced notifications
 21. [ ] Event analytics (views + conversion)
@@ -322,6 +340,13 @@ This document tracks all product, engineering, infrastructure, payment, organize
 26. [ ] Scheduled jobs
 27. [ ] Payment reconciliation
 28. [ ] Payment webhook hardening
+29. [x] Organizer KYC / banking onboarding (PAN, GST, bank details, 5-step wizard)
+30. [x] List Your Event landing page
+31. [x] Past events handling (excluded from active sections, read-only)
+32. [x] Expandable ticket cards with expired state
+33. [x] Platform footer (social, quick links, legal, consent notice)
+34. [x] Dynamic platform commission from admin settings
+35. [x] Admin-configurable taglines
 
 ### PHASE 3 — Scale & optimization (P2)
 29. [ ] RBAC

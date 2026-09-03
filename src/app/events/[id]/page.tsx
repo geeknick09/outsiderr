@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { CATEGORY_LABELS, CITY_LABELS } from "@/lib/constants";
 import { getCurrentUser } from "@/lib/auth";
 import { getEvent } from "@/lib/data/events";
+import { getPlatformFeeBps } from "@/lib/data/platform-settings";
 import { getWaitlistEntry, getWaitlistCount } from "@/lib/data/waitlist";
 import { formatDateRange, mapsLink } from "@/lib/format";
 
@@ -39,7 +40,7 @@ export default async function EventDetailsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [event, user] = await Promise.all([getEvent(id), getCurrentUser()]);
+  const [event, user, feeBps] = await Promise.all([getEvent(id), getCurrentUser(), getPlatformFeeBps()]);
   if (!event) notFound();
 
   const banner = event.bannerPosterUrl ?? event.cardPosterUrl;
@@ -227,7 +228,7 @@ export default async function EventDetailsPage({
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-          <TicketTiers event={event} />
+          <TicketTiers event={event} feeBps={feeBps} />
 
           {/* Waitlist for sold-out tiers */}
           {waitlistData.length > 0 ? (

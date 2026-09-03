@@ -28,12 +28,14 @@ export const MAX_TICKETS_PER_ORDER = 1;
 export const MAX_FEATURED_EVENTS = 5;
 
 export const DEFAULT_EVENT_TERMS = [
-  "Entry is subject to a valid ticket QR code; one scan per ticket.",
-  "Tickets are non-refundable and non-transferable once the payment is verified.",
-  "Attendees below 18 years must be accompanied by a guardian unless stated otherwise.",
-  "The organizer reserves the right to deny entry for unruly or unsafe behaviour.",
-  "Outside food, beverages and illegal substances are strictly prohibited.",
-  "Event schedule and line-up are subject to change without prior notice.",
+  "Please carry a valid ID proof along with you.",
+  "No refunds on purchased ticket are possible, even in case of any rescheduling.",
+  "Security procedures, including frisking remain the right of the management.",
+  "No dangerous or potentially hazardous objects including but not limited to weapons, knives, guns, fireworks, helmets, lazer devices, bottles, musical instruments will be allowed in the venue and may be ejected with or without the owner from the venue.",
+  "The sponsors/performers/organizers are not responsible for any injury or damage occurring due to the event. Any claims regarding the same would be settled in courts in Mumbai.",
+  "People in an inebriated state may not be allowed entry.",
+  "Organizers hold the right to deny late entry to the event.",
+  "Venue rules apply.",
 ];
 
 export const CITY_LABELS: Record<City, string> = CITIES.reduce(

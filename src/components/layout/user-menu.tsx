@@ -54,8 +54,11 @@ export function UserMenu({
             <MenuLink href="/tickets" onSelect={() => setOpen(false)}>
               <Ticket className="h-4 w-4" /> My Tickets
             </MenuLink>
-            <MenuLink href="/organizer" onSelect={() => setOpen(false)}>
-              <Megaphone className="h-4 w-4" /> {isOrganizer ? "Organize Events" : "Become an Organizer"}
+            <MenuLink
+              href={isOrganizer ? "/organizer" : "/list-your-event"}
+              onSelect={() => setOpen(false)}
+            >
+              <Megaphone className="h-4 w-4" /> {isOrganizer ? "Manage Your Events" : "List Your Event"}
             </MenuLink>
             <MenuLink href="/about" onSelect={() => setOpen(false)}>
               <Info className="h-4 w-4" /> About Us

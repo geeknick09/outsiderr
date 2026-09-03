@@ -99,6 +99,9 @@ const DEMO_PLATFORM_SETTINGS: Record<string, { value: string; description: strin
   hero_boost_duration_days: { value: "7", description: "Hero Boost duration in days" },
   hero_rotation_interval_minutes: { value: "30", description: "Hero carousel rotation interval in minutes" },
   hero_max_visible_events: { value: "7", description: "Maximum Hero events displayed at once" },
+  tagline_header: { value: "Find what's happening outside the mainstream.", description: "Homepage header tagline (bold line)" },
+  tagline_subheader: { value: "Discover raw events happening today near you.", description: "Homepage sub-tagline (muted line)" },
+  tagline_footer: { value: "Cyphers, battles, stunts, skates, jams & real communities. Discover raw events happening today near you.", description: "Footer brand tagline" },
 };
 
 const globalStore = globalThis as typeof globalThis & {

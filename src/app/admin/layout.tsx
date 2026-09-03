@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BarChart2, BellRing, CalendarDays, Rocket, ShieldCheck, UserSquare2, Users, Zap, Settings, UsersRound, FileText } from "lucide-react";
+import { BarChart2, BellRing, CalendarDays, ShieldCheck, UserSquare2, Users, Zap, Settings, UsersRound, FileText } from "lucide-react";
 
 import { getCurrentUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -17,7 +17,7 @@ async function checkAdminAccess(): Promise<boolean> {
     .from("profiles")
     .select("is_admin")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
   // If this user is explicitly admin, allow
   if (profile?.is_admin === true) return true;
@@ -37,7 +37,6 @@ const NAV = [
   { href: "/admin/events", label: "Events", icon: CalendarDays },
   { href: "/admin/orders", label: "Orders", icon: Zap },
   { href: "/admin/boosts", label: "Boosts", icon: BellRing },
-  { href: "/admin/hero-boosts", label: "Hero Boosts", icon: Rocket },
   { href: "/admin/clubs", label: "Clubs", icon: UserSquare2 },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/door-staff", label: "Door Staff", icon: UsersRound },

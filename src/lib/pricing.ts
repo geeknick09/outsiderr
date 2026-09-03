@@ -1,10 +1,9 @@
-import { PLATFORM_FEE_BPS } from "@/lib/constants";
 import type { FeePayer } from "@/lib/types";
 
 export interface PriceBreakdown {
   /** Face value of the tickets: unit price x quantity. */
   subtotalPaise: number;
-  /** 5% platform commission. */
+  /** Platform commission (configurable via admin settings). */
   platformFeePaise: number;
   /** What the buyer actually transfers over UPI. */
   totalPaise: number;
@@ -13,21 +12,22 @@ export interface PriceBreakdown {
   feePayer: FeePayer;
 }
 
-export function platformFee(subtotalPaise: number): number {
-  return Math.round((subtotalPaise * PLATFORM_FEE_BPS) / 10_000);
+export function platformFee(subtotalPaise: number, feeBps: number): number {
+  return Math.round((subtotalPaise * feeBps) / 10_000);
 }
 
 /**
- * BUYER  -> the 5% fee is added on top of the ticket price.
+ * BUYER  -> the platform fee is added on top of the ticket price.
  * ORGANIZER -> the buyer pays the listed price and the fee is deducted from the payout.
  */
 export function calculatePrice(
   unitPricePaise: number,
   quantity: number,
   feePayer: FeePayer,
+  feeBps: number,
 ): PriceBreakdown {
   const subtotalPaise = unitPricePaise * quantity;
-  const platformFeePaise = platformFee(subtotalPaise);
+  const platformFeePaise = platformFee(subtotalPaise, feeBps);
 
   return {
     subtotalPaise,

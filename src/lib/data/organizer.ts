@@ -674,6 +674,15 @@ export interface CreateOrganizerInput {
   bio: string;
   upiId: string;
   avatarUrl: string | null;
+  panNumber: string;
+  panName: string;
+  gstNumber: string;
+  gstBusinessName: string;
+  bankAccountNumber: string;
+  bankIfsc: string;
+  bankAccountName: string;
+  bankAccountType: string;
+  agreedToTerms: boolean;
 }
 
 /**
@@ -701,6 +710,7 @@ export async function createOrganizerProfile(
   if (existing) return existing.id;
 
   const supabase = await createClient();
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   const { data, error } = await supabase
     .from("organizers")
     .insert({
@@ -709,10 +719,25 @@ export async function createOrganizerProfile(
       bio: input.bio || null,
       upi_id: input.upiId || null,
       avatar_url: input.avatarUrl,
-      verified: false,
-    })
+    } as any)
     .select("id")
     .single();
+
+  // Update KYC fields separately so the Supabase generated types don't need updating
+  if (data?.id) {
+    await (supabase.from("organizers") as any).update({
+      pan_number: input.panNumber || null,
+      pan_name: input.panName || null,
+      gst_number: input.gstNumber || null,
+      gst_business_name: input.gstBusinessName || null,
+      bank_account_number: input.bankAccountNumber || null,
+      bank_ifsc: input.bankIfsc || null,
+      bank_account_name: input.bankAccountName || null,
+      bank_account_type: input.bankAccountType || null,
+      kyc_submitted: !!(input.panNumber && input.bankAccountNumber),
+    }).eq("id", data.id);
+  }
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   if (error) throw error;
 

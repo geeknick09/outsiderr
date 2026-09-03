@@ -25,12 +25,43 @@ export async function createOrganizerAction(
   const bio = String(formData.get("bio") ?? "").trim();
   const upiId = String(formData.get("upiId") ?? "").trim();
   const avatarUrl = String(formData.get("avatarUrl") ?? "").trim() || null;
+  const panNumber = String(formData.get("panNumber") ?? "").trim().toUpperCase();
+  const panName = String(formData.get("panName") ?? "").trim();
+  const gstNumber = String(formData.get("gstNumber") ?? "").trim().toUpperCase();
+  const gstBusinessName = String(formData.get("gstBusinessName") ?? "").trim();
+  const bankAccountNumber = String(formData.get("bankAccountNumber") ?? "").trim();
+  const bankIfsc = String(formData.get("bankIfsc") ?? "").trim().toUpperCase();
+  const bankAccountName = String(formData.get("bankAccountName") ?? "").trim();
+  const bankAccountType = String(formData.get("bankAccountType") ?? "SAVINGS").trim();
+  const agreedToTerms = formData.get("agreedToTerms") === "true";
 
   if (!name) return { error: "Enter your organizer name." };
   if (!upiId) return { error: "Enter a UPI ID so attendees can pay you." };
+  if (!panNumber) return { error: "Enter your PAN number." };
+  if (!panName) return { error: "Enter the name as on your PAN card." };
+  if (!bankAccountNumber) return { error: "Enter your bank account number." };
+  if (!bankIfsc) return { error: "Enter your bank IFSC code." };
+  if (!bankAccountName) return { error: "Enter the account holder name." };
+  if (!agreedToTerms) return { error: "You must agree to the organizer terms." };
+
+  // Basic PAN format: 5 letters, 4 digits, 1 letter (e.g. ABCDE1234F)
+  if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(panNumber)) {
+    return { error: "PAN number format is invalid. Expected: ABCDE1234F" };
+  }
+
+  // Basic IFSC: 4 letters, 0, 6 alphanumeric
+  if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(bankIfsc)) {
+    return { error: "IFSC code format is invalid. Expected: ABCD0123456" };
+  }
 
   try {
-    await createOrganizerProfile(user, { name, bio, upiId, avatarUrl });
+    await createOrganizerProfile(user, {
+      name, bio, upiId, avatarUrl,
+      panNumber, panName,
+      gstNumber, gstBusinessName,
+      bankAccountNumber, bankIfsc, bankAccountName, bankAccountType,
+      agreedToTerms,
+    });
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Could not create organizer profile.",

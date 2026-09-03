@@ -13,6 +13,13 @@ function at(dayOffset: number, hour: number): string {
   return date.toISOString();
 }
 
+const KYC_NULL = {
+  panNumber: null, panName: null,
+  gstNumber: null, gstBusinessName: null,
+  bankAccountNumber: null, bankIfsc: null, bankAccountName: null, bankAccountType: null,
+  kycSubmitted: false,
+};
+
 const organizers: Record<string, Organizer> = {
   basement: {
     id: "org-basement",
@@ -21,8 +28,9 @@ const organizers: Record<string, Organizer> = {
     avatarUrl: null,
     upiId: "basement@upi",
     upiQrUrl: null,
+    ...KYC_NULL,
     verified: true,
-    },
+  },
   cypher: {
     id: "org-cypher",
     name: "Cypher Nights",
@@ -30,6 +38,7 @@ const organizers: Record<string, Organizer> = {
     avatarUrl: null,
     upiId: "cyphernights@upi",
     upiQrUrl: null,
+    ...KYC_NULL,
     verified: true,
   },
   offbeat: {
@@ -39,6 +48,7 @@ const organizers: Record<string, Organizer> = {
     avatarUrl: null,
     upiId: "offbeat@upi",
     upiQrUrl: null,
+    ...KYC_NULL,
     verified: false,
   },
 };

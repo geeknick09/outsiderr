@@ -64,6 +64,11 @@ export function isToday(iso: string): boolean {
   return istDay(iso) === istDay(new Date().toISOString());
 }
 
+/** True if the event's start date is before today (in IST). */
+export function isPast(iso: string): boolean {
+  return istDay(iso) < istDay(new Date().toISOString());
+}
+
 export function mapsLink(
   latitude: number | null,
   longitude: number | null,

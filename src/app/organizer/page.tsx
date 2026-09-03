@@ -19,7 +19,7 @@ import {
 import { listClubMembers, listMyClubs } from "@/lib/data/clubs";
 import { listPendingOrders } from "@/lib/data/orders";
 import { getTermsVersion, getDoorStaffPricing, getDoorStaffMax, getDoorStaffAvailable } from "@/lib/data/platform-settings";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, isPast } from "@/lib/format";
 
 // Lazy load EventForm — it pulls in Leaflet (~140kB) via MapPicker
 const EventForm = lazy(() =>
@@ -120,7 +120,9 @@ export default async function OrganizerPage({
               .
             </p>
           ) : (
-            events.map((event) => (
+            events.map((event) => {
+              const past = isPast(event.startsAt);
+              return (
               <Link
                 key={event.id}
                 href={`/organizer/events/${event.id}`}
@@ -134,14 +136,18 @@ export default async function OrganizerPage({
                   <Badge tone="neutral">{event.registrationsCount} registered</Badge>
                   <Badge
                     tone={
-                      event.status === "PUBLISHED"
+                      past
+                        ? "neutral"
+                        : event.status === "PUBLISHED"
                         ? "success"
                         : event.status === "CANCELLED"
                         ? "danger"
                         : "neutral"
                     }
                   >
-                    {event.status === "PUBLISHED"
+                    {past
+                      ? "Completed"
+                      : event.status === "PUBLISHED"
                       ? "Live"
                       : event.status === "CANCELLED"
                       ? "Cancelled"
@@ -149,7 +155,8 @@ export default async function OrganizerPage({
                   </Badge>
                 </div>
               </Link>
-            ))
+              );
+            })
           )}
         </div>
       ) : tab === "create" ? (

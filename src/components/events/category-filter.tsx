@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { Users } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { CATEGORIES } from "@/lib/constants";
@@ -43,15 +41,6 @@ export function CategoryFilter({ active }: { active: string }) {
             );
           })}
         </div>
-
-        {/* Clubs & Crews — pushed to the right, navigates to its own page */}
-        <Link
-          href="/clubs"
-          className="ml-auto flex shrink-0 items-center gap-1.5 rounded-full border border-violet-neon/40 bg-violet-neon/10 px-4 py-2 text-sm font-bold text-violet-neon transition-all duration-200 hover:border-violet-neon hover:bg-violet-neon/20"
-        >
-          <Users className="h-3.5 w-3.5" />
-          Join a club/crew
-        </Link>
       </div>
     </div>
   );

@@ -17,13 +17,13 @@ export default function manifest(): MetadataRoute.Manifest {
     prefer_related_applications: false,
     icons: [
       {
-        src: "/icon.svg",
+        src: "/lightmode.png",
         sizes: "any",
-        type: "image/svg+xml",
+        type: "image/png",
         purpose: "any",
       },
       {
-        src: "/icon",
+        src: "/darkmode.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",

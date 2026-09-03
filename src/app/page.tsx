@@ -1,9 +1,11 @@
 import { Suspense } from "react";
+import Link from "next/link";
 
 import { CategoryFilter } from "@/components/events/category-filter";
 import { EventSection } from "@/components/events/event-section";
 import { FeaturedCarousel } from "@/components/events/featured-carousel";
 import { HeroCarousel } from "@/components/events/hero-carousel";
+import { PastEventSection } from "@/components/events/past-event-section";
 import {
   CATEGORY_LABELS,
   CITY_LABELS,
@@ -16,8 +18,10 @@ import {
   getHeroBoostEnabled,
   getHeroMaxVisibleEvents,
   getHeroRotationIntervalMinutes,
+  getTaglineHeader,
+  getTaglineSubheader,
 } from "@/lib/data/platform-settings";
-import { isToday } from "@/lib/format";
+import { isPast, isToday } from "@/lib/format";
 import type { City, EventCategory } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -37,12 +41,19 @@ export default async function DiscoveryPage({
       ? (params.category as EventCategory)
       : undefined;
 
-  const events = await listEvents({ city, category });
-  const featured = events
+  const allEvents = await listEvents({ city, category });
+
+  // Split into upcoming (today + future) and past events
+  const upcoming = allEvents.filter((event) => !isPast(event.startsAt));
+  const past = allEvents
+    .filter((event) => isPast(event.startsAt))
+    .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
+
+  const featured = upcoming
     .filter((event) => event.isFeatured)
     .slice(0, MAX_FEATURED_EVENTS);
-  const today = events.filter((event) => isToday(event.startsAt));
-  const popular = [...events]
+  const today = upcoming.filter((event) => isToday(event.startsAt));
+  const popular = [...upcoming]
     .sort((a, b) => b.registrationsCount - a.registrationsCount)
     .slice(0, 8);
 
@@ -50,25 +61,32 @@ export default async function DiscoveryPage({
   const heroEnabled = await getHeroBoostEnabled();
   const heroRotationInterval = await getHeroRotationIntervalMinutes();
   const heroMaxVisible = await getHeroMaxVisibleEvents();
+  const taglineHeader = await getTaglineHeader();
+  const taglineSubheader = await getTaglineSubheader();
   const heroEvents = heroEnabled
     ? await getHeroEvents(heroRotationInterval, heroMaxVisible)
     : [];
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="bg-neon-gradient bg-clip-text text-3xl font-black tracking-tight text-transparent sm:text-4xl">
-          Outsiderr
-        </h1>
-        <p className="mt-2 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
-          Find what&apos;s happening outside the mainstream.
-        </p>
-        <p className="mt-1 text-sm text-muted">
-          Discover raw underground events happening today near you.
-        </p>
-        <p className="mt-3 text-xs font-semibold uppercase tracking-[0.3em] text-violet-neon">
-          {CITY_LABELS[city]}
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+            {taglineHeader}
+          </p>
+          <p className="mt-1 text-sm text-muted">
+            {taglineSubheader}
+          </p>
+          <p className="mt-3 text-xs font-semibold uppercase tracking-[0.3em] text-violet-neon">
+            {CITY_LABELS[city]}
+          </p>
+        </div>
+        <Link
+          href="/clubs"
+          className="shrink-0 rounded-full bg-neon-gradient px-5 py-2.5 text-sm font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90"
+        >
+          Join a Club / Crew
+        </Link>
       </div>
 
       <Suspense fallback={<div className="mb-6 h-14" />}>
@@ -90,9 +108,15 @@ export default async function DiscoveryPage({
         subtitle="Ranked by registrations"
         events={popular}
       />
-      <EventSection title="All Events" events={events} />
+      <EventSection title="All Events" events={upcoming} />
 
-      {events.length === 0 ? (
+      <PastEventSection
+        title="Past Events"
+        subtitle="Already completed — for reference only"
+        events={past}
+      />
+
+      {upcoming.length === 0 && past.length === 0 ? (
         <div className="glass rounded-3xl p-10 text-center">
           <h2 className="text-lg font-bold">Nothing here yet</h2>
           <p className="mt-1 text-sm text-muted">

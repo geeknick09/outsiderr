@@ -26,6 +26,9 @@ const FALLBACKS: Record<string, unknown> = {
   hero_boost_duration_days: 7,
   hero_rotation_interval_minutes: 30,
   hero_max_visible_events: 7,
+  tagline_header: "Find what's happening outside the mainstream.",
+  tagline_subheader: "Discover raw events happening today near you.",
+  tagline_footer: "Cyphers, battles, stunts, skates, jams & real communities. Discover raw events happening today near you.",
 };
 
 // ---------------------------------------------------------------- helpers
@@ -183,4 +186,16 @@ export async function getHeroRotationIntervalMinutes(): Promise<number> {
 
 export async function getHeroMaxVisibleEvents(): Promise<number> {
   return getSettingInt("hero_max_visible_events");
+}
+
+export async function getTaglineHeader(): Promise<string> {
+  return getSettingString("tagline_header");
+}
+
+export async function getTaglineSubheader(): Promise<string> {
+  return getSettingString("tagline_subheader");
+}
+
+export async function getTaglineFooter(): Promise<string> {
+  return getSettingString("tagline_footer");
 }

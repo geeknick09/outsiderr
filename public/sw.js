@@ -8,7 +8,7 @@ const IMAGE_CACHE = `${CACHE_VERSION}-images`;
 const PRECACHE = [
   "/",
   "/manifest.webmanifest",
-  "/icon.svg",
+  "/lightmode.png",
 ];
 
 // Max items in image cache (LRU eviction)
@@ -141,8 +141,8 @@ self.addEventListener("push", (event) => {
   const data = event.data?.json() ?? {};
   const title = data.title ?? "Outsiderr";
   const body = data.body ?? "Something new is happening near you.";
-  const icon = "/icon.svg";
-  const badge = "/icon.svg";
+  const icon = "/lightmode.png";
+  const badge = "/lightmode.png";
   const url = data.url ?? "/";
   event.waitUntil(
     self.registration.showNotification(title, {

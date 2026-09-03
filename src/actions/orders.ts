@@ -28,9 +28,7 @@ export async function submitPaymentAction(
   const isFree = formData.get("isFree") === "1";
 
   if (!user) {
-    redirect(
-      `/login?next=${encodeURIComponent(`/checkout?event=${eventId}&tier=${tierId}&qty=${quantity}`)}`,
-    );
+    return { error: "Please sign in to continue." };
   }
 
   // Free events: skip UTR, auto-confirm
@@ -81,16 +79,34 @@ export async function submitPaymentAction(
 }
 
 export async function approveOrderAction(formData: FormData): Promise<void> {
-  await approveOrder(String(formData.get("orderId") ?? ""));
+  try {
+    await approveOrder(String(formData.get("orderId") ?? ""));
+  } catch (err) {
+    console.error("approveOrderAction error:", err);
+    const message =
+      err instanceof Error ? err.message :
+      typeof err === "object" && err !== null && "message" in err ? String((err as { message: unknown }).message) :
+      "Failed to approve order.";
+    throw new Error(message);
+  }
   revalidatePath("/organizer");
   revalidatePath("/tickets");
 }
 
 export async function rejectOrderAction(formData: FormData): Promise<void> {
-  await rejectOrder(
-    String(formData.get("orderId") ?? ""),
-    String(formData.get("reason") ?? "").trim(),
-  );
+  try {
+    await rejectOrder(
+      String(formData.get("orderId") ?? ""),
+      String(formData.get("reason") ?? "").trim(),
+    );
+  } catch (err) {
+    console.error("rejectOrderAction error:", err);
+    const message =
+      err instanceof Error ? err.message :
+      typeof err === "object" && err !== null && "message" in err ? String((err as { message: unknown }).message) :
+      "Failed to reject order.";
+    throw new Error(message);
+  }
   revalidatePath("/organizer");
   revalidatePath("/tickets");
 }

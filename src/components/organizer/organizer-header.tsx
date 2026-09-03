@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Rocket, ScanLine } from "lucide-react";
+import { Pencil, Rocket } from "lucide-react";
 import Link from "next/link";
 
 import { EditOrganizerProfile } from "@/components/organizer/edit-organizer-profile";
@@ -49,12 +49,6 @@ export function OrganizerHeader({ organizer }: { organizer: Organizer }) {
           <Button variant="secondary" size="sm">
             <Rocket className="h-4 w-4" />
             Boost event
-          </Button>
-        </Link>
-        <Link href="/organizer/scan">
-          <Button variant="secondary" size="sm">
-            <ScanLine className="h-4 w-4" />
-            Door scanner
           </Button>
         </Link>
       </div>

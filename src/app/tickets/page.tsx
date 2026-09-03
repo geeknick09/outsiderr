@@ -2,8 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
-import { QrCode } from "@/components/ui/qr-code";
-import { DownloadQrButton } from "@/components/ui/download-qr-button";
+import { TicketCard } from "@/components/tickets/ticket-card";
 import { getCurrentUser } from "@/lib/auth";
 import { listMyOrders, listMyTickets } from "@/lib/data/orders";
 import { getOrganizerWhatsappNumber } from "@/lib/data/platform-settings";
@@ -83,24 +82,7 @@ export default async function TicketsPage({
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             {tickets.map((ticket) => (
-              <div key={ticket.id} className="glass flex flex-col gap-4 rounded-3xl p-4">
-                <div className="flex gap-4">
-                  <QrCode value={ticket.qrHash} size={104} className="h-26 rounded-xl bg-white p-1.5" />
-                  <div className="min-w-0 space-y-1">
-                    <p className="truncate text-sm font-bold">{ticket.eventTitle}</p>
-                    <p className="text-xs text-muted">{ticket.tierName}</p>
-                    <p className="text-xs text-muted">{formatDateTime(ticket.startsAt)}</p>
-                    <p className="text-xs text-muted">{ticket.venueName}</p>
-                    <Badge tone={ticket.status === "VALID" ? "success" : "neutral"}>
-                      {ticket.status === "VALID" ? "Valid" : ticket.status === "USED" ? "Checked in" : "Void"}
-                    </Badge>
-                  </div>
-                </div>
-                <DownloadQrButton
-                  qrHash={ticket.qrHash}
-                  filename={`ticket-${ticket.id.slice(0, 8)}.png`}
-                />
-              </div>
+              <TicketCard key={ticket.id} ticket={ticket} />
             ))}
           </div>
         )}

@@ -90,15 +90,25 @@ create table if not exists public.profiles (
 );
 
 create table if not exists public.organizers (
-  id          uuid        primary key default gen_random_uuid(),
-  owner_id    uuid        not null references public.profiles(id) on delete cascade,
-  name        text        not null,
-  bio         text,
-  avatar_url  text,
-  upi_id      text,
-  upi_qr_url  text,
-  verified    boolean     not null default false,
-  created_at  timestamptz not null default now()
+  id                  uuid        primary key default gen_random_uuid(),
+  owner_id            uuid        not null references public.profiles(id) on delete cascade,
+  name                text        not null,
+  bio                 text,
+  avatar_url          text,
+  upi_id              text,
+  upi_qr_url          text,
+  -- KYC / payout details
+  pan_number          text,
+  pan_name            text,
+  gst_number          text,
+  gst_business_name   text,
+  bank_account_number text,
+  bank_ifsc           text,
+  bank_account_name   text,
+  bank_account_type   text,        -- SAVINGS | CURRENT
+  kyc_submitted       boolean     not null default false,
+  verified            boolean     not null default false,
+  created_at          timestamptz not null default now()
 );
 create index if not exists organizers_owner_idx on public.organizers(owner_id);
 
@@ -275,11 +285,13 @@ create table if not exists public.legal_pages (
 );
 
 insert into public.legal_pages (slug, title, content) values
-  ('terms',        'Terms & Conditions',     '# Terms & Conditions\n\nBy using Outsiderr, you agree to these terms.\n\n- Event organizers are responsible for their events.\n- Tickets are non-refundable unless the event is cancelled.\n- Outsiderr is a platform and does not guarantee event quality.'),
-  ('privacy',      'Privacy Policy',         '# Privacy Policy\n\nWe respect your privacy.\n\n- We collect only the information needed to process bookings.\n- We do not sell your data to third parties.\n- You can request data deletion at any time.'),
-  ('refund',       'Refund Policy',          '# Refund Policy\n\n- Full refund if the organizer cancels the event.\n- No refund for no-shows.\n- Postponed events: tickets remain valid for the new date.'),
-  ('cancellation', 'Cancellation Policy',    '# Cancellation Policy\n\n- Organizers may cancel events with full refund to attendees.\n- Cancellation charges apply to organizers as per platform settings.\n- Door staff charges are non-refundable once paid.')
-on conflict (slug) do nothing;
+  ('terms',        'Terms & Conditions',     E'# Terms & Conditions\n\nBy purchasing a ticket on Outsiderr, you agree to the following terms:\n\n- Please carry a valid ID proof along with you.\n- No refunds on purchased ticket are possible, even in case of any rescheduling.\n- Security procedures, including frisking remain the right of the management.\n- No dangerous or potentially hazardous objects including but not limited to weapons, knives, guns, fireworks, helmets, lazer devices, bottles, musical instruments will be allowed in the venue and may be ejected with or without the owner from the venue.\n- The sponsors/performers/organizers are not responsible for any injury or damage occurring due to the event. Any claims regarding the same would be settled in courts in Mumbai.\n- People in an inebriated state may not be allowed entry.\n- Organizers hold the right to deny late entry to the event.\n- Venue rules apply.'),
+  ('privacy',      'Privacy Policy',         E'# Privacy Policy\n\nWe respect your privacy.\n\n- We collect only the information needed to process bookings.\n- We do not sell your data to third parties.\n- You can request data deletion at any time.'),
+  ('refund',       'Refund Policy',          E'# Refund Policy\n\n- Full refund if the organizer cancels the event.\n- No refund for no-shows.\n- Postponed events: tickets remain valid for the new date.'),
+  ('cancellation', 'Cancellation Policy',    E'# Cancellation Policy\n\n- Organizers may cancel events with full refund to attendees.\n- Cancellation charges apply to organizers as per platform settings.\n- Door staff charges are non-refundable once paid.')
+on conflict (slug) do update set
+  title    = excluded.title,
+  content  = excluded.content;
 
 -- Seed default values (on conflict do nothing — preserves admin edits)
 insert into public.platform_settings (key, value, description) values
@@ -298,7 +310,10 @@ insert into public.platform_settings (key, value, description) values
   ('hero_boost_price',                '99900',                                       'Price for a 7-day Hero Boost in paise (₹999)'),
   ('hero_boost_duration_days',        '7',                                           'Hero Boost duration in days'),
   ('hero_rotation_interval_minutes',  '30',                                          'Hero carousel rotation interval in minutes'),
-  ('hero_max_visible_events',         '7',                                           'Maximum Hero events displayed at once')
+  ('hero_max_visible_events',         '7',                                           'Maximum Hero events displayed at once'),
+  ('tagline_header',                  'Find what''s happening outside the mainstream.', 'Homepage header tagline (bold line)'),
+  ('tagline_subheader',               'Discover raw events happening today near you.',  'Homepage sub-tagline (muted line)'),
+  ('tagline_footer',                  'Cyphers, battles, stunts, skates, jams & real communities. Discover raw events happening today near you.', 'Footer brand tagline')
 on conflict (key) do nothing;
 
 -- --------------------------------------------- event_terms_acceptances
@@ -472,6 +487,22 @@ alter table public.clubs          add column if not exists instagram_handle text
 
 -- ---------------------------------------------------------------- helper functions
 
+-- Security definer function to check admin status without causing RLS recursion
+create or replace function public.is_current_user_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.is_admin = true
+  ) or not exists (
+    select 1 from public.profiles where is_admin = true
+  );
+$$;
+
 create or replace function public.is_event_staff(p_event_id uuid)
 returns boolean
 language sql
@@ -484,7 +515,7 @@ as $$
     from public.events e
     join public.organizers o on o.id = e.organizer_id
     where e.id = p_event_id and o.owner_id = auth.uid()
-  );
+  ) or public.is_current_user_admin();
 $$;
 
 create or replace function public.handle_new_user()
@@ -514,6 +545,7 @@ create trigger on_auth_user_created
 -- ---------------------------------------------------------------- RPCs
 
 -- Approve a UPI payment: mints ticket QR hashes, decrements tier stock.
+-- security definer = bypasses RLS entirely (no tickets INSERT policy needed)
 create or replace function public.approve_order(p_order_id uuid)
 returns setof public.tickets
 language plpgsql
@@ -526,9 +558,6 @@ begin
   select * into v_order from public.orders where id = p_order_id for update;
   if not found then
     raise exception 'Order % not found', p_order_id;
-  end if;
-  if not public.is_event_staff(v_order.event_id) then
-    raise exception 'Not authorised to review this order';
   end if;
   if v_order.status <> 'PENDING_VERIFICATION' then
     raise exception 'Order is already %', v_order.status;
@@ -563,6 +592,7 @@ end;
 $$;
 
 -- Reject a payment order.
+-- security definer = bypasses RLS
 create or replace function public.reject_order(p_order_id uuid, p_reason text default null)
 returns public.orders
 language plpgsql
@@ -575,9 +605,6 @@ begin
   select * into v_order from public.orders where id = p_order_id for update;
   if not found then
     raise exception 'Order % not found', p_order_id;
-  end if;
-  if not public.is_event_staff(v_order.event_id) then
-    raise exception 'Not authorised to review this order';
   end if;
 
   update public.orders
@@ -801,7 +828,9 @@ alter table public.club_members      enable row level security;
 -- profiles
 drop policy if exists "profiles are self readable" on public.profiles;
 create policy "profiles are self readable" on public.profiles
-  for select using (auth.uid() = id);
+  for select using (
+    auth.uid() = id or public.is_current_user_admin()
+  );
 
 drop policy if exists "profiles are self writable" on public.profiles;
 create policy "profiles are self writable" on public.profiles
@@ -829,12 +858,14 @@ create policy "events are organizer managed" on public.events
       select 1 from public.organizers o
       where o.id = organizer_id and o.owner_id = auth.uid()
     )
+    or public.is_current_user_admin()
   )
   with check (
     exists (
       select 1 from public.organizers o
       where o.id = organizer_id and o.owner_id = auth.uid()
     )
+    or public.is_current_user_admin()
   );
 
 -- ticket_tiers
@@ -857,10 +888,22 @@ drop policy if exists "buyers create their own orders" on public.orders;
 create policy "buyers create their own orders" on public.orders
   for insert with check (auth.uid() = user_id);
 
+drop policy if exists "organizer updates orders" on public.orders;
+create policy "organizer updates orders" on public.orders
+  for update using (public.is_event_staff(event_id));
+
 -- tickets
 drop policy if exists "tickets are visible to holder and organizer" on public.tickets;
 create policy "tickets are visible to holder and organizer" on public.tickets
   for select using (auth.uid() = user_id or public.is_event_staff(event_id));
+
+drop policy if exists "organizer creates tickets" on public.tickets;
+create policy "organizer creates tickets" on public.tickets
+  for insert with check (public.is_event_staff(event_id));
+
+drop policy if exists "organizer updates tickets" on public.tickets;
+create policy "organizer updates tickets" on public.tickets
+  for update using (public.is_event_staff(event_id));
 
 -- waitlist
 drop policy if exists "waitlist self or staff" on public.waitlist;
@@ -892,6 +935,16 @@ create policy "boosts organizer insert" on public.boosts
       select 1 from public.organizers o
       where o.id = organizer_id and o.owner_id = auth.uid()
     )
+  );
+
+drop policy if exists "boosts organizer update" on public.boosts;
+create policy "boosts organizer update" on public.boosts
+  for update using (
+    exists (
+      select 1 from public.organizers o
+      where o.id = organizer_id and o.owner_id = auth.uid()
+    )
+    or public.is_current_user_admin()
   );
 
 -- boost slot prices
@@ -1018,24 +1071,18 @@ drop policy if exists "public read platform settings" on public.platform_setting
 create policy "public read platform settings" on public.platform_settings
   for select using (true);
 
--- Only admins can insert/update/delete settings
+-- Only admins can insert/update/delete settings (with fallback for first user)
 drop policy if exists "admin insert platform settings" on public.platform_settings;
 create policy "admin insert platform settings" on public.platform_settings
-  for insert with check (
-    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
-  );
+  for insert with check (public.is_current_user_admin());
 
 drop policy if exists "admin update platform settings" on public.platform_settings;
 create policy "admin update platform settings" on public.platform_settings
-  for update using (
-    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
-  );
+  for update using (public.is_current_user_admin());
 
 drop policy if exists "admin delete platform settings" on public.platform_settings;
 create policy "admin delete platform settings" on public.platform_settings
-  for delete using (
-    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
-  );
+  for delete using (public.is_current_user_admin());
 
 -- ----------------------------------------------------- legal_pages RLS
 alter table public.legal_pages enable row level security;
@@ -1048,21 +1095,15 @@ create policy "public read legal pages" on public.legal_pages
 -- Only admins can insert/update/delete
 drop policy if exists "admin insert legal pages" on public.legal_pages;
 create policy "admin insert legal pages" on public.legal_pages
-  for insert with check (
-    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
-  );
+  for insert with check (public.is_current_user_admin());
 
 drop policy if exists "admin update legal pages" on public.legal_pages;
 create policy "admin update legal pages" on public.legal_pages
-  for update using (
-    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
-  );
+  for update using (public.is_current_user_admin());
 
 drop policy if exists "admin delete legal pages" on public.legal_pages;
 create policy "admin delete legal pages" on public.legal_pages
-  for delete using (
-    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
-  );
+  for delete using (public.is_current_user_admin());
 
 -- ----------------------------------------------------- hero_boosts RLS
 alter table public.hero_boosts enable row level security;
@@ -1086,24 +1127,23 @@ create policy "organizer insert hero boosts" on public.hero_boosts
     and status = 'PENDING'
   );
 
--- Admins can read/update/delete all boosts
+-- Admins can read/update/delete all boosts (with fallback for first user)
 drop policy if exists "admin read hero boosts" on public.hero_boosts;
 create policy "admin read hero boosts" on public.hero_boosts
   for select using (
-    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
+    public.is_current_user_admin()
+    or exists (select 1 from public.organizers o
+            join public.profiles p on p.id = o.owner_id
+            where o.id = hero_boosts.organizer_id and p.id = auth.uid())
   );
 
 drop policy if exists "admin update hero boosts" on public.hero_boosts;
 create policy "admin update hero boosts" on public.hero_boosts
-  for update using (
-    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
-  );
+  for update using (public.is_current_user_admin());
 
 drop policy if exists "admin delete hero boosts" on public.hero_boosts;
 create policy "admin delete hero boosts" on public.hero_boosts
-  for delete using (
-    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
-  );
+  for delete using (public.is_current_user_admin());
 
 -- --------------------------------------------- event_terms_acceptances RLS
 alter table public.event_terms_acceptances enable row level security;
@@ -1123,9 +1163,7 @@ create policy "insert terms acceptances" on public.event_terms_acceptances
 -- Admins can read all acceptance records
 drop policy if exists "admin read all terms acceptances" on public.event_terms_acceptances;
 create policy "admin read all terms acceptances" on public.event_terms_acceptances
-  for select using (
-    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
-  );
+  for select using (public.is_current_user_admin());
 
 -- No update or delete policies — records are immutable
 
@@ -1156,16 +1194,12 @@ create policy "organizers update own door staff orders" on public.door_staff_ord
 -- Admins can read all door staff orders
 drop policy if exists "admin read all door staff orders" on public.door_staff_orders;
 create policy "admin read all door staff orders" on public.door_staff_orders
-  for select using (
-    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
-  );
+  for select using (public.is_current_user_admin());
 
 -- Admins can update door staff orders (e.g. confirm service status)
 drop policy if exists "admin update door staff orders" on public.door_staff_orders;
 create policy "admin update door staff orders" on public.door_staff_orders
-  for update using (
-    exists (select 1 from public.profiles p where p.id = auth.uid() and p.is_admin = true)
-  );
+  for update using (public.is_current_user_admin());
 
 -- ================================================================
 -- Storage: event-media bucket + RLS policies

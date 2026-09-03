@@ -6,7 +6,7 @@ import { CheckoutForm } from "@/components/checkout/checkout-form";
 import { QrCode } from "@/components/ui/qr-code";
 import { MAX_TICKETS_PER_ORDER } from "@/lib/constants";
 import { getEvent } from "@/lib/data/events";
-import { getOrganizerWhatsappNumber } from "@/lib/data/platform-settings";
+import { getOrganizerWhatsappNumber, getPlatformFeeBps } from "@/lib/data/platform-settings";
 import { formatDateTime, formatPaise } from "@/lib/format";
 import { getCurrentUser } from "@/lib/auth";
 import { calculatePrice } from "@/lib/pricing";
@@ -30,18 +30,15 @@ export default async function CheckoutPage({
   );
 
   const user = await getCurrentUser();
-  if (!user) {
-    redirect(
-      `/login?next=${encodeURIComponent(`/checkout?event=${eventId}&tier=${tierId}&qty=${quantity}`)}`,
-    );
-  }
+  const nextUrl = `/checkout?event=${eventId}&tier=${tierId}&qty=${quantity}`;
 
   const event = await getEvent(eventId);
   const tier = event?.tiers.find((item) => item.id === tierId);
   if (!event || !tier) notFound();
 
   const isFree = tier.pricePaise === 0;
-  const price = calculatePrice(tier.pricePaise, quantity, event.feePayer);
+  const feeBps = await getPlatformFeeBps();
+  const price = calculatePrice(tier.pricePaise, quantity, event.feePayer, feeBps);
   const intent = upiIntent({
     upiId: event.organizer.upiId ?? "outsiderr@upi",
     payeeName: event.organizer.name,
@@ -59,7 +56,23 @@ export default async function CheckoutPage({
         {isFree ? "Confirm your RSVP" : "Checkout"}
       </h1>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
+      {/* Login prompt for non-logged-in users */}
+      {!user ? (
+        <div className="mt-6 glass rounded-3xl p-8 text-center">
+          <p className="text-base font-bold">Please sign in to continue</p>
+          <p className="mt-2 text-sm text-muted">
+            You need an account to {isFree ? "RSVP" : "book tickets"}. It&apos;s quick and free.
+          </p>
+          <Link
+            href={`/login?next=${encodeURIComponent(nextUrl)}`}
+            className="mt-4 inline-block rounded-2xl bg-violet-neon px-6 py-3 text-sm font-bold text-white transition-opacity hover:opacity-90"
+          >
+            Sign in / Sign up
+          </Link>
+        </div>
+      ) : null}
+
+      <div className={`mt-6 grid gap-6 lg:grid-cols-[1fr_360px] ${!user ? "opacity-50 pointer-events-none" : ""}`}>
         <div className="glass rounded-3xl p-6">
           <h2 className="mb-4 text-base font-bold">
             {isFree ? "Your details" : "Confirm your payment"}
@@ -68,8 +81,8 @@ export default async function CheckoutPage({
             eventId={event.id}
             tierId={tier.id}
             quantity={quantity}
-            defaultName={user.name}
-            defaultPhone={user.phone ?? ""}
+            defaultName={user?.name ?? ""}
+            defaultPhone={user?.phone ?? ""}
             isFree={isFree}
           />
         </div>

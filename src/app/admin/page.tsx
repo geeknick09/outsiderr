@@ -45,7 +45,7 @@ export default async function AdminPage() {
       {/* Pending Hero Boosts alert */}
       {pendingHeroBoosts.length > 0 ? (
         <Link
-          href="/admin/hero-boosts"
+          href="/admin/boosts"
           className="glass flex items-center justify-between rounded-3xl border border-amber-500/30 p-5 transition-colors hover:border-amber-500/60"
         >
           <div>

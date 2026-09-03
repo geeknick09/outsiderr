@@ -12,7 +12,7 @@ import { calculatePrice } from "@/lib/pricing";
 import type { EventDetail } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export function TicketTiers({ event }: { event: EventDetail }) {
+export function TicketTiers({ event, feeBps = 500 }: { event: EventDetail; feeBps?: number }) {
   const router = useRouter();
   const available = event.tiers.filter((tier) => tier.quantity > tier.quantitySold);
   const [selectedId, setSelectedId] = useState(available[0]?.id ?? "");
@@ -20,7 +20,7 @@ export function TicketTiers({ event }: { event: EventDetail }) {
   const isFreeEvent = event.tiers.length > 0 && event.tiers.every((t) => t.pricePaise === 0);
   const selected = event.tiers.find((tier) => tier.id === selectedId);
   const price = selected
-    ? calculatePrice(selected.pricePaise, 1, event.feePayer)
+    ? calculatePrice(selected.pricePaise, 1, event.feePayer, feeBps)
     : null;
 
   return (
@@ -98,7 +98,7 @@ export function TicketTiers({ event }: { event: EventDetail }) {
               <Row label="Ticket subtotal" value={formatPaise(price.subtotalPaise)} />
               {event.feePayer === "BUYER" ? (
                 <Row
-                  label="Platform fee (5%)"
+                  label={`Platform fee (${Math.round(feeBps / 100)}%)`}
                   value={formatPaise(price.platformFeePaise)}
                 />
               ) : (

@@ -18,8 +18,8 @@ const DEMO_PAGES: LegalPage[] = [
     slug: "terms",
     title: "Terms & Conditions",
     content:
-      "# Terms & Conditions\n\nBy using Outsiderr, you agree to these terms.\n\n- Event organizers are responsible for their events.\n- Tickets are non-refundable unless the event is cancelled.\n- Outsiderr is a platform and does not guarantee event quality.",
-    version: 1,
+      "# Terms & Conditions\n\nBy purchasing a ticket on Outsiderr, you agree to the following terms:\n\n- Please carry a valid ID proof along with you.\n- No refunds on purchased ticket are possible, even in case of any rescheduling.\n- Security procedures, including frisking remain the right of the management.\n- No dangerous or potentially hazardous objects including but not limited to weapons, knives, guns, fireworks, helmets, lazer devices, bottles, musical instruments will be allowed in the venue and may be ejected with or without the owner from the venue.\n- The sponsors/performers/organizers are not responsible for any injury or damage occurring due to the event. Any claims regarding the same would be settled in courts in Mumbai.\n- People in an inebriated state may not be allowed entry.\n- Organizers hold the right to deny late entry to the event.\n- Venue rules apply.",
+    version: 2,
     isPublished: true,
     updatedAt: new Date().toISOString(),
   },

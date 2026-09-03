@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { BarChart2, ChevronLeft, LayoutDashboard } from "lucide-react";
+import { BarChart2, ChevronLeft, LayoutDashboard, ScanLine } from "lucide-react";
 
 import { AnalyticsPanel } from "@/components/organizer/analytics-panel";
 import { EditEventForm } from "@/components/organizer/edit-event-form";
@@ -18,7 +18,7 @@ import { getDoorStaffOrder } from "@/lib/data/door-staff";
 import { getOrganizerEventAnalytics, updateEventStatus } from "@/lib/data/organizer";
 import { getCancellationChargePercent, getPostponementChargePercent, getDoorStaffPricing, getDoorStaffAvailable, getHeroBoostPrice, getHeroBoostDurationDays } from "@/lib/data/platform-settings";
 import { getHeroBoostForEvent } from "@/lib/data/hero-boosts";
-import { formatDateRange } from "@/lib/format";
+import { formatDateRange, isPast } from "@/lib/format";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import type { EventStatus } from "@/lib/types";
 
@@ -67,8 +67,12 @@ export default async function ManageEventPage({
 
   if (!event || !analytics) notFound();
 
+  const eventPast = isPast(event.startsAt);
+
   const statusTone =
-    event.status === "PUBLISHED"
+    eventPast
+      ? "neutral"
+      : event.status === "PUBLISHED"
       ? "success"
       : event.status === "CANCELLED" || event.status === "CANCELLATION_REQUESTED"
       ? "danger"
@@ -77,7 +81,9 @@ export default async function ManageEventPage({
       : "neutral";
 
   const statusLabel =
-    event.status === "PUBLISHED"
+    eventPast
+      ? "Completed"
+      : event.status === "PUBLISHED"
       ? "Live"
       : event.status === "CANCELLED"
       ? "Cancelled"
@@ -128,7 +134,15 @@ export default async function ManageEventPage({
           variant="secondary"
           size="sm"
         />
-        {event.status === "DRAFT" ? (
+        {eventPast ? null : (
+          <Link href={`/organizer/events/${event.id}/scan`}>
+            <Button size="sm">
+              <ScanLine className="h-4 w-4" />
+              Door Scanner
+            </Button>
+          </Link>
+        )}
+        {event.status === "DRAFT" && !eventPast ? (
           <form action={`/organizer/events/${event.id}?action=publish`} method="GET">
             <Button type="submit" size="sm">
               Publish event
@@ -152,13 +166,13 @@ export default async function ManageEventPage({
         </div>
       ) : null}
 
-      {/* Edit form */}
-      {event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" ? (
+      {/* Edit form — disabled for cancelled and past events */}
+      {event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast ? (
         <EditEventForm event={event} />
       ) : null}
 
-      {/* Hero Boost */}
-      {event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" ? (
+      {/* Hero Boost — disabled for cancelled and past events */}
+      {event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast ? (
         <HeroBoostPanel
           eventId={event.id}
           boost={heroBoost}
@@ -169,8 +183,8 @@ export default async function ManageEventPage({
         />
       ) : null}
 
-      {/* Door staff — payment panel if order exists, request form if not */}
-      {doorStaffOrder ? (
+      {/* Door staff — disabled for past events */}
+      {eventPast ? null : doorStaffOrder ? (
         <DoorStaffPaymentPanel
           order={doorStaffOrder}
           platformUpiId={process.env.NEXT_PUBLIC_PLATFORM_UPI_ID ?? "outsiderr@upi"}
@@ -186,8 +200,8 @@ export default async function ManageEventPage({
         </section>
       ) : null}
 
-      {/* Cancel / Postpone buttons */}
-      {event.status === "PUBLISHED" || event.status === "POSTPONED" ? (
+      {/* Cancel / Postpone — disabled for past events */}
+      {!eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
         <section className="rounded-3xl border border-red-500/30 p-5">
           <h2 className="text-base font-bold text-red-500">Event actions</h2>
           <p className="mt-1 text-sm text-muted">
