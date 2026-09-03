@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 
 import { CategoryFilter } from "@/components/events/category-filter";
+import { EventSearch } from "@/components/events/event-search";
 import { EventSection } from "@/components/events/event-section";
 import { FeaturedCarousel } from "@/components/events/featured-carousel";
 import { HeroCarousel } from "@/components/events/hero-carousel";
@@ -29,7 +30,7 @@ export const dynamic = "force-dynamic";
 export default async function DiscoveryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ city?: string; category?: string }>;
+  searchParams: Promise<{ city?: string; category?: string; q?: string }>;
 }) {
   const params = await searchParams;
   const city: City =
@@ -40,8 +41,9 @@ export default async function DiscoveryPage({
     params.category && CATEGORY_LABELS[params.category as EventCategory]
       ? (params.category as EventCategory)
       : undefined;
+  const search = params.q?.trim() || undefined;
 
-  const allEvents = await listEvents({ city, category });
+  const allEvents = await listEvents({ city, category, search });
 
   // Split into upcoming (today + future) and past events
   const upcoming = allEvents.filter((event) => !isPast(event.startsAt));
@@ -89,12 +91,16 @@ export default async function DiscoveryPage({
         </Link>
       </div>
 
+      <Suspense fallback={<div className="mb-6 h-12" />}>
+        <EventSearch />
+      </Suspense>
+
       <Suspense fallback={<div className="mb-6 h-14" />}>
         <CategoryFilter active={category ?? "ALL"} />
       </Suspense>
 
-      {/* Hero Boost carousel — shown above featured when active boosts exist */}
-      {heroEvents.length > 0 ? <HeroCarousel events={heroEvents} /> : null}
+      {/* Hero Boost carousel — only shown in "All" view (no category filter) */}
+      {!category && heroEvents.length > 0 ? <HeroCarousel events={heroEvents} /> : null}
 
       <FeaturedCarousel events={featured} />
 
@@ -118,10 +124,13 @@ export default async function DiscoveryPage({
 
       {upcoming.length === 0 && past.length === 0 ? (
         <div className="glass rounded-3xl p-10 text-center">
-          <h2 className="text-lg font-bold">Nothing here yet</h2>
+          <h2 className="text-lg font-bold">
+            {search ? `No results for "${search}"` : "Nothing here yet"}
+          </h2>
           <p className="mt-1 text-sm text-muted">
-            No {category ? CATEGORY_LABELS[category].toLowerCase() : "events"} in{" "}
-            {CITY_LABELS[city]} right now. Try another city or category.
+            {search
+              ? `Try a different search term, city, or category.`
+              : `No ${category ? CATEGORY_LABELS[category].toLowerCase() : "events"} in ${CITY_LABELS[city]} right now. Try another city or category.`}
           </p>
         </div>
       ) : null}

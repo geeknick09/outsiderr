@@ -11,9 +11,16 @@ export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Boost Event — Outsiderr" };
 
-export default async function OrganizerBoostPage() {
+export default async function OrganizerBoostPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ event?: string }>;
+}) {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=%2Forganizer%2Fboost");
+
+  const params = await searchParams;
+  const preselectedEventId = params.event;
 
   const [events, slotPrices, occupiedSlots] = await Promise.all([
     listOrganizerEvents(user),
@@ -42,6 +49,7 @@ export default async function OrganizerBoostPage() {
         slotPrices={slotPrices}
         occupiedSlots={occupiedSlots}
         platformUpiId={platformUpiId}
+        preselectedEventId={preselectedEventId}
       />
     </div>
   );

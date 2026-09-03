@@ -8,17 +8,18 @@ import { joinWaitlistAction } from "@/actions/waitlist";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatPaise } from "@/lib/format";
-import { calculatePrice } from "@/lib/pricing";
+import { calculatePrice, getFeeBpsForPrice } from "@/lib/pricing";
 import type { EventDetail } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export function TicketTiers({ event, feeBps = 500 }: { event: EventDetail; feeBps?: number }) {
+export function TicketTiers({ event, feeBps }: { event: EventDetail; feeBps?: number }) {
   const router = useRouter();
   const available = event.tiers.filter((tier) => tier.quantity > tier.quantitySold);
   const [selectedId, setSelectedId] = useState(available[0]?.id ?? "");
 
   const isFreeEvent = event.tiers.length > 0 && event.tiers.every((t) => t.pricePaise === 0);
   const selected = event.tiers.find((tier) => tier.id === selectedId);
+  // Use tiered fee based on ticket price (feeBps param is now optional/legacy)
   const price = selected
     ? calculatePrice(selected.pricePaise, 1, event.feePayer, feeBps)
     : null;
@@ -76,11 +77,9 @@ export function TicketTiers({ event, feeBps = 500 }: { event: EventDetail; feeBp
                   <p className="text-sm font-black">
                     {tier.pricePaise === 0 ? "Free" : formatPaise(tier.pricePaise)}
                   </p>
-                  <p className="mt-1 text-[11px] text-muted">
-                    {soldOut
-                      ? "Sold out"
-                      : `${tier.quantity - tier.quantitySold} left`}
-                  </p>
+                  {soldOut ? (
+                    <p className="mt-1 text-[11px] text-muted">Sold out</p>
+                  ) : null}
                 </div>
               </div>
             </button>
@@ -98,7 +97,7 @@ export function TicketTiers({ event, feeBps = 500 }: { event: EventDetail; feeBp
               <Row label="Ticket subtotal" value={formatPaise(price.subtotalPaise)} />
               {event.feePayer === "BUYER" ? (
                 <Row
-                  label={`Platform fee (${Math.round(feeBps / 100)}%)`}
+                  label={`Platform fee (${Math.round(price.feeBps / 100)}%)`}
                   value={formatPaise(price.platformFeePaise)}
                 />
               ) : (

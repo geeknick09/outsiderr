@@ -413,6 +413,23 @@ export async function getHeroEvents(
   const now = Date.now();
   const nowIso = new Date(now).toISOString();
 
+  // Auto-expire stale ACTIVE boosts (expires_at < now) — frees up space
+  if (isSupabaseConfigured()) {
+    const supabase = await createClient();
+    await supabase
+      .from("hero_boosts")
+      .update({ status: "EXPIRED", expired_at: nowIso })
+      .eq("status", "ACTIVE")
+      .lt("expires_at", nowIso);
+  } else {
+    demoStore().heroBoosts.forEach((b) => {
+      if (b.status === "ACTIVE" && b.expiresAt && b.expiresAt < nowIso) {
+        b.status = "EXPIRED";
+        b.expiredAt = nowIso;
+      }
+    });
+  }
+
   // Get all active, non-expired boosts
   let eligibleBoosts: { boost: HeroBoost; eventId: string; startedAt: string }[] = [];
 

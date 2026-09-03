@@ -6,8 +6,10 @@ import { getCurrentUser } from "@/lib/auth";
 import {
   adminDeleteEvent,
   adminUpdateEventStatus,
+  adminToggleEventFeatured,
   adminToggleUserAdmin,
 } from "@/lib/data/admin";
+import { updateSlotPrice } from "@/lib/data/boosts";
 import { approveBoost, rejectBoost } from "@/lib/data/boosts";
 import { setClubVerified } from "@/lib/data/clubs";
 import { approveOrder, rejectOrder } from "@/lib/data/orders";
@@ -87,6 +89,20 @@ export async function adminToggleAdminAction(userId: string, isAdmin: boolean): 
   await requireAdmin();
   await adminToggleUserAdmin(userId, isAdmin);
   revalidatePath("/admin/users");
+}
+
+export async function adminToggleFeaturedAction(eventId: string, featured: boolean): Promise<void> {
+  await requireAdmin();
+  await adminToggleEventFeatured(eventId, featured);
+  revalidatePath("/admin/events");
+  revalidatePath("/");
+}
+
+export async function adminUpdateSlotPriceAction(slot: number, pricePaise: number): Promise<void> {
+  await requireAdmin();
+  await updateSlotPrice(slot, pricePaise);
+  revalidatePath("/admin/boosts");
+  revalidatePath("/organizer/boost");
 }
 
 export async function adminApproveClubAction(clubId: string): Promise<void> {

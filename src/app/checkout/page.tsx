@@ -6,7 +6,7 @@ import { CheckoutForm } from "@/components/checkout/checkout-form";
 import { QrCode } from "@/components/ui/qr-code";
 import { MAX_TICKETS_PER_ORDER } from "@/lib/constants";
 import { getEvent } from "@/lib/data/events";
-import { getOrganizerWhatsappNumber, getPlatformFeeBps } from "@/lib/data/platform-settings";
+import { getOrganizerWhatsappNumber } from "@/lib/data/platform-settings";
 import { formatDateTime, formatPaise } from "@/lib/format";
 import { getCurrentUser } from "@/lib/auth";
 import { calculatePrice } from "@/lib/pricing";
@@ -37,8 +37,8 @@ export default async function CheckoutPage({
   if (!event || !tier) notFound();
 
   const isFree = tier.pricePaise === 0;
-  const feeBps = await getPlatformFeeBps();
-  const price = calculatePrice(tier.pricePaise, quantity, event.feePayer, feeBps);
+  // Use tiered fee based on ticket price (no longer needs admin setting for bps)
+  const price = calculatePrice(tier.pricePaise, quantity, event.feePayer);
   const intent = upiIntent({
     upiId: event.organizer.upiId ?? "outsiderr@upi",
     payeeName: event.organizer.name,
@@ -96,7 +96,7 @@ export default async function CheckoutPage({
             <dl className="mt-4 space-y-2 text-sm">
               <Row label={`${tier.name} × ${quantity}`} value={isFree ? "Free" : formatPaise(price.subtotalPaise)} />
               {!isFree && event.feePayer === "BUYER" ? (
-                <Row label="Platform fee (5%)" value={formatPaise(price.platformFeePaise)} />
+              <Row label={`Platform fee (${Math.round(price.feeBps / 100)}%)`} value={formatPaise(price.platformFeePaise)} />
               ) : null}
               {!isFree && event.feePayer === "ORGANIZER" ? (
                 <Row label="Platform fee" value="Paid by organizer" />

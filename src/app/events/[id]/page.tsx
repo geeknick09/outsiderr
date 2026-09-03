@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { BadgeCheck, CalendarDays, Info, Mail, MapPin, Phone, Users } from "lucide-react";
+import { BadgeCheck, CalendarDays, Info, Mail, MapPin, Phone } from "lucide-react";
 
 import { MapEmbed } from "@/components/events/map-embed";
 import { PhotoGallery } from "@/components/events/photo-gallery";
@@ -16,7 +16,6 @@ import { Badge } from "@/components/ui/badge";
 import { CATEGORY_LABELS, CITY_LABELS } from "@/lib/constants";
 import { getCurrentUser } from "@/lib/auth";
 import { getEvent } from "@/lib/data/events";
-import { getPlatformFeeBps } from "@/lib/data/platform-settings";
 import { getWaitlistEntry, getWaitlistCount } from "@/lib/data/waitlist";
 import { formatDateRange, mapsLink } from "@/lib/format";
 
@@ -40,7 +39,7 @@ export default async function EventDetailsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [event, user, feeBps] = await Promise.all([getEvent(id), getCurrentUser(), getPlatformFeeBps()]);
+  const [event, user] = await Promise.all([getEvent(id), getCurrentUser()]);
   if (!event) notFound();
 
   const banner = event.bannerPosterUrl ?? event.cardPosterUrl;
@@ -134,10 +133,6 @@ export default async function EventDetailsPage({
                   <span className="block text-xs text-muted">{event.venueAddress}</span>
                 </span>
               </a>
-              <span className="flex items-center gap-2 text-muted">
-                <Users className="h-4 w-4" />
-                {event.registrationsCount} people registered
-              </span>
             </div>
 
             <MapEmbed
@@ -180,9 +175,21 @@ export default async function EventDetailsPage({
               href={`/organizers/${event.organizer.id}`}
               className="flex items-center gap-4 hover:opacity-80"
             >
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-neon-gradient text-lg font-black text-white">
-                {event.organizer.name.slice(0, 1)}
-              </div>
+              {event.organizer.avatarUrl ? (
+                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl">
+                  <Image
+                    src={event.organizer.avatarUrl}
+                    alt={event.organizer.name}
+                    fill
+                    sizes="56px"
+                    className="object-cover"
+                  />
+                </div>
+              ) : (
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-neon-gradient text-lg font-black text-white">
+                  {event.organizer.name.slice(0, 1)}
+                </div>
+              )}
               <div>
                 <p className="flex items-center gap-1.5 text-sm font-bold">
                   {event.organizer.name}
@@ -228,7 +235,7 @@ export default async function EventDetailsPage({
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-          <TicketTiers event={event} feeBps={feeBps} />
+          <TicketTiers event={event} />
 
           {/* Waitlist for sold-out tiers */}
           {waitlistData.length > 0 ? (

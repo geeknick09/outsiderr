@@ -5,7 +5,6 @@ import { createHash, randomUUID } from "node:crypto";
 import { MAX_TICKETS_PER_ORDER } from "@/lib/constants";
 import { demoStore } from "@/lib/data/demo-store";
 import { getEvent } from "@/lib/data/events";
-import { getPlatformFeeBps } from "@/lib/data/platform-settings";
 import { calculatePrice } from "@/lib/pricing";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
@@ -55,8 +54,8 @@ export async function createOrder(
     throw new Error("Not enough tickets left in this tier.");
   }
 
-  const feeBps = await getPlatformFeeBps();
-  const price = calculatePrice(tier.pricePaise, input.quantity, event.feePayer, feeBps);
+  // Use tiered fee based on ticket price
+  const price = calculatePrice(tier.pricePaise, input.quantity, event.feePayer);
 
   if (!isSupabaseConfigured()) {
     const order: Order = {

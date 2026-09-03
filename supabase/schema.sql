@@ -294,6 +294,7 @@ on conflict (slug) do update set
   content  = excluded.content;
 
 -- Seed default values (on conflict do nothing — preserves admin edits)
+-- Note: value column is jsonb, so string values must be double-quoted JSON strings
 insert into public.platform_settings (key, value, description) values
   ('platform_fee_bps',                '500',                                         'Platform commission in basis points (5%)'),
   ('cancellation_charge_percent',     '20',                                          'Organizer cancellation charge as % of total tickets sold'),
@@ -305,15 +306,15 @@ insert into public.platform_settings (key, value, description) values
   ('terms_version',                   '"organizer-v1.0"',                            'Current organizer terms & conditions version'),
   ('venue_announcement_deadline_hours','48',                                         'Minimum hours before event to announce venue'),
   ('door_staff_available',            '10',                                          'Total door staff currently available across all events'),
-  ('organizer_whatsapp_number',       '7980085212',                                  'WhatsApp number for attendees to send payment screenshots'),
+  ('organizer_whatsapp_number',       '"7980085212"',                                'WhatsApp number for attendees to send payment screenshots'),
   ('hero_boost_enabled',              'true',                                        'Enable/disable the Hero Boost feature'),
   ('hero_boost_price',                '99900',                                       'Price for a 7-day Hero Boost in paise (₹999)'),
   ('hero_boost_duration_days',        '7',                                           'Hero Boost duration in days'),
   ('hero_rotation_interval_minutes',  '30',                                          'Hero carousel rotation interval in minutes'),
   ('hero_max_visible_events',         '7',                                           'Maximum Hero events displayed at once'),
-  ('tagline_header',                  'Find what''s happening outside the mainstream.', 'Homepage header tagline (bold line)'),
-  ('tagline_subheader',               'Discover raw events happening today near you.',  'Homepage sub-tagline (muted line)'),
-  ('tagline_footer',                  'Cyphers, battles, stunts, skates, jams & real communities. Discover raw events happening today near you.', 'Footer brand tagline')
+  ('tagline_header',                  '"Find what''s happening outside the mainstream."', 'Homepage header tagline (bold line)'),
+  ('tagline_subheader',               '"Discover raw events happening today near you."',  'Homepage sub-tagline (muted line)'),
+  ('tagline_footer',                  '"Cyphers, battles, stunts, skates, jams & real communities. Discover raw events happening today near you."', 'Footer brand tagline')
 on conflict (key) do nothing;
 
 -- --------------------------------------------- event_terms_acceptances
@@ -498,8 +499,6 @@ as $$
   select exists (
     select 1 from public.profiles p
     where p.id = auth.uid() and p.is_admin = true
-  ) or not exists (
-    select 1 from public.profiles where is_admin = true
   );
 $$;
 
@@ -842,8 +841,15 @@ create policy "organizers are public" on public.organizers
   for select using (true);
 
 drop policy if exists "organizers are owner managed" on public.organizers;
-create policy "organizers are owner managed" on public.organizers
-  for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+drop policy if exists "organizers owner insert" on public.organizers;
+drop policy if exists "organizers owner update" on public.organizers;
+drop policy if exists "organizers owner delete" on public.organizers;
+create policy "organizers owner insert" on public.organizers
+  for insert with check (auth.uid() = owner_id);
+create policy "organizers owner update" on public.organizers
+  for update using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+create policy "organizers owner delete" on public.organizers
+  for delete using (auth.uid() = owner_id);
 
 -- events
 drop policy if exists "published events are public" on public.events;
@@ -851,20 +857,22 @@ create policy "published events are public" on public.events
   for select using (status = 'PUBLISHED' or public.is_event_staff(id));
 
 drop policy if exists "events are organizer managed" on public.events;
-create policy "events are organizer managed" on public.events
-  for all
-  using (
-    exists (
-      select 1 from public.organizers o
-      where o.id = organizer_id and o.owner_id = auth.uid()
-    )
+drop policy if exists "events organizer insert" on public.events;
+drop policy if exists "events organizer update" on public.events;
+drop policy if exists "events organizer delete" on public.events;
+create policy "events organizer insert" on public.events
+  for insert with check (
+    exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
     or public.is_current_user_admin()
-  )
-  with check (
-    exists (
-      select 1 from public.organizers o
-      where o.id = organizer_id and o.owner_id = auth.uid()
-    )
+  );
+create policy "events organizer update" on public.events
+  for update using (
+    exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
+    or public.is_current_user_admin()
+  );
+create policy "events organizer delete" on public.events
+  for delete using (
+    exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
     or public.is_current_user_admin()
   );
 
@@ -874,10 +882,15 @@ create policy "tiers are public" on public.ticket_tiers
   for select using (true);
 
 drop policy if exists "tiers are organizer managed" on public.ticket_tiers;
-create policy "tiers are organizer managed" on public.ticket_tiers
-  for all
-  using (public.is_event_staff(event_id))
-  with check (public.is_event_staff(event_id));
+drop policy if exists "tiers organizer insert" on public.ticket_tiers;
+drop policy if exists "tiers organizer update" on public.ticket_tiers;
+drop policy if exists "tiers organizer delete" on public.ticket_tiers;
+create policy "tiers organizer insert" on public.ticket_tiers
+  for insert with check (public.is_event_staff(event_id));
+create policy "tiers organizer update" on public.ticket_tiers
+  for update using (public.is_event_staff(event_id));
+create policy "tiers organizer delete" on public.ticket_tiers
+  for delete using (public.is_event_staff(event_id));
 
 -- orders
 drop policy if exists "orders are visible to buyer and organizer" on public.orders;

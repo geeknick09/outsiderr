@@ -1,7 +1,7 @@
-import { adminApproveBoostAction, adminRejectBoostAction } from "@/actions/admin";
 import { HeroBoostAdminActions } from "@/components/admin/hero-boost-admin-actions";
+import { SlotPriceEditor } from "@/components/admin/slot-price-editor";
 import { Badge } from "@/components/ui/badge";
-import { listBoostSlotPrices, listOccupiedSlots, listPendingBoosts } from "@/lib/data/boosts";
+import { listBoostSlotPrices, listOccupiedSlots, listActiveBoosts } from "@/lib/data/boosts";
 import { listAllHeroBoosts } from "@/lib/data/hero-boosts";
 import { formatDateTime, formatPaise } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -11,8 +11,8 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Admin: Boosts — Outsiderr" };
 
 export default async function AdminBoostsPage() {
-  const [pending, slotPrices, occupied, heroBoosts] = await Promise.all([
-    listPendingBoosts(),
+  const [activeBoosts, slotPrices, occupied, heroBoosts] = await Promise.all([
+    listActiveBoosts(),
     listBoostSlotPrices(),
     listOccupiedSlots(),
     listAllHeroBoosts(),
@@ -28,7 +28,7 @@ export default async function AdminBoostsPage() {
       <div>
         <h1 className="text-2xl font-black">Boosts</h1>
         <p className="text-sm text-muted">
-          {pending.length + heroPending.length} pending approval · {heroActive.length} active Hero boosts
+          {activeBoosts.length} active slot boosts · {heroActive.length} active Hero boosts · {heroPending.length} Hero pending
         </p>
       </div>
 
@@ -100,10 +100,13 @@ export default async function AdminBoostsPage() {
       {/* ============ Slot Boosts Section ============ */}
       <section className="space-y-4">
         <h2 className="text-lg font-bold">Slot Boosts</h2>
+        <p className="text-sm text-muted">
+          Slot boosts are auto-activated when an organizer picks a free slot. Admins can view occupancy and change prices.
+        </p>
 
         {/* Slot grid */}
         <div className="glass rounded-3xl p-5">
-          <h3 className="mb-4 text-sm font-bold">Slot availability</h3>
+          <h3 className="mb-4 text-sm font-bold">Slot availability & pricing</h3>
           <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
             {slotPrices.map((sp) => {
               const taken = occupied.includes(sp.slot);
@@ -119,56 +122,34 @@ export default async function AdminBoostsPage() {
                 >
                   <span className="text-base font-black">{sp.slot}</span>
                   <span className="text-[10px]">{taken ? "Taken" : "Free"}</span>
-                  <span className="text-[10px] text-muted">{formatPaise(sp.pricePaise)}</span>
+                  <span className="text-[10px] text-muted">{formatPaise(sp.pricePaise)}/day</span>
                 </div>
               );
             })}
           </div>
         </div>
 
-        {/* Pending slot requests */}
+        {/* Admin can edit slot prices */}
+        <SlotPriceEditor slotPrices={slotPrices} />
+
+        {/* Active slot boosts list */}
         <div className="space-y-3">
-          <h3 className="text-sm font-bold">Pending slot requests</h3>
-          {pending.length === 0 ? (
-            <p className="glass rounded-3xl p-5 text-sm text-muted">No pending slot boost requests.</p>
+          <h3 className="text-sm font-bold">Active slot boosts</h3>
+          {activeBoosts.length === 0 ? (
+            <p className="glass rounded-3xl p-5 text-sm text-muted">No active slot boosts.</p>
           ) : (
-            pending.map((boost) => (
+            activeBoosts.map((boost) => (
               <div key={boost.id} className="glass flex flex-wrap items-center gap-3 rounded-3xl p-4">
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold">{boost.eventTitle}</p>
+                  <p className="font-semibold">Slot {boost.slot}</p>
                   <p className="text-xs text-muted">
-                    Slot {boost.slot} · {formatPaise(boost.amountPaidPaise)} paid · UTR: {boost.utrReference ?? "—"}
+                    {formatPaise(boost.amountPaidPaise)} paid · UTR: {boost.utrReference ?? "—"}
                   </p>
                   <p className="text-xs text-muted">
                     {formatDateTime(boost.startsAt)} → {formatDateTime(boost.endsAt)}
                   </p>
-                  <p className="text-xs text-zinc-400">{formatDateTime(boost.createdAt)}</p>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Badge tone="warning">Pending</Badge>
-                  <form>
-                    <button
-                      formAction={async () => {
-                        "use server";
-                        await adminApproveBoostAction(boost.id);
-                      }}
-                      className="rounded-lg border border-zinc-200 px-2.5 py-1 text-xs text-muted hover:border-lime-400 hover:text-lime-600 dark:border-white/10"
-                    >
-                      Approve
-                    </button>
-                  </form>
-                  <form>
-                    <button
-                      formAction={async () => {
-                        "use server";
-                        await adminRejectBoostAction(boost.id);
-                      }}
-                      className="rounded-lg border border-zinc-200 px-2.5 py-1 text-xs text-muted hover:border-red-400 hover:text-red-500 dark:border-white/10"
-                    >
-                      Reject
-                    </button>
-                  </form>
-                </div>
+                <Badge tone="lime">Active</Badge>
               </div>
             ))
           )}

@@ -22,6 +22,7 @@ import type {
 export interface EventQuery {
   city?: City;
   category?: EventCategory;
+  search?: string;
 }
 
 function toOrganizer(row: OrganizerRow): Organizer {
@@ -116,13 +117,21 @@ function summarise(event: EventDetail): EventSummary {
 }
 
 export async function listEvents(query: EventQuery = {}): Promise<EventSummary[]> {
+  const search = query.search?.trim().toLowerCase();
+
   if (!isSupabaseConfigured()) {
     return demoStore()
       .events.filter(
         (event) =>
           event.status === "PUBLISHED" &&
           (!query.city || event.city === query.city) &&
-          (!query.category || event.category === query.category),
+          (!query.category || event.category === query.category) &&
+          (!search ||
+            event.title.toLowerCase().includes(search) ||
+            event.venueName.toLowerCase().includes(search) ||
+            event.description.toLowerCase().includes(search) ||
+            event.tags.some((tag) => tag.toLowerCase().includes(search)) ||
+            event.organizer.name.toLowerCase().includes(search)),
       )
       .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
       .map(summarise);
@@ -138,12 +147,28 @@ export async function listEvents(query: EventQuery = {}): Promise<EventSummary[]
   if (query.city) request = request.eq("city", query.city);
   // Use text cast to avoid 22P02 enum errors while DB migrations are in flight
   if (query.category) request = (request as ReturnType<typeof request.eq>).filter("category::text", "eq", query.category);
+  if (search) {
+    request = request.or(`title.ilike.%${search}%,venue_name.ilike.%${search}%,description.ilike.%${search}%`);
+  }
 
   const { data: events, error } = await request;
   if (error) {
+    console.error("[listEvents] Supabase error:", JSON.stringify(error));
     // 22P02 = invalid input value for enum — DB enum out of sync; return empty
     if ((error as { code?: string }).code === "22P02") return [];
     throw error;
+  }
+  console.log(`[listEvents] Found ${events?.length ?? 0} events for query:`, JSON.stringify(query));
+  if (events && events.length > 0) {
+    console.log("[listEvents] Event details:", events.map(e => ({
+      id: e.id.slice(0, 8),
+      title: e.title,
+      status: e.status,
+      city: e.city,
+      category: e.category,
+      startsAt: e.starts_at,
+      isFeatured: e.is_featured,
+    })));
   }
   if (!events || events.length === 0) return [];
 

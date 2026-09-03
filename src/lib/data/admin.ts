@@ -129,6 +129,19 @@ export async function adminUpdateEventStatus(
   await supabase.from("events").update({ status }).eq("id", eventId);
 }
 
+export async function adminToggleEventFeatured(
+  eventId: string,
+  featured: boolean,
+): Promise<void> {
+  if (!isSupabaseConfigured()) {
+    const event = demoStore().events.find((e) => e.id === eventId);
+    if (event) event.isFeatured = featured;
+    return;
+  }
+  const supabase = await createClient();
+  await supabase.from("events").update({ is_featured: featured }).eq("id", eventId);
+}
+
 export async function adminToggleUserAdmin(
   userId: string,
   isAdmin: boolean,

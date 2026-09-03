@@ -21,13 +21,15 @@ export function BoostPanel({
   slotPrices,
   occupiedSlots,
   platformUpiId,
+  preselectedEventId,
 }: {
   events: EventSummary[];
   slotPrices: BoostSlotPrice[];
   occupiedSlots: number[];
   platformUpiId: string;
+  preselectedEventId?: string;
 }) {
-  const [eventId, setEventId] = useState(events[0]?.id ?? "");
+  const [eventId, setEventId] = useState(preselectedEventId ?? events[0]?.id ?? "");
   const [slot, setSlot] = useState<number | null>(null);
   const [days, setDays] = useState(7);
   const [utr, setUtr] = useState("");
@@ -36,7 +38,9 @@ export function BoostPanel({
   const [error, setError] = useState<string | null>(null);
 
   const selectedPrice = slotPrices.find((p) => p.slot === slot);
-  const totalPaise = selectedPrice ? selectedPrice.pricePaise : 0;
+  // Price is per-day; total = daily price × number of days
+  const dailyPaise = selectedPrice ? selectedPrice.pricePaise : 0;
+  const totalPaise = dailyPaise * days;
 
   const upiString =
     slot && totalPaise
@@ -72,9 +76,9 @@ export function BoostPanel({
       <div className="glass flex flex-col items-center gap-4 rounded-3xl p-8 text-center">
         <CheckCircle2 className="h-12 w-12 text-lime-neon" />
         <div>
-          <p className="text-lg font-bold">Boost request submitted</p>
+          <p className="text-lg font-bold">Event featured!</p>
           <p className="mt-1 text-sm text-muted">
-            Admin will verify your UTR and activate the boost shortly.
+            Your event is now live in slot {slot}. It will appear in the Featured Events carousel for {days} days.
           </p>
         </div>
       </div>
@@ -123,7 +127,7 @@ export function BoostPanel({
                 )}
               >
                 <span className="text-base font-black">{sp.slot}</span>
-                <span className="text-muted">{formatPaise(sp.pricePaise)}</span>
+                <span className="text-muted">{formatPaise(sp.pricePaise)}/day</span>
                 {taken ? <span className="mt-0.5 text-[9px] text-red-400">Taken</span> : null}
               </button>
             );
@@ -153,7 +157,7 @@ export function BoostPanel({
         </div>
         {slot ? (
           <p className="text-sm font-semibold">
-            Total: <span className="text-violet-neon">{formatPaise(totalPaise)}</span>
+            {formatPaise(dailyPaise)}/day × {days} days = <span className="text-violet-neon">{formatPaise(totalPaise)}</span>
           </p>
         ) : null}
       </section>

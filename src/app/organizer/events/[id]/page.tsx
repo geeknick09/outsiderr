@@ -183,6 +183,26 @@ export default async function ManageEventPage({
         />
       ) : null}
 
+      {/* Slot Boost — link to boost page, disabled for past events */}
+      {event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast ? (
+        <section className="glass rounded-3xl p-5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-base font-bold">Slot Boost</h2>
+              <p className="mt-1 text-sm text-muted">
+                Get your event featured in the homepage carousel slots.
+              </p>
+            </div>
+            <Link
+              href={`/organizer/boost?event=${event.id}`}
+              className="shrink-0 rounded-full bg-neon-gradient px-5 py-2.5 text-sm font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90"
+            >
+              Boost Event
+            </Link>
+          </div>
+        </section>
+      ) : null}
+
       {/* Door staff — disabled for past events */}
       {eventPast ? null : doorStaffOrder ? (
         <DoorStaffPaymentPanel

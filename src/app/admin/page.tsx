@@ -21,7 +21,7 @@ export default async function AdminPage() {
     {
       label: "Active boosts",
       value: String(stats.activeBoosts),
-      sub: `${stats.pendingBoosts} pending approval`,
+      sub: `${pendingHeroBoosts.length} Hero pending`,
     },
   ];
 

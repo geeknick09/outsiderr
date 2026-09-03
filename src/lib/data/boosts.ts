@@ -40,6 +40,15 @@ export async function listBoostSlotPrices(): Promise<BoostSlotPrice[]> {
   return (data ?? []).map((r) => ({ slot: r.slot, pricePaise: r.price_paise }));
 }
 
+export async function updateSlotPrice(slot: number, pricePaise: number): Promise<void> {
+  if (!isSupabaseConfigured()) return; // demo mode uses fixed prices
+  const supabase = await createClient();
+  await supabase
+    .from("boost_slot_prices")
+    .update({ price_paise: pricePaise })
+    .eq("slot", slot);
+}
+
 export async function listActiveBoosts(): Promise<Boost[]> {
   if (!isSupabaseConfigured()) {
     const now = new Date().toISOString();
@@ -90,15 +99,26 @@ export async function requestBoost(
   _user: CurrentUser,
   input: RequestBoostInput,
 ): Promise<Boost> {
+  // Check slot is free before creating
+  const occupied = await listOccupiedSlots();
+  if (occupied.includes(input.slot)) {
+    throw new Error("This slot is already taken. Pick another slot.");
+  }
+
   if (!isSupabaseConfigured()) {
+    // Auto-activate: no admin approval needed
     const boost: Boost = {
       id: `boost-${randomUUID()}`, ...input,
-      status: "PENDING", utrReference: input.utrReference, createdAt: new Date().toISOString(),
+      status: "ACTIVE", utrReference: input.utrReference, createdAt: new Date().toISOString(),
     };
     demoStore().boosts.push(boost);
+    // Mark event as featured
+    const event = demoStore().events.find((e) => e.id === input.eventId);
+    if (event) event.isFeatured = true;
     return boost;
   }
   const supabase = await createClient();
+  // Insert boost as ACTIVE (auto-approved)
   const { data, error } = await supabase
     .from("boosts")
     .insert({
@@ -106,10 +126,17 @@ export async function requestBoost(
       slot: input.slot, amount_paid_paise: input.amountPaidPaise,
       starts_at: input.startsAt, ends_at: input.endsAt,
       utr_reference: input.utrReference,
+      status: "ACTIVE",
+      reviewed_at: new Date().toISOString(),
     })
     .select("*")
     .single();
   if (error) throw error;
+  // Mark the event as featured
+  await supabase
+    .from("events")
+    .update({ is_featured: true })
+    .eq("id", input.eventId);
   return toBoost(data);
 }
 
@@ -145,14 +172,29 @@ export async function listPendingBoosts(): Promise<BoostWithEvent[]> {
 export async function approveBoost(boostId: string): Promise<void> {
   if (!isSupabaseConfigured()) {
     const boost = demoStore().boosts.find((b) => b.id === boostId);
-    if (boost) { boost.status = "ACTIVE"; }
+    if (boost) {
+      boost.status = "ACTIVE";
+      // Mark the event as featured
+      const event = demoStore().events.find((e) => e.id === boost.eventId);
+      if (event) event.isFeatured = true;
+    }
     return;
   }
   const supabase = await createClient();
-  await supabase
+  // Set boost to ACTIVE
+  const { data: boost } = await supabase
     .from("boosts")
     .update({ status: "ACTIVE", reviewed_at: new Date().toISOString() })
-    .eq("id", boostId);
+    .eq("id", boostId)
+    .select("event_id")
+    .single();
+  // Mark the event as featured so it shows in the FeaturedCarousel
+  if (boost?.event_id) {
+    await supabase
+      .from("events")
+      .update({ is_featured: true })
+      .eq("id", boost.event_id);
+  }
 }
 
 export async function rejectBoost(boostId: string): Promise<void> {

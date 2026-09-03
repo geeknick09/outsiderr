@@ -2,12 +2,14 @@ import Link from "next/link";
 
 import {
   adminDeleteEventAction,
+  adminToggleFeaturedAction,
   adminUpdateEventStatusAction,
 } from "@/actions/admin";
 import { Badge } from "@/components/ui/badge";
 import { listAllAdminEvents } from "@/lib/data/admin";
 import { CATEGORY_LABELS, CITY_LABELS } from "@/lib/constants";
 import { formatDateTime } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +50,26 @@ export default async function AdminEventsPage() {
                 {event.status}
               </Badge>
               {event.isFeatured ? <Badge tone="lime">Boosted</Badge> : null}
+
+              {/* Toggle featured */}
+              {event.status === "PUBLISHED" ? (
+                <form>
+                  <button
+                    formAction={async () => {
+                      "use server";
+                      await adminToggleFeaturedAction(event.id, !event.isFeatured);
+                    }}
+                    className={cn(
+                      "rounded-lg border px-2.5 py-1 text-xs",
+                      event.isFeatured
+                        ? "border-amber-400/50 text-amber-600 hover:border-amber-400"
+                        : "border-zinc-200 text-muted hover:border-lime-400 hover:text-lime-600 dark:border-white/10",
+                    )}
+                  >
+                    {event.isFeatured ? "Unfeature" : "Feature"}
+                  </button>
+                </form>
+              ) : null}
 
               {event.status === "PUBLISHED" ? (
                 <form>

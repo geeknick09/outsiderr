@@ -16,7 +16,7 @@
 -- STEP 1: Helper functions (security definer = no RLS recursion)
 -- ----------------------------------------------------------------
 
--- Check if current user is admin (with fallback: if no admin exists, allow any authenticated user)
+-- Check if current user is admin (strict — no fallback)
 create or replace function public.is_current_user_admin()
 returns boolean
 language sql
@@ -27,8 +27,6 @@ as $$
   select exists (
     select 1 from public.profiles p
     where p.id = auth.uid() and p.is_admin = true
-  ) or not exists (
-    select 1 from public.profiles where is_admin = true
   );
 $$;
 
@@ -128,41 +126,98 @@ create policy "profiles are self writable" on public.profiles
   for update using (auth.uid() = id) with check (auth.uid() = id);
 
 -- ===== organizers =====
-drop policy if exists "organizers are public" on public.organizers;
+-- NUCLEAR: Drop ALL policies and recreate clean
+do $$
+declare
+  r record;
+begin
+  for r in (select policyname from pg_policies where tablename = 'organizers' and schemaname = 'public')
+  loop
+    execute format('drop policy if exists %I on public.organizers', r.policyname);
+  end loop;
+end$$;
+
 create policy "organizers are public" on public.organizers
   for select using (true);
 
-drop policy if exists "organizers are owner managed" on public.organizers;
-create policy "organizers are owner managed" on public.organizers
-  for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+create policy "organizers owner insert" on public.organizers
+  for insert with check (auth.uid() = owner_id);
+create policy "organizers owner update" on public.organizers
+  for update using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+create policy "organizers owner delete" on public.organizers
+  for delete using (auth.uid() = owner_id);
 
 -- ===== events =====
-drop policy if exists "published events are public" on public.events;
-create policy "published events are public" on public.events
-  for select using (status = 'PUBLISHED' or public.is_event_staff(id));
+-- NUCLEAR OPTION: Drop ALL existing policies on events table and recreate clean.
+-- This ensures no stale `for all` policy interferes with SELECT.
+do $$
+declare
+  r record;
+begin
+  for r in (select policyname from pg_policies where tablename = 'events' and schemaname = 'public')
+  loop
+    execute format('drop policy if exists %I on public.events', r.policyname);
+  end loop;
+end$$;
 
-drop policy if exists "events are organizer managed" on public.events;
-create policy "events are organizer managed" on public.events
-  for all
-  using (
+-- Published events are visible to EVERYONE (including anonymous / logged-out users)
+-- NOTE: Do NOT call is_event_staff() here to avoid RLS recursion on the events table.
+create policy "published events are public" on public.events
+  for select using (status = 'PUBLISHED');
+
+-- Organizers can see ALL their own events (including DRAFT, CANCELLED, POSTPONED)
+create policy "organizers see own events" on public.events
+  for select using (
+    exists (select 1 from public.organizers o
+      where o.id = events.organizer_id and o.owner_id = auth.uid())
+  );
+
+-- Admins can see ALL events
+create policy "admins see all events" on public.events
+  for select using (public.is_current_user_admin());
+
+-- Organizers can insert their own events
+create policy "events organizer insert" on public.events
+  for insert with check (
     exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
     or public.is_current_user_admin()
-  )
-  with check (
+  );
+
+-- Organizers can update their own events
+create policy "events organizer update" on public.events
+  for update using (
+    exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
+    or public.is_current_user_admin()
+  );
+
+-- Organizers can delete their own events
+create policy "events organizer delete" on public.events
+  for delete using (
     exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
     or public.is_current_user_admin()
   );
 
 -- ===== ticket_tiers =====
-drop policy if exists "tiers are public" on public.ticket_tiers;
+-- NUCLEAR: Drop ALL policies and recreate clean
+do $$
+declare
+  r record;
+begin
+  for r in (select policyname from pg_policies where tablename = 'ticket_tiers' and schemaname = 'public')
+  loop
+    execute format('drop policy if exists %I on public.ticket_tiers', r.policyname);
+  end loop;
+end$$;
+
 create policy "tiers are public" on public.ticket_tiers
   for select using (true);
 
-drop policy if exists "tiers are organizer managed" on public.ticket_tiers;
-create policy "tiers are organizer managed" on public.ticket_tiers
-  for all
-  using (public.is_event_staff(event_id))
-  with check (public.is_event_staff(event_id));
+create policy "tiers organizer insert" on public.ticket_tiers
+  for insert with check (public.is_event_staff(event_id));
+create policy "tiers organizer update" on public.ticket_tiers
+  for update using (public.is_event_staff(event_id));
+create policy "tiers organizer delete" on public.ticket_tiers
+  for delete using (public.is_event_staff(event_id));
 
 -- ===== orders =====
 drop policy if exists "orders are visible to buyer and organizer" on public.orders;
@@ -209,17 +264,25 @@ create policy "push subs self" on public.push_subscriptions
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- ===== boosts (slot-based) =====
-drop policy if exists "boosts active public" on public.boosts;
+-- NUCLEAR: Drop ALL policies and recreate clean
+do $$
+declare
+  r record;
+begin
+  for r in (select policyname from pg_policies where tablename = 'boosts' and schemaname = 'public')
+  loop
+    execute format('drop policy if exists %I on public.boosts', r.policyname);
+  end loop;
+end$$;
+
 create policy "boosts active public" on public.boosts
   for select using (status = 'ACTIVE' or public.is_event_staff(event_id));
 
-drop policy if exists "boosts organizer insert" on public.boosts;
 create policy "boosts organizer insert" on public.boosts
   for insert with check (
     exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
   );
 
-drop policy if exists "boosts organizer update" on public.boosts;
 create policy "boosts organizer update" on public.boosts
   for update using (
     exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
@@ -228,8 +291,11 @@ create policy "boosts organizer update" on public.boosts
 
 -- ===== boost_slot_prices =====
 drop policy if exists "boost prices public" on public.boost_slot_prices;
+drop policy if exists "boost prices admin update" on public.boost_slot_prices;
 create policy "boost prices public" on public.boost_slot_prices
   for select using (true);
+create policy "boost prices admin update" on public.boost_slot_prices
+  for update using (public.is_current_user_admin());
 
 -- ===== clubs =====
 drop policy if exists "clubs are publicly readable" on public.clubs;
@@ -359,37 +425,45 @@ create policy "admin delete legal pages" on public.legal_pages
   for delete using (public.is_current_user_admin());
 
 -- ===== hero_boosts =====
-drop policy if exists "organizer read own hero boosts" on public.hero_boosts;
+-- NUCLEAR: Drop ALL policies and recreate clean
+do $$
+declare
+  r record;
+begin
+  for r in (select policyname from pg_policies where tablename = 'hero_boosts' and schemaname = 'public')
+  loop
+    execute format('drop policy if exists %I on public.hero_boosts', r.policyname);
+  end loop;
+end$$;
+
+-- Active hero boosts are publicly visible (for homepage carousel)
+create policy "active hero boosts are public" on public.hero_boosts
+  for select using (status = 'ACTIVE');
+
+-- Organizers can read their own boosts (any status)
 create policy "organizer read own hero boosts" on public.hero_boosts
   for select using (
     exists (select 1 from public.organizers o
-      join public.profiles p on p.id = o.owner_id
-      where o.id = hero_boosts.organizer_id and p.id = auth.uid())
+      where o.id = hero_boosts.organizer_id and o.owner_id = auth.uid())
   );
 
-drop policy if exists "organizer insert hero boosts" on public.hero_boosts;
+-- Admins can read all boosts
+create policy "admin read hero boosts" on public.hero_boosts
+  for select using (public.is_current_user_admin());
+
+-- Organizers can insert hero boosts (pending only)
 create policy "organizer insert hero boosts" on public.hero_boosts
   for insert with check (
     exists (select 1 from public.organizers o
-      join public.profiles p on p.id = o.owner_id
-      where o.id = hero_boosts.organizer_id and p.id = auth.uid())
+      where o.id = hero_boosts.organizer_id and o.owner_id = auth.uid())
     and status = 'PENDING'
   );
 
-drop policy if exists "admin read hero boosts" on public.hero_boosts;
-create policy "admin read hero boosts" on public.hero_boosts
-  for select using (
-    public.is_current_user_admin()
-    or exists (select 1 from public.organizers o
-      join public.profiles p on p.id = o.owner_id
-      where o.id = hero_boosts.organizer_id and p.id = auth.uid())
-  );
-
-drop policy if exists "admin update hero boosts" on public.hero_boosts;
+-- Admins can update hero boosts
 create policy "admin update hero boosts" on public.hero_boosts
   for update using (public.is_current_user_admin());
 
-drop policy if exists "admin delete hero boosts" on public.hero_boosts;
+-- Admins can delete hero boosts
 create policy "admin delete hero boosts" on public.hero_boosts
   for delete using (public.is_current_user_admin());
 
@@ -579,6 +653,68 @@ alter table public.organizers
   add column if not exists bank_account_name   text,
   add column if not exists bank_account_type   text,
   add column if not exists kyc_submitted       boolean not null default false;
+
+-- ----------------------------------------------------------------
+-- STEP 9: Sync is_organizer flag on profiles
+-- Any user who has an organizer profile but is_organizer = false
+-- gets the flag fixed. This resolves the mobile issue where
+-- the profile menu shows "List Your Event" instead of "Manage Your Events".
+-- ----------------------------------------------------------------
+
+update public.profiles p
+  set is_organizer = true
+  where exists (
+    select 1 from public.organizers o where o.owner_id = p.id
+  )
+  and (p.is_organizer is null or p.is_organizer = false);
+
+-- ----------------------------------------------------------------
+-- STEP 10: Insert tagline platform settings
+-- (jsonb column — string values must be double-quoted JSON strings)
+-- ----------------------------------------------------------------
+
+insert into public.platform_settings (key, value, description) values
+  ('tagline_header',    '"Find what''s happening outside the mainstream."', 'Homepage header tagline (bold line)'),
+  ('tagline_subheader', '"Discover raw events happening today near you."',  'Homepage sub-tagline (muted line)'),
+  ('tagline_footer',    '"Cyphers, battles, stunts, skates, jams & real communities. Discover raw events happening today near you."', 'Footer brand tagline')
+on conflict (key) do nothing;
+
+-- ----------------------------------------------------------------
+-- STEP 11: Clean up orphaned hero boosts
+-- Remove hero boosts that reference events that no longer exist
+-- ----------------------------------------------------------------
+
+delete from public.hero_boosts
+  where not exists (
+    select 1 from public.events e where e.id = hero_boosts.event_id
+  );
+
+-- ----------------------------------------------------------------
+-- STEP 12: Auto-promote first user to admin via trigger
+-- This fires every time a new profile is inserted. If no admin
+-- exists yet, the first user becomes admin automatically.
+-- Works after wipe_all.sql (unlike the one-time DO block in schema.sql)
+-- ----------------------------------------------------------------
+
+create or replace function public.auto_promote_first_admin()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  -- Only promote if this is the first user and no admin exists
+  if (select count(*) from public.profiles where is_admin = true) = 0 then
+    update public.profiles set is_admin = true where id = new.id;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_profile_insert on public.profiles;
+create trigger on_profile_insert
+  after insert on public.profiles
+  for each row execute function public.auto_promote_first_admin();
 
 -- ----------------------------------------------------------------
 -- DONE.

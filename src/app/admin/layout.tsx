@@ -19,17 +19,7 @@ async function checkAdminAccess(): Promise<boolean> {
     .eq("id", user.id)
     .maybeSingle();
 
-  // If this user is explicitly admin, allow
-  if (profile?.is_admin === true) return true;
-
-  // Fallback: if no admin exists in the system yet, allow the first user
-  const { count } = await supabase
-    .from("profiles")
-    .select("id", { count: "exact", head: true })
-    .eq("is_admin", true);
-  if (count === 0) return true;
-
-  return false;
+  return profile?.is_admin === true;
 }
 
 const NAV = [

@@ -19,7 +19,7 @@ export async function Navbar() {
     if (!isSupabaseConfigured()) {
       // Demo mode: treat every signed-in user as admin so they can explore.
       isAdmin = true;
-      // Check organizer cookie
+      // Check organizer via the organizers table (demo store)
       const organizer = await getOrganizerProfile(user);
       isOrganizer = !!organizer;
     } else {
@@ -30,7 +30,13 @@ export async function Navbar() {
         .eq("id", user.id)
         .maybeSingle();
       isAdmin = profile?.is_admin === true;
+      // Check is_organizer flag first, then fall back to organizers table lookup
+      // This handles cases where the flag wasn't set but the organizer profile exists
       isOrganizer = profile?.is_organizer === true;
+      if (!isOrganizer) {
+        const organizer = await getOrganizerProfile(user);
+        isOrganizer = !!organizer;
+      }
     }
   }
 
