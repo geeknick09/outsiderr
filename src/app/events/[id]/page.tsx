@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { BadgeCheck, CalendarDays, Info, Mail, MapPin, Phone } from "lucide-react";
+import { AtSign, BadgeCheck, CalendarDays, Info, Mail, MapPin, Phone } from "lucide-react";
 
 import { MapEmbed } from "@/components/events/map-embed";
 import { PhotoGallery } from "@/components/events/photo-gallery";
@@ -16,8 +16,10 @@ import { Badge } from "@/components/ui/badge";
 import { CATEGORY_LABELS, CITY_LABELS } from "@/lib/constants";
 import { getCurrentUser } from "@/lib/auth";
 import { getEvent } from "@/lib/data/events";
+import { getFeeTiers } from "@/lib/data/platform-settings";
 import { getWaitlistEntry, getWaitlistCount } from "@/lib/data/waitlist";
 import { formatDateRange, mapsLink } from "@/lib/format";
+import { getFeeBpsForPrice } from "@/lib/pricing";
 
 export const dynamic = "force-dynamic";
 
@@ -39,10 +41,13 @@ export default async function EventDetailsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [event, user] = await Promise.all([getEvent(id), getCurrentUser()]);
+  const [event, user, feeTiers] = await Promise.all([getEvent(id), getCurrentUser(), getFeeTiers()]);
   if (!event) notFound();
 
   const banner = event.bannerPosterUrl ?? event.cardPosterUrl;
+  // Compute fee bps from the cheapest tier for display
+  const minTierPrice = event.tiers.length > 0 ? Math.min(...event.tiers.map((t) => t.pricePaise)) : 0;
+  const feeBps = getFeeBpsForPrice(minTierPrice, feeTiers);
 
   // Waitlist data for sold-out tiers
   const soldOutTiers = event.tiers.filter((t) => t.quantitySold >= t.quantity);
@@ -205,7 +210,7 @@ export default async function EventDetailsPage({
           </section>
 
           {/* Contact details */}
-          {event.contactEmail || event.contactPhone ? (
+          {event.contactEmail || event.contactPhone || event.instagramUrl ? (
             <section className="glass rounded-3xl p-5">
               <h2 className="mb-3 text-base font-bold">Contact Organizer</h2>
               <div className="space-y-2 text-sm">
@@ -227,6 +232,17 @@ export default async function EventDetailsPage({
                     {event.contactPhone}
                   </a>
                 ) : null}
+                {event.instagramUrl ? (
+                  <a
+                    href={event.instagramUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-2 text-muted hover:text-violet-neon"
+                  >
+                    <AtSign className="h-4 w-4" />
+                    {event.instagramUrl}
+                  </a>
+                ) : null}
               </div>
             </section>
           ) : null}
@@ -235,7 +251,7 @@ export default async function EventDetailsPage({
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-          <TicketTiers event={event} />
+          <TicketTiers event={event} feeBps={feeBps} />
 
           {/* Waitlist for sold-out tiers */}
           {waitlistData.length > 0 ? (

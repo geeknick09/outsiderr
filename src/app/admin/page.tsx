@@ -17,7 +17,8 @@ export default async function AdminPage() {
   const cards = [
     { label: "Total events", value: String(stats.totalEvents), sub: `${stats.activeEvents} live` },
     { label: "Total orders", value: String(stats.totalOrders), sub: `${stats.pendingOrders} pending` },
-    { label: "Revenue collected", value: formatPaise(stats.totalRevenuePaise) },
+    { label: "Gross revenue", value: formatPaise(stats.grossRevenuePaise), sub: `Platform fee ${formatPaise(stats.totalPlatformFeePaise)}` },
+    { label: "Net payouts", value: formatPaise(stats.grossRevenuePaise - stats.totalPlatformFeePaise) },
     {
       label: "Active boosts",
       value: String(stats.activeBoosts),
@@ -32,7 +33,7 @@ export default async function AdminPage() {
         <p className="text-sm text-muted">Platform health at a glance.</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         {cards.map((card) => (
           <div key={card.label} className="glass rounded-3xl p-5">
             <p className="mb-1 text-xs text-muted">{card.label}</p>

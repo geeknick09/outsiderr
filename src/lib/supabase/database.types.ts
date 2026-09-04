@@ -15,6 +15,9 @@ export type ProfileRow = {
   full_name: string | null;
   phone: string | null;
   avatar_url: string | null;
+  birth_date: string | null;
+  interested_tags: string[];
+  instagram_url: string | null;
   theme_preference: ThemePreference;
   is_organizer: boolean;
   is_admin: boolean;
@@ -27,6 +30,8 @@ export type OrganizerRow = {
   name: string;
   bio: string | null;
   avatar_url: string | null;
+  cover_url: string | null;
+  instagram_url: string | null;
   upi_id: string | null;
   upi_qr_url: string | null;
   verified: boolean;
@@ -61,6 +66,7 @@ export type EventRow = {
   pricing_mode: PricingMode;
   contact_email: string | null;
   contact_phone: string | null;
+  instagram_url: string | null;
   created_at: string;
 }
 
@@ -73,6 +79,10 @@ export type TicketTierRow = {
   quantity_sold: number;
   perks: string[];
   sort_order: number;
+  tier_type: string;
+  phase_order: number | null;
+  phase_opens_at: string | null;
+  phase_closes_at: string | null;
 }
 
 export type OrderRow = {
@@ -321,7 +331,7 @@ export type Database = {
         Returns: OrderRow;
       };
       check_in_ticket: {
-        Args: { p_qr_hash: string };
+        Args: { p_qr_hash: string; p_event_id: string };
         Returns: {
           outcome: "VALID" | "ALREADY_USED" | "INVALID";
           event_title: string | null;
@@ -337,6 +347,29 @@ export type Database = {
       increment_club_member_count: {
         Args: { p_club_id: string };
         Returns: void;
+      };
+      cancel_event: {
+        Args: {
+          p_event_id: string;
+          p_reason: string;
+          p_cancellation_charge_percent: number;
+        };
+        Returns: {
+          refund_count: number;
+          total_refund_paise: number;
+          total_platform_fee_paise: number;
+          cancellation_charge_paise: number;
+          organizer_owes_paise: number;
+        }[];
+      };
+      postpone_event: {
+        Args: {
+          p_event_id: string;
+          p_new_starts_at: string;
+          p_new_ends_at: string | null;
+          p_reason: string;
+        };
+        Returns: { notified_count: number }[];
       };
     };
     Enums: Record<string, never>;

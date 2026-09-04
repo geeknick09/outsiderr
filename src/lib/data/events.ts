@@ -1,8 +1,6 @@
 import "server-only";
 
 import { MAX_FEATURED_EVENTS } from "@/lib/constants";
-import { demoStore } from "@/lib/data/demo-store";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 import type {
   EventRow,
@@ -17,6 +15,7 @@ import type {
   Organizer,
   PricingMode,
   TicketTier,
+  TierType,
 } from "@/lib/types";
 
 export interface EventQuery {
@@ -31,6 +30,8 @@ function toOrganizer(row: OrganizerRow): Organizer {
     name: row.name,
     bio: row.bio,
     avatarUrl: row.avatar_url,
+    coverUrl: (row as { cover_url?: string | null }).cover_url ?? null,
+    instagramUrl: (row as { instagram_url?: string | null }).instagram_url ?? null,
     upiId: row.upi_id,
     upiQrUrl: row.upi_qr_url,
     verified: row.verified,
@@ -47,6 +48,10 @@ function toTier(row: TicketTierRow): TicketTier {
     quantitySold: row.quantity_sold,
     perks: row.perks ?? [],
     sortOrder: row.sort_order,
+    tierType: ((row as { tier_type?: string }).tier_type as TierType) ?? "NAMED",
+    phaseOrder: (row as { phase_order?: number | null }).phase_order ?? null,
+    phaseOpensAt: (row as { phase_opens_at?: string | null }).phase_opens_at ?? null,
+    phaseClosesAt: (row as { phase_closes_at?: string | null }).phase_closes_at ?? null,
   };
 }
 
@@ -95,47 +100,12 @@ function toDetail(
     photoUrls: row.photo_urls ?? [],
     contactEmail: row.contact_email ?? null,
     contactPhone: row.contact_phone ?? null,
-  };
-}
-
-function summarise(event: EventDetail): EventSummary {
-  return {
-    id: event.id,
-    title: event.title,
-    category: event.category,
-    city: event.city,
-    venueName: event.venueName,
-    startsAt: event.startsAt,
-    cardPosterUrl: event.cardPosterUrl,
-    bannerPosterUrl: event.bannerPosterUrl,
-    minPricePaise: minPrice(event.tiers),
-    isFeatured: event.isFeatured,
-    registrationsCount: event.registrationsCount,
-    tags: event.tags ?? [],
-    pricingMode: event.pricingMode ?? "PAID",
+    instagramUrl: (row as { instagram_url?: string | null }).instagram_url ?? null,
   };
 }
 
 export async function listEvents(query: EventQuery = {}): Promise<EventSummary[]> {
   const search = query.search?.trim().toLowerCase();
-
-  if (!isSupabaseConfigured()) {
-    return demoStore()
-      .events.filter(
-        (event) =>
-          event.status === "PUBLISHED" &&
-          (!query.city || event.city === query.city) &&
-          (!query.category || event.category === query.category) &&
-          (!search ||
-            event.title.toLowerCase().includes(search) ||
-            event.venueName.toLowerCase().includes(search) ||
-            event.description.toLowerCase().includes(search) ||
-            event.tags.some((tag) => tag.toLowerCase().includes(search)) ||
-            event.organizer.name.toLowerCase().includes(search)),
-      )
-      .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
-      .map(summarise);
-  }
 
   const supabase = await createClient();
   let request = supabase
@@ -157,18 +127,6 @@ export async function listEvents(query: EventQuery = {}): Promise<EventSummary[]
     // 22P02 = invalid input value for enum — DB enum out of sync; return empty
     if ((error as { code?: string }).code === "22P02") return [];
     throw error;
-  }
-  console.log(`[listEvents] Found ${events?.length ?? 0} events for query:`, JSON.stringify(query));
-  if (events && events.length > 0) {
-    console.log("[listEvents] Event details:", events.map(e => ({
-      id: e.id.slice(0, 8),
-      title: e.title,
-      status: e.status,
-      city: e.city,
-      category: e.category,
-      startsAt: e.starts_at,
-      isFeatured: e.is_featured,
-    })));
   }
   if (!events || events.length === 0) return [];
 
@@ -194,10 +152,6 @@ export async function listFeaturedEvents(city?: City): Promise<EventSummary[]> {
 }
 
 export async function getEvent(id: string): Promise<EventDetail | null> {
-  if (!isSupabaseConfigured()) {
-    return demoStore().events.find((event) => event.id === id) ?? null;
-  }
-
   const supabase = await createClient();
   const { data: event } = await supabase
     .from("events")

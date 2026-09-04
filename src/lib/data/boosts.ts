@@ -1,9 +1,5 @@
 import "server-only";
 
-import { randomUUID } from "node:crypto";
-
-import { demoStore } from "@/lib/data/demo-store";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 import type { CurrentUser } from "@/lib/auth";
 import type { Boost, BoostSlotPrice, BoostStatus, BoostWithEvent } from "@/lib/types";
@@ -23,15 +19,6 @@ function toBoost(row: {
 }
 
 export async function listBoostSlotPrices(): Promise<BoostSlotPrice[]> {
-  if (!isSupabaseConfigured()) {
-    return [
-      { slot: 1, pricePaise: 500000 }, { slot: 2, pricePaise: 400000 },
-      { slot: 3, pricePaise: 300000 }, { slot: 4, pricePaise: 250000 },
-      { slot: 5, pricePaise: 200000 }, { slot: 6, pricePaise: 175000 },
-      { slot: 7, pricePaise: 150000 }, { slot: 8, pricePaise: 125000 },
-      { slot: 9, pricePaise: 100000 }, { slot: 10, pricePaise: 75000 },
-    ];
-  }
   const supabase = await createClient();
   const { data } = await supabase
     .from("boost_slot_prices")
@@ -41,7 +28,6 @@ export async function listBoostSlotPrices(): Promise<BoostSlotPrice[]> {
 }
 
 export async function updateSlotPrice(slot: number, pricePaise: number): Promise<void> {
-  if (!isSupabaseConfigured()) return; // demo mode uses fixed prices
   const supabase = await createClient();
   await supabase
     .from("boost_slot_prices")
@@ -50,12 +36,6 @@ export async function updateSlotPrice(slot: number, pricePaise: number): Promise
 }
 
 export async function listActiveBoosts(): Promise<Boost[]> {
-  if (!isSupabaseConfigured()) {
-    const now = new Date().toISOString();
-    return demoStore().boosts.filter(
-      (b) => b.status === "ACTIVE" && b.startsAt <= now && b.endsAt >= now,
-    ).sort((a, b) => a.slot - b.slot);
-  }
   const supabase = await createClient();
   const now = new Date().toISOString();
   const { data } = await supabase
@@ -69,12 +49,6 @@ export async function listActiveBoosts(): Promise<Boost[]> {
 }
 
 export async function listOccupiedSlots(): Promise<number[]> {
-  if (!isSupabaseConfigured()) {
-    const now = new Date().toISOString();
-    return demoStore().boosts
-      .filter((b) => b.status === "ACTIVE" && b.endsAt >= now)
-      .map((b) => b.slot);
-  }
   const supabase = await createClient();
   const now = new Date().toISOString();
   const { data } = await supabase
@@ -105,18 +79,6 @@ export async function requestBoost(
     throw new Error("This slot is already taken. Pick another slot.");
   }
 
-  if (!isSupabaseConfigured()) {
-    // Auto-activate: no admin approval needed
-    const boost: Boost = {
-      id: `boost-${randomUUID()}`, ...input,
-      status: "ACTIVE", utrReference: input.utrReference, createdAt: new Date().toISOString(),
-    };
-    demoStore().boosts.push(boost);
-    // Mark event as featured
-    const event = demoStore().events.find((e) => e.id === input.eventId);
-    if (event) event.isFeatured = true;
-    return boost;
-  }
   const supabase = await createClient();
   // Insert boost as ACTIVE (auto-approved)
   const { data, error } = await supabase
@@ -141,15 +103,6 @@ export async function requestBoost(
 }
 
 export async function listPendingBoosts(): Promise<BoostWithEvent[]> {
-  if (!isSupabaseConfigured()) {
-    return demoStore().boosts
-      .filter((b) => b.status === "PENDING")
-      .map((b) => ({
-        ...b,
-        eventTitle: demoStore().events.find((e) => e.id === b.eventId)?.title ?? "Event",
-        organizerName: "Demo Organizer",
-      }));
-  }
   const supabase = await createClient();
   const { data } = await supabase
     .from("boosts")
@@ -170,16 +123,6 @@ export async function listPendingBoosts(): Promise<BoostWithEvent[]> {
 }
 
 export async function approveBoost(boostId: string): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    const boost = demoStore().boosts.find((b) => b.id === boostId);
-    if (boost) {
-      boost.status = "ACTIVE";
-      // Mark the event as featured
-      const event = demoStore().events.find((e) => e.id === boost.eventId);
-      if (event) event.isFeatured = true;
-    }
-    return;
-  }
   const supabase = await createClient();
   // Set boost to ACTIVE
   const { data: boost } = await supabase
@@ -198,11 +141,6 @@ export async function approveBoost(boostId: string): Promise<void> {
 }
 
 export async function rejectBoost(boostId: string): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    const boost = demoStore().boosts.find((b) => b.id === boostId);
-    if (boost) { boost.status = "REJECTED"; }
-    return;
-  }
   const supabase = await createClient();
   await supabase
     .from("boosts")

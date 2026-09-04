@@ -24,8 +24,7 @@ export function ThemeLogo({ width = 140, height = 32 }: { width?: number; height
       width={width}
       height={height}
       priority
-      className="h-auto w-auto shrink-0"
-      style={{ maxWidth: "none" }}
+      className="h-auto w-auto shrink-0 max-w-[120px] sm:max-w-none"
     />
   );
 }

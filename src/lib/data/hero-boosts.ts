@@ -1,9 +1,5 @@
 import "server-only";
 
-import { randomUUID } from "node:crypto";
-
-import { demoStore } from "@/lib/data/demo-store";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 import type { CurrentUser } from "@/lib/auth";
 import type {
@@ -68,31 +64,6 @@ export async function createHeroBoost(
   eventId: string,
   amountPaise: number,
 ): Promise<HeroBoost> {
-  if (!isSupabaseConfigured()) {
-    // Check for existing active/pending boost for this event
-    const existing = demoStore().heroBoosts.find(
-      (b) => b.eventId === eventId && (b.status === "ACTIVE" || b.status === "PENDING"),
-    );
-    if (existing) throw new Error("This event already has an active or pending Hero Boost.");
-
-    const boost: HeroBoost = {
-      id: `hero-${randomUUID()}`,
-      eventId,
-      organizerId: "org-basement",
-      status: "PENDING",
-      amountPaise,
-      currency: "INR",
-      utrReference: null,
-      startedAt: null,
-      expiresAt: null,
-      cancelledAt: null,
-      expiredAt: null,
-      createdAt: new Date().toISOString(),
-    };
-    demoStore().heroBoosts.push(boost);
-    return boost;
-  }
-
   // Check for existing active/pending boost
   const supabase = await createClient();
   const { data: existing, error: checkError } = await supabase
@@ -142,14 +113,6 @@ export async function submitHeroBoostUtr(
   boostId: string,
   utrReference: string,
 ): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    const boost = demoStore().heroBoosts.find((b) => b.id === boostId);
-    if (!boost) throw new Error("Boost not found.");
-    if (boost.status !== "PENDING") throw new Error("Boost is not pending.");
-    boost.utrReference = utrReference;
-    return;
-  }
-
   const supabase = await createClient();
   const { data: boost } = await supabase
     .from("hero_boosts")
@@ -184,25 +147,6 @@ export async function activateHeroBoost(
   boostId: string,
   durationDays: number,
 ): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    const boost = demoStore().heroBoosts.find((b) => b.id === boostId);
-    if (!boost) throw new Error("Boost not found.");
-    if (boost.status !== "PENDING") throw new Error("Boost is not pending.");
-
-    // Get event start time
-    const event = demoStore().events.find((e) => e.id === boost.eventId);
-    if (!event) throw new Error("Event not found.");
-    if (new Date(event.startsAt).getTime() <= Date.now()) {
-      throw new Error("Cannot boost an event that has already started.");
-    }
-
-    const now = new Date().toISOString();
-    boost.status = "ACTIVE";
-    boost.startedAt = now;
-    boost.expiresAt = computeExpiry(now, durationDays, event.startsAt);
-    return;
-  }
-
   const supabase = await createClient();
   const { data: boost, error: boostError } = await supabase
     .from("hero_boosts")
@@ -254,14 +198,6 @@ export async function activateHeroBoost(
  * Admin: cancel a hero boost.
  */
 export async function cancelHeroBoost(boostId: string): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    const boost = demoStore().heroBoosts.find((b) => b.id === boostId);
-    if (!boost) throw new Error("Boost not found.");
-    boost.status = "CANCELLED";
-    boost.cancelledAt = new Date().toISOString();
-    return;
-  }
-
   const supabase = await createClient();
   const { error } = await supabase
     .from("hero_boosts")
@@ -281,16 +217,6 @@ export async function cancelHeroBoost(boostId: string): Promise<void> {
  * Cancel hero boosts for an event (called when event is cancelled).
  */
 export async function cancelHeroBoostsForEvent(eventId: string): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    for (const boost of demoStore().heroBoosts) {
-      if (boost.eventId === eventId && boost.status === "ACTIVE") {
-        boost.status = "CANCELLED";
-        boost.cancelledAt = new Date().toISOString();
-      }
-    }
-    return;
-  }
-
   const supabase = await createClient();
   await supabase
     .from("hero_boosts")
@@ -310,16 +236,6 @@ export async function getHeroBoostForEvent(
   user: CurrentUser,
   eventId: string,
 ): Promise<HeroBoost | null> {
-  if (!isSupabaseConfigured()) {
-    return (
-      demoStore().heroBoosts.find(
-        (b) =>
-          b.eventId === eventId &&
-          (b.status === "ACTIVE" || b.status === "PENDING"),
-      ) ?? null
-    );
-  }
-
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("hero_boosts")
@@ -339,19 +255,6 @@ export async function getHeroBoostForEvent(
  * Admin: list all hero boosts with event details.
  */
 export async function listAllHeroBoosts(): Promise<HeroBoostWithEvent[]> {
-  if (!isSupabaseConfigured()) {
-    return demoStore().heroBoosts.map((b) => {
-      const event = demoStore().events.find((e) => e.id === b.eventId);
-      return {
-        ...b,
-        eventTitle: event?.title ?? "Unknown",
-        eventStartsAt: event?.startsAt ?? "",
-        eventStatus: event?.status ?? "UNKNOWN",
-        organizerName: "Demo Organizer",
-      };
-    });
-  }
-
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("hero_boosts")
@@ -414,68 +317,43 @@ export async function getHeroEvents(
   const nowIso = new Date(now).toISOString();
 
   // Auto-expire stale ACTIVE boosts (expires_at < now) — frees up space
-  if (isSupabaseConfigured()) {
-    const supabase = await createClient();
-    await supabase
-      .from("hero_boosts")
-      .update({ status: "EXPIRED", expired_at: nowIso })
-      .eq("status", "ACTIVE")
-      .lt("expires_at", nowIso);
-  } else {
-    demoStore().heroBoosts.forEach((b) => {
-      if (b.status === "ACTIVE" && b.expiresAt && b.expiresAt < nowIso) {
-        b.status = "EXPIRED";
-        b.expiredAt = nowIso;
-      }
-    });
-  }
+  const supabase = await createClient();
+  await supabase
+    .from("hero_boosts")
+    .update({ status: "EXPIRED", expired_at: nowIso })
+    .eq("status", "ACTIVE")
+    .lt("expires_at", nowIso);
 
   // Get all active, non-expired boosts
-  let eligibleBoosts: { boost: HeroBoost; eventId: string; startedAt: string }[] = [];
+  const { data, error } = await supabase
+    .from("hero_boosts")
+    .select("*")
+    .eq("status", "ACTIVE")
+    .gt("expires_at", nowIso);
+  if (error || !data || data.length === 0) return [];
 
-  if (!isSupabaseConfigured()) {
-    eligibleBoosts = demoStore()
-      .heroBoosts.filter((b) => b.status === "ACTIVE" && b.expiresAt && b.expiresAt > nowIso)
-      .map((b) => ({ boost: b, eventId: b.eventId, startedAt: b.startedAt ?? b.createdAt }));
-  } else {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("hero_boosts")
-      .select("*")
-      .eq("status", "ACTIVE")
-      .gt("expires_at", nowIso);
-    if (error || !data || data.length === 0) return [];
-    eligibleBoosts = data.map((row) => ({
-      boost: toBoost(row),
-      eventId: row.event_id,
-      startedAt: row.started_at ?? row.created_at,
-    }));
-  }
+  const eligibleBoosts: { boost: HeroBoost; eventId: string; startedAt: string }[] = data.map((row) => ({
+    boost: toBoost(row),
+    eventId: row.event_id,
+    startedAt: row.started_at ?? row.created_at,
+  }));
 
   if (eligibleBoosts.length === 0) return [];
 
   // Fetch events for these boosts
   const eventIds = [...new Set(eligibleBoosts.map((b) => b.eventId))];
-  let events: { id: string; title: string; startsAt: string; status: string }[] = [];
+  const { data: eventData } = await supabase
+    .from("events")
+    .select("id, title, starts_at, status, city, category, venue_name, card_poster_url, banner_poster_url, is_featured, registrations_count, tags, pricing_mode")
+    .in("id", eventIds);
+  if (!eventData) return [];
 
-  if (!isSupabaseConfigured()) {
-    events = demoStore()
-      .events.filter((e) => eventIds.includes(e.id))
-      .map((e) => ({ id: e.id, title: e.title, startsAt: e.startsAt, status: e.status }));
-  } else {
-    const supabase = await createClient();
-    const { data: eventData } = await supabase
-      .from("events")
-      .select("id, title, starts_at, status, city, category, venue_name, card_poster_url, banner_poster_url, is_featured, registrations_count, tags, pricing_mode")
-      .in("id", eventIds);
-    if (!eventData) return [];
-    events = eventData.map((e) => ({
-      id: e.id,
-      title: e.title,
-      startsAt: e.starts_at,
-      status: e.status,
-    }));
-  }
+  const events = eventData.map((e) => ({
+    id: e.id,
+    title: e.title,
+    startsAt: e.starts_at,
+    status: e.status,
+  }));
 
   // Filter: event must be published and not started
   const eligible = eligibleBoosts.filter((b) => {
@@ -509,33 +387,7 @@ export async function getHeroEvents(
   // Take maxVisible
   const visible = rotated.slice(0, maxVisible);
 
-  // Build HeroEvent objects
-  if (!isSupabaseConfigured()) {
-    return visible.map((b) => {
-      const event = demoStore().events.find((e) => e.id === b.eventId)!;
-      return {
-        id: event.id,
-        title: event.title,
-        category: event.category,
-        city: event.city,
-        venueName: event.venueName,
-        startsAt: event.startsAt,
-        cardPosterUrl: event.cardPosterUrl,
-        bannerPosterUrl: event.bannerPosterUrl,
-        minPricePaise: Math.min(...event.tiers.map((t) => t.pricePaise)),
-        isFeatured: event.isFeatured,
-        registrationsCount: event.registrationsCount,
-        tags: event.tags,
-        pricingMode: event.pricingMode,
-        heroBoostId: b.boost.id,
-        heroStartedAt: b.boost.startedAt ?? b.boost.createdAt,
-        heroExpiresAt: b.boost.expiresAt ?? "",
-      };
-    });
-  }
-
   // Supabase mode: fetch full event details
-  const supabase = await createClient();
   const visibleEventIds = visible.map((b) => b.eventId);
   const { data: fullEvents } = await supabase
     .from("events")

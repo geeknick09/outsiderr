@@ -32,13 +32,15 @@ export const DEFAULT_FEE_TIERS = {
   tier3Bps: 500,           // 5%
 };
 
+export type FeeTiers = typeof DEFAULT_FEE_TIERS;
+
 /**
  * Get the fee rate (in basis points) for a given ticket price.
  * Uses tiered pricing: <₹500=10%, ≥₹500 & ≤₹3000=7%, >₹3000=5%.
  */
 export function getFeeBpsForPrice(
   unitPricePaise: number,
-  tiers: typeof DEFAULT_FEE_TIERS = DEFAULT_FEE_TIERS,
+  tiers: FeeTiers = DEFAULT_FEE_TIERS,
 ): number {
   if (unitPricePaise < tiers.tier1MaxPaise) return tiers.tier1Bps;
   if (unitPricePaise <= tiers.tier2MaxPaise) return tiers.tier2Bps;

@@ -66,7 +66,12 @@ insert into public.platform_settings (key, value, description) values
   ('hero_max_visible_events', '7', 'Max Hero Boost events visible'),
   ('tagline_header', '"Find what''s happening outside the mainstream."', 'Homepage header tagline'),
   ('tagline_subheader', '"Discover raw events happening today near you."', 'Homepage subheader tagline'),
-  ('tagline_footer', '"Cyphers, battles, stunts, skates, jams & real communities."', 'Footer tagline')
+  ('tagline_footer', '"Cyphers, battles, stunts, skates, jams & real communities."', 'Footer tagline'),
+  ('commission_tier1_max_paise', '50000', 'Tier 1 threshold in paise'),
+  ('commission_tier2_max_paise', '300000', 'Tier 2 threshold in paise'),
+  ('commission_tier1_bps', '1000', 'Tier 1 commission rate (1000 = 10%)'),
+  ('commission_tier2_bps', '700', 'Tier 2 commission rate (700 = 7%)'),
+  ('commission_tier3_bps', '500', 'Tier 3 commission rate (500 = 5%)')
 on conflict (key) do update set value = excluded.value;
 
 -- Legal pages (defaults)

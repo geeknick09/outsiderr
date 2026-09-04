@@ -36,7 +36,7 @@ export function ClubForm() {
         if (kind === "avatar") setAvatarUrl(url);
         else setCoverUrl(url);
       } else {
-        setUploadError("Demo mode: uploads disabled. Paste an image URL instead.");
+        setUploadError("Upload failed. Paste an image URL instead.");
       }
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed.");

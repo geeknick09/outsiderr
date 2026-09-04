@@ -79,6 +79,24 @@ create unique index if not exists hero_boosts_one_active_per_event
 alter table public.events add column if not exists contact_email text;
 alter table public.events add column if not exists contact_phone text;
 
+-- Ensure user profile columns exist on profiles
+alter table public.profiles add column if not exists birth_date date;
+alter table public.profiles add column if not exists interested_tags text[] not null default '{}';
+alter table public.profiles add column if not exists instagram_url text;
+
+-- Ensure cover photo column exists on organizers
+alter table public.organizers add column if not exists cover_url text;
+alter table public.organizers add column if not exists instagram_url text;
+
+-- Ensure Instagram URL column exists on events
+alter table public.events add column if not exists instagram_url text;
+
+-- Ensure phase columns exist on ticket_tiers (for time-based flat pricing)
+alter table public.ticket_tiers add column if not exists tier_type text not null default 'NAMED';
+alter table public.ticket_tiers add column if not exists phase_order int;
+alter table public.ticket_tiers add column if not exists phase_opens_at timestamptz;
+alter table public.ticket_tiers add column if not exists phase_closes_at timestamptz;
+
 -- Ensure hero boost settings exist
 insert into public.platform_settings (key, value, description) values
   ('hero_boost_enabled',              'true',  'Enable/disable the Hero Boost feature'),
@@ -575,6 +593,7 @@ set search_path = public
 as $$
 declare
   v_order public.orders;
+  v_tier  public.ticket_tiers;
 begin
   select * into v_order from public.orders where id = p_order_id for update;
   if not found then
@@ -582,6 +601,21 @@ begin
   end if;
   if v_order.status <> 'PENDING_VERIFICATION' then
     raise exception 'Order is already %', v_order.status;
+  end if;
+
+  -- Authorization: only event staff (organizer or admin) can approve
+  if not public.is_event_staff(v_order.event_id) then
+    raise exception 'Not authorised to approve orders for this event';
+  end if;
+
+  -- Stock check: prevent overselling
+  select * into v_tier from public.ticket_tiers where id = v_order.tier_id for update;
+  if not found then
+    raise exception 'Ticket tier not found';
+  end if;
+  if v_tier.quantity - v_tier.quantity_sold < v_order.quantity then
+    raise exception 'Not enough tickets left in this tier (available: %, requested: %)',
+      v_tier.quantity - v_tier.quantity_sold, v_order.quantity;
   end if;
 
   update public.ticket_tiers
@@ -626,6 +660,11 @@ begin
     raise exception 'Order % not found', p_order_id;
   end if;
 
+  -- Authorization: only event staff (organizer or admin) can reject
+  if not public.is_event_staff(v_order.event_id) then
+    raise exception 'Not authorised to reject orders for this event';
+  end if;
+
   update public.orders
      set status           = 'REJECTED',
          rejection_reason = p_reason,
@@ -635,6 +674,141 @@ begin
   returning * into v_order;
 
   return v_order;
+end;
+$$;
+
+-- ----------------------------------------------------------------
+-- STEP 7b: Atomic cancel_event RPC (replaces non-atomic app-layer flow)
+-- ----------------------------------------------------------------
+create or replace function public.cancel_event(
+  p_event_id uuid,
+  p_reason text,
+  p_cancellation_charge_percent integer default 20
+)
+returns table (
+  refund_count integer,
+  total_refund_paise bigint,
+  total_platform_fee_paise bigint,
+  cancellation_charge_paise bigint,
+  organizer_owes_paise bigint
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_organizer_id uuid;
+  v_order record;
+  v_refund_count integer := 0;
+  v_total_refund bigint := 0;
+  v_total_fee bigint := 0;
+  v_cancel_charge bigint;
+begin
+  -- Verify caller is the event organizer
+  select e.organizer_id into v_organizer_id
+    from public.events e
+    join public.organizers o on o.id = e.organizer_id
+   where e.id = p_event_id and o.owner_id = auth.uid();
+  if not found then
+    if not public.is_current_user_admin() then
+      raise exception 'Not authorised to cancel this event';
+    end if;
+    select e.organizer_id into v_organizer_id from public.events e where e.id = p_event_id;
+    if not found then raise exception 'Event not found'; end if;
+  end if;
+
+  -- Set status → CANCELLATION_REQUESTED
+  update public.events set status = 'CANCELLATION_REQUESTED'
+   where id = p_event_id and organizer_id = v_organizer_id;
+
+  -- Process all confirmed orders atomically
+  for v_order in
+    select id, user_id, total_paise, platform_fee_paise
+      from public.orders
+     where event_id = p_event_id and status = 'CONFIRMED'
+  loop
+    -- Mark order REFUNDED
+    update public.orders set status = 'REFUNDED' where id = v_order.id;
+    -- Mark tickets CANCELLED
+    update public.tickets set status = 'CANCELLED' where order_id = v_order.id;
+    -- Create refund record
+    insert into public.refunds (order_id, event_id, user_id, amount_paise, platform_fee_paise, status, reason, initiated_at)
+    values (v_order.id, p_event_id, v_order.user_id, v_order.total_paise, v_order.platform_fee_paise, 'PENDING', p_reason, now());
+    -- Create notification
+    insert into public.event_notifications (event_id, user_id, type, message)
+    values (p_event_id, v_order.user_id, 'CANCELLATION', p_reason || ' You will receive a full refund.');
+    -- Accumulate totals
+    v_refund_count := v_refund_count + 1;
+    v_total_refund := v_total_refund + v_order.total_paise;
+    v_total_fee := v_total_fee + v_order.platform_fee_paise;
+  end loop;
+
+  -- Set final status → CANCELLED
+  update public.events set status = 'CANCELLED'
+   where id = p_event_id and organizer_id = v_organizer_id;
+
+  -- Cancel any active hero boosts for this event
+  update public.hero_boosts
+     set status = 'CANCELLED', cancelled_at = now(), updated_at = now()
+   where event_id = p_event_id and status = 'ACTIVE';
+
+  v_cancel_charge := round(v_total_refund * p_cancellation_charge_percent / 100);
+
+  return query select
+    v_refund_count,
+    v_total_refund,
+    v_total_fee,
+    v_cancel_charge,
+    v_total_refund + v_total_fee + v_cancel_charge;
+end;
+$$;
+
+-- ----------------------------------------------------------------
+-- STEP 7c: Atomic postpone_event RPC
+-- ----------------------------------------------------------------
+create or replace function public.postpone_event(
+  p_event_id uuid,
+  p_new_starts_at timestamptz,
+  p_new_ends_at timestamptz,
+  p_reason text
+)
+returns table (notified_count integer)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_organizer_id uuid;
+  v_notified integer := 0;
+  v_user_id uuid;
+begin
+  -- Verify caller is the event organizer
+  select e.organizer_id into v_organizer_id
+    from public.events e
+    join public.organizers o on o.id = e.organizer_id
+   where e.id = p_event_id and o.owner_id = auth.uid();
+  if not found then
+    if not public.is_current_user_admin() then
+      raise exception 'Not authorised to postpone this event';
+    end if;
+  end if;
+
+  -- Update event status + dates
+  update public.events
+     set status = 'POSTPONED', starts_at = p_new_starts_at, ends_at = p_new_ends_at
+   where id = p_event_id;
+
+  -- Notify all confirmed ticket holders
+  for v_user_id in
+    select distinct user_id from public.orders
+     where event_id = p_event_id and status = 'CONFIRMED' and user_id is not null
+  loop
+    insert into public.event_notifications (event_id, user_id, type, message)
+    values (p_event_id, v_user_id, 'POSTPONEMENT', p_reason);
+    v_notified := v_notified + 1;
+  end loop;
+
+  return query select v_notified;
 end;
 $$;
 
@@ -680,6 +854,18 @@ insert into public.platform_settings (key, value, description) values
 on conflict (key) do nothing;
 
 -- ----------------------------------------------------------------
+-- STEP 10b: Insert commission tier settings
+-- ----------------------------------------------------------------
+
+insert into public.platform_settings (key, value, description) values
+  ('commission_tier1_max_paise', '50000',  'Tier 1 threshold: tickets below this price use tier 1 rate (paise)'),
+  ('commission_tier2_max_paise', '300000', 'Tier 2 threshold: tickets up to this price use tier 2 rate (paise)'),
+  ('commission_tier1_bps',       '1000',   'Tier 1 commission rate in bps (1000 = 10%)'),
+  ('commission_tier2_bps',       '700',    'Tier 2 commission rate in bps (700 = 7%)'),
+  ('commission_tier3_bps',       '500',    'Tier 3 commission rate in bps (500 = 5%)')
+on conflict (key) do nothing;
+
+-- ----------------------------------------------------------------
 -- STEP 11: Clean up orphaned hero boosts
 -- Remove hero boosts that reference events that no longer exist
 -- ----------------------------------------------------------------
@@ -715,6 +901,12 @@ drop trigger if exists on_profile_insert on public.profiles;
 create trigger on_profile_insert
   after insert on public.profiles
   for each row execute function public.auto_promote_first_admin();
+
+-- ----------------------------------------------------------------
+-- STEP 8: Unique constraint on club_members (prevent duplicate joins)
+-- ----------------------------------------------------------------
+create unique index if not exists club_members_club_user_unique
+  on public.club_members(club_id, user_id);
 
 -- ----------------------------------------------------------------
 -- DONE.

@@ -1,12 +1,9 @@
 import "server-only";
 
-import { createHash, randomUUID } from "node:crypto";
-
 import { MAX_TICKETS_PER_ORDER } from "@/lib/constants";
-import { demoStore } from "@/lib/data/demo-store";
 import { getEvent } from "@/lib/data/events";
-import { calculatePrice } from "@/lib/pricing";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { getFeeTiers } from "@/lib/data/platform-settings";
+import { calculatePrice, getFeeBpsForPrice } from "@/lib/pricing";
 import { createClient } from "@/lib/supabase/server";
 import type { CurrentUser } from "@/lib/auth";
 import type { Order, ScanResult, Ticket } from "@/lib/types";
@@ -33,12 +30,6 @@ export interface CreateFreeOrderInput {
   buyerGender: string | null;
 }
 
-function ticketHash(orderId: string, index: number): string {
-  return createHash("sha256")
-    .update(`${orderId}:${index}:${randomUUID()}`)
-    .digest("hex");
-}
-
 export async function createOrder(
   user: CurrentUser,
   input: CreateOrderInput,
@@ -54,36 +45,10 @@ export async function createOrder(
     throw new Error("Not enough tickets left in this tier.");
   }
 
-  // Use tiered fee based on ticket price
-  const price = calculatePrice(tier.pricePaise, input.quantity, event.feePayer);
-
-  if (!isSupabaseConfigured()) {
-    const order: Order = {
-      id: `order-${randomUUID()}`,
-      eventId: event.id,
-      eventTitle: event.title,
-      tierId: tier.id,
-      tierName: tier.name,
-      userId: user.id,
-      quantity: input.quantity,
-      unitPricePaise: tier.pricePaise,
-      subtotalPaise: price.subtotalPaise,
-      platformFeePaise: price.platformFeePaise,
-      totalPaise: price.totalPaise,
-      feePayer: event.feePayer,
-      status: "PENDING_VERIFICATION",
-      utrReference: input.utrReference,
-      paymentProofUrl: input.paymentProofUrl,
-      buyerName: input.buyerName,
-      buyerPhone: input.buyerPhone,
-      buyerEmail: input.buyerEmail,
-      buyerGender: input.buyerGender,
-      rejectionReason: null,
-      createdAt: new Date().toISOString(),
-    };
-    demoStore().orders.unshift(order);
-    return order;
-  }
+  // Use admin-configured commission tiers
+  const feeTiers = await getFeeTiers();
+  const feeBps = getFeeBpsForPrice(tier.pricePaise, feeTiers);
+  const price = calculatePrice(tier.pricePaise, input.quantity, event.feePayer, feeBps);
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -153,52 +118,6 @@ export async function createFreeOrder(
   if (tier.pricePaise !== 0) throw new Error("This tier is not free.");
   if (tier.quantity - tier.quantitySold < input.quantity) {
     throw new Error("Not enough tickets left.");
-  }
-
-  if (!isSupabaseConfigured()) {
-    const order: Order = {
-      id: `order-${randomUUID()}`,
-      eventId: event.id,
-      eventTitle: event.title,
-      tierId: tier.id,
-      tierName: tier.name,
-      userId: user.id,
-      quantity: input.quantity,
-      unitPricePaise: 0,
-      subtotalPaise: 0,
-      platformFeePaise: 0,
-      totalPaise: 0,
-      feePayer: event.feePayer,
-      status: "CONFIRMED",
-      utrReference: null,
-      paymentProofUrl: null,
-      buyerName: input.buyerName,
-      buyerPhone: input.buyerPhone,
-      buyerEmail: input.buyerEmail,
-      buyerGender: input.buyerGender,
-      rejectionReason: null,
-      createdAt: new Date().toISOString(),
-    };
-    demoStore().orders.unshift(order);
-
-    // Mint tickets immediately
-    tier.quantitySold += input.quantity;
-    event.registrationsCount += input.quantity;
-    for (let index = 0; index < input.quantity; index += 1) {
-      demoStore().tickets.unshift({
-        id: `ticket-${randomUUID()}`,
-        orderId: order.id,
-        eventId: event.id,
-        eventTitle: event.title,
-        tierName: tier.name,
-        qrHash: ticketHash(order.id, index),
-        status: "VALID",
-        checkedInAt: null,
-        startsAt: event.startsAt,
-        venueName: event.venueName,
-      });
-    }
-    return order;
   }
 
   // Supabase: use the create_free_order RPC (auto-confirms + mints tickets)
@@ -297,8 +216,6 @@ async function hydrateOrders(
 }
 
 export async function listMyOrders(user: CurrentUser): Promise<Order[]> {
-  if (!isSupabaseConfigured()) return demoStore().orders;
-
   const supabase = await createClient();
   const { data } = await supabase
     .from("orders")
@@ -311,12 +228,6 @@ export async function listMyOrders(user: CurrentUser): Promise<Order[]> {
 
 /** Orders awaiting manual UPI verification for every event the organizer runs. */
 export async function listPendingOrders(): Promise<Order[]> {
-  if (!isSupabaseConfigured()) {
-    return demoStore().orders.filter(
-      (order) => order.status === "PENDING_VERIFICATION",
-    );
-  }
-
   const supabase = await createClient();
   const { data } = await supabase
     .from("orders")
@@ -328,8 +239,6 @@ export async function listPendingOrders(): Promise<Order[]> {
 }
 
 export async function listMyTickets(user: CurrentUser): Promise<Ticket[]> {
-  if (!isSupabaseConfigured()) return demoStore().tickets;
-
   const supabase = await createClient();
   const { data: tickets } = await supabase
     .from("tickets")
@@ -367,39 +276,6 @@ export async function listMyTickets(user: CurrentUser): Promise<Ticket[]> {
 }
 
 export async function approveOrder(orderId: string): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    const store = demoStore();
-    const order = store.orders.find((candidate) => candidate.id === orderId);
-    if (!order) throw new Error("Order not found.");
-    if (order.status !== "PENDING_VERIFICATION") {
-      throw new Error(`Order is already ${order.status}.`);
-    }
-
-    const event = store.events.find((candidate) => candidate.id === order.eventId);
-    const tier = event?.tiers.find((candidate) => candidate.id === order.tierId);
-    if (!event || !tier) throw new Error("Event no longer exists.");
-
-    order.status = "CONFIRMED";
-    tier.quantitySold += order.quantity;
-    event.registrationsCount += order.quantity;
-
-    for (let index = 0; index < order.quantity; index += 1) {
-      store.tickets.unshift({
-        id: `ticket-${randomUUID()}`,
-        orderId: order.id,
-        eventId: event.id,
-        eventTitle: event.title,
-        tierName: tier.name,
-        qrHash: ticketHash(order.id, index),
-        status: "VALID",
-        checkedInAt: null,
-        startsAt: event.startsAt,
-        venueName: event.venueName,
-      });
-    }
-    return;
-  }
-
   // Use the security-definer RPC — it bypasses RLS entirely for ticket minting
   const supabase = await createClient();
   const { error } = await supabase.rpc("approve_order", { p_order_id: orderId });
@@ -407,14 +283,6 @@ export async function approveOrder(orderId: string): Promise<void> {
 }
 
 export async function rejectOrder(orderId: string, reason: string): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    const order = demoStore().orders.find((candidate) => candidate.id === orderId);
-    if (!order) throw new Error("Order not found.");
-    order.status = "REJECTED";
-    order.rejectionReason = reason || null;
-    return;
-  }
-
   // Direct Supabase implementation — avoids RPC is_event_staff issues
   const supabase = await createClient();
   const { error } = await supabase
@@ -430,41 +298,6 @@ export async function rejectOrder(orderId: string, reason: string): Promise<void
 
 export async function checkInTicket(qrHash: string, eventId: string): Promise<ScanResult> {
   const hash = qrHash.trim();
-
-  if (!isSupabaseConfigured()) {
-    const ticket = demoStore().tickets.find((candidate) => candidate.qrHash === hash);
-    if (!ticket) {
-      return { outcome: "INVALID", message: "Ticket not recognised." };
-    }
-    // Validate ticket belongs to the selected event
-    if (ticket.eventId !== eventId) {
-      return { outcome: "INVALID", message: "This ticket is for a different event." };
-    }
-    if (ticket.status !== "VALID") {
-      return {
-        outcome: "ALREADY_USED",
-        message: "This ticket has already been checked in.",
-        ticket: {
-          eventTitle: ticket.eventTitle,
-          tierName: ticket.tierName,
-          holderName: null,
-          checkedInAt: ticket.checkedInAt,
-        },
-      };
-    }
-    ticket.status = "USED";
-    ticket.checkedInAt = new Date().toISOString();
-    return {
-      outcome: "VALID",
-      message: "Checked in.",
-      ticket: {
-        eventTitle: ticket.eventTitle,
-        tierName: ticket.tierName,
-        holderName: null,
-        checkedInAt: ticket.checkedInAt,
-      },
-    };
-  }
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("check_in_ticket", { p_qr_hash: hash, p_event_id: eventId });

@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 
 import { LoginPanel } from "@/components/auth/login-panel";
 import { getCurrentUser } from "@/lib/auth";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +11,8 @@ export default async function LoginPage({
   searchParams: Promise<{ next?: string }>;
 }) {
   const { next } = await searchParams;
-  const target = next && next.startsWith("/") ? next : "/";
+  // Prevent open redirect: only allow paths starting with "/" but not "//" (protocol-relative)
+  const target = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
 
   if (await getCurrentUser()) redirect(target);
 
@@ -23,7 +23,7 @@ export default async function LoginPage({
         Book tickets, manage events and check people in at the door.
       </p>
       <div className="glass rounded-3xl p-6">
-        <LoginPanel supabaseEnabled={isSupabaseConfigured()} next={target} />
+        <LoginPanel next={target} />
       </div>
     </div>
   );

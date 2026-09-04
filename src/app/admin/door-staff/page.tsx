@@ -41,7 +41,7 @@ export default async function AdminDoorStaffPage() {
                     {order.numberOfStaff} staff • {formatPaise(order.serviceAmountPaise)}
                   </p>
                   <p className="text-xs text-muted">
-                    Event: {order.eventId.slice(0, 8)}… •{" "}
+                    Event: {order.eventTitle ?? order.eventId.slice(0, 8)} •{" "}
                     {new Date(order.createdAt).toLocaleDateString("en-IN")}
                   </p>
                   {order.utrReference ? (

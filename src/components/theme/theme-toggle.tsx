@@ -18,7 +18,7 @@ export function ThemeToggle() {
   function toggle() {
     const next = isDark ? "light" : "dark";
     setTheme(next);
-    // Best-effort sync with profiles.theme_preference; ignored in demo mode.
+    // Best-effort sync with profiles.theme_preference.
     void saveThemePreferenceAction(next);
   }
 

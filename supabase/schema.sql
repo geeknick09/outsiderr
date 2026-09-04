@@ -82,6 +82,9 @@ create table if not exists public.profiles (
   full_name        text,
   phone            text,
   avatar_url       text,
+  birth_date       date,
+  interested_tags  text[]      not null default '{}',
+  instagram_url    text,
   theme_preference text        not null default 'dark'
                                check (theme_preference in ('dark','light','system')),
   is_organizer     boolean     not null default false,
@@ -95,6 +98,8 @@ create table if not exists public.organizers (
   name                text        not null,
   bio                 text,
   avatar_url          text,
+  cover_url           text,
+  instagram_url      text,
   upi_id              text,
   upi_qr_url          text,
   -- KYC / payout details
@@ -141,6 +146,7 @@ create table if not exists public.events (
                       check (pricing_mode in ('FREE','FLAT','PAID')),
   contact_email       text,
   contact_phone       text,
+  instagram_url       text,
   created_at          timestamptz     not null default now()
 );
 create index if not exists events_city_starts_idx on public.events(city, starts_at);
@@ -148,17 +154,23 @@ create index if not exists events_category_idx    on public.events(category);
 create index if not exists events_featured_idx    on public.events(is_featured) where is_featured;
 
 create table if not exists public.ticket_tiers (
-  id            uuid    primary key default gen_random_uuid(),
-  event_id      uuid    not null references public.events(id) on delete cascade,
-  name          text    not null,
-  price_paise   integer not null check (price_paise >= 0),
-  quantity      integer not null check (quantity >= 0),
-  quantity_sold integer not null default 0 check (quantity_sold >= 0),
-  perks         text[]  not null default '{}',
-  sort_order    integer not null default 0,
-  constraint ticket_tiers_not_oversold check (quantity_sold <= quantity)
+  id              uuid        primary key default gen_random_uuid(),
+  event_id        uuid        not null references public.events(id) on delete cascade,
+  name            text        not null,
+  price_paise     integer     not null check (price_paise >= 0),
+  quantity        integer     not null check (quantity >= 0),
+  quantity_sold   integer     not null default 0 check (quantity_sold >= 0),
+  perks           text[]      not null default '{}',
+  sort_order      integer     not null default 0,
+  tier_type       text        not null default 'NAMED',
+  phase_order     integer,
+  phase_opens_at  timestamptz,
+  phase_closes_at timestamptz,
+  constraint ticket_tiers_not_oversold check (quantity_sold <= quantity),
+  constraint ticket_tiers_valid_type check (tier_type in ('NAMED', 'FLAT_PHASE'))
 );
 create index if not exists ticket_tiers_event_idx on public.ticket_tiers(event_id);
+create index if not exists ticket_tiers_phase_idx on public.ticket_tiers(event_id, phase_order);
 
 create table if not exists public.orders (
   id                  uuid         primary key default gen_random_uuid(),
@@ -553,6 +565,7 @@ set search_path = public
 as $$
 declare
   v_order public.orders;
+  v_tier  public.ticket_tiers;
 begin
   select * into v_order from public.orders where id = p_order_id for update;
   if not found then
@@ -560,6 +573,21 @@ begin
   end if;
   if v_order.status <> 'PENDING_VERIFICATION' then
     raise exception 'Order is already %', v_order.status;
+  end if;
+
+  -- Authorization: only event staff (organizer or admin) can approve
+  if not public.is_event_staff(v_order.event_id) then
+    raise exception 'Not authorised to approve orders for this event';
+  end if;
+
+  -- Stock check: prevent overselling
+  select * into v_tier from public.ticket_tiers where id = v_order.tier_id for update;
+  if not found then
+    raise exception 'Ticket tier not found';
+  end if;
+  if v_tier.quantity - v_tier.quantity_sold < v_order.quantity then
+    raise exception 'Not enough tickets left in this tier (available: %, requested: %)',
+      v_tier.quantity - v_tier.quantity_sold, v_order.quantity;
   end if;
 
   update public.ticket_tiers
@@ -604,6 +632,11 @@ begin
   select * into v_order from public.orders where id = p_order_id for update;
   if not found then
     raise exception 'Order % not found', p_order_id;
+  end if;
+
+  -- Authorization: only event staff (organizer or admin) can reject
+  if not public.is_event_staff(v_order.event_id) then
+    raise exception 'Not authorised to reject orders for this event';
   end if;
 
   update public.orders
@@ -806,6 +839,124 @@ set search_path = public
 as $$
 begin
   update public.clubs set member_count = member_count + 1 where id = p_club_id;
+end;
+$$;
+
+-- Atomic cancel_event RPC: cancels orders, tickets, creates refunds + notifications.
+create or replace function public.cancel_event(
+  p_event_id uuid,
+  p_reason text,
+  p_cancellation_charge_percent integer default 20
+)
+returns table (
+  refund_count integer,
+  total_refund_paise bigint,
+  total_platform_fee_paise bigint,
+  cancellation_charge_paise bigint,
+  organizer_owes_paise bigint
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_organizer_id uuid;
+  v_order record;
+  v_refund_count integer := 0;
+  v_total_refund bigint := 0;
+  v_total_fee bigint := 0;
+  v_cancel_charge bigint;
+begin
+  select e.organizer_id into v_organizer_id
+    from public.events e
+    join public.organizers o on o.id = e.organizer_id
+   where e.id = p_event_id and o.owner_id = auth.uid();
+  if not found then
+    if not public.is_current_user_admin() then
+      raise exception 'Not authorised to cancel this event';
+    end if;
+    select e.organizer_id into v_organizer_id from public.events e where e.id = p_event_id;
+    if not found then raise exception 'Event not found'; end if;
+  end if;
+
+  update public.events set status = 'CANCELLATION_REQUESTED'
+   where id = p_event_id and organizer_id = v_organizer_id;
+
+  for v_order in
+    select id, user_id, total_paise, platform_fee_paise
+      from public.orders
+     where event_id = p_event_id and status = 'CONFIRMED'
+  loop
+    update public.orders set status = 'REFUNDED' where id = v_order.id;
+    update public.tickets set status = 'CANCELLED' where order_id = v_order.id;
+    insert into public.refunds (order_id, event_id, user_id, amount_paise, platform_fee_paise, status, reason, initiated_at)
+    values (v_order.id, p_event_id, v_order.user_id, v_order.total_paise, v_order.platform_fee_paise, 'PENDING', p_reason, now());
+    insert into public.event_notifications (event_id, user_id, type, message)
+    values (p_event_id, v_order.user_id, 'CANCELLATION', p_reason || ' You will receive a full refund.');
+    v_refund_count := v_refund_count + 1;
+    v_total_refund := v_total_refund + v_order.total_paise;
+    v_total_fee := v_total_fee + v_order.platform_fee_paise;
+  end loop;
+
+  update public.events set status = 'CANCELLED'
+   where id = p_event_id and organizer_id = v_organizer_id;
+
+  update public.hero_boosts
+     set status = 'CANCELLED', cancelled_at = now(), updated_at = now()
+   where event_id = p_event_id and status = 'ACTIVE';
+
+  v_cancel_charge := round(v_total_refund * p_cancellation_charge_percent / 100);
+
+  return query select
+    v_refund_count,
+    v_total_refund,
+    v_total_fee,
+    v_cancel_charge,
+    v_total_refund + v_total_fee + v_cancel_charge;
+end;
+$$;
+
+-- Atomic postpone_event RPC: updates dates + notifies ticket holders.
+create or replace function public.postpone_event(
+  p_event_id uuid,
+  p_new_starts_at timestamptz,
+  p_new_ends_at timestamptz,
+  p_reason text
+)
+returns table (notified_count integer)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_organizer_id uuid;
+  v_notified integer := 0;
+  v_user_id uuid;
+begin
+  select e.organizer_id into v_organizer_id
+    from public.events e
+    join public.organizers o on o.id = e.organizer_id
+   where e.id = p_event_id and o.owner_id = auth.uid();
+  if not found then
+    if not public.is_current_user_admin() then
+      raise exception 'Not authorised to postpone this event';
+    end if;
+  end if;
+
+  update public.events
+     set status = 'POSTPONED', starts_at = p_new_starts_at, ends_at = p_new_ends_at
+   where id = p_event_id;
+
+  for v_user_id in
+    select distinct user_id from public.orders
+     where event_id = p_event_id and status = 'CONFIRMED' and user_id is not null
+  loop
+    insert into public.event_notifications (event_id, user_id, type, message)
+    values (p_event_id, v_user_id, 'POSTPONEMENT', p_reason);
+    v_notified := v_notified + 1;
+  end loop;
+
+  return query select v_notified;
 end;
 $$;
 

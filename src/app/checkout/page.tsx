@@ -6,10 +6,10 @@ import { CheckoutForm } from "@/components/checkout/checkout-form";
 import { QrCode } from "@/components/ui/qr-code";
 import { MAX_TICKETS_PER_ORDER } from "@/lib/constants";
 import { getEvent } from "@/lib/data/events";
-import { getOrganizerWhatsappNumber } from "@/lib/data/platform-settings";
+import { getFeeTiers, getOrganizerWhatsappNumber } from "@/lib/data/platform-settings";
 import { formatDateTime, formatPaise } from "@/lib/format";
 import { getCurrentUser } from "@/lib/auth";
-import { calculatePrice } from "@/lib/pricing";
+import { calculatePrice, getFeeBpsForPrice } from "@/lib/pricing";
 import { upiIntent } from "@/lib/upi";
 
 export const dynamic = "force-dynamic";
@@ -37,8 +37,10 @@ export default async function CheckoutPage({
   if (!event || !tier) notFound();
 
   const isFree = tier.pricePaise === 0;
-  // Use tiered fee based on ticket price (no longer needs admin setting for bps)
-  const price = calculatePrice(tier.pricePaise, quantity, event.feePayer);
+  // Use admin-configured commission tiers
+  const feeTiers = await getFeeTiers();
+  const feeBps = getFeeBpsForPrice(tier.pricePaise, feeTiers);
+  const price = calculatePrice(tier.pricePaise, quantity, event.feePayer, feeBps);
   const intent = upiIntent({
     upiId: event.organizer.upiId ?? "outsiderr@upi",
     payeeName: event.organizer.name,

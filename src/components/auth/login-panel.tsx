@@ -1,70 +1,17 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Mail } from "lucide-react";
 
-import { demoSignInAction, type ActionState } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 
 const INPUT =
   "w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white";
 
-export function LoginPanel({
-  supabaseEnabled,
-  next,
-}: {
-  supabaseEnabled: boolean;
-  next: string;
-}) {
-  if (!supabaseEnabled) return <DemoLogin next={next} />;
+export function LoginPanel({ next }: { next: string }) {
   return <SupabaseLogin next={next} />;
-}
-
-function DemoLogin({ next }: { next: string }) {
-  const [state, formAction, pending] = useActionState<ActionState, FormData>(
-    demoSignInAction,
-    { error: null },
-  );
-
-  return (
-    <form action={formAction} className="space-y-4">
-      <input type="hidden" name="next" value={next} />
-      <p className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300">
-        Demo mode: Supabase is not configured, so we sign you in locally instead of
-        using real authentication.
-      </p>
-      <label className="block space-y-1.5">
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-          Email
-        </span>
-        <input
-          name="email"
-          type="email"
-          required
-          placeholder="you@example.com"
-          className={INPUT}
-        />
-      </label>
-      <label className="block space-y-1.5">
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-          Password
-        </span>
-        <input
-          name="password"
-          type="password"
-          required
-          placeholder="••••••••"
-          className={INPUT}
-        />
-      </label>
-      {state.error ? <p className="text-sm text-red-500">{state.error}</p> : null}
-      <Button type="submit" size="lg" className="w-full" disabled={pending}>
-        {pending ? "Signing in…" : "Continue"}
-      </Button>
-    </form>
-  );
 }
 
 function SupabaseLogin({ next }: { next: string }) {

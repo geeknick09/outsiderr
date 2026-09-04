@@ -51,6 +51,9 @@ export function UserMenu({
             role="menu"
             className="glass absolute right-0 z-50 mt-2 w-52 overflow-hidden rounded-2xl border border-zinc-200 bg-white p-2 dark:border-white/10 dark:bg-zinc-900"
           >
+            <MenuLink href="/profile" onSelect={() => setOpen(false)}>
+              <User className="h-4 w-4" /> My Profile
+            </MenuLink>
             <MenuLink href="/tickets" onSelect={() => setOpen(false)}>
               <Ticket className="h-4 w-4" /> My Tickets
             </MenuLink>

@@ -15,12 +15,12 @@ import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/auth";
 import { getEvent } from "@/lib/data/events";
 import { getDoorStaffOrder } from "@/lib/data/door-staff";
-import { getOrganizerEventAnalytics, updateEventStatus } from "@/lib/data/organizer";
+import { getOrganizerEventAnalytics } from "@/lib/data/organizer";
+import { publishEventAction } from "@/actions/events";
 import { getCancellationChargePercent, getPostponementChargePercent, getDoorStaffPricing, getDoorStaffAvailable, getHeroBoostPrice, getHeroBoostDurationDays } from "@/lib/data/platform-settings";
 import { getHeroBoostForEvent } from "@/lib/data/hero-boosts";
 import { formatDateRange, isPast } from "@/lib/format";
 import { CATEGORY_LABELS } from "@/lib/constants";
-import type { EventStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -35,22 +35,13 @@ export async function generateMetadata({
 
 export default async function ManageEventPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ action?: string }>;
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=%2Forganizer");
 
   const { id } = await params;
-  const { action } = await searchParams;
-
-  // Handle publish action via query param
-  if (action === "publish") {
-    await updateEventStatus(user, id, "PUBLISHED" as EventStatus);
-    redirect(`/organizer/events/${id}`);
-  }
 
   const [event, analytics, cancelChargePct, postponeChargePct, doorStaffOrder, doorStaffPricing, doorStaffAvailable, heroBoost, heroBoostPrice, heroBoostDuration] = await Promise.all([
     getEvent(id),
@@ -143,10 +134,16 @@ export default async function ManageEventPage({
           </Link>
         )}
         {event.status === "DRAFT" && !eventPast ? (
-          <form action={`/organizer/events/${event.id}?action=publish`} method="GET">
-            <Button type="submit" size="sm">
+          <form>
+            <button
+              formAction={async () => {
+                "use server";
+                await publishEventAction(event.id);
+              }}
+              className="rounded-2xl bg-neon-gradient px-5 py-2.5 text-sm font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90"
+            >
               Publish event
-            </Button>
+            </button>
           </form>
         ) : null}
       </div>

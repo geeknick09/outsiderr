@@ -1,9 +1,5 @@
 import "server-only";
 
-import { randomUUID } from "node:crypto";
-
-import { demoStore } from "@/lib/data/demo-store";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 import type { CurrentUser } from "@/lib/auth";
 import type { Club, ClubMember, ClubType, City, MembershipType } from "@/lib/types";
@@ -23,12 +19,6 @@ export interface CreateClubInput {
 }
 
 export async function listClubs(city?: City): Promise<Club[]> {
-  if (!isSupabaseConfigured()) {
-    // Public listing: only verified clubs
-    const all = demoStore().clubs.filter((c) => c.verified);
-    return city ? all.filter((c) => c.city === city) : all;
-  }
-
   const supabase = await createClient();
   let query = supabase
     .from("clubs")
@@ -69,10 +59,6 @@ export async function listClubs(city?: City): Promise<Club[]> {
 }
 
 export async function getClub(id: string): Promise<Club | null> {
-  if (!isSupabaseConfigured()) {
-    return demoStore().clubs.find((c) => c.id === id) ?? null;
-  }
-
   const supabase = await createClient();
   const { data, error } = await supabase.from("clubs").select("*").eq("id", id).single();
   if (error || !data) return null;
@@ -108,31 +94,6 @@ export async function createClub(
   user: CurrentUser,
   input: CreateClubInput,
 ): Promise<string> {
-  if (!isSupabaseConfigured()) {
-    const id = `club-${randomUUID()}`;
-    const club: Club = {
-      id,
-      ownerId: "org-basement",
-      ownerName: "Basement Collective",
-      name: input.name,
-      bio: input.bio || null,
-      type: input.type,
-      city: input.city,
-      avatarUrl: input.avatarUrl ?? null,
-      coverUrl: input.coverUrl ?? null,
-      instagramHandle: input.instagramHandle,
-      upiId: input.upiId ?? null,
-      membershipType: input.membershipType,
-      membershipFeePaise: input.membershipFeePaise,
-      terms: input.terms,
-      memberCount: 0,
-      verified: false,
-      createdAt: new Date().toISOString(),
-    };
-    demoStore().clubs.push(club);
-    return id;
-  }
-
   // Try to get organizer profile; if none exists, use the user's profile name
   const { getOrganizerProfile } = await import("@/lib/data/organizer");
   const organizer = await getOrganizerProfile(user);
@@ -211,10 +172,6 @@ export async function getMyMembership(
   user: CurrentUser,
   clubId: string,
 ): Promise<ClubMember | null> {
-  if (!isSupabaseConfigured()) {
-    return demoStore().clubMembers.find((m) => m.clubId === clubId && m.userId === user.id) ?? null;
-  }
-
   const supabase = await createClient();
   const { data } = await supabase
     .from("club_members")
@@ -247,26 +204,6 @@ export async function joinClub(
   clubId: string,
   options: { instagramLink?: string; utrReference?: string },
 ): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    const store = demoStore();
-    // Don't duplicate
-    if (store.clubMembers.find((m) => m.clubId === clubId && m.userId === user.id)) return;
-    const club = store.clubs.find((c) => c.id === clubId);
-    const status = club?.membershipType === "FREE" ? "ACCEPTED" : "PENDING";
-    store.clubMembers.push({
-      id: randomUUID(),
-      clubId,
-      userId: user.id,
-      userName: user.name,
-      status,
-      instagramLink: options.instagramLink ?? null,
-      utrReference: options.utrReference ?? null,
-      createdAt: new Date().toISOString(),
-    });
-    if (status === "ACCEPTED" && club) club.memberCount++;
-    return;
-  }
-
   const supabase = await createClient();
 
   // Check if already a member
@@ -296,7 +233,11 @@ export async function joinClub(
     utr_reference: options.utrReference ?? null,
   });
 
-  if (error) throw error;
+  // Handle unique constraint violation (concurrent join requests)
+  if (error) {
+    if ((error as { code?: string }).code === "23505") return; // already a member
+    throw error;
+  }
 
   // Increment member count if accepted
   if (status === "ACCEPTED") {
@@ -305,10 +246,6 @@ export async function joinClub(
 }
 
 export async function listClubMembers(clubId: string): Promise<ClubMember[]> {
-  if (!isSupabaseConfigured()) {
-    return demoStore().clubMembers.filter((m) => m.clubId === clubId);
-  }
-
   const supabase = await createClient();
   const { data } = await supabase
     .from("club_members")
@@ -337,10 +274,6 @@ export async function listClubMembers(clubId: string): Promise<ClubMember[]> {
 }
 
 export async function listMyClubs(user: CurrentUser): Promise<Club[]> {
-  if (!isSupabaseConfigured()) {
-    return demoStore().clubs.filter((c) => c.ownerId === "org-basement");
-  }
-
   const { getOrganizerProfile } = await import("@/lib/data/organizer");
   const organizer = await getOrganizerProfile(user);
   if (!organizer) return [];
@@ -376,10 +309,6 @@ export async function listMyClubs(user: CurrentUser): Promise<Club[]> {
 
 /** Admin: list all unverified clubs awaiting approval. */
 export async function listPendingClubs(): Promise<Club[]> {
-  if (!isSupabaseConfigured()) {
-    return demoStore().clubs.filter((c) => !c.verified);
-  }
-
   const supabase = await createClient();
   const { data } = await supabase
     .from("clubs")
@@ -418,11 +347,6 @@ export async function listPendingClubs(): Promise<Club[]> {
 
 /** Admin: approve or reject a club. */
 export async function setClubVerified(clubId: string, verified: boolean): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    const club = demoStore().clubs.find((c) => c.id === clubId);
-    if (club) club.verified = verified;
-    return;
-  }
   const supabase = await createClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await supabase.from("clubs").update({ verified } as any).eq("id", clubId);
@@ -433,19 +357,6 @@ export async function updateMemberStatus(
   memberId: string,
   status: "ACCEPTED" | "REJECTED",
 ): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    const member = demoStore().clubMembers.find((m) => m.id === memberId);
-    if (member) {
-      const wasAccepted = member.status === "ACCEPTED";
-      member.status = status;
-      if (status === "ACCEPTED" && !wasAccepted) {
-        const club = demoStore().clubs.find((c) => c.id === member.clubId);
-        if (club) club.memberCount++;
-      }
-    }
-    return;
-  }
-
   // Verify the user owns this club
   const { getOrganizerProfile } = await import("@/lib/data/organizer");
   const organizer = await getOrganizerProfile(user);

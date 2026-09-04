@@ -40,7 +40,7 @@ export function CheckoutForm({
     try {
       const url = await uploadPublicFile(file, "payment-proofs");
       if (url) setProofUrl(url);
-      else setUploadError("Demo mode: uploads are disabled, paste a link instead.");
+      else setUploadError("Upload failed. Paste a link instead.");
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : "Upload failed.");
     } finally {

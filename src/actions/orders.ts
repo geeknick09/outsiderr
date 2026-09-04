@@ -11,6 +11,8 @@ import {
   createOrder,
   rejectOrder,
 } from "@/lib/data/orders";
+import { getEvent } from "@/lib/data/events";
+import { addInterestedTags } from "@/lib/data/profile";
 import type { ScanResult } from "@/lib/types";
 
 export interface CheckoutState {
@@ -48,7 +50,15 @@ export async function submitPaymentAction(
         error: error instanceof Error ? error.message : "Could not complete RSVP.",
       };
     }
+    // Auto-merge event tags into user's interested-in list
+    try {
+      const event = await getEvent(eventId);
+      if (event?.tags?.length) await addInterestedTags(user, event.tags);
+    } catch {
+      // Non-critical — don't block booking on tag merge failure
+    }
     revalidatePath("/tickets");
+    revalidatePath("/profile");
     redirect("/tickets?submitted=1");
   }
 
@@ -74,7 +84,16 @@ export async function submitPaymentAction(
     return { error: error instanceof Error ? error.message : "Could not submit payment." };
   }
 
+  // Auto-merge event tags into user's interested-in list
+  try {
+    const event = await getEvent(eventId);
+    if (event?.tags?.length) await addInterestedTags(user, event.tags);
+  } catch {
+    // Non-critical — don't block booking on tag merge failure
+  }
+
   revalidatePath("/tickets");
+  revalidatePath("/profile");
   redirect("/tickets?submitted=1");
 }
 

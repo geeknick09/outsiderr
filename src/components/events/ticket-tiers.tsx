@@ -2,27 +2,47 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { BellRing, Check, Sparkles } from "lucide-react";
+import { BellRing, Check, Clock, Sparkles, TrendingUp } from "lucide-react";
 
 import { joinWaitlistAction } from "@/actions/waitlist";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatPaise } from "@/lib/format";
-import { calculatePrice, getFeeBpsForPrice } from "@/lib/pricing";
-import type { EventDetail } from "@/lib/types";
+import { computePhaseAvailability } from "@/lib/phases";
+import { calculatePrice } from "@/lib/pricing";
+import { isPast } from "@/lib/format";
+import type { EventDetail, TicketTier } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export function TicketTiers({ event, feeBps }: { event: EventDetail; feeBps?: number }) {
   const router = useRouter();
-  const available = event.tiers.filter((tier) => tier.quantity > tier.quantitySold);
-  const [selectedId, setSelectedId] = useState(available[0]?.id ?? "");
+  const eventIsPast = isPast(event.startsAt);
+
+  // Split tiers into phases and named tiers
+  const phaseTiers = event.tiers.filter((t) => t.tierType === "FLAT_PHASE");
+  const namedTiers = event.tiers.filter((t) => t.tierType !== "FLAT_PHASE");
+  const phaseAvailability = computePhaseAvailability(phaseTiers);
+
+  // Active phase is the one users can currently buy
+  const activePhase = phaseAvailability.find((p) => p.isActive);
+  const activePhaseTier = activePhase?.tier ?? null;
+
+  // Bookable tiers: active phase + all named tiers with availability
+  const availableNamed = namedTiers.filter((t) => t.quantity > t.quantitySold);
+  const bookableTiers: TicketTier[] = [
+    ...(activePhaseTier ? [activePhaseTier] : []),
+    ...availableNamed,
+  ];
+
+  const [selectedId, setSelectedId] = useState(bookableTiers[0]?.id ?? "");
 
   const isFreeEvent = event.tiers.length > 0 && event.tiers.every((t) => t.pricePaise === 0);
-  const selected = event.tiers.find((tier) => tier.id === selectedId);
-  // Use tiered fee based on ticket price (feeBps param is now optional/legacy)
+  const selected = bookableTiers.find((tier) => tier.id === selectedId);
   const price = selected
     ? calculatePrice(selected.pricePaise, 1, event.feePayer, feeBps)
     : null;
+
+  const hasPhases = phaseTiers.length > 0;
 
   return (
     <section id="tickets" className="glass rounded-3xl p-5">
@@ -33,30 +53,76 @@ export function TicketTiers({ event, feeBps }: { event: EventDetail; feeBps?: nu
         <span className="text-xs text-muted">1 ticket per order</span>
       </div>
 
+      {/* Phase timeline (if event has phases) */}
+      {hasPhases ? (
+        <div className="mb-4 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+            Pricing phases
+          </p>
+          {phaseAvailability.map((p, i) => (
+            <div
+              key={p.tier.id}
+              className={cn(
+                "flex items-center justify-between rounded-2xl border px-3 py-2 text-xs",
+                p.isActive
+                  ? "border-violet-neon bg-violet-neon/10"
+                  : p.status === "UPCOMING"
+                    ? "border-zinc-200 dark:border-white/10"
+                    : "border-zinc-200 opacity-60 dark:border-white/10",
+              )}
+            >
+              <div className="flex items-center gap-2">
+                {p.isActive ? (
+                  <TrendingUp className="h-3.5 w-3.5 text-violet-neon" />
+                ) : p.status === "UPCOMING" ? (
+                  <Clock className="h-3.5 w-3.5 text-muted" />
+                ) : (
+                  <Check className="h-3.5 w-3.5 text-muted" />
+                )}
+                <span className="font-semibold">{p.tier.name}</span>
+                {p.isActive ? <Badge tone="violet">Active</Badge> : null}
+                {p.status === "SOLD_OUT" ? <Badge tone="neutral">Sold out</Badge> : null}
+                {p.status === "CLOSED" ? <Badge tone="neutral">Closed</Badge> : null}
+                {p.status === "UPCOMING" && p.tier.phaseOpensAt ? (
+                  <span className="text-muted">
+                    Opens {new Date(p.tier.phaseOpensAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                  </span>
+                ) : null}
+              </div>
+              <div className="text-right">
+                <span className="font-bold">{formatPaise(p.tier.pricePaise)}</span>
+                <span className="ml-2 text-muted">
+                  {p.effectiveAvailable} left
+                  {p.carryForward > 0 ? ` (+${p.carryForward} carried)` : ""}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {/* Bookable tiers */}
       <div className="space-y-3">
-        {event.tiers.map((tier) => {
-          const soldOut = tier.quantitySold >= tier.quantity;
+        {bookableTiers.map((tier) => {
+          const isPhase = tier.tierType === "FLAT_PHASE";
           const isSelected = tier.id === selectedId;
           return (
             <button
               key={tier.id}
               type="button"
-              disabled={soldOut}
-              onClick={() => {
-                setSelectedId(tier.id);
-              }}
+              onClick={() => setSelectedId(tier.id)}
               className={cn(
                 "w-full rounded-2xl border p-4 text-left transition-all",
                 isSelected
                   ? "border-violet-neon bg-violet-neon/10 shadow-glow-violet"
                   : "border-zinc-200 hover:border-violet-neon/50 dark:border-white/10",
-                soldOut && "cursor-not-allowed opacity-50",
               )}
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="flex items-center gap-2 text-sm font-bold">
                     {tier.name}
+                    {isPhase ? <Badge tone="violet">Current phase</Badge> : null}
                     {isSelected ? <Check className="h-4 w-4 text-violet-neon" /> : null}
                   </p>
                   {tier.perks.length > 0 ? (
@@ -77,9 +143,6 @@ export function TicketTiers({ event, feeBps }: { event: EventDetail; feeBps?: nu
                   <p className="text-sm font-black">
                     {tier.pricePaise === 0 ? "Free" : formatPaise(tier.pricePaise)}
                   </p>
-                  {soldOut ? (
-                    <p className="mt-1 text-[11px] text-muted">Sold out</p>
-                  ) : null}
                 </div>
               </div>
             </button>
@@ -87,9 +150,14 @@ export function TicketTiers({ event, feeBps }: { event: EventDetail; feeBps?: nu
         })}
       </div>
 
-      {selected && price ? (
+      {eventIsPast ? (
+        <div className="mt-5 space-y-3 border-t border-zinc-200 pt-5 dark:border-white/10">
+          <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-center text-sm font-semibold text-amber-600 dark:text-amber-300">
+            This event has ended. Tickets are no longer available.
+          </div>
+        </div>
+      ) : selected && price ? (
         <div className="mt-5 space-y-4 border-t border-zinc-200 pt-5 dark:border-white/10">
-          {/* Quantity fixed at 1 — one ticket per order */}
           <input type="hidden" value={1} readOnly />
 
           {!isFreeEvent ? (
@@ -106,7 +174,7 @@ export function TicketTiers({ event, feeBps }: { event: EventDetail; feeBps?: nu
                   <Badge tone="success">Covered by organizer</Badge>
                 </div>
               )}
-              <div className="flex items-center justify-between pt-2 text-base font-black">
+              <div className="flex items-center-between pt-2 text-base font-black">
                 <dt>Total payable</dt>
                 <dd>{formatPaise(price.totalPaise)}</dd>
               </div>
@@ -130,9 +198,11 @@ export function TicketTiers({ event, feeBps }: { event: EventDetail; feeBps?: nu
             {isFreeEvent ? "RSVP now" : "Book now"}
           </Button>
         </div>
-      ) : (
+      ) : bookableTiers.length === 0 ? (
         <div className="mt-5 space-y-3">
-          <p className="text-sm font-semibold text-muted">All tiers sold out</p>
+          <p className="text-sm font-semibold text-muted">
+            {hasPhases ? "All phases sold out" : "All tiers sold out"}
+          </p>
           {event.tiers.map((tier) => (
             <WaitlistJoinRow
               key={tier.id}
@@ -142,7 +212,7 @@ export function TicketTiers({ event, feeBps }: { event: EventDetail; feeBps?: nu
             />
           ))}
         </div>
-      )}
+      ) : null}
     </section>
   );
 }

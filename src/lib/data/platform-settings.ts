@@ -2,8 +2,6 @@ import "server-only";
 
 import { cache } from "react";
 
-import { demoStore } from "@/lib/data/demo-store";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 import type { PlatformSetting } from "@/lib/types";
 
@@ -29,6 +27,11 @@ const FALLBACKS: Record<string, unknown> = {
   tagline_header: "Find what's happening outside the mainstream.",
   tagline_subheader: "Discover raw events happening today near you.",
   tagline_footer: "Cyphers, battles, stunts, skates, jams & real communities. Discover raw events happening today near you.",
+  commission_tier1_max_paise: 50000,
+  commission_tier2_max_paise: 300000,
+  commission_tier1_bps: 1000,
+  commission_tier2_bps: 700,
+  commission_tier3_bps: 500,
 };
 
 // ---------------------------------------------------------------- helpers
@@ -46,12 +49,6 @@ function parseValue(raw: unknown): string | number | boolean | Record<string, nu
 // ---------------------------------------------------------------- cached getters
 // React cache() deduplicates calls within the same request.
 export const getSetting = cache(async (key: string): Promise<string | number | boolean | Record<string, number> | null> => {
-  if (!isSupabaseConfigured()) {
-    const store = demoStore();
-    const entry = store.platformSettings[key];
-    if (entry) return parseValue(entry.value);
-    return (FALLBACKS[key] as string | number | boolean | Record<string, number>) ?? null;
-  }
   const supabase = await createClient();
   const { data } = await supabase
     .from("platform_settings")
@@ -83,16 +80,6 @@ export async function getSettingJSON<T>(key: string): Promise<T | null> {
 
 // ---------------------------------------------------------------- admin CRUD
 export async function getAllSettings(): Promise<PlatformSetting[]> {
-  if (!isSupabaseConfigured()) {
-    const store = demoStore();
-    return Object.entries(store.platformSettings).map(([key, entry]) => ({
-      key,
-      value: parseValue(entry.value) as string | number | boolean | Record<string, number>,
-      description: entry.description,
-      updatedAt: new Date().toISOString(),
-      updatedBy: null,
-    }));
-  }
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("platform_settings")
@@ -113,15 +100,6 @@ export async function updateSetting(
   key: string,
   value: string | number | boolean | Record<string, number>,
 ): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    const store = demoStore();
-    const serialized = typeof value === "object" ? JSON.stringify(value) : String(value);
-    store.platformSettings[key] = {
-      value: serialized,
-      description: store.platformSettings[key]?.description ?? null,
-    };
-    return;
-  }
   const supabase = await createClient();
   const { error } = await supabase
     .from("platform_settings")
@@ -198,4 +176,30 @@ export async function getTaglineSubheader(): Promise<string> {
 
 export async function getTaglineFooter(): Promise<string> {
   return getSettingString("tagline_footer");
+}
+
+// ---------------------------------------------------------------- commission tiers
+export interface FeeTiers {
+  tier1MaxPaise: number;
+  tier2MaxPaise: number;
+  tier1Bps: number;
+  tier2Bps: number;
+  tier3Bps: number;
+}
+
+export async function getFeeTiers(): Promise<FeeTiers> {
+  const [tier1Max, tier2Max, tier1Bps, tier2Bps, tier3Bps] = await Promise.all([
+    getSettingInt("commission_tier1_max_paise"),
+    getSettingInt("commission_tier2_max_paise"),
+    getSettingInt("commission_tier1_bps"),
+    getSettingInt("commission_tier2_bps"),
+    getSettingInt("commission_tier3_bps"),
+  ]);
+  return {
+    tier1MaxPaise: tier1Max || 50000,
+    tier2MaxPaise: tier2Max || 300000,
+    tier1Bps: tier1Bps || 1000,
+    tier2Bps: tier2Bps || 700,
+    tier3Bps: tier3Bps || 500,
+  };
 }

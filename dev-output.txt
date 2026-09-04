@@ -1,0 +1,97 @@
+﻿   Γû▓ Next.js 15.5.23
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.29.86:3000
+   - Environments: .env
+
+ Γ£ô Starting...
+ Γ£ô Ready in 19.9s
+ Γùï Compiling /middleware ...
+ Γ£ô Compiled /middleware in 4.9s (175 modules)
+ Γùï Compiling / ...
+npx : <w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (107kiB) impacts deserialization performance 
+(consider using Buffer instead and decode when needed)
+At line:1 char:35
++ $env:NEXT_TELEMETRY_DISABLED="1"; npx next dev -p 3000 2>&1 | Out-Fil ...
++                                   ~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (<w> [webpack.ca...de when needed):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+<w> [webpack.cache.PackFileCacheStrategy] Serializing big strings (259kiB) impacts deserialization performance 
+(consider using Buffer instead and decode when needed)
+ Γ£ô Compiled / in 39.2s (1014 modules)
+ Γ£ô Compiled in 5.1s (313 modules)
+[listEvents] Found 0 events for query: {"city":"KOLKATA"}
+[listEvents] Found 0 events for query: {"city":"KOLKATA"}
+ Γ£ô Compiled in 2.3s (294 modules)
+ GET / 200 in 13259ms
+[listEvents] Found 0 events for query: {"city":"KOLKATA"}
+ GET / 200 in 4216ms
+ Γùï Compiling /login ...
+ Γ£ô Compiled /login in 8.3s (1132 modules)
+ GET /login 200 in 11805ms
+ Γùï Compiling /about ...
+ Γ£ô Compiled /about in 1089ms (1134 modules)
+ GET /about 200 in 2587ms
+ Γùï Compiling /contact ...
+ Γ£ô Compiled /contact in 1261ms (1136 modules)
+ GET /contact 200 in 2443ms
+ Γùï Compiling /list-your-event ...
+ Γ£ô Compiled /list-your-event in 2.7s (1150 modules)
+ GET /list-your-event 200 in 3798ms
+ Γùï Compiling /profile ...
+ Γ£ô Compiled /profile in 3.8s (1211 modules)
+ GET /profile 200 in 5806ms
+ Γùï Compiling /tickets ...
+ Γ£ô Compiled /tickets in 3.4s (1325 modules)
+ GET /tickets 200 in 5281ms
+ Γùï Compiling /organizer ...
+ Γ£ô Compiled /organizer in 6.5s (1521 modules)
+ GET /organizer 200 in 8925ms
+ Γùï Compiling /admin ...
+ Γ£ô Compiled /admin in 2.2s (1537 modules)
+ GET /admin 200 in 6548ms
+ Γùï Compiling /admin/events ...
+ Γ£ô Compiled /admin/events in 4.9s (1564 modules)
+ GET /admin/events 200 in 7749ms
+ Γùï Compiling /admin/orders ...
+ Γ£ô Compiled /admin/orders in 2.4s (1543 modules)
+ GET /admin/orders 200 in 5179ms
+ Γùï Compiling /admin/users ...
+ Γ£ô Compiled /admin/users in 2.3s (1539 modules)
+ GET /admin/users 200 in 5215ms
+ Γùï Compiling /admin/boosts ...
+ Γ£ô Compiled /admin/boosts in 2.5s (1560 modules)
+ GET /admin/boosts 200 in 4178ms
+ Γùï Compiling /admin/clubs ...
+ Γ£ô Compiled /admin/clubs in 1983ms (1563 modules)
+ GET /admin/clubs 200 in 3820ms
+ Γùï Compiling /admin/door-staff ...
+ Γ£ô Compiled /admin/door-staff in 2.5s (1566 modules)
+ GET /admin/door-staff 200 in 4628ms
+ Γùï Compiling /admin/settings ...
+ Γ£ô Compiled /admin/settings in 2.3s (1567 modules)
+ GET /admin/settings 200 in 3541ms
+ Γùï Compiling /_not-found ...
+ Γ£ô Compiled /_not-found in 2.2s (1561 modules)
+ GET /admin/legal-pages 404 in 3239ms
+ Γùï Compiling /admin/hero-boosts ...
+ Γ£ô Compiled /admin/hero-boosts in 2.8s (1563 modules)
+ GET /admin/hero-boosts 200 in 8277ms
+ Γùï Compiling /admin/revenue ...
+ Γ£ô Compiled /admin/revenue in 2.7s (1325 modules)
+ GET /admin/revenue 200 in 5572ms
+ Γùï Compiling /profile ...
+ Γ£ô Compiled /profile in 2.4s (807 modules)
+ GET /profile 200 in 7278ms
+ Γùï Compiling /tickets ...
+ Γ£ô Compiled /tickets in 2.1s (883 modules)
+ GET /tickets 200 in 8670ms
+ Γùï Compiling /admin ...
+ Γ£ô Compiled /admin in 1375ms (852 modules)
+ GET /admin 200 in 4213ms
+ GET /admin/legal-pages 404 in 451ms
+ Γùï Compiling / ...
+ Γ£ô Compiled / in 12.5s (699 modules)
+[listEvents] Found 0 events for query: {"city":"KOLKATA"}
+[listEvents] Found 0 events for query: {"city":"KOLKATA"}
+ GET / 200 in 3054ms

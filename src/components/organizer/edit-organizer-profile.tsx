@@ -28,6 +28,8 @@ export function EditOrganizerProfile({
   const [bio, setBio] = useState(organizer.bio ?? "");
   const [upiId, setUpiId] = useState(organizer.upiId ?? "");
   const [avatarUrl, setAvatarUrl] = useState(organizer.avatarUrl ?? "");
+  const [coverUrl, setCoverUrl] = useState(organizer.coverUrl ?? "");
+  const [instagramUrl, setInstagramUrl] = useState(organizer.instagramUrl ?? "");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -43,7 +45,22 @@ export function EditOrganizerProfile({
     try {
       const url = await uploadPublicFile(file, "organizer-profiles");
       if (url) setAvatarUrl(url);
-      else setUploadError("Demo mode: uploads disabled. Paste an image URL instead.");
+      else setUploadError("Upload failed. Paste an image URL instead.");
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleCover(file: File | undefined) {
+    if (!file) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const url = await uploadPublicFile(file, "organizer-covers");
+      if (url) setCoverUrl(url);
+      else setUploadError("Upload failed. Paste an image URL instead.");
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed.");
     } finally {
@@ -98,6 +115,39 @@ export function EditOrganizerProfile({
             {uploadError ? <p className="text-xs text-amber-500">{uploadError}</p> : null}
           </div>
 
+          {/* Cover photo */}
+          <div className="space-y-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+              Cover photo
+            </span>
+            <div className="space-y-2">
+              {coverUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={coverUrl}
+                  alt="Cover"
+                  className="h-28 w-full rounded-2xl object-cover border border-zinc-200 dark:border-white/10"
+                />
+              ) : (
+                <div className="flex h-28 w-full items-center justify-center rounded-2xl border border-dashed border-zinc-300 text-xs text-muted dark:border-white/15">
+                  No cover photo
+                </div>
+              )}
+              <label className="flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-3 text-sm text-muted hover:border-violet-neon dark:border-white/15">
+                <Upload className="h-4 w-4" />
+                {uploading ? "Uploading…" : coverUrl ? "Change cover" : "Upload cover"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => void handleCover(e.target.files?.[0])}
+                />
+              </label>
+            </div>
+            <input type="hidden" name="coverUrl" value={coverUrl} />
+            <input type="hidden" name="instagramUrl" value={instagramUrl} />
+          </div>
+
           <label className="block space-y-1.5">
             <span className="text-xs font-semibold uppercase tracking-wide text-muted">
               Organizer name *
@@ -118,6 +168,18 @@ export function EditOrganizerProfile({
               rows={3}
               value={bio}
               onChange={(e) => setBio(e.target.value)}
+              className={INPUT}
+            />
+          </label>
+
+          <label className="block space-y-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+              Instagram URL (optional)
+            </span>
+            <input
+              value={instagramUrl}
+              onChange={(e) => setInstagramUrl(e.target.value)}
+              placeholder="https://instagram.com/yourhandle"
               className={INPUT}
             />
           </label>

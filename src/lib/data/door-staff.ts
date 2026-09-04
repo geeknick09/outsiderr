@@ -1,6 +1,5 @@
 import "server-only";
 
-import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 import type { CurrentUser } from "@/lib/auth";
 import type { DoorStaffOrder, DoorStaffPaymentStatus, DoorStaffServiceStatus } from "@/lib/types";
@@ -37,27 +36,6 @@ export async function createDoorStaffOrder(
   numberOfStaff: number,
   serviceAmountPaise: number,
 ): Promise<string | null> {
-  if (!isSupabaseConfigured()) {
-    // Demo mode: store in-memory
-    const { demoStore } = await import("@/lib/data/demo-store");
-    const store = demoStore();
-    const id = `ds-${Date.now()}`;
-    const now = new Date().toISOString();
-    store.doorStaffOrders.push({
-      id,
-      eventId,
-      organizerId: user.id,
-      numberOfStaff,
-      serviceAmountPaise,
-      paymentStatus: "PENDING",
-      serviceStatus: "REQUESTED",
-      utrReference: null,
-      createdAt: now,
-      updatedAt: now,
-    });
-    return id;
-  }
-
   const { getOrganizerProfile } = await import("@/lib/data/organizer");
   const organizer = await getOrganizerProfile(user);
   if (!organizer) throw new Error("No organizer profile.");
@@ -83,11 +61,6 @@ export async function createDoorStaffOrder(
 export async function getDoorStaffOrder(
   eventId: string,
 ): Promise<DoorStaffOrder | null> {
-  if (!isSupabaseConfigured()) {
-    const { demoStore } = await import("@/lib/data/demo-store");
-    return demoStore().doorStaffOrders.find((o) => o.eventId === eventId) ?? null;
-  }
-
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("door_staff_orders")
@@ -104,19 +77,6 @@ export async function updateDoorStaffPaymentStatus(
   paymentStatus: DoorStaffPaymentStatus,
   utrReference?: string,
 ): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    const { demoStore } = await import("@/lib/data/demo-store");
-    const store = demoStore();
-    const order = store.doorStaffOrders.find((o) => o.id === orderId);
-    if (order) {
-      order.paymentStatus = paymentStatus;
-      order.updatedAt = new Date().toISOString();
-      if (paymentStatus === "PAID") order.serviceStatus = "CONFIRMED";
-      if (utrReference !== undefined) order.utrReference = utrReference;
-    }
-    return;
-  }
-
   const supabase = await createClient();
   const update: {
     payment_status: DoorStaffPaymentStatus;
@@ -145,11 +105,6 @@ export async function updateDoorStaffPaymentStatus(
 }
 
 export async function listAllDoorStaffOrders(): Promise<DoorStaffOrder[]> {
-  if (!isSupabaseConfigured()) {
-    const { demoStore } = await import("@/lib/data/demo-store");
-    return [...demoStore().doorStaffOrders].reverse();
-  }
-
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("door_staff_orders")
@@ -157,17 +112,25 @@ export async function listAllDoorStaffOrders(): Promise<DoorStaffOrder[]> {
     .order("created_at", { ascending: false });
 
   if (error || !data) return [];
-  return data.map(mapRow);
+
+  // Fetch event titles
+  const eventIds = [...new Set(data.map((r) => r.event_id))];
+  const { data: events } = await supabase
+    .from("events")
+    .select("id, title")
+    .in("id", eventIds);
+  const eventMap = Object.fromEntries((events ?? []).map((e) => [e.id, e.title]));
+
+  return data.map((row) => ({
+    ...mapRow(row),
+    eventTitle: eventMap[row.event_id] ?? "Unknown Event",
+  }));
 }
 
 export async function updateDoorStaffServiceStatus(
   orderId: string,
   serviceStatus: DoorStaffServiceStatus,
 ): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    return;
-  }
-
   const supabase = await createClient();
   const { error } = await supabase
     .from("door_staff_orders")

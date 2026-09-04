@@ -40,6 +40,8 @@ export function BecomeOrganizerForm() {
   const [orgName, setOrgName] = useState("");
   const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [coverUrl, setCoverUrl] = useState("");
+  const [instagramUrl, setInstagramUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -79,7 +81,22 @@ export function BecomeOrganizerForm() {
     try {
       const url = await uploadPublicFile(file, `${safeOrg}/profile`);
       if (url) setAvatarUrl(url);
-      else setUploadError("Demo mode: uploads disabled. Paste an image URL instead.");
+      else setUploadError("Upload failed. Paste an image URL instead.");
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleCover(file: File | undefined) {
+    if (!file) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const url = await uploadPublicFile(file, `${safeOrg}/cover`);
+      if (url) setCoverUrl(url);
+      else setUploadError("Upload failed. Paste an image URL instead.");
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed.");
     } finally {
@@ -163,6 +180,8 @@ export function BecomeOrganizerForm() {
             <input type="hidden" name="name" value={orgName} />
             <input type="hidden" name="bio" value={bio} />
             <input type="hidden" name="avatarUrl" value={avatarUrl} />
+            <input type="hidden" name="coverUrl" value={coverUrl} />
+            <input type="hidden" name="instagramUrl" value={instagramUrl} />
             <input type="hidden" name="panNumber" value={panNumber.toUpperCase()} />
             <input type="hidden" name="panName" value={panName} />
             <input type="hidden" name="gstNumber" value={gstNumber.toUpperCase()} />
@@ -202,6 +221,16 @@ export function BecomeOrganizerForm() {
                     />
                   </label>
 
+                  <label className={LABEL}>
+                    <span className={LABEL_TEXT}>Instagram URL (optional)</span>
+                    <input
+                      value={instagramUrl}
+                      onChange={(e) => setInstagramUrl(e.target.value)}
+                      placeholder="https://instagram.com/yourhandle"
+                      className={INPUT}
+                    />
+                  </label>
+
                   <div className="space-y-1.5">
                     <span className={LABEL_TEXT}>Profile photo</span>
                     <div className="flex items-center gap-4">
@@ -235,6 +264,35 @@ export function BecomeOrganizerForm() {
                         />
                       </>
                     ) : null}
+                  </div>
+
+                  {/* Cover photo */}
+                  <div className="space-y-1.5">
+                    <span className={LABEL_TEXT}>Cover photo (optional)</span>
+                    <div className="space-y-2">
+                      {coverUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={coverUrl}
+                          alt="Cover"
+                          className="h-32 w-full rounded-2xl object-cover border border-zinc-200 dark:border-white/10"
+                        />
+                      ) : (
+                        <div className="flex h-32 w-full items-center justify-center rounded-2xl border border-dashed border-zinc-300 text-xs text-muted dark:border-white/15">
+                          No cover photo
+                        </div>
+                      )}
+                      <label className="flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-3 text-sm text-muted hover:border-violet-neon dark:border-white/15">
+                        <Upload className="h-4 w-4" />
+                        {uploading ? "Uploading…" : coverUrl ? "Change cover" : "Upload cover"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => void handleCover(e.target.files?.[0])}
+                        />
+                      </label>
+                    </div>
                   </div>
                 </div>
               )}

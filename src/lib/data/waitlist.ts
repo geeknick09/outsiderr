@@ -1,9 +1,5 @@
 import "server-only";
 
-import { randomUUID } from "node:crypto";
-
-import { demoStore } from "@/lib/data/demo-store";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 import type { CurrentUser } from "@/lib/auth";
 import type { WaitlistEntry, WaitlistStatus } from "@/lib/types";
@@ -27,23 +23,6 @@ export async function joinWaitlist(
   eventId: string,
   tierId: string,
 ): Promise<WaitlistEntry> {
-  if (!isSupabaseConfigured()) {
-    const store = demoStore();
-    const existing = store.waitlist.find(
-      (w) => w.tierId === tierId && w.userId === user.id,
-    );
-    if (existing) return existing;
-    const position =
-      store.waitlist.filter((w) => w.tierId === tierId && w.status === "WAITING").length + 1;
-    const entry: WaitlistEntry = {
-      id: `wl-${randomUUID()}`, eventId, tierId, userId: user.id,
-      position, status: "WAITING", offeredAt: null, expiresAt: null,
-      createdAt: new Date().toISOString(),
-    };
-    store.waitlist.push(entry);
-    return entry;
-  }
-
   const supabase = await createClient();
   const { data: existing } = await supabase
     .from("waitlist")
@@ -71,12 +50,6 @@ export async function joinWaitlist(
 }
 
 export async function leaveWaitlist(user: CurrentUser, entryId: string): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    const store = demoStore();
-    const idx = store.waitlist.findIndex((w) => w.id === entryId && w.userId === user.id);
-    if (idx !== -1) store.waitlist.splice(idx, 1);
-    return;
-  }
   const supabase = await createClient();
   await supabase.from("waitlist").delete().eq("id", entryId).eq("user_id", user.id);
 }
@@ -85,11 +58,6 @@ export async function getWaitlistEntry(
   user: CurrentUser,
   tierId: string,
 ): Promise<WaitlistEntry | null> {
-  if (!isSupabaseConfigured()) {
-    return (
-      demoStore().waitlist.find((w) => w.tierId === tierId && w.userId === user.id) ?? null
-    );
-  }
   const supabase = await createClient();
   const { data } = await supabase
     .from("waitlist")
@@ -101,11 +69,6 @@ export async function getWaitlistEntry(
 }
 
 export async function getWaitlistCount(tierId: string): Promise<number> {
-  if (!isSupabaseConfigured()) {
-    return demoStore().waitlist.filter(
-      (w) => w.tierId === tierId && w.status === "WAITING",
-    ).length;
-  }
   const supabase = await createClient();
   const { count } = await supabase
     .from("waitlist")
@@ -116,9 +79,6 @@ export async function getWaitlistCount(tierId: string): Promise<number> {
 }
 
 export async function listMyWaitlistEntries(user: CurrentUser): Promise<WaitlistEntry[]> {
-  if (!isSupabaseConfigured()) {
-    return demoStore().waitlist.filter((w) => w.userId === user.id);
-  }
   const supabase = await createClient();
   const { data } = await supabase
     .from("waitlist")

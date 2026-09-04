@@ -1,19 +1,11 @@
 import "server-only";
 
-import { randomUUID } from "node:crypto";
-
 import { DEFAULT_EVENT_TERMS } from "@/lib/constants";
-import { DEMO_ORGANIZERS } from "@/lib/data/demo-data";
-import { demoStore } from "@/lib/data/demo-store";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
-import { cookies } from "next/headers";
-import { DEMO_ORGANIZER_COOKIE } from "@/lib/auth";
 import type { CurrentUser } from "@/lib/auth";
 import type {
   City,
   EventCategory,
-  EventDetail,
   EventSummary,
   FeePayer,
   Organizer,
@@ -25,6 +17,10 @@ export interface TicketTierInput {
   pricePaise: number;
   quantity: number;
   perks: string[];
+  tierType?: "NAMED" | "FLAT_PHASE";
+  phaseOrder?: number | null;
+  phaseOpensAt?: string | null;
+  phaseClosesAt?: string | null;
 }
 
 export interface CreateEventInput {
@@ -51,18 +47,12 @@ export interface CreateEventInput {
   photoUrls: string[];
   contactEmail: string | null;
   contactPhone: string | null;
+  instagramUrl: string | null;
 }
 
 export async function getOrganizerProfile(
   user: CurrentUser,
 ): Promise<Organizer | null> {
-  if (!isSupabaseConfigured()) {
-    // Demo mode: only return the demo organizer if the user has "become" one.
-    const hasOrg = (await cookies()).get(DEMO_ORGANIZER_COOKIE)?.value;
-    if (!hasOrg) return null;
-    return DEMO_ORGANIZERS.basement;
-  }
-
   const supabase = await createClient();
   const { data } = await supabase
     .from("organizers")
@@ -76,6 +66,8 @@ export async function getOrganizerProfile(
     name: data.name,
     bio: data.bio,
     avatarUrl: data.avatar_url,
+    coverUrl: (data as { cover_url?: string | null }).cover_url ?? null,
+    instagramUrl: (data as { instagram_url?: string | null }).instagram_url ?? null,
     upiId: data.upi_id,
     upiQrUrl: data.upi_qr_url,
     verified: data.verified,
@@ -85,25 +77,6 @@ export async function getOrganizerProfile(
 export async function listOrganizerEvents(
   user: CurrentUser,
 ): Promise<EventSummary[]> {
-  if (!isSupabaseConfigured()) {
-    return demoStore().events.map((event) => ({
-      id: event.id,
-      title: event.title,
-      category: event.category,
-      city: event.city,
-      venueName: event.venueName,
-      startsAt: event.startsAt,
-      cardPosterUrl: event.cardPosterUrl,
-      bannerPosterUrl: event.bannerPosterUrl,
-      minPricePaise: Math.min(...event.tiers.map((tier) => tier.pricePaise)),
-      isFeatured: event.isFeatured,
-      registrationsCount: event.registrationsCount,
-      tags: event.tags ?? [],
-      status: event.status,
-      pricingMode: event.pricingMode ?? "PAID",
-    }));
-  }
-
   const organizer = await getOrganizerProfile(user);
   if (!organizer) return [];
 
@@ -152,52 +125,6 @@ export async function createEvent(
 ): Promise<string> {
   const terms = input.terms.length > 0 ? input.terms : DEFAULT_EVENT_TERMS;
 
-  if (!isSupabaseConfigured()) {
-    const id = `evt-${randomUUID()}`;
-    const event: EventDetail = {
-      id,
-      title: input.title,
-      category: input.category,
-      city: input.city,
-      venueName: input.venueName,
-      venueAddress: input.venueAddress,
-      startsAt: input.startsAt,
-      endsAt: input.endsAt,
-      cardPosterUrl: input.cardPosterUrl,
-      bannerPosterUrl: input.bannerPosterUrl,
-      minPricePaise: Math.min(...input.tiers.map((tier) => tier.pricePaise)),
-      isFeatured: false,
-      registrationsCount: 0,
-      tags: input.tags ?? [],
-      photoUrls: input.photoUrls ?? [],
-      contactEmail: input.contactEmail ?? null,
-      contactPhone: input.contactPhone ?? null,
-      description: input.description,
-      thingsToKnow: input.thingsToKnow,
-      latitude: input.latitude,
-      longitude: input.longitude,
-      googleMapsLink: input.googleMapsLink,
-      feePayer: input.feePayer,
-      status: "PUBLISHED",
-      needsDoorStaff: input.needsDoorStaff,
-      terms,
-      pricingMode: input.pricingMode,
-      organizer: DEMO_ORGANIZERS.basement,
-      tiers: input.tiers.map((tier, index) => ({
-        id: `tier-${randomUUID()}`,
-        eventId: id,
-        name: tier.name,
-        pricePaise: tier.pricePaise,
-        quantity: tier.quantity,
-        quantitySold: 0,
-        perks: tier.perks,
-        sortOrder: index,
-      })),
-    };
-    demoStore().events.push(event);
-    return id;
-  }
-
   const organizer = await getOrganizerProfile(user);
   if (!organizer) {
     throw new Error("Create an organizer profile before publishing an event.");
@@ -229,6 +156,7 @@ export async function createEvent(
       photo_urls: input.photoUrls ?? [],
       contact_email: input.contactEmail ?? null,
       contact_phone: input.contactPhone ?? null,
+      instagram_url: input.instagramUrl ?? null,
       pricing_mode: input.pricingMode,
       status: "PUBLISHED",
     })
@@ -247,6 +175,10 @@ export async function createEvent(
       quantity: tier.quantity,
       perks: tier.perks,
       sort_order: index,
+      tier_type: tier.tierType ?? "NAMED",
+      phase_order: tier.phaseOrder ?? null,
+      phase_opens_at: tier.phaseOpensAt ?? null,
+      phase_closes_at: tier.phaseClosesAt ?? null,
     })),
   );
   if (tierError) {
@@ -262,7 +194,6 @@ export async function getOrganizerEventAnalytics(
   eventId: string,
 ): Promise<import("@/lib/types").EventAnalytics | null> {
   const { getEventAnalytics } = await import("@/lib/data/admin");
-  if (!isSupabaseConfigured()) return getEventAnalytics(eventId);
   // Verify the event belongs to this organizer
   const organizer = await getOrganizerProfile(user);
   if (!organizer) return null;
@@ -282,11 +213,6 @@ export async function updateEventStatus(
   eventId: string,
   status: import("@/lib/types").EventStatus,
 ): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    const event = (await import("@/lib/data/demo-store")).demoStore().events.find((e) => e.id === eventId);
-    if (event) event.status = status;
-    return;
-  }
   const organizer = await getOrganizerProfile(user);
   if (!organizer) throw new Error("No organizer profile.");
   const supabase = await createClient();
@@ -330,112 +256,25 @@ export async function cancelEvent(
   const { getCancellationChargePercent } = await import("@/lib/data/platform-settings");
   const cancellationChargePercent = await getCancellationChargePercent();
 
-  // Get all confirmed orders for this event
-  const { listEventOrders } = await import("@/lib/data/admin");
-  const orders = (await listEventOrders(eventId)).filter(
-    (o) => o.status === "CONFIRMED",
-  );
+  // Use the atomic cancel_event RPC — all operations in one DB transaction
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("cancel_event", {
+    p_event_id: eventId,
+    p_reason: reason || "The event has been cancelled.",
+    p_cancellation_charge_percent: cancellationChargePercent,
+  });
+  if (error) throw new Error(error.message);
 
-  let totalRefundPaise = 0;
-  let totalPlatformFeePaise = 0;
-
-  if (!isSupabaseConfigured()) {
-    // Demo mode: just update status + tickets
-    const store = (await import("@/lib/data/demo-store")).demoStore();
-    const event = store.events.find((e) => e.id === eventId);
-    if (event) event.status = "CANCELLED";
-
-    for (const order of orders) {
-      order.status = "REFUNDED";
-      totalRefundPaise += order.totalPaise;
-      totalPlatformFeePaise += order.platformFeePaise;
-    }
-    // Cancel tickets
-    store.tickets = store.tickets.map((t) =>
-      t.eventId === eventId ? { ...t, status: "CANCELLED" as const } : t,
-    );
-  } else {
-    const supabase = await createClient();
-
-    // 1. Set status → CANCELLATION_REQUESTED first, then CANCELLED
-    await supabase
-      .from("events")
-      .update({ status: "CANCELLATION_REQUESTED" })
-      .eq("id", eventId)
-      .eq("organizer_id", organizer.id);
-
-    // 2. Mark all confirmed orders as REFUNDED
-    if (orders.length > 0) {
-      const orderIds = orders.map((o) => o.id);
-      await supabase
-        .from("orders")
-        .update({ status: "REFUNDED" })
-        .in("id", orderIds);
-
-      // 3. Mark all tickets as CANCELLED
-      await supabase
-        .from("tickets")
-        .update({ status: "CANCELLED" })
-        .in("order_id", orderIds);
-
-      // 4. Create refund records
-      const refundRecords = orders.map((order) => ({
-        order_id: order.id,
-        event_id: eventId,
-        user_id: order.userId ?? "",
-        amount_paise: order.totalPaise,
-        platform_fee_paise: order.platformFeePaise,
-        status: "PENDING" as const,
-        reason,
-        initiated_at: new Date().toISOString(),
-      }));
-
-      // Filter out orders without a user_id (shouldn't happen but safety)
-      const validRefunds = refundRecords.filter((r) => r.user_id);
-      if (validRefunds.length > 0) {
-        await supabase.from("refunds").insert(validRefunds);
-      }
-
-      // 5. Create notifications for all affected users
-      const userIds = [...new Set(orders.map((o) => o.userId).filter(Boolean))] as string[];
-      if (userIds.length > 0) {
-        const notifications = userIds.map((userId) => ({
-          event_id: eventId,
-          user_id: userId,
-          type: "CANCELLATION" as const,
-          message: reason || "The event has been cancelled. You will receive a full refund.",
-        }));
-        await supabase.from("event_notifications").insert(notifications);
-      }
-
-      // Calculate totals
-      for (const order of orders) {
-        totalRefundPaise += order.totalPaise;
-        totalPlatformFeePaise += order.platformFeePaise;
-      }
-    }
-
-    // 6. Set final status → CANCELLED
-    await supabase
-      .from("events")
-      .update({ status: "CANCELLED" })
-      .eq("id", eventId)
-      .eq("organizer_id", organizer.id);
-  }
-
-  // Cancellation charge: X% of total tickets sold (configurable from platform settings)
-  const cancellationChargePaise = Math.round((totalRefundPaise * cancellationChargePercent) / 100);
-
-  // Organizer owes: refund all buyers + platform fee + cancellation charge
-  const organizerOwesPaise = totalRefundPaise + totalPlatformFeePaise + cancellationChargePaise;
+  const row = data?.[0];
+  if (!row) throw new Error("Cancel failed — no result returned.");
 
   return {
-    refundCount: orders.length,
-    totalRefundPaise,
-    totalPlatformFeePaise,
-    cancellationChargePaise,
+    refundCount: row.refund_count ?? 0,
+    totalRefundPaise: row.total_refund_paise ?? 0,
+    totalPlatformFeePaise: row.total_platform_fee_paise ?? 0,
+    cancellationChargePaise: row.cancellation_charge_paise ?? 0,
     cancellationChargePercent,
-    organizerOwesPaise,
+    organizerOwesPaise: row.organizer_owes_paise ?? 0,
   };
 }
 
@@ -467,50 +306,24 @@ export async function postponeEvent(
   const { getPostponementChargePercent } = await import("@/lib/data/platform-settings");
   const postponementChargePercent = await getPostponementChargePercent();
 
+  // Use the atomic postpone_event RPC — status update + notifications in one transaction
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("postpone_event", {
+    p_event_id: eventId,
+    p_new_starts_at: newStartsAt,
+    p_new_ends_at: newEndsAt,
+    p_reason: reason || `Event has been postponed to ${new Date(newStartsAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}. You can keep your ticket or request a refund.`,
+  });
+  if (error) throw new Error(error.message);
+
+  const row = data?.[0];
+  const notifiedCount = row?.notified_count ?? 0;
+
+  // Get platform fee for potential refund calculation (display only)
   const { listEventOrders } = await import("@/lib/data/admin");
   const orders = (await listEventOrders(eventId)).filter(
     (o) => o.status === "CONFIRMED",
   );
-
-  if (!isSupabaseConfigured()) {
-    const store = (await import("@/lib/data/demo-store")).demoStore();
-    const event = store.events.find((e) => e.id === eventId);
-    if (event) {
-      event.status = "POSTPONED";
-      event.startsAt = newStartsAt;
-      event.endsAt = newEndsAt;
-    }
-  } else {
-    const supabase = await createClient();
-
-    // 1. Update event status + dates
-    const { error } = await supabase
-      .from("events")
-      .update({
-        status: "POSTPONED",
-        starts_at: newStartsAt,
-        ends_at: newEndsAt,
-      })
-      .eq("id", eventId)
-      .eq("organizer_id", organizer.id);
-    if (error) throw error;
-
-    // 2. Notify all ticket holders
-    if (orders.length > 0) {
-      const userIds = [...new Set(orders.map((o) => o.userId).filter(Boolean))] as string[];
-      if (userIds.length > 0) {
-        const notifications = userIds.map((userId) => ({
-          event_id: eventId,
-          user_id: userId,
-          type: "POSTPONEMENT" as const,
-          message: reason || `Event has been postponed to ${new Date(newStartsAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}. You can keep your ticket or request a refund.`,
-        }));
-        await supabase.from("event_notifications").insert(notifications);
-      }
-    }
-  }
-
-  // Platform fee for tickets that will be refunded (charged to organizer)
   let totalPlatformFeePaise = 0;
   let totalRefundablePaise = 0;
   for (const order of orders) {
@@ -518,13 +331,12 @@ export async function postponeEvent(
     totalRefundablePaise += order.totalPaise;
   }
 
-  // Postponement charge: X% of refunded tickets (if all refund, this is the max)
   const potentialPostponementChargePaise = Math.round(
     (totalRefundablePaise * postponementChargePercent) / 100,
   );
 
   return {
-    notifiedCount: orders.length,
+    notifiedCount,
     totalPlatformFeePaise,
     postponementChargePercent,
     potentialPostponementChargePaise,
@@ -546,6 +358,7 @@ export interface UpdateEventInput {
   photoUrls?: string[];
   contactEmail?: string | null;
   contactPhone?: string | null;
+  instagramUrl?: string | null;
 }
 
 export async function updateEvent(
@@ -553,39 +366,6 @@ export async function updateEvent(
   eventId: string,
   input: UpdateEventInput,
 ): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    const store = (await import("@/lib/data/demo-store")).demoStore();
-    const event = store.events.find((e) => e.id === eventId);
-    if (event) {
-      event.title = input.title;
-      event.description = input.description;
-      event.venueName = input.venueName;
-      event.venueAddress = input.venueAddress;
-      event.latitude = input.latitude;
-      event.longitude = input.longitude;
-      event.googleMapsLink = input.googleMapsLink;
-      event.startsAt = input.startsAt;
-      event.endsAt = input.endsAt;
-      event.tags = input.tags;
-      if (input.photoUrls) event.photoUrls = input.photoUrls;
-      if (input.contactEmail !== undefined) event.contactEmail = input.contactEmail;
-      if (input.contactPhone !== undefined) event.contactPhone = input.contactPhone;
-      if (input.tiers) {
-        event.tiers = input.tiers.map((t, i) => ({
-          id: t.id ?? `tier-${Date.now()}-${i}`,
-          eventId,
-          name: t.name,
-          pricePaise: t.pricePaise,
-          quantity: t.quantity,
-          quantitySold: event.tiers.find((et) => et.id === t.id)?.quantitySold ?? 0,
-          perks: t.perks,
-          sortOrder: i,
-        }));
-      }
-    }
-    return;
-  }
-
   const organizer = await getOrganizerProfile(user);
   if (!organizer) throw new Error("No organizer profile.");
 
@@ -606,6 +386,7 @@ export async function updateEvent(
       ...(input.photoUrls !== undefined ? { photo_urls: input.photoUrls } : {}),
       ...(input.contactEmail !== undefined ? { contact_email: input.contactEmail } : {}),
       ...(input.contactPhone !== undefined ? { contact_phone: input.contactPhone } : {}),
+      ...(input.instagramUrl !== undefined ? { instagram_url: input.instagramUrl } : {}),
     })
     .eq("id", eventId)
     .eq("organizer_id", organizer.id);
@@ -613,6 +394,37 @@ export async function updateEvent(
 
   // Update tiers if provided
   if (input.tiers) {
+    // Get existing tier IDs for this event
+    const { data: existingTiers } = await supabase
+      .from("ticket_tiers")
+      .select("id")
+      .eq("event_id", eventId);
+    const existingIds = (existingTiers ?? []).map((t) => t.id);
+    const keptIds = input.tiers.filter((t) => t.id).map((t) => t.id as string);
+    const deletedIds = existingIds.filter((id) => !keptIds.includes(id));
+
+    // Delete tiers that were removed from the form (only if no tickets sold)
+    if (deletedIds.length > 0) {
+      // Check if any of the deleted tiers have sold tickets
+      const { data: soldTiers } = await supabase
+        .from("ticket_tiers")
+        .select("id, quantity_sold")
+        .in("id", deletedIds)
+        .gt("quantity_sold", 0);
+      const safeToDelete = deletedIds.filter(
+        (id) => !(soldTiers ?? []).some((t) => t.id === id),
+      );
+      if (safeToDelete.length > 0) {
+        const { error: delError } = await supabase
+          .from("ticket_tiers")
+          .delete()
+          .in("id", safeToDelete)
+          .eq("event_id", eventId);
+        if (delError) throw delError;
+      }
+    }
+
+    // Update/insert tiers
     for (let i = 0; i < input.tiers.length; i++) {
       const tier = input.tiers[i];
       if (tier.id) {
@@ -651,12 +463,6 @@ export async function deleteEvent(
   user: CurrentUser,
   eventId: string,
 ): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    const store = (await import("@/lib/data/demo-store")).demoStore();
-    store.events = store.events.filter((e) => e.id !== eventId);
-    return;
-  }
-
   const organizer = await getOrganizerProfile(user);
   if (!organizer) throw new Error("No organizer profile.");
 
@@ -674,6 +480,8 @@ export interface CreateOrganizerInput {
   bio: string;
   upiId: string;
   avatarUrl: string | null;
+  coverUrl: string | null;
+  instagramUrl: string | null;
   panNumber: string;
   panName: string;
   gstNumber: string;
@@ -687,24 +495,12 @@ export interface CreateOrganizerInput {
 
 /**
  * Creates an organizer profile for the current user.
- * In demo mode this is a no-op — every signed-in user is already an organizer.
  * Returns the new organizer's id.
  */
 export async function createOrganizerProfile(
   user: CurrentUser,
   input: CreateOrganizerInput,
 ): Promise<string> {
-  if (!isSupabaseConfigured()) {
-    // Demo mode: set a cookie marking this user as an organizer.
-    (await cookies()).set(DEMO_ORGANIZER_COOKIE, "1", {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 30,
-    });
-    return DEMO_ORGANIZERS.basement.id;
-  }
-
   // If the user already has a profile, return its id.
   const existing = await getOrganizerProfile(user);
   if (existing) return existing.id;
@@ -719,31 +515,41 @@ export async function createOrganizerProfile(
       bio: input.bio || null,
       upi_id: input.upiId || null,
       avatar_url: input.avatarUrl,
+      cover_url: input.coverUrl,
+      instagram_url: input.instagramUrl,
     } as any)
     .select("id")
     .single();
 
+  // Check insert error IMMEDIATELY — don't proceed to KYC update if insert failed
+  if (error) throw error;
+  if (!data?.id) throw new Error("Failed to create organizer profile — no ID returned.");
+
   // Update KYC fields separately so the Supabase generated types don't need updating
-  if (data?.id) {
-    await (supabase.from("organizers") as any).update({
-      pan_number: input.panNumber || null,
-      pan_name: input.panName || null,
-      gst_number: input.gstNumber || null,
-      gst_business_name: input.gstBusinessName || null,
-      bank_account_number: input.bankAccountNumber || null,
-      bank_ifsc: input.bankIfsc || null,
-      bank_account_name: input.bankAccountName || null,
-      bank_account_type: input.bankAccountType || null,
-      kyc_submitted: !!(input.panNumber && input.bankAccountNumber),
-    }).eq("id", data.id);
+  const { error: kycError } = await (supabase.from("organizers") as any).update({
+    pan_number: input.panNumber || null,
+    pan_name: input.panName || null,
+    gst_number: input.gstNumber || null,
+    gst_business_name: input.gstBusinessName || null,
+    bank_account_number: input.bankAccountNumber || null,
+    bank_ifsc: input.bankIfsc || null,
+    bank_account_name: input.bankAccountName || null,
+    bank_account_type: input.bankAccountType || null,
+    kyc_submitted: !!(input.panNumber && input.bankAccountNumber),
+  }).eq("id", data.id);
+  if (kycError) {
+    console.error("KYC update failed:", kycError);
+    throw new Error(`Organizer created but KYC update failed: ${kycError.message}`);
   }
   /* eslint-enable @typescript-eslint/no-explicit-any */
 
-  if (error) throw error;
-
   // Flip the is_organizer flag on the profile row.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await supabase.from("profiles").update({ is_organizer: true } as any).eq("id", user.id);
+  const { error: profileError } = await supabase.from("profiles").update({ is_organizer: true } as any).eq("id", user.id);
+  if (profileError) {
+    console.error("Failed to set is_organizer flag:", profileError);
+    // Non-fatal — organizer profile is created, flag can be set later
+  }
 
   return data.id;
 }
@@ -753,23 +559,15 @@ export interface UpdateOrganizerInput {
   bio: string;
   upiId: string;
   avatarUrl: string | null;
+  coverUrl?: string | null;
+  instagramUrl?: string | null;
 }
 
-/** Updates an organizer's profile (name, bio, UPI ID, avatar). */
+/** Updates an organizer's profile (name, bio, UPI ID, avatar, cover). */
 export async function updateOrganizerProfile(
   user: CurrentUser,
   input: UpdateOrganizerInput,
 ): Promise<void> {
-  if (!isSupabaseConfigured()) {
-    // Demo mode: update the in-memory organizer
-    const org = DEMO_ORGANIZERS.basement;
-    org.name = input.name;
-    org.bio = input.bio || null;
-    org.upiId = input.upiId || null;
-    org.avatarUrl = input.avatarUrl ?? org.avatarUrl;
-    return;
-  }
-
   const organizer = await getOrganizerProfile(user);
   if (!organizer) throw new Error("No organizer profile found.");
 
@@ -781,6 +579,8 @@ export async function updateOrganizerProfile(
       bio: input.bio || null,
       upi_id: input.upiId || null,
       avatar_url: input.avatarUrl,
+      ...(input.coverUrl !== undefined ? { cover_url: input.coverUrl } : {}),
+      ...(input.instagramUrl !== undefined ? { instagram_url: input.instagramUrl } : {}),
     })
     .eq("id", organizer.id);
 

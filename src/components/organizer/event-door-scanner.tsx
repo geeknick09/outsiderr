@@ -166,10 +166,20 @@ export function EventDoorScanner({
           <p className="mt-2 text-lg font-black">{outcome.title}</p>
           <p className="text-sm">{result.message}</p>
           {result.ticket ? (
-            <p className="mt-1 text-xs">
-              {result.ticket.eventTitle} · {result.ticket.tierName}
-              {result.ticket.holderName ? ` · ${result.ticket.holderName}` : ""}
-            </p>
+            <div className="mt-3 space-y-1 rounded-2xl bg-black/10 p-3 dark:bg-white/5">
+              <p className="text-xs text-muted">{result.ticket.eventTitle}</p>
+              <p className="text-base font-black">
+                {result.ticket.tierName}
+              </p>
+              {result.ticket.holderName ? (
+                <p className="text-sm">{result.ticket.holderName}</p>
+              ) : null}
+              {result.ticket.checkedInAt ? (
+                <p className="text-xs text-muted">
+                  Checked in: {new Date(result.ticket.checkedInAt).toLocaleTimeString("en-IN")}
+                </p>
+              ) : null}
+            </div>
           ) : null}
         </div>
       ) : null}

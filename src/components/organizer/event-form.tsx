@@ -23,7 +23,7 @@ const INPUT =
 
 const SELECT_OPTION = "bg-white text-zinc-900 dark:bg-zinc-900 dark:text-white";
 
-type PricingMode = "FREE" | "FLAT" | "PAID";
+type PricingMode = "FREE" | "FLAT" | "PAID" | "PHASED";
 
 interface TierRow {
   key: string;
@@ -33,6 +33,15 @@ interface TierRow {
   perks: string;
 }
 
+interface PhaseRow {
+  key: string;
+  name: string;
+  price: string;
+  quantity: string;
+  opensAt: string;
+  closesAt: string;
+}
+
 function emptyTier(): TierRow {
   return {
     key: crypto.randomUUID(),
@@ -40,6 +49,17 @@ function emptyTier(): TierRow {
     price: "",
     quantity: "",
     perks: "",
+  };
+}
+
+function emptyPhase(): PhaseRow {
+  return {
+    key: crypto.randomUUID(),
+    name: "",
+    price: "",
+    quantity: "",
+    opensAt: "",
+    closesAt: "",
   };
 }
 
@@ -115,6 +135,7 @@ export function EventForm({
   const [venueMode, setVenueMode] = useState<"NOW" | "TBA">("NOW");
   const [mapsLink, setMapsLink] = useState(sv?.googleMapsLink ?? "");
   const [mapsError, setMapsError] = useState<string | null>(null);
+  const [instagramUrl, setInstagramUrl] = useState(sv?.instagramUrl ?? "");
 
   function validateDates(start: string, end: string) {
     if (end && start && new Date(end) <= new Date(start)) {
@@ -128,6 +149,16 @@ export function EventForm({
       ? sv.tiers.map((t) => ({ ...t, key: crypto.randomUUID() }))
       : [emptyTier()],
   );
+  const [phases, setPhases] = useState<PhaseRow[]>([
+    emptyPhase(),
+    emptyPhase(),
+  ]);
+
+  function updatePhase(key: string, patch: Partial<PhaseRow>) {
+    setPhases((rows) =>
+      rows.map((row) => (row.key === key ? { ...row, ...patch } : row)),
+    );
+  }
 
   function updateTier(key: string, patch: Partial<TierRow>) {
     setTiers((rows) =>
@@ -375,7 +406,12 @@ export function EventForm({
           <h3 className="text-sm font-bold">Event gallery</h3>
           <p className="text-xs text-muted">Add up to 8 photos of past events, venue, or promo shots.</p>
         </div>
-        <GalleryUploader name="photoUrls" initialUrls={sv?.photoUrls ?? []} />
+        <GalleryUploader
+          name="photoUrls"
+          initialUrls={sv?.photoUrls ?? []}
+          organizerName={organizerName}
+          eventTitle={eventTitle}
+        />
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Contact email (for attendee queries)">
@@ -397,6 +433,16 @@ export function EventForm({
             />
           </Field>
         </div>
+
+        <Field label="Instagram URL (optional)">
+          <input
+            value={instagramUrl}
+            onChange={(e) => setInstagramUrl(e.target.value)}
+            placeholder="https://instagram.com/yourevent"
+            className={INPUT}
+          />
+        </Field>
+        <input type="hidden" name="instagramUrl" value={instagramUrl} />
       </section>
 
       {/* ── Pricing mode + tickets ── */}
@@ -404,7 +450,7 @@ export function EventForm({
         <h2 className="text-base font-bold">Tickets</h2>
 
         {/* Pricing mode selector */}
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-4">
           <PricingModeCard
             mode="FREE"
             active={pricingMode === "FREE"}
@@ -425,6 +471,13 @@ export function EventForm({
             onClick={() => setPricingMode("PAID")}
             title="Tiered"
             description="Multiple tiers with names & perks."
+          />
+          <PricingModeCard
+            mode="PHASED"
+            active={pricingMode === "PHASED"}
+            onClick={() => setPricingMode("PHASED")}
+            title="Phased"
+            description="Time-based flat pricing with carry-forward + optional named tiers."
           />
         </div>
 
@@ -571,6 +624,224 @@ export function EventForm({
                     value={tier.perks}
                     onChange={(event) => updateTier(tier.key, { perks: event.target.value })}
                     placeholder="Priority entry, Free drink"
+                    className={INPUT}
+                  />
+                </Field>
+              </div>
+            ))}
+          </>
+        ) : null}
+
+        {/* PHASED mode — time-based flat pricing phases + optional named tiers */}
+        {pricingMode === "PHASED" ? (
+          <>
+            <div className="rounded-2xl border border-violet-neon/30 bg-violet-neon/5 p-4">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-violet-neon">
+                How phased pricing works
+              </p>
+              <ul className="space-y-1 text-xs text-muted">
+                <li>• Phases activate sequentially based on date or when the previous phase sells out</li>
+                <li>• Unsold tickets from each phase carry forward to the next phase</li>
+                <li>• Example: Early Bird (₹199, 50 tix) → Phase 2 (₹299, 100 tix) → Normal (₹499, remaining)</li>
+                <li>• You can also add named tiers (VIP, etc.) that sell alongside the phases</li>
+              </ul>
+            </div>
+
+            {/* Phases */}
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                Flat pricing phases
+              </p>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setPhases((rows) => [...rows, emptyPhase()])}
+              >
+                <Plus className="h-4 w-4" />
+                Add phase
+              </Button>
+            </div>
+
+            {phases.map((phase, index) => (
+              <div
+                key={phase.key}
+                className="rounded-2xl border border-zinc-200 p-4 dark:border-white/10"
+              >
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-xs font-bold text-violet-neon">
+                    Phase {index + 1}
+                  </span>
+                  {phases.length > 1 ? (
+                    <button
+                      type="button"
+                      aria-label={`Remove phase ${index + 1}`}
+                      onClick={() =>
+                        setPhases((rows) => rows.filter((row) => row.key !== phase.key))
+                      }
+                      className="text-muted hover:text-red-500"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                </div>
+
+                {/* Hidden fields for form submission */}
+                <input type="hidden" name="phaseName" value={phase.name} />
+                <input type="hidden" name="phasePrice" value={phase.price} />
+                <input type="hidden" name="phaseQuantity" value={phase.quantity} />
+                <input type="hidden" name="phaseOpensAt" value={phase.opensAt} />
+                <input type="hidden" name="phaseClosesAt" value={phase.closesAt} />
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Phase name">
+                    <input
+                      required
+                      minLength={2}
+                      maxLength={50}
+                      value={phase.name}
+                      onChange={(e) => updatePhase(phase.key, { name: e.target.value })}
+                      placeholder="Early Bird"
+                      className={INPUT}
+                    />
+                  </Field>
+                  <Field label="Price (₹)">
+                    <input
+                      type="number"
+                      min={1}
+                      required
+                      inputMode="decimal"
+                      value={phase.price}
+                      onChange={(e) => updatePhase(phase.key, { price: e.target.value })}
+                      placeholder="199"
+                      className={INPUT}
+                    />
+                  </Field>
+                  <Field label="Tickets in this phase">
+                    <input
+                      type="number"
+                      min={1}
+                      required
+                      inputMode="numeric"
+                      value={phase.quantity}
+                      onChange={(e) => updatePhase(phase.key, { quantity: e.target.value })}
+                      placeholder="50"
+                      className={INPUT}
+                    />
+                  </Field>
+                  <Field label="Phase opens at">
+                    <input
+                      type="datetime-local"
+                      value={phase.opensAt}
+                      onChange={(e) => updatePhase(phase.key, { opensAt: e.target.value })}
+                      className={INPUT}
+                    />
+                  </Field>
+                  <Field label="Phase closes at (optional)">
+                    <input
+                      type="datetime-local"
+                      value={phase.closesAt}
+                      onChange={(e) => updatePhase(phase.key, { closesAt: e.target.value })}
+                      className={INPUT}
+                    />
+                  </Field>
+                </div>
+                {index > 0 ? (
+                  <p className="mt-2 text-xs text-muted">
+                    Unsold tickets from Phase {index} will carry forward to this phase.
+                  </p>
+                ) : null}
+              </div>
+            ))}
+
+            {/* Optional named tiers alongside phases */}
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                Named tiers (optional, e.g. VIP)
+              </p>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setTiers((rows) => [...rows, emptyTier()])}
+              >
+                <Plus className="h-4 w-4" />
+                Add tier
+              </Button>
+            </div>
+
+            {tiers.map((tier, index) => (
+              <div
+                key={tier.key}
+                className="rounded-2xl border border-zinc-200 p-4 dark:border-white/10"
+              >
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-xs font-bold text-muted">Tier {index + 1}</span>
+                  {tiers.length > 1 ? (
+                    <button
+                      type="button"
+                      aria-label={`Remove tier ${index + 1}`}
+                      onClick={() =>
+                        setTiers((rows) => rows.filter((row) => row.key !== tier.key))
+                      }
+                      className="text-muted hover:text-red-500"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Field label="Name">
+                    <input
+                      name="tierName"
+                      required
+                      minLength={2}
+                      maxLength={50}
+                      value={tier.name}
+                      onChange={(event) => updateTier(tier.key, { name: event.target.value })}
+                      placeholder="VIP"
+                      className={INPUT}
+                    />
+                  </Field>
+                  <Field label="Price (₹)">
+                    <input
+                      name="tierPrice"
+                      required
+                      type="number"
+                      min={1}
+                      max={100000}
+                      inputMode="decimal"
+                      value={tier.price}
+                      onChange={(event) => updateTier(tier.key, { price: event.target.value })}
+                      placeholder="999"
+                      className={INPUT}
+                    />
+                  </Field>
+                  <Field label="Quantity">
+                    <input
+                      name="tierQuantity"
+                      required
+                      type="number"
+                      min={1}
+                      max={10000}
+                      inputMode="numeric"
+                      value={tier.quantity}
+                      onChange={(event) =>
+                        updateTier(tier.key, { quantity: event.target.value })
+                      }
+                      placeholder="20"
+                      className={INPUT}
+                    />
+                  </Field>
+                </div>
+
+                <Field label="Perks (comma separated)">
+                  <input
+                    name="tierPerks"
+                    value={tier.perks}
+                    onChange={(event) => updateTier(tier.key, { perks: event.target.value })}
+                    placeholder="VIP entry, Free drink"
                     className={INPUT}
                   />
                 </Field>
@@ -872,7 +1143,7 @@ function PosterField({
 }) {
   const [url, setUrl] = useState(initialValue ?? "");
   const [uploading, setUploading] = useState(false);
-  const [demoMode, setDemoMode] = useState(false);
+  const [uploadError, setUploadError] = useState(false);
 
   // Build path: organizer-name/event-title/subFolder/filename
   // Sanitize: lowercase, replace spaces/special chars with hyphens
@@ -886,9 +1157,9 @@ function PosterField({
     try {
       const uploaded = await uploadPublicFile(file, folder);
       if (uploaded) setUrl(uploaded);
-      else setDemoMode(true);
+      else setUploadError(true);
     } catch {
-      setDemoMode(true);
+      setUploadError(true);
     } finally {
       setUploading(false);
     }
@@ -913,7 +1184,7 @@ function PosterField({
         name={name}
         value={url}
         onChange={(event) => setUrl(event.target.value)}
-        placeholder={demoMode ? "Paste an image URL (demo mode)" : "or paste an image URL"}
+        placeholder={uploadError ? "Upload failed — paste an image URL" : "or paste an image URL"}
         className={INPUT}
       />
     </div>

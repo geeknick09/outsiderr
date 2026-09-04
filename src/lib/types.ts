@@ -10,7 +10,9 @@ export type City = "KOLKATA" | "MUMBAI" | "DELHI" | "BENGALURU";
 
 export type FeePayer = "BUYER" | "ORGANIZER";
 
-export type PricingMode = "FREE" | "FLAT" | "PAID";
+export type PricingMode = "FREE" | "FLAT" | "PAID" | "PHASED";
+
+export type TierType = "NAMED" | "FLAT_PHASE";
 
 export type EventStatus =
   | "DRAFT"
@@ -59,6 +61,7 @@ export type DoorStaffServiceStatus = "REQUESTED" | "CONFIRMED" | "CANCELLED" | "
 export interface DoorStaffOrder {
   id: string;
   eventId: string;
+  eventTitle?: string;
   organizerId: string;
   numberOfStaff: number;
   serviceAmountPaise: number;
@@ -74,9 +77,22 @@ export interface Organizer {
   name: string;
   bio: string | null;
   avatarUrl: string | null;
+  coverUrl: string | null;
+  instagramUrl: string | null;
   upiId: string | null;
   upiQrUrl: string | null;
   verified: boolean;
+}
+
+export interface UserProfile {
+  id: string;
+  fullName: string | null;
+  phone: string | null;
+  email: string | null;
+  avatarUrl: string | null;
+  birthDate: string | null;
+  interestedTags: string[];
+  instagramUrl: string | null;
 }
 
 export interface TicketTier {
@@ -88,6 +104,10 @@ export interface TicketTier {
   quantitySold: number;
   perks: string[];
   sortOrder: number;
+  tierType?: TierType;
+  phaseOrder?: number | null;
+  phaseOpensAt?: string | null;
+  phaseClosesAt?: string | null;
 }
 
 export interface EventSummary {
@@ -124,6 +144,7 @@ export interface EventDetail extends EventSummary {
   photoUrls: string[];
   contactEmail: string | null;
   contactPhone: string | null;
+  instagramUrl: string | null;
 }
 
 export interface Order {
@@ -238,6 +259,8 @@ export interface AdminStats {
   totalOrders: number;
   pendingOrders: number;
   totalRevenuePaise: number;
+  grossRevenuePaise: number;
+  totalPlatformFeePaise: number;
   activeBoosts: number;
   pendingBoosts: number;
 }
@@ -250,13 +273,18 @@ export interface AdminOrder extends Order {
 export interface AdminEvent {
   id: string;
   title: string;
+  description: string;
   category: EventCategory;
   city: City;
   status: EventStatus;
   startsAt: string;
+  endsAt: string;
+  venueName: string;
+  venueAddress: string;
   organizerName: string;
   registrationsCount: number;
   isFeatured: boolean;
+  pricingMode?: PricingMode;
 }
 
 export interface AdminUser {
@@ -267,6 +295,8 @@ export interface AdminUser {
   isOrganizer: boolean;
   isAdmin: boolean;
   createdAt: string;
+  birthDate?: string | null;
+  interestedTags?: string[];
 }
 
 export interface BoostWithEvent extends Boost {

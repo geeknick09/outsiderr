@@ -12,7 +12,6 @@ import {
   submitHeroBoostUtr,
 } from "@/lib/data/hero-boosts";
 import { getHeroBoostDurationDays, getHeroBoostPrice } from "@/lib/data/platform-settings";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -23,7 +22,6 @@ import { createClient } from "@/lib/supabase/server";
 async function checkAdmin(): Promise<boolean> {
   const user = await getCurrentUser();
   if (!user) return false;
-  if (!isSupabaseConfigured()) return true; // Demo mode: everyone is admin
 
   const supabase = await createClient();
   const { data: profile } = await supabase
@@ -32,14 +30,7 @@ async function checkAdmin(): Promise<boolean> {
     .eq("id", user.id)
     .maybeSingle();
 
-  if (profile?.is_admin) return true;
-
-  // Fallback: if no admin exists in the system yet, allow any authenticated user
-  const { count } = await supabase
-    .from("profiles")
-    .select("id", { count: "exact", head: true })
-    .eq("is_admin", true);
-  return count === 0;
+  return profile?.is_admin === true;
 }
 
 export async function purchaseHeroBoostAction(eventId: string): Promise<{
@@ -96,6 +87,8 @@ export async function activateHeroBoostAction(boostId: string): Promise<{ error?
     await activateHeroBoost(boostId, durationDays);
     revalidatePath("/admin");
     revalidatePath("/admin/hero-boosts");
+    revalidatePath("/admin/boosts");
+    revalidatePath("/organizer");
     revalidatePath("/");
     return {};
   } catch (err) {
@@ -116,6 +109,8 @@ export async function cancelHeroBoostAction(boostId: string): Promise<{ error?: 
     await cancelHeroBoost(boostId);
     revalidatePath("/admin");
     revalidatePath("/admin/hero-boosts");
+    revalidatePath("/admin/boosts");
+    revalidatePath("/organizer");
     revalidatePath("/");
     return {};
   } catch (err) {

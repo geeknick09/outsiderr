@@ -1,12 +1,6 @@
 import "server-only";
 
-import { cookies } from "next/headers";
-
-import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
-
-export const DEMO_USER_COOKIE = "outsiderr_demo_user";
-export const DEMO_ORGANIZER_COOKIE = "outsiderr_demo_organizer";
 
 export interface CurrentUser {
   id: string;
@@ -14,38 +8,11 @@ export interface CurrentUser {
   phone: string | null;
   email: string | null;
   isDemo: boolean;
+  birthDate: string | null;
+  interestedTags: string[];
 }
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
-  if (!isSupabaseConfigured()) {
-    const raw = (await cookies()).get(DEMO_USER_COOKIE)?.value;
-    if (!raw) return null;
-    const email = decodeURIComponent(raw);
-    const name = email.split("@")[0] || "Demo Outsider";
-    const id = `demo-${email.toLowerCase()}`;
-    // Track this user in the demo store so admin can see all users
-    const { demoStore } = await import("@/lib/data/demo-store");
-    const store = demoStore();
-    if (!store.users.find((u) => u.id === id)) {
-      store.users.push({
-        id,
-        fullName: name,
-        phone: null,
-        avatarUrl: null,
-        isOrganizer: false,
-        isAdmin: false,
-        createdAt: new Date().toISOString(),
-      });
-    }
-    return {
-      id,
-      name,
-      phone: null,
-      email,
-      isDemo: true,
-    };
-  }
-
   const supabase = await createClient();
   const {
     data: { user },
@@ -54,7 +21,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, phone")
+    .select("full_name, phone, birth_date, interested_tags")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -64,5 +31,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     phone: profile?.phone ?? user.phone ?? null,
     email: user.email ?? null,
     isDemo: false,
+    birthDate: profile?.birth_date ?? null,
+    interestedTags: profile?.interested_tags ?? [],
   };
 }

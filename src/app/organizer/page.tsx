@@ -49,8 +49,7 @@ export default async function OrganizerPage({
   if (!user) redirect("/login?next=%2Forganizer");
 
   // Check if the user has an organizer profile.
-  // Demo mode: the profile is granted after submitting the become-organizer form.
-  // Supabase mode: the profile must exist in the organizers table.
+  // The profile must exist in the organizers table.
   const organizerProfile = await getOrganizerProfile(user);
   if (!organizerProfile) {
     return (

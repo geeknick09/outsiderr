@@ -1,20 +1,13 @@
 import "server-only";
 
-import { DEMO_ORGANIZERS } from "@/lib/data/demo-data";
-import { demoStore } from "@/lib/data/demo-store";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 import type { Organizer, EventSummary, PricingMode } from "@/lib/types";
 
 export async function getPublicOrganizer(id: string): Promise<Organizer | null> {
-  if (!isSupabaseConfigured()) {
-    return Object.values(DEMO_ORGANIZERS).find((org) => org.id === id) ?? null;
-  }
-
   const supabase = await createClient();
   const { data } = await supabase
     .from("organizers")
-    .select("id, name, bio, avatar_url, upi_id, upi_qr_url, verified")
+    .select("id, name, bio, avatar_url, cover_url, instagram_url, upi_id, upi_qr_url, verified")
     .eq("id", id)
     .single();
 
@@ -24,6 +17,8 @@ export async function getPublicOrganizer(id: string): Promise<Organizer | null> 
     name: data.name,
     bio: data.bio,
     avatarUrl: data.avatar_url,
+    coverUrl: (data as { cover_url?: string | null }).cover_url ?? null,
+    instagramUrl: (data as { instagram_url?: string | null }).instagram_url ?? null,
     upiId: data.upi_id,
     upiQrUrl: data.upi_qr_url,
     verified: data.verified,
@@ -33,26 +28,6 @@ export async function getPublicOrganizer(id: string): Promise<Organizer | null> 
 export async function listPublicOrganizerEvents(
   organizerId: string,
 ): Promise<EventSummary[]> {
-  if (!isSupabaseConfigured()) {
-    return demoStore()
-      .events.filter((ev) => ev.organizer.id === organizerId)
-      .map((ev) => ({
-        id: ev.id,
-        title: ev.title,
-        category: ev.category,
-        city: ev.city,
-        venueName: ev.venueName,
-        startsAt: ev.startsAt,
-        cardPosterUrl: ev.cardPosterUrl,
-        bannerPosterUrl: ev.bannerPosterUrl,
-        minPricePaise: ev.tiers.length ? Math.min(...ev.tiers.map((t) => t.pricePaise)) : 0,
-        isFeatured: ev.isFeatured,
-        registrationsCount: ev.registrationsCount,
-        tags: ev.tags ?? [],
-        pricingMode: ev.pricingMode ?? "PAID",
-      }));
-  }
-
   const supabase = await createClient();
   const { data: events } = await supabase
     .from("events")

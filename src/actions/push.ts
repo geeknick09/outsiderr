@@ -1,7 +1,6 @@
 "use server";
 
 import { getCurrentUser } from "@/lib/auth";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 
 export async function subscribePushAction(subscription: {
@@ -11,8 +10,6 @@ export async function subscribePushAction(subscription: {
 }): Promise<void> {
   const user = await getCurrentUser();
   if (!user) return;
-  // Demo mode: no persistence
-  if (!isSupabaseConfigured()) return;
 
   const supabase = await createClient();
   await supabase.from("push_subscriptions").upsert(
@@ -29,7 +26,6 @@ export async function subscribePushAction(subscription: {
 export async function unsubscribePushAction(endpoint: string): Promise<void> {
   const user = await getCurrentUser();
   if (!user) return;
-  if (!isSupabaseConfigured()) return;
 
   const supabase = await createClient();
   await supabase

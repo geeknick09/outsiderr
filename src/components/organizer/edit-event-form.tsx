@@ -287,7 +287,12 @@ export function EditEventForm({ event }: { event: EventDetail }) {
         <span className="text-xs font-semibold uppercase tracking-wide text-muted">
           Event gallery
         </span>
-        <GalleryUploader name="photoUrls[]" initialUrls={event.photoUrls ?? []} />
+        <GalleryUploader
+          name="photoUrls[]"
+          initialUrls={event.photoUrls ?? []}
+          organizerName={event.organizer.name}
+          eventTitle={event.title}
+        />
       </div>
 
       {/* Contact details */}
@@ -311,6 +316,15 @@ export function EditEventForm({ event }: { event: EventDetail }) {
           />
         </Field>
       </div>
+
+      <Field label="Instagram URL (optional)">
+        <input
+          name="instagramUrl"
+          defaultValue={event.instagramUrl ?? ""}
+          placeholder="https://instagram.com/yourevent"
+          className={INPUT}
+        />
+      </Field>
 
       {/* Ticket tier editing — dynamic add/remove */}
       <div className="space-y-3">

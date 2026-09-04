@@ -25,6 +25,8 @@ export async function createOrganizerAction(
   const bio = String(formData.get("bio") ?? "").trim();
   const upiId = String(formData.get("upiId") ?? "").trim();
   const avatarUrl = String(formData.get("avatarUrl") ?? "").trim() || null;
+  const coverUrl = String(formData.get("coverUrl") ?? "").trim() || null;
+  const instagramUrl = String(formData.get("instagramUrl") ?? "").trim() || null;
   const panNumber = String(formData.get("panNumber") ?? "").trim().toUpperCase();
   const panName = String(formData.get("panName") ?? "").trim();
   const gstNumber = String(formData.get("gstNumber") ?? "").trim().toUpperCase();
@@ -56,7 +58,7 @@ export async function createOrganizerAction(
 
   try {
     await createOrganizerProfile(user, {
-      name, bio, upiId, avatarUrl,
+      name, bio, upiId, avatarUrl, coverUrl, instagramUrl,
       panNumber, panName,
       gstNumber, gstBusinessName,
       bankAccountNumber, bankIfsc, bankAccountName, bankAccountType,
@@ -83,12 +85,14 @@ export async function updateOrganizerAction(
   const bio = String(formData.get("bio") ?? "").trim();
   const upiId = String(formData.get("upiId") ?? "").trim();
   const avatarUrl = String(formData.get("avatarUrl") ?? "").trim() || null;
+  const coverUrl = String(formData.get("coverUrl") ?? "").trim() || null;
+  const instagramUrl = String(formData.get("instagramUrl") ?? "").trim() || null;
 
   if (!name) return { error: "Enter your organizer name." };
   if (!upiId) return { error: "Enter a UPI ID so attendees can pay you." };
 
   try {
-    await updateOrganizerProfile(user, { name, bio, upiId, avatarUrl });
+    await updateOrganizerProfile(user, { name, bio, upiId, avatarUrl, coverUrl, instagramUrl });
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Could not update organizer profile.",

@@ -4,8 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/lib/auth";
-import { createEvent, updateEvent, type TicketTierInput } from "@/lib/data/organizer";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { createEvent, updateEvent, updateEventStatus, type TicketTierInput } from "@/lib/data/organizer";
 import type { City, EventCategory, FeePayer, PricingMode } from "@/lib/types";
 
 export interface CreateEventState {
@@ -40,6 +39,7 @@ export interface CreateEventState {
     photoUrls: string[];
     contactEmail: string;
     contactPhone: string;
+    instagramUrl: string;
   };
 }
 
@@ -111,7 +111,29 @@ function extractFormValues(formData: FormData): CreateEventState["values"] {
     photoUrls: formData.getAll("photoUrls").map(String).filter(Boolean),
     contactEmail: String(formData.get("contactEmail") ?? ""),
     contactPhone: String(formData.get("contactPhone") ?? ""),
+    instagramUrl: String(formData.get("instagramUrl") ?? ""),
   };
+}
+
+function parsePhases(formData: FormData): TicketTierInput[] {
+  const names = formData.getAll("phaseName").map(String);
+  const prices = formData.getAll("phasePrice").map(String);
+  const quantities = formData.getAll("phaseQuantity").map(String);
+  const opensAtList = formData.getAll("phaseOpensAt").map(String);
+  const closesAtList = formData.getAll("phaseClosesAt").map(String);
+
+  return names
+    .map((name, index) => ({
+      name: name.trim(),
+      pricePaise: Math.round(Number(prices[index] ?? 0) * 100),
+      quantity: Number(quantities[index] ?? 0),
+      perks: [],
+      tierType: "FLAT_PHASE" as const,
+      phaseOrder: index + 1,
+      phaseOpensAt: opensAtList[index] ? new Date(opensAtList[index]).toISOString() : null,
+      phaseClosesAt: closesAtList[index] ? new Date(closesAtList[index]).toISOString() : null,
+    }))
+    .filter((phase) => phase.name.length > 0 && phase.quantity > 0);
 }
 
 function buildTiers(formData: FormData, pricingMode: PricingMode): TicketTierInput[] {
@@ -124,6 +146,12 @@ function buildTiers(formData: FormData, pricingMode: PricingMode): TicketTierInp
     const price = Number(formData.getAll("tierPrice")[0] ?? 0);
     const qty = Number(formData.getAll("tierQuantity")[0] ?? 0);
     return [{ name: "Entry", pricePaise: Math.round(price * 100), quantity: qty, perks: [] }];
+  }
+
+  if (pricingMode === "PHASED") {
+    const phases = parsePhases(formData);
+    const namedTiers = parseTiers(formData).map((t) => ({ ...t, tierType: "NAMED" as const }));
+    return [...phases, ...namedTiers];
   }
 
   return parseTiers(formData);
@@ -248,6 +276,7 @@ export async function createEventAction(
       photoUrls: formData.getAll("photoUrls").map(String).filter(Boolean),
       contactEmail: String(formData.get("contactEmail") ?? "").trim() || null,
       contactPhone: String(formData.get("contactPhone") ?? "").trim() || null,
+      instagramUrl: String(formData.get("instagramUrl") ?? "").trim() || null,
     });
 
     // Create door staff order if requested
@@ -271,17 +300,13 @@ export async function createEventAction(
       const organizer = await getOrganizerProfile(user);
 
       if (organizer) {
-        if (!isSupabaseConfigured()) {
-          // Demo mode: no-op (no persistent storage)
-        } else {
-          const supabase = await createClient();
-          await supabase.from("event_terms_acceptances").insert({
-            organizer_id: organizer.id,
-            event_id: eventId,
-            terms_version: termsVersion,
-            accepted_at: new Date().toISOString(),
-          });
-        }
+        const supabase = await createClient();
+        await supabase.from("event_terms_acceptances").insert({
+          organizer_id: organizer.id,
+          event_id: eventId,
+          terms_version: termsVersion,
+          accepted_at: new Date().toISOString(),
+        });
       }
     } catch {
       // T&C acceptance logging is best-effort — don't fail the event creation
@@ -369,6 +394,7 @@ export async function updateEventAction(
       photoUrls: formData.getAll("photoUrls[]").map(String).filter(Boolean),
       contactEmail: String(formData.get("contactEmail") ?? "").trim() || null,
       contactPhone: String(formData.get("contactPhone") ?? "").trim() || null,
+      instagramUrl: String(formData.get("instagramUrl") ?? "").trim() || null,
     });
   } catch (error) {
     return {
@@ -406,6 +432,20 @@ export async function cancelEventAction(formData: FormData): Promise<void> {
   revalidatePath("/organizer");
   revalidatePath(`/events/${eventId}`);
   redirect(`/organizer/events/${eventId}`);
+}
+
+/**
+ * Publish a draft event (POST-based server action — not GET).
+ * Replaces the old GET-based `?action=publish` query param.
+ */
+export async function publishEventAction(eventId: string): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Not authenticated.");
+  await updateEventStatus(user, eventId, "PUBLISHED");
+  revalidatePath("/");
+  revalidatePath("/organizer");
+  revalidatePath(`/events/${eventId}`);
+  revalidatePath(`/organizer/events/${eventId}`);
 }
 
 // ---------------------------------------------------------------------------
