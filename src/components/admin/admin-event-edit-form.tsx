@@ -148,7 +148,7 @@ export function AdminEventEditForm({
           <input
             type="datetime-local"
             required
-            min={new Date().toISOString().slice(0, 16)}
+            min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
             value={form.startsAt}
             onChange={(e) => setForm({ ...form, startsAt: e.target.value })}
             className={INPUT}
@@ -159,7 +159,7 @@ export function AdminEventEditForm({
           <input
             type="datetime-local"
             required
-            min={form.startsAt || new Date().toISOString().slice(0, 16)}
+            min={form.startsAt || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
             value={form.endsAt}
             onChange={(e) => setForm({ ...form, endsAt: e.target.value })}
             className={INPUT}

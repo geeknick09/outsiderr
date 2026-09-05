@@ -5,6 +5,7 @@ import { Upload } from "lucide-react";
 
 import { submitPaymentAction, type CheckoutState } from "@/actions/orders";
 import { Button } from "@/components/ui/button";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { uploadPublicFile } from "@/lib/upload";
 
 const INPUT =
@@ -67,13 +68,7 @@ export function CheckoutForm({
           <span className="text-xs font-semibold uppercase tracking-wide text-muted">
             Phone
           </span>
-          <input
-            name="buyerPhone"
-            defaultValue={defaultPhone}
-            inputMode="tel"
-            required
-            className={INPUT}
-          />
+          <PhoneInput name="buyerPhone" defaultValue={defaultPhone} required />
           <span className="block text-xs text-amber-600 dark:text-amber-400">
             Please provide a correct phone number. The organizer may contact you for event details. Outsiderr is not responsible if the phone number you provide is incorrect.
           </span>

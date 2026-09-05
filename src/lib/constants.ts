@@ -65,7 +65,7 @@ export const PREDEFINED_EVENT_TAGS: string[] = [
   // Fitness / Run
   "Run Club", "5K", "10K", "Marathon", "Walkathon", "Trail Run",
   // Gig / Jam
-  "Live Music", "DJ Set", "Open Decks", "Electronic", "Acoustic",
+  "Live Music", "DJ Set", "Open Decks",
   // Workshop
-  "Workshop", "Masterclass", "Photo Walk",
+  "Workshop", "Masterclass",
 ];

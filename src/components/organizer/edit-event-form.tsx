@@ -8,6 +8,7 @@ import { updateEventAction, type UpdateEventState } from "@/actions/events";
 import { GalleryUploader } from "@/components/organizer/gallery-uploader";
 import { TagPicker } from "@/components/organizer/event-form";
 import { Button } from "@/components/ui/button";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { CATEGORIES, CITIES } from "@/lib/constants";
 import { isGoogleMapsLink } from "@/lib/upi";
 import type { EventDetail } from "@/lib/types";
@@ -56,7 +57,7 @@ export function EditEventForm({ event }: { event: EventDetail }) {
   const [lng, setLng] = useState(event.longitude ? String(event.longitude) : "");
 
   // "Now" in local datetime-local format for min attributes
-  const nowLocal = new Date().toISOString().slice(0, 16);
+  const nowLocal = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 
   // Tier state
   const [tiers, setTiers] = useState<EditableTier[]>(
@@ -372,13 +373,7 @@ export function EditEventForm({ event }: { event: EventDetail }) {
           />
         </Field>
         <Field label="Contact phone (for attendee queries)">
-          <input
-            name="contactPhone"
-            type="tel"
-            defaultValue={event.contactPhone ?? ""}
-            placeholder="+91 98765 43210"
-            className={INPUT}
-          />
+          <PhoneInput name="contactPhone" defaultValue={event.contactPhone ?? ""} />
         </Field>
       </div>
 

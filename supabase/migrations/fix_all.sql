@@ -1044,6 +1044,8 @@ end $$;
 -- Atomic offer_waitlist_next RPC (returns the offered row so app can
 -- create a notification). Uses SELECT FOR UPDATE to prevent race.
 -- ----------------------------------------------------------------
+-- Must DROP first because we're changing the return type from void to waitlist
+drop function if exists public.offer_waitlist_next(uuid);
 create or replace function public.offer_waitlist_next(p_tier_id uuid)
 returns public.waitlist
 language plpgsql

@@ -33,6 +33,15 @@ export async function submitPaymentAction(
     return { error: "Please sign in to continue." };
   }
 
+  // Validate phone number — must be +91 followed by exactly 10 digits
+  const buyerPhone = String(formData.get("buyerPhone") ?? "").trim();
+  if (buyerPhone) {
+    const phoneDigits = buyerPhone.replace(/^\+91/, "").replace(/\D/g, "");
+    if (phoneDigits.length !== 10) {
+      return { error: "Please enter a valid 10-digit Indian phone number." };
+    }
+  }
+
   // Free events: skip UTR, auto-confirm
   if (isFree) {
     try {

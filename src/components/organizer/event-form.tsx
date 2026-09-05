@@ -6,6 +6,7 @@ import { MapPin, Plus, ShieldCheck, Trash2, Upload, Users } from "lucide-react";
 
 import { createEventAction, type CreateEventState } from "@/actions/events";
 import { Button } from "@/components/ui/button";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { GalleryUploader } from "@/components/organizer/gallery-uploader";
 import { CATEGORIES, CITIES, PREDEFINED_EVENT_TAGS } from "@/lib/constants";
 import { uploadPublicFile } from "@/lib/upload";
@@ -158,7 +159,7 @@ export function EventForm({
   ]);
 
   // "Now" in local datetime-local format (YYYY-MM-DDTHH:mm) for min attributes
-  const nowLocal = new Date().toISOString().slice(0, 16);
+  const nowLocal = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   const [phaseError, setPhaseError] = useState<string | null>(null);
 
   function validatePhases(rows: PhaseRow[]) {
@@ -486,13 +487,7 @@ export function EventForm({
             />
           </Field>
           <Field label="Contact phone (for attendee queries)">
-            <input
-              name="contactPhone"
-              type="tel"
-              defaultValue={sv?.contactPhone ?? ""}
-              placeholder="+91 98765 43210"
-              className={INPUT}
-            />
+            <PhoneInput name="contactPhone" defaultValue={sv?.contactPhone ?? ""} />
           </Field>
         </div>
 

@@ -6,12 +6,13 @@ import { Check, Upload } from "lucide-react";
 import { updateProfileAction } from "@/actions/profile";
 import { Button } from "@/components/ui/button";
 import { ImageUploadWithCrop } from "@/components/ui/image-cropper";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { PREDEFINED_EVENT_TAGS } from "@/lib/constants";
 import { uploadPublicFile } from "@/lib/upload";
 import { cn } from "@/lib/utils";
 
 const INPUT =
-  "w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white";
+  "w-full box-border rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white";
 
 export function EditProfileForm({
   initialName,
@@ -128,13 +129,7 @@ export function EditProfileForm({
             <span className="text-xs font-semibold uppercase tracking-wide text-muted">
               Phone
             </span>
-            <input
-              name="phone"
-              type="tel"
-              defaultValue={initialPhone}
-              placeholder="+91 98765 43210"
-              className={INPUT}
-            />
+            <PhoneInput name="phone" defaultValue={initialPhone} />
           </label>
           <label className="block space-y-1.5">
             <span className="text-xs font-semibold uppercase tracking-wide text-muted">
@@ -156,9 +151,9 @@ export function EditProfileForm({
           <input
             name="birthDate"
             type="date"
-            max={new Date().toISOString().slice(0, 10)}
+            max={new Date().toLocaleDateString("en-CA")}
             defaultValue={initialBirthDate}
-            className={INPUT}
+            className={`${INPUT} box-border overflow-hidden`}
           />
         </label>
 
