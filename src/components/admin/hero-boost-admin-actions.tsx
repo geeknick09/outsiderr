@@ -1,14 +1,13 @@
 "use client";
 
 import { useActionState } from "react";
-import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { CheckCircle2, XCircle } from "lucide-react";
 
 import {
   activateHeroBoostAction,
   cancelHeroBoostAction,
 } from "@/actions/hero-boosts";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import type { HeroBoostWithEvent } from "@/lib/types";
 
 export function HeroBoostAdminActions({ boost }: { boost: HeroBoostWithEvent }) {
@@ -32,17 +31,25 @@ export function HeroBoostAdminActions({ boost }: { boost: HeroBoostWithEvent }) 
       <div className="flex flex-wrap items-center gap-2">
         <form action={activateAction}>
           <input type="hidden" name="boostId" value={boost.id} />
-          <Button type="submit" size="sm" variant="secondary">
+          <SubmitButton
+            variant="secondary"
+            size="sm"
+            loadingText="Activating…"
+          >
             <CheckCircle2 className="h-4 w-4 text-lime-neon" />
             Verify &amp; Activate
-          </Button>
+          </SubmitButton>
         </form>
         <form action={cancelAction}>
           <input type="hidden" name="boostId" value={boost.id} />
-          <Button type="submit" size="sm" variant="secondary">
+          <SubmitButton
+            variant="secondary"
+            size="sm"
+            loadingText="Rejecting…"
+          >
             <XCircle className="h-4 w-4 text-red-500" />
             Reject
-          </Button>
+          </SubmitButton>
         </form>
         {activateState?.error ? (
           <span className="text-xs text-red-500">{activateState.error}</span>
@@ -59,10 +66,14 @@ export function HeroBoostAdminActions({ boost }: { boost: HeroBoostWithEvent }) 
       <div className="flex flex-wrap items-center gap-2">
         <form action={cancelAction}>
           <input type="hidden" name="boostId" value={boost.id} />
-          <Button type="submit" size="sm" variant="secondary">
+          <SubmitButton
+            variant="secondary"
+            size="sm"
+            loadingText="Cancelling…"
+          >
             <XCircle className="h-4 w-4 text-red-500" />
             Cancel Boost
-          </Button>
+          </SubmitButton>
         </form>
         {cancelState?.error ? (
           <span className="text-xs text-red-500">{cancelState.error}</span>

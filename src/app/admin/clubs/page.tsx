@@ -1,5 +1,6 @@
 import { adminApproveClubAction, adminRejectClubAction } from "@/actions/admin";
 import { Badge } from "@/components/ui/badge";
+import { ActionButton } from "@/components/ui/submit-button";
 import { listClubs, listPendingClubs } from "@/lib/data/clubs";
 import { CITY_LABELS } from "@/lib/constants";
 import { formatDateTime } from "@/lib/format";
@@ -63,26 +64,28 @@ export default async function AdminClubsPage() {
               </div>
               <div className="flex gap-2">
                 <form>
-                  <button
+                  <ActionButton
                     formAction={async () => {
                       "use server";
                       await adminApproveClubAction(club.id);
                     }}
-                    className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-muted hover:border-lime-400 hover:text-lime-600 dark:border-white/10"
+                    loadingText="…"
+                    className="border-zinc-200 px-3 py-1.5 font-semibold text-muted hover:border-lime-400 hover:text-lime-600 dark:border-white/10"
                   >
                     Approve
-                  </button>
+                  </ActionButton>
                 </form>
                 <form>
-                  <button
+                  <ActionButton
                     formAction={async () => {
                       "use server";
                       await adminRejectClubAction(club.id);
                     }}
-                    className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-muted hover:border-red-400 hover:text-red-500 dark:border-white/10"
+                    loadingText="…"
+                    className="border-zinc-200 px-3 py-1.5 font-semibold text-muted hover:border-red-400 hover:text-red-500 dark:border-white/10"
                   >
                     Reject
-                  </button>
+                  </ActionButton>
                 </form>
               </div>
             </div>
@@ -110,15 +113,16 @@ export default async function AdminClubsPage() {
                 </p>
               </div>
               <form>
-                <button
+                <ActionButton
                   formAction={async () => {
                     "use server";
                     await adminRejectClubAction(club.id);
                   }}
-                  className="rounded-lg border border-zinc-200 px-2.5 py-1 text-xs text-muted hover:border-red-400 hover:text-red-500 dark:border-white/10"
+                  loadingText="…"
+                  className="border-zinc-200 text-muted hover:border-red-400 hover:text-red-500 dark:border-white/10"
                 >
                   Unpublish
-                </button>
+                </ActionButton>
               </form>
             </div>
           ))

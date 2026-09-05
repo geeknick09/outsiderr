@@ -7,6 +7,7 @@ import {
 } from "@/actions/admin";
 import { AdminEventEditForm } from "@/components/admin/admin-event-edit-form";
 import { Badge } from "@/components/ui/badge";
+import { ActionButton } from "@/components/ui/submit-button";
 import { listAllAdminEvents } from "@/lib/data/admin";
 import { CATEGORY_LABELS, CITY_LABELS } from "@/lib/constants";
 import { formatDateTime } from "@/lib/format";
@@ -93,59 +94,63 @@ export default async function AdminEventsPage({
 
                 {event.status === "PUBLISHED" ? (
                   <form>
-                    <button
+                    <ActionButton
                       formAction={async () => {
                         "use server";
                         await adminToggleFeaturedAction(event.id, !event.isFeatured);
                       }}
+                      loadingText="…"
                       className={cn(
-                        "rounded-lg border px-2.5 py-1 text-xs",
+                        "border px-2.5 py-1",
                         event.isFeatured
                           ? "border-amber-400/50 text-amber-600 hover:border-amber-400"
                           : "border-zinc-200 text-muted hover:border-lime-400 hover:text-lime-600 dark:border-white/10",
                       )}
                     >
                       {event.isFeatured ? "Unfeature" : "Feature"}
-                    </button>
+                    </ActionButton>
                   </form>
                 ) : null}
 
                 {event.status === "PUBLISHED" ? (
                   <form>
-                    <button
+                    <ActionButton
                       formAction={async () => {
                         "use server";
                         await adminUpdateEventStatusAction(event.id, "CANCELLED");
                       }}
-                      className="rounded-lg border border-zinc-200 px-2.5 py-1 text-xs text-muted hover:border-red-400 hover:text-red-500 dark:border-white/10"
+                      loadingText="…"
+                      className="border-zinc-200 text-muted hover:border-red-400 hover:text-red-500 dark:border-white/10"
                     >
                       Cancel
-                    </button>
+                    </ActionButton>
                   </form>
                 ) : event.status === "CANCELLED" ? (
                   <form>
-                    <button
+                    <ActionButton
                       formAction={async () => {
                         "use server";
                         await adminUpdateEventStatusAction(event.id, "PUBLISHED");
                       }}
-                      className="rounded-lg border border-zinc-200 px-2.5 py-1 text-xs text-muted hover:border-lime-400 hover:text-lime-600 dark:border-white/10"
+                      loadingText="…"
+                      className="border-zinc-200 text-muted hover:border-lime-400 hover:text-lime-600 dark:border-white/10"
                     >
                       Re-publish
-                    </button>
+                    </ActionButton>
                   </form>
                 ) : null}
 
                 <form>
-                  <button
+                  <ActionButton
                     formAction={async () => {
                       "use server";
                       await adminDeleteEventAction(event.id);
                     }}
-                    className="rounded-lg border border-zinc-200 px-2.5 py-1 text-xs text-muted hover:border-red-400 hover:text-red-500 dark:border-white/10"
+                    loadingText="…"
+                    className="border-zinc-200 text-muted hover:border-red-400 hover:text-red-500 dark:border-white/10"
                   >
                     Delete
-                  </button>
+                  </ActionButton>
                 </form>
               </div>
             </div>

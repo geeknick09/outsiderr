@@ -12,6 +12,7 @@ import { HeroBoostPanel } from "@/components/organizer/hero-boost-panel";
 import { ShareButton } from "@/components/events/share-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { getCurrentUser } from "@/lib/auth";
 import { getEvent } from "@/lib/data/events";
 import { getDoorStaffOrder } from "@/lib/data/door-staff";
@@ -135,15 +136,16 @@ export default async function ManageEventPage({
         )}
         {event.status === "DRAFT" && !eventPast ? (
           <form>
-            <button
+            <SubmitButton
               formAction={async () => {
                 "use server";
                 await publishEventAction(event.id);
               }}
+              loadingText="Publishing…"
               className="rounded-2xl bg-neon-gradient px-5 py-2.5 text-sm font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90"
             >
               Publish event
-            </button>
+            </SubmitButton>
           </form>
         ) : null}
       </div>

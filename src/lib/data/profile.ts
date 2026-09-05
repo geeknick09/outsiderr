@@ -39,7 +39,6 @@ export async function updateUserProfile(
   user: CurrentUser,
   input: UpdateProfileInput,
 ): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const update: Record<string, string | string[] | null> = {};
   if (input.fullName !== undefined) update.full_name = input.fullName;
   if (input.phone !== undefined) update.phone = input.phone;

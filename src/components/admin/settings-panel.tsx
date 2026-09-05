@@ -242,9 +242,16 @@ function SettingsSection({
                   type="button"
                   onClick={() => handleSave(field.key)}
                   disabled={isSaving}
-                  className="text-xs font-semibold text-violet-neon hover:underline disabled:opacity-50"
+                  className="flex items-center gap-1 text-xs font-semibold text-violet-neon hover:underline disabled:opacity-50"
                 >
-                  {isSaving ? "Saving…" : "Save"}
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Saving…
+                    </>
+                  ) : (
+                    "Save"
+                  )}
                 </button>
               ) : null}
               {setting?.description ? (

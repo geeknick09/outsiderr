@@ -162,8 +162,8 @@ export function EditProfileForm({
         <p className="text-sm text-red-500">{state.error}</p>
       ) : null}
 
-      <Button type="submit" size="lg" disabled={pending} className="w-full">
-        {pending ? "Saving…" : "Save profile"}
+      <Button type="submit" size="lg" disabled={pending} className="w-full" loading={pending} loadingText="Saving…">
+        Save profile
       </Button>
     </form>
   );

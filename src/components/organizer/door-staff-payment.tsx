@@ -109,8 +109,8 @@ export function DoorStaffPaymentPanel({
               disabled={submitting}
             />
             {error ? <p className="text-xs text-red-500">{error}</p> : null}
-            <Button type="submit" size="sm" disabled={submitting || !utr.trim()}>
-              {submitting ? "Verifying…" : "Submit UTR"}
+            <Button type="submit" size="sm" disabled={submitting || !utr.trim()} loading={submitting} loadingText="Verifying…">
+              Submit UTR
             </Button>
           </form>
         </div>

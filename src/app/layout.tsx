@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 
 import { Footer } from "@/components/layout/footer";
 import { Navbar } from "@/components/layout/navbar";
+import { NavigationProgress } from "@/components/ui/navigation-progress";
 import { ServiceWorkerRegister } from "@/components/pwa/register-sw";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { getCurrentUser } from "@/lib/auth";
@@ -61,6 +62,7 @@ export default async function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-dvh bg-zinc-50 font-sans text-zinc-900 antialiased dark:bg-ink dark:text-white">
         <ThemeProvider>
+          <NavigationProgress />
           <Navbar />
           <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-6">{children}</main>
           <Footer isOrganizer={isOrganizer} tagline={footerTagline} />

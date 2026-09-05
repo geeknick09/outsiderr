@@ -173,9 +173,9 @@ export function AdminEventEditForm({
       </label>
       {error ? <p className="text-sm text-red-500">{error}</p> : null}
       <div className="flex gap-2">
-        <Button type="button" size="sm" onClick={handleSave} disabled={saving}>
+        <Button type="button" size="sm" onClick={handleSave} disabled={saving} loading={saving} loadingText="Saving…">
           <Check className="h-4 w-4" />
-          {saving ? "Saving…" : "Save"}
+          Save
         </Button>
         <Button type="button" variant="secondary" size="sm" onClick={() => setEditing(false)} disabled={saving}>
           <X className="h-4 w-4" />

@@ -5,6 +5,7 @@ import { AlertTriangle, CalendarClock, X } from "lucide-react";
 
 import { cancelEventAction, postponeEventAction } from "@/actions/events";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import type { EventDetail } from "@/lib/types";
 
 const INPUT =
@@ -136,9 +137,9 @@ export function CancelPostponeButtons({
                 >
                   Keep event
                 </Button>
-                <Button type="submit" variant="danger" size="sm">
+                <SubmitButton variant="danger" size="sm" loadingText="Cancelling…">
                   Yes, cancel event
-                </Button>
+                </SubmitButton>
               </div>
             </form>
           </div>
@@ -226,9 +227,9 @@ export function CancelPostponeButtons({
                 >
                   Cancel
                 </Button>
-                <Button type="submit" size="sm" disabled={!!postponeError}>
+                <SubmitButton size="sm" disabled={!!postponeError} loadingText="Postponing…">
                   Postpone event
-                </Button>
+                </SubmitButton>
               </div>
             </form>
           </div>

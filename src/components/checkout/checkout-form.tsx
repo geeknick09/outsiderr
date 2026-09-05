@@ -149,12 +149,8 @@ export function CheckoutForm({
 
       {state.error ? <p className="text-sm text-red-500">{state.error}</p> : null}
 
-      <Button type="submit" size="lg" className="w-full" disabled={pending || uploading}>
-        {pending
-          ? "Submitting…"
-          : isFree
-            ? "Confirm RSVP"
-            : "I've paid — submit for verification"}
+      <Button type="submit" size="lg" className="w-full" disabled={pending || uploading} loading={pending} loadingText={isFree ? "Confirming…" : "Submitting…"}>
+        {isFree ? "Confirm RSVP" : "I've paid — submit for verification"}
       </Button>
       <p className="text-center text-xs text-muted">
         {isFree ? (

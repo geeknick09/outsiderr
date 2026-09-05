@@ -116,10 +116,12 @@ export function DoorStaffRequest({
         type="button"
         onClick={handleSubmit}
         disabled={submitting || !termsChecked}
+        loading={submitting}
+        loadingText="Requesting…"
         className="w-full"
       >
         <Users className="h-4 w-4" />
-        {submitting ? "Requesting…" : `Request ${staffCount} door staff`}
+        Request {staffCount} door staff
       </Button>
     </div>
   );

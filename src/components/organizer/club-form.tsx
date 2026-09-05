@@ -184,9 +184,9 @@ export function ClubForm() {
 
       {state.error ? <p className="text-sm text-red-500">{state.error}</p> : null}
 
-      <Button type="submit" size="lg" className="w-full" disabled={pending}>
+      <Button type="submit" size="lg" className="w-full" disabled={pending} loading={pending} loadingText="Creating…">
         <Plus className="h-4 w-4" />
-        {pending ? "Creating…" : "Create Club"}
+        Create Club
       </Button>
     </form>
   );

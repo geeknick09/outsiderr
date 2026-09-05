@@ -5,7 +5,7 @@ import Image from "next/image";
 
 import { approveOrderAction, rejectOrderAction } from "@/actions/orders";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Modal } from "@/components/ui/modal";
 import { formatPaise } from "@/lib/format";
 import type { Order } from "@/lib/types";
@@ -70,9 +70,9 @@ export function VerificationQueue({ orders }: { orders: Order[] }) {
                   <div className="flex gap-2">
                     <form action={approveOrderAction}>
                       <input type="hidden" name="orderId" value={order.id} />
-                      <Button type="submit" size="sm">
+                      <SubmitButton size="sm" loadingText="Approving…">
                         Approve
-                      </Button>
+                      </SubmitButton>
                     </form>
                     <form action={rejectOrderAction}>
                       <input type="hidden" name="orderId" value={order.id} />
@@ -81,9 +81,9 @@ export function VerificationQueue({ orders }: { orders: Order[] }) {
                         name="reason"
                         value="Payment could not be verified."
                       />
-                      <Button type="submit" size="sm" variant="danger">
+                      <SubmitButton size="sm" variant="danger" loadingText="Rejecting…">
                         Reject
-                      </Button>
+                      </SubmitButton>
                     </form>
                   </div>
                 </td>

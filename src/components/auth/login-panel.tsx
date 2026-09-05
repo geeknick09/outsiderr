@@ -120,14 +120,12 @@ function SupabaseLogin({ next }: { next: string }) {
         size="lg"
         className="w-full"
         disabled={pending || !email || !password}
+        loading={pending}
+        loadingText="Please wait…"
         onClick={handleSubmit}
       >
         <Mail className="h-4 w-4" />
-        {pending
-          ? "Please wait…"
-          : mode === "signin"
-          ? "Sign in"
-          : "Create account"}
+        {mode === "signin" ? "Sign in" : "Create account"}
       </Button>
 
       <p className="text-center text-xs text-muted">

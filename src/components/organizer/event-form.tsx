@@ -899,8 +899,8 @@ export function EventForm({
 
       {state.error ? <p className="text-sm text-red-500">{state.error}</p> : null}
 
-      <Button type="submit" size="lg" disabled={pending || !!dateError || !!mapsError}>
-        {pending ? "Publishing…" : "Publish event"}
+      <Button type="submit" size="lg" disabled={pending || !!dateError || !!mapsError} loading={pending} loadingText="Publishing…">
+        Publish event
       </Button>
     </form>
   );

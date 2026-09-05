@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { AtSign, Check, X } from "lucide-react";
+import { AtSign, Check, Loader2, X } from "lucide-react";
 
 import { acceptMemberAction, rejectMemberAction } from "@/actions/clubs";
 import { Badge } from "@/components/ui/badge";
@@ -108,8 +108,8 @@ function MemberRow({
             onClick={() => startTransition(async () => { await acceptMemberAction(member.id, clubId); })}
             className="flex items-center gap-1 rounded-lg border border-zinc-200 px-2.5 py-1 text-xs text-muted hover:border-lime-400 hover:text-lime-600 disabled:opacity-50 dark:border-white/10"
           >
-            <Check className="h-3.5 w-3.5" />
-            Accept
+            {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+            {pending ? "Accepting…" : "Accept"}
           </button>
           <button
             type="button"
@@ -117,8 +117,8 @@ function MemberRow({
             onClick={() => startTransition(async () => { await rejectMemberAction(member.id, clubId); })}
             className="flex items-center gap-1 rounded-lg border border-zinc-200 px-2.5 py-1 text-xs text-muted hover:border-red-400 hover:text-red-500 disabled:opacity-50 dark:border-white/10"
           >
-            <X className="h-3.5 w-3.5" />
-            Reject
+            {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+            {pending ? "Rejecting…" : "Reject"}
           </button>
         </div>
       ) : (

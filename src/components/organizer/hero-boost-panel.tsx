@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Rocket, CheckCircle2, Clock, XCircle, Loader2 } from "lucide-react";
+import { Rocket, CheckCircle2, Clock, XCircle } from "lucide-react";
 
 import {
   purchaseHeroBoostAction,
@@ -27,14 +27,14 @@ export function HeroBoostPanel({
   platformUpiId: string;
 }) {
   const [utr, setUtr] = useState("");
-  const [purchaseState, purchaseAction] = useActionState(
+  const [purchaseState, purchaseAction, purchasePending] = useActionState(
     async (_prev: { error?: string; boostId?: string } | null, formData: FormData) => {
       const id = String(formData.get("eventId") ?? "");
       return purchaseHeroBoostAction(id);
     },
     null,
   );
-  const [utrState, utrAction] = useActionState(
+  const [utrState, utrAction, utrPending] = useActionState(
     async (_prev: { error?: string } | null, formData: FormData) => {
       const boostId = String(formData.get("boostId") ?? "");
       const utrRef = String(formData.get("utr") ?? "");
@@ -119,7 +119,7 @@ export function HeroBoostPanel({
               ✓ UTR submitted! Your boost will be activated after payment verification.
             </p>
           ) : null}
-          <Button type="submit" size="sm">
+          <Button type="submit" size="sm" loading={utrPending} loadingText="Submitting…">
             Submit UTR
           </Button>
         </form>
@@ -186,7 +186,7 @@ export function HeroBoostPanel({
             ✓ Boost order created! Submit your UTR below to complete payment.
           </p>
         ) : null}
-        <Button type="submit" size="sm">
+        <Button type="submit" size="sm" loading={purchasePending} loadingText="Creating…">
           <Rocket className="h-4 w-4" />
           Feature My Event
         </Button>

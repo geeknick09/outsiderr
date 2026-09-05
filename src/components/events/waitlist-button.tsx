@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { BellRing, X } from "lucide-react";
+import { BellRing, Loader2, X } from "lucide-react";
 
 import { joinWaitlistAction, leaveWaitlistAction } from "@/actions/waitlist";
 import { Button } from "@/components/ui/button";
@@ -51,8 +51,8 @@ export function WaitlistButton({
           onClick={handleLeave}
           className="flex items-center gap-1.5 text-xs text-muted hover:text-red-500 disabled:opacity-50"
         >
-          <X className="h-3.5 w-3.5" />
-          Leave waitlist
+          {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+          {pending ? "Leaving…" : "Leave waitlist"}
         </button>
       </div>
     );
@@ -71,11 +71,13 @@ export function WaitlistButton({
         size="sm"
         variant="secondary"
         disabled={pending}
+        loading={pending}
+        loadingText="Joining…"
         onClick={handleJoin}
         className="w-full"
       >
         <BellRing className="h-3.5 w-3.5" />
-        {pending ? "Joining…" : "Join Waitlist"}
+        Join Waitlist
       </Button>
     </div>
   );

@@ -6,7 +6,7 @@ import { TicketCard } from "@/components/tickets/ticket-card";
 import { getCurrentUser } from "@/lib/auth";
 import { listMyOrders, listMyTickets } from "@/lib/data/orders";
 import { getOrganizerWhatsappNumber } from "@/lib/data/platform-settings";
-import { formatDateTime, formatPaise } from "@/lib/format";
+import { formatPaise } from "@/lib/format";
 import type { OrderStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";

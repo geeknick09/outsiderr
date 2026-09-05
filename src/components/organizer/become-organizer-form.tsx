@@ -519,9 +519,11 @@ export function BecomeOrganizerForm() {
                     type="submit"
                     size="lg"
                     disabled={pending || !agreed}
+                    loading={pending}
+                    loadingText="Creating profile…"
                     className="px-8"
                   >
-                    {pending ? "Creating profile…" : "Submit & Become an Organizer"}
+                    Submit & Become an Organizer
                   </Button>
                 )}
               </div>

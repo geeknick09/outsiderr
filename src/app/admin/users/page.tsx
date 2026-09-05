@@ -1,5 +1,6 @@
 import { adminToggleAdminAction } from "@/actions/admin";
 import { Badge } from "@/components/ui/badge";
+import { ActionButton } from "@/components/ui/submit-button";
 import { listAllAdminUsers } from "@/lib/data/admin";
 import { formatDateTime } from "@/lib/format";
 
@@ -31,15 +32,16 @@ export default async function AdminUsersPage() {
               {user.isAdmin ? <Badge tone="lime">Admin</Badge> : null}
 
               <form>
-                <button
+                <ActionButton
                   formAction={async () => {
                     "use server";
                     await adminToggleAdminAction(user.id, !user.isAdmin);
                   }}
-                  className="rounded-lg border border-zinc-200 px-2.5 py-1 text-xs text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10"
+                  loadingText="…"
+                  className="border-zinc-200 text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10"
                 >
                   {user.isAdmin ? "Remove admin" : "Make admin"}
-                </button>
+                </ActionButton>
               </form>
             </div>
           </div>

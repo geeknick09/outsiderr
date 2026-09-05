@@ -1,6 +1,7 @@
 import { adminApproveOrderAction, adminRejectOrderAction } from "@/actions/admin";
 import { Badge } from "@/components/ui/badge";
 import { BulkApprovePanel } from "@/components/admin/bulk-approve-panel";
+import { ActionButton } from "@/components/ui/submit-button";
 import { listAllAdminOrders } from "@/lib/data/admin";
 import { formatDateTime, formatPaise } from "@/lib/format";
 import type { OrderStatus } from "@/lib/types";
@@ -83,15 +84,16 @@ export default async function AdminOrdersPage({
               {order.status === "PENDING_VERIFICATION" ? (
                 <>
                   <form>
-                    <button
+                    <ActionButton
                       formAction={async () => {
                         "use server";
                         await adminApproveOrderAction(order.id);
                       }}
-                      className="rounded-lg border border-zinc-200 px-2.5 py-1 text-xs text-muted hover:border-lime-400 hover:text-lime-600 dark:border-white/10"
+                      loadingText="…"
+                      className="border-zinc-200 text-muted hover:border-lime-400 hover:text-lime-600 dark:border-white/10"
                     >
                       Approve
-                    </button>
+                    </ActionButton>
                   </form>
                   <form className="flex gap-2">
                     <input
@@ -99,15 +101,16 @@ export default async function AdminOrdersPage({
                       placeholder="Reason (optional)"
                       className="rounded-lg border border-zinc-200 px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5"
                     />
-                    <button
+                    <ActionButton
                       formAction={async (fd) => {
                         "use server";
                         await adminRejectOrderAction(order.id, fd.get("reason") as string ?? "");
                       }}
-                      className="rounded-lg border border-zinc-200 px-2.5 py-1 text-xs text-muted hover:border-red-400 hover:text-red-500 dark:border-white/10"
+                      loadingText="…"
+                      className="border-zinc-200 text-muted hover:border-red-400 hover:text-red-500 dark:border-white/10"
                     >
                       Reject
-                    </button>
+                    </ActionButton>
                   </form>
                 </>
               ) : null}

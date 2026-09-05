@@ -399,8 +399,8 @@ export function EditEventForm({ event }: { event: EventDetail }) {
 
       {state.error ? <p className="text-sm text-red-500">{state.error}</p> : null}
 
-      <Button type="submit" disabled={pending || !!dateError || !!mapsError || !dirty}>
-        {pending ? "Saving…" : "Save changes"}
+      <Button type="submit" disabled={pending || !!dateError || !!mapsError || !dirty} loading={pending} loadingText="Saving…">
+        Save changes
       </Button>
       {!dirty ? (
         <p className="text-xs text-muted">No changes to save.</p>

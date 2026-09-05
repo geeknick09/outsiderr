@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { BellRing, Check, Clock, Sparkles, TrendingUp } from "lucide-react";
+import { BellRing, Check, Clock, Loader2, Sparkles, TrendingUp } from "lucide-react";
 
 import { joinWaitlistAction } from "@/actions/waitlist";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 export function TicketTiers({ event, feeBps }: { event: EventDetail; feeBps?: number }) {
   const router = useRouter();
   const eventIsPast = isPast(event.startsAt);
+  const [navigating, startNavigation] = useTransition();
 
   // Split tiers into phases and named tiers
   const phaseTiers = event.tiers.filter((t) => t.tierType === "FLAT_PHASE");
@@ -59,7 +60,7 @@ export function TicketTiers({ event, feeBps }: { event: EventDetail; feeBps?: nu
           <p className="text-xs font-semibold uppercase tracking-wide text-muted">
             Pricing phases
           </p>
-          {phaseAvailability.map((p, i) => (
+          {phaseAvailability.map((p) => (
             <div
               key={p.tier.id}
               className={cn(
@@ -189,9 +190,14 @@ export function TicketTiers({ event, feeBps }: { event: EventDetail; feeBps?: nu
           <Button
             className="w-full"
             size="lg"
+            disabled={navigating}
+            loading={navigating}
+            loadingText={isFreeEvent ? "Opening RSVP…" : "Opening checkout…"}
             onClick={() =>
-              router.push(
-                `/checkout?event=${event.id}&tier=${selected.id}&qty=1`,
+              startNavigation(() =>
+                router.push(
+                  `/checkout?event=${event.id}&tier=${selected.id}&qty=1`,
+                ),
               )
             }
           >
@@ -259,7 +265,7 @@ function WaitlistJoinRow({
           onClick={handleJoin}
           className="flex items-center gap-1.5 text-xs font-semibold text-violet-neon hover:underline disabled:opacity-50"
         >
-          <BellRing className="h-3.5 w-3.5" />
+          {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BellRing className="h-3.5 w-3.5" />}
           {pending ? "Joining…" : "Join Waitlist"}
         </button>
       )}

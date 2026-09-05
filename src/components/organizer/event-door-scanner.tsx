@@ -197,7 +197,7 @@ export function EventDoorScanner({
           placeholder="Enter ticket hash manually"
           className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 font-mono text-xs outline-none focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white"
         />
-        <Button type="submit" variant="secondary">
+        <Button type="submit" variant="secondary" disabled={validating} loading={validating} loadingText="Checking…">
           Check in
         </Button>
       </form>

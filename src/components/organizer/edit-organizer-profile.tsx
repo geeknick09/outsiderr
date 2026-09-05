@@ -220,10 +220,12 @@ export function EditOrganizerProfile({
             <Button
               type="submit"
               disabled={pending || uploading || (!!upiId && !upiValid)}
+              loading={pending}
+              loadingText="Saving…"
               className="flex-1"
             >
               <Check className="h-4 w-4" />
-              {pending ? "Saving…" : "Save profile"}
+              Save profile
             </Button>
             <Button type="button" variant="secondary" onClick={onClose}>
               Cancel

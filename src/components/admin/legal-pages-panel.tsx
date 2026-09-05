@@ -135,9 +135,9 @@ export function LegalPagesPanel({ pages }: { pages: LegalPage[] }) {
           </label>
           {error ? <p className="text-sm text-red-500">{error}</p> : null}
           <div className="flex gap-2">
-            <Button type="button" onClick={handleSave} disabled={saving}>
+            <Button type="button" onClick={handleSave} loading={saving} loadingText="Creating…">
               <Check className="h-4 w-4" />
-              {saving ? "Creating…" : "Create Page"}
+              Create Page
             </Button>
             <Button type="button" variant="secondary" onClick={cancelEdit}>
               Cancel
@@ -180,9 +180,9 @@ export function LegalPagesPanel({ pages }: { pages: LegalPage[] }) {
               </label>
               {error ? <p className="text-sm text-red-500">{error}</p> : null}
               <div className="flex gap-2">
-                <Button type="button" onClick={handleSave} disabled={saving}>
+                <Button type="button" onClick={handleSave} loading={saving} loadingText="Saving…">
                   <Check className="h-4 w-4" />
-                  {saving ? "Saving…" : "Save"}
+                  Save
                 </Button>
                 <Button type="button" variant="secondary" onClick={cancelEdit}>
                   Cancel

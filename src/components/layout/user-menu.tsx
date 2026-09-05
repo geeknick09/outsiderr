@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { LayoutDashboard, LogOut, Info, Mail, Megaphone, ShieldCheck, Ticket, User } from "lucide-react";
+import { LogOut, Info, Mail, Megaphone, ShieldCheck, Ticket, User } from "lucide-react";
 
 import { signOutAction } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 
 export function UserMenu({
   name,
@@ -75,12 +76,12 @@ export function UserMenu({
               </MenuLink>
             ) : null}
             <form action={signOutAction}>
-              <button
-                type="submit"
+              <SubmitButton
                 className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/10"
+                loadingText="Signing out…"
               >
                 <LogOut className="h-4 w-4" /> Log out
-              </button>
+              </SubmitButton>
             </form>
           </div>
         </>

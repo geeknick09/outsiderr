@@ -1,4 +1,5 @@
-import type { ButtonHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -25,12 +26,19 @@ const SIZES: Record<ButtonSize, string> = {
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
+  loading?: boolean;
+  loadingText?: string;
+  children?: ReactNode;
 }
 
 export function Button({
   variant = "primary",
   size = "md",
   className,
+  loading = false,
+  loadingText,
+  disabled,
+  children,
   ...props
 }: ButtonProps) {
   return (
@@ -43,7 +51,17 @@ export function Button({
         SIZES[size],
         className,
       )}
+      disabled={disabled || loading}
       {...props}
-    />
+    >
+      {loading ? (
+        <>
+          <Loader2 className="h-4 w-4 animate-spin" />
+          {loadingText ?? children}
+        </>
+      ) : (
+        children
+      )}
+    </button>
   );
 }
