@@ -12,6 +12,15 @@ html {
   overscroll-behavior-y: none;
 }
 
+/* Prevent date/datetime inputs from overflowing their containers on mobile */
+input[type="date"],
+input[type="datetime-local"] {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+}
+
 body {
   overscroll-behavior-y: none;
   -webkit-tap-highlight-color: transparent;

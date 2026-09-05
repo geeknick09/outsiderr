@@ -101,7 +101,7 @@ export function EditProfileForm({
   return (
     <form action={formAction} className="space-y-6">
       {/* Personal details */}
-      <section className="glass space-y-4 rounded-3xl p-5">
+      <section className="glass space-y-4 overflow-hidden rounded-3xl p-5">
         <h2 className="text-base font-bold">Personal details</h2>
 
         {/* Profile photo */}
@@ -174,7 +174,8 @@ export function EditProfileForm({
             max={new Date().toLocaleDateString("en-CA")}
             value={birthDate}
             onChange={handleBirthDateChange}
-            className={`${INPUT} box-border overflow-hidden`}
+            className={`${INPUT} box-border w-full`}
+            style={{ maxWidth: "100%" }}
           />
           {birthDateError ? (
             <span className="block text-xs text-red-500">{birthDateError}</span>
@@ -257,7 +258,7 @@ export function EditProfileForm({
       </section>
 
       {/* Interested-in tags */}
-      <section className="glass space-y-4 rounded-3xl p-5">
+      <section className="glass space-y-4 overflow-hidden rounded-3xl p-5">
         <div>
           <h2 className="text-base font-bold">Interested in</h2>
           <p className="mt-1 text-xs text-muted">
