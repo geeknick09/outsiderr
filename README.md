@@ -1,6 +1,10 @@
 # outsiderr
 
-Outsider is an underground event discovery and ticketing platform modeled after modern event discovery UIs (like District.in). It features a dark-mode, media-rich design with sticky category filters, automated location detection, and seamless guest browsing.
+Outsider is a city-first platform for discovering underground culture, extreme sports, hip-hop, and fitness experiences.
+
+From skateboarding, BMX, parkour and climbing to hip-hop sessions, battles, cyphers, dance, strength training and other alternative fitness communities — Outsider brings together the people, events and experiences that exist outside the mainstream.
+
+Unlike traditional event platforms, Outsider is curated. Events are not freely published by external organizers. The Outsider team controls what gets listed, ensuring that every event fits the platform's culture, community and quality standards.
 
 ## Stack
 
