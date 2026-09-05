@@ -29,6 +29,7 @@ function toOrganizer(row: OrganizerRow): Organizer {
     id: row.id,
     name: row.name,
     bio: row.bio,
+    description: (row as { description?: string | null }).description ?? null,
     avatarUrl: row.avatar_url,
     coverUrl: (row as { cover_url?: string | null }).cover_url ?? null,
     instagramUrl: (row as { instagram_url?: string | null }).instagram_url ?? null,

@@ -39,6 +39,7 @@ export function BecomeOrganizerForm() {
   // Step 1 — Profile
   const [orgName, setOrgName] = useState("");
   const [bio, setBio] = useState("");
+  const [description, setDescription] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [coverUrl, setCoverUrl] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
@@ -179,6 +180,7 @@ export function BecomeOrganizerForm() {
             {/* Hidden fields so all data is submitted together on step 5 */}
             <input type="hidden" name="name" value={orgName} />
             <input type="hidden" name="bio" value={bio} />
+            <input type="hidden" name="description" value={description} />
             <input type="hidden" name="avatarUrl" value={avatarUrl} />
             <input type="hidden" name="coverUrl" value={coverUrl} />
             <input type="hidden" name="instagramUrl" value={instagramUrl} />
@@ -211,14 +213,29 @@ export function BecomeOrganizerForm() {
                   </label>
 
                   <label className={LABEL}>
-                    <span className={LABEL_TEXT}>Bio</span>
+                    <span className={LABEL_TEXT}>Bio <span className="normal-case text-zinc-400">(short intro, max 200 chars)</span></span>
                     <textarea
-                      rows={3}
+                      rows={2}
+                      maxLength={200}
                       value={bio}
                       onChange={(e) => setBio(e.target.value)}
-                      placeholder="Tell attendees who you are and what kind of events you run."
+                      placeholder="A one-line intro that appears under your name."
                       className={INPUT}
                     />
+                    <span className="text-right text-[10px] text-muted">{bio.length}/200</span>
+                  </label>
+
+                  <label className={LABEL}>
+                    <span className={LABEL_TEXT}>About <span className="normal-case text-zinc-400">(detailed, max 400 chars)</span></span>
+                    <textarea
+                      rows={4}
+                      maxLength={400}
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Tell attendees who you are, what kind of events you run, your history in the scene, and what makes you different."
+                      className={INPUT}
+                    />
+                    <span className="text-right text-[10px] text-muted">{description.length}/400</span>
                   </label>
 
                   <label className={LABEL}>

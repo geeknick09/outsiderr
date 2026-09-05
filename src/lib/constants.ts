@@ -58,7 +58,7 @@ export const PREDEFINED_EVENT_TAGS: string[] = [
   // Setting
   "Outdoor", "Indoor", "Underground", "Street", "Collab",
   // Cypher / Battle / Rap
-  "Cypher", "Rap Cypher", "Rap Battle", "Dance Battle", "Graffiti Cypher",
+  "Cypher", "Rap Cypher", "Rap Battle", "Rap Concert", "Dance Battle", "Graffiti Cypher",
   "Freestyle", "Open Mic", "Beatbox",
   // Skate / Stunt / MTB
   "Skate", "Street Skate", "BMX", "MTB", "MTB Stunt", "Stunt Riding",

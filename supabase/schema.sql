@@ -101,6 +101,7 @@ create table if not exists public.organizers (
   owner_id            uuid        not null references public.profiles(id) on delete cascade,
   name                text        not null,
   bio                 text,
+  description         text,
   avatar_url          text,
   cover_url           text,
   instagram_url      text,

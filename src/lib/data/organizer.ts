@@ -69,6 +69,7 @@ export async function getOrganizerProfile(
     id: data.id,
     name: data.name,
     bio: data.bio,
+    description: (data as { description?: string | null }).description ?? null,
     avatarUrl: data.avatar_url,
     coverUrl: (data as { cover_url?: string | null }).cover_url ?? null,
     instagramUrl: (data as { instagram_url?: string | null }).instagram_url ?? null,
@@ -593,6 +594,7 @@ export async function deleteEvent(
 export interface CreateOrganizerInput {
   name: string;
   bio: string;
+  description?: string;
   upiId: string;
   avatarUrl: string | null;
   coverUrl: string | null;
@@ -632,6 +634,7 @@ export async function createOrganizerProfile(
       owner_id: user.id,
       name: input.name,
       bio: input.bio || null,
+      description: input.description || null,
       upi_id: input.upiId || null,
       avatar_url: input.avatarUrl,
       cover_url: input.coverUrl,
@@ -680,6 +683,7 @@ export async function createOrganizerProfile(
 export interface UpdateOrganizerInput {
   name: string;
   bio: string;
+  description?: string;
   upiId: string;
   avatarUrl: string | null;
   coverUrl?: string | null;
@@ -710,6 +714,7 @@ export async function updateOrganizerProfile(
   const update: Record<string, string | null> = {
     name: input.name,
     bio: input.bio || null,
+    description: input.description || null,
     upi_id: input.upiId || null,
     avatar_url: input.avatarUrl,
   };

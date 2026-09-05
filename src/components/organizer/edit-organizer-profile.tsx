@@ -27,6 +27,7 @@ export function EditOrganizerProfile({
   );
   const [name, setName] = useState(organizer.name);
   const [bio, setBio] = useState(organizer.bio ?? "");
+  const [description, setDescription] = useState(organizer.description ?? "");
   const [upiId, setUpiId] = useState(organizer.upiId ?? "");
   const [avatarUrl, setAvatarUrl] = useState(organizer.avatarUrl ?? "");
   const [coverUrl, setCoverUrl] = useState(organizer.coverUrl ?? "");
@@ -153,14 +154,30 @@ export function EditOrganizerProfile({
           </label>
 
           <label className="block space-y-1.5">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted">Bio</span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted">Bio <span className="normal-case text-zinc-400">(short intro, max 200 chars)</span></span>
             <textarea
               name="bio"
-              rows={3}
+              rows={2}
+              maxLength={200}
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               className={INPUT}
             />
+            <span className="text-right text-[10px] text-muted">{bio.length}/200</span>
+          </label>
+
+          <label className="block space-y-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted">About <span className="normal-case text-zinc-400">(detailed, max 400 chars)</span></span>
+            <textarea
+              name="description"
+              rows={4}
+              maxLength={400}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Tell attendees who you are, what kind of events you run, your history in the scene."
+              className={INPUT}
+            />
+            <span className="text-right text-[10px] text-muted">{description.length}/400</span>
           </label>
 
           <label className="block space-y-1.5">

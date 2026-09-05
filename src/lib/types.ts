@@ -76,6 +76,7 @@ export interface Organizer {
   id: string;
   name: string;
   bio: string | null;
+  description: string | null;
   avatarUrl: string | null;
   coverUrl: string | null;
   instagramUrl: string | null;

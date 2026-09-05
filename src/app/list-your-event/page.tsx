@@ -2,10 +2,15 @@ import Link from "next/link";
 import { CalendarDays, MapPin, Mic2, Rocket, ScanLine, Shield, TrendingUp, Users, Zap } from "lucide-react";
 
 import { ThemeLogo } from "@/components/layout/theme-logo";
+import { getPlatformFeeBps } from "@/lib/data/platform-settings";
 
 export const metadata = { title: "List Your Event — Outsiderr" };
 
-export default function ListYourEventPage() {
+export const dynamic = "force-dynamic";
+
+export default async function ListYourEventPage() {
+  const feeBps = await getPlatformFeeBps();
+  const feePercent = (feeBps / 100).toFixed(0);
   return (
     <div className="min-h-screen">
       {/* Hero */}
@@ -47,7 +52,7 @@ export default function ListYourEventPage() {
       <section className="border-y border-zinc-200 px-4 py-8 dark:border-white/10">
         <div className="mx-auto grid max-w-4xl grid-cols-2 gap-6 text-center sm:grid-cols-4">
           <Stat value="0%" label="Listing fees" />
-          <Stat value="5%" label="Platform fee (paid events)" />
+          <Stat value={`${feePercent}%`} label="Platform fee (paid events)" />
           <Stat value="Instant" label="QR ticket generation" />
           <Stat value="UPI" label="Direct to your account" />
         </div>
@@ -130,20 +135,23 @@ export default function ListYourEventPage() {
       <section className="px-4 py-16">
         <div className="mx-auto max-w-4xl">
           <h2 className="text-center text-3xl font-black tracking-tight">
-            Built for the underground
+            Built for rawness
           </h2>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             {[
               "Rap cyphers & battles",
               "Skateboard comps",
               "MTB & stunt events",
+              "BMX jams",
               "Run clubs & marathons",
               "Walkathons",
               "Underground gigs & jams",
-              "Workshops & masterclasses",
+              "DJ sets & open decks",
+              "Graffiti cyphers",
+              "Beatbox battles",
               "Dance battles",
+              "Workshops & masterclasses",
               "Block parties",
-              "Any event you want",
             ].map((tag) => (
               <span
                 key={tag}

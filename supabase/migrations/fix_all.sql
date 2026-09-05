@@ -1041,6 +1041,12 @@ do $$ begin
 end $$;
 
 -- ----------------------------------------------------------------
+-- Add description column to organizers (longer bio, up to 400 chars)
+-- bio stays as a short intro (up to 200 chars)
+-- ----------------------------------------------------------------
+alter table public.organizers add column if not exists description text;
+
+-- ----------------------------------------------------------------
 -- Atomic offer_waitlist_next RPC (returns the offered row so app can
 -- create a notification). Uses SELECT FOR UPDATE to prevent race.
 -- ----------------------------------------------------------------

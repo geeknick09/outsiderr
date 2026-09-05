@@ -139,10 +139,20 @@ export default async function PublicOrganizerPage({
               ) : null}
             </div>
             {organizer.bio ? (
-              <p className="mt-1 max-w-xl text-sm text-muted">{organizer.bio}</p>
+              <p className="mt-1 max-w-xl text-sm text-muted line-clamp-2">{organizer.bio}</p>
             ) : null}
           </div>
         </div>
+
+        {/* About / Description section — separate from header, no overlap */}
+        {organizer.description ? (
+          <section className="glass rounded-3xl p-5">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-muted">About</h2>
+            <p className="mt-2 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
+              {organizer.description}
+            </p>
+          </section>
+        ) : null}
 
         {/* Upcoming Events */}
         <section className="space-y-4">
