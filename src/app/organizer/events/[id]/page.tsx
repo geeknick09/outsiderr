@@ -21,7 +21,7 @@ import { getEvent } from "@/lib/data/events";
 import { getDoorStaffOrder } from "@/lib/data/door-staff";
 import { getOrganizerEventAnalytics } from "@/lib/data/organizer";
 import { listEventOrders, listEventTickets } from "@/lib/data/admin";
-import { listEventWaitlist } from "@/lib/data/waitlist";
+import { expireWaitlistOffers, listEventWaitlist } from "@/lib/data/waitlist";
 import { publishEventAction } from "@/actions/events";
 import { getCancellationChargePercent, getPostponementChargePercent, getDoorStaffPricing, getDoorStaffAvailable, getHeroBoostPrice, getHeroBoostDurationDays } from "@/lib/data/platform-settings";
 import { getHeroBoostForEvent } from "@/lib/data/hero-boosts";
@@ -64,6 +64,9 @@ export default async function ManageEventPage({
     listEventTickets(id),
     listEventWaitlist(id),
   ]);
+
+  // Expire stale waitlist offers (best-effort, non-blocking)
+  try { await expireWaitlistOffers(); } catch { /* ignore */ }
 
   if (!event || !analytics) notFound();
 

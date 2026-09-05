@@ -260,11 +260,12 @@ export async function listMyTickets(user: CurrentUser): Promise<Ticket[]> {
     .order("created_at", { ascending: false });
   if (!tickets || tickets.length === 0) return [];
 
-  const [{ data: events }, { data: tiers }] = await Promise.all([
+  const eventIds = [...new Set(tickets.map((ticket) => ticket.event_id))];
+  const [{ data: eventRows }, { data: tiers }] = await Promise.all([
     supabase
       .from("events")
-      .select("id, title, starts_at, venue_name")
-      .in("id", [...new Set(tickets.map((ticket) => ticket.event_id))]),
+      .select("id, title, starts_at, venue_name, contact_email")
+      .in("id", eventIds),
     supabase
       .from("ticket_tiers")
       .select("id, name")
@@ -272,7 +273,7 @@ export async function listMyTickets(user: CurrentUser): Promise<Ticket[]> {
   ]);
 
   return tickets.map((ticket) => {
-    const event = events?.find((candidate) => candidate.id === ticket.event_id);
+    const event = eventRows?.find((candidate) => candidate.id === ticket.event_id);
     return {
       id: ticket.id,
       orderId: ticket.order_id,
@@ -284,6 +285,7 @@ export async function listMyTickets(user: CurrentUser): Promise<Ticket[]> {
       checkedInAt: ticket.checked_in_at,
       startsAt: event?.starts_at ?? new Date().toISOString(),
       venueName: event?.venue_name ?? "",
+      organizerContactEmail: event?.contact_email ?? null,
     };
   });
 }

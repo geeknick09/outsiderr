@@ -1,21 +1,23 @@
-Fix postponed events disappearing from homepage and category chips
+Fix 8 remaining partial items from 31-requirement audit
 
-Root cause: listEvents query filtered with .eq("status", "PUBLISHED")
-only, so POSTPONED events were excluded from the homepage, category
-chips, and search results.
-
-Changes:
-- listEvents now queries .in("status", ["PUBLISHED", "POSTPONED"]) so
-  postponed events appear alongside live events
-- toSummary now maps the status field so the UI can distinguish live
-  vs postponed events
-- EventCard shows a "Postponed" badge (amber) on postponed events
-- Homepage splits upcoming into "live" and "postponed" batches:
-  - Live events appear in Happening Today / Popular / All Events
-  - Postponed events appear in a dedicated "Postponed Events" section
-    with subtitle "New dates announced — stay tuned"
-- Postponed events remain bookable on the event detail page (the
-  starts_at is updated to the new date when postponed)
+1. Date pickers: Added min attributes to edit-event-form phase inputs,
+   cancel-postpone-buttons, admin-event-edit-form, and max on birthdate
+2. Map: Google Maps link is now optional in event-form (label changed
+   from "Google Maps link *" to "Google Maps link (preferred)")
+3. Organizer name: Removed truncate, using break-words so long names
+   wrap instead of being clipped
+4. Quantity safety: Server-side now enforces quantity >= quantitySold
+   in updateEvent, not just client-side min attribute
+5. Sorting: Waitlist and revenue sort now use real analytics data
+   (waitlistCount and grossRevenuePaise) passed via analyticsMap
+6. Waitlist atomicity: autoOfferWaitlist now uses the atomic
+   offer_waitlist_next RPC (SELECT FOR UPDATE) instead of non-atomic
+   JS select-then-update. RPC updated to return the offered row so
+   the app can create a notification. expireWaitlistOffers is now
+   called when organizer opens the event dashboard.
+7. Cancelled ticket: Added "Contact organizer for refund details"
+   mailto link on cancelled ticket cards. Ticket type extended with
+   organizerContactEmail, fetched in listMyTickets.
 
 Generated with [Devin](https://devin.ai)
 

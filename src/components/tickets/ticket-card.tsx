@@ -90,6 +90,14 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
         >
           {expired ? "Event has ended" : cancelled ? "Event cancelled" : void_ ? "Ticket voided" : "Tap to view full ticket"}
         </p>
+        {cancelled && ticket.organizerContactEmail ? (
+          <a
+            href={`mailto:${ticket.organizerContactEmail}`}
+            className="text-center text-xs text-violet-neon underline"
+          >
+            Contact organizer for refund details
+          </a>
+        ) : null}
       </button>
 
       {/* Expanded modal overlay — only for non-expired/non-cancelled tickets */}

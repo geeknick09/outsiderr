@@ -6,7 +6,7 @@ import { ArrowDownUp } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime, isPast } from "@/lib/format";
-import type { EventSummary } from "@/lib/types";
+import type { EventAnalytics, EventSummary } from "@/lib/types";
 
 type SortKey = "date" | "title" | "popularity" | "waitlist" | "revenue";
 
@@ -29,7 +29,13 @@ function getStatusBadge(event: EventSummary) {
   return { tone: "neutral" as const, label: "Draft" };
 }
 
-export function OrganizerEventsList({ events }: { events: EventSummary[] }) {
+export function OrganizerEventsList({
+  events,
+  analyticsMap = {},
+}: {
+  events: EventSummary[];
+  analyticsMap?: Record<string, EventAnalytics>;
+}) {
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortAsc, setSortAsc] = useState(false);
 
@@ -43,12 +49,10 @@ export function OrganizerEventsList({ events }: { events: EventSummary[] }) {
         cmp = a.registrationsCount - b.registrationsCount;
         break;
       case "waitlist":
-        // No waitlist count in EventSummary — fallback to 0 comparison
-        cmp = 0;
+        cmp = (analyticsMap[a.id]?.waitlistCount ?? 0) - (analyticsMap[b.id]?.waitlistCount ?? 0);
         break;
       case "revenue":
-        // Revenue proxy: registrations * minPrice
-        cmp = a.registrationsCount * a.minPricePaise - b.registrationsCount * b.minPricePaise;
+        cmp = (analyticsMap[a.id]?.grossRevenuePaise ?? 0) - (analyticsMap[b.id]?.grossRevenuePaise ?? 0);
         break;
       case "date":
       default:

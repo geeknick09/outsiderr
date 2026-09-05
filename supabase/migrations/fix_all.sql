@@ -1041,5 +1041,38 @@ do $$ begin
 end $$;
 
 -- ----------------------------------------------------------------
+-- Atomic offer_waitlist_next RPC (returns the offered row so app can
+-- create a notification). Uses SELECT FOR UPDATE to prevent race.
+-- ----------------------------------------------------------------
+create or replace function public.offer_waitlist_next(p_tier_id uuid)
+returns public.waitlist
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_next public.waitlist;
+begin
+  select * into v_next
+    from public.waitlist
+   where tier_id = p_tier_id and status = 'WAITING'
+   order by position asc
+   limit 1
+     for update;
+
+  if not found then return null; end if;
+
+  update public.waitlist
+     set status     = 'OFFERED',
+         offered_at = now(),
+         expires_at = now() + interval '24 hours'
+   where id = v_next.id
+  returning * into v_next;
+
+  return v_next;
+end;
+$$;
+
+-- ----------------------------------------------------------------
 -- DONE.
 -- ----------------------------------------------------------------

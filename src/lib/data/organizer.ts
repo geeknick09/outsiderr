@@ -523,6 +523,19 @@ export async function updateEvent(
       if (tier.quantity < 0) {
         throw new Error("Ticket quantity cannot be negative.");
       }
+      // Prevent reducing below already-sold quantity (server-side enforcement)
+      if (tier.id) {
+        const { data: existingTier } = await supabase
+          .from("ticket_tiers")
+          .select("quantity_sold")
+          .eq("id", tier.id)
+          .single();
+        if (existingTier && tier.quantity < existingTier.quantity_sold) {
+          throw new Error(
+            `Quantity for "${tier.name}" cannot be less than ${existingTier.quantity_sold} (already sold).`,
+          );
+        }
+      }
       if (tier.id) {
         // Update existing tier — preserve quantity_sold
         const { error: tierError } = await supabase

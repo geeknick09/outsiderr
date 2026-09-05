@@ -178,6 +178,7 @@ export function CancelPostponeButtons({
                     type="datetime-local"
                     name="newStartsAt"
                     required
+                    min={new Date().toISOString().slice(0, 16)}
                     value={newStartsAt}
                     onChange={(e) => {
                       setNewStartsAt(e.target.value);
@@ -193,6 +194,7 @@ export function CancelPostponeButtons({
                   <input
                     type="datetime-local"
                     name="newEndsAt"
+                    min={newStartsAt || new Date().toISOString().slice(0, 16)}
                     value={newEndsAt}
                     onChange={(e) => {
                       setNewEndsAt(e.target.value);

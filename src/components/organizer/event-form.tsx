@@ -348,10 +348,9 @@ export function EventForm({
             />
           </Field>
 
-          <Field label="Google Maps link *">
+          <Field label="Google Maps link (preferred)">
             <input
               name="googleMapsLink"
-              required
               value={mapsLink}
               onChange={(e) => {
                 setMapsLink(e.target.value);
@@ -366,7 +365,11 @@ export function EventForm({
             />
             {mapsError ? (
               <span className="block text-xs text-red-500">{mapsError}</span>
-            ) : null}
+            ) : (
+              <span className="block text-xs text-muted">
+                Paste a Google Maps link, or skip and use the map picker below.
+              </span>
+            )}
           </Field>
 
           {/* Hidden inputs for lat/lng — populated by the map picker */}

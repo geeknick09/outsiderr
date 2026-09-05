@@ -500,6 +500,7 @@ export function EditEventForm({ event }: { event: EventDetail }) {
                   <input
                     name="tierPhaseOpensAt[]"
                     type="datetime-local"
+                    min={nowLocal}
                     value={toDatetimeLocal(tier.phaseOpensAt ?? "")}
                     onChange={(e) => updateTier(tier.id, { phaseOpensAt: e.target.value })}
                     className={INPUT}
@@ -510,6 +511,7 @@ export function EditEventForm({ event }: { event: EventDetail }) {
                   <input
                     name="tierPhaseClosesAt[]"
                     type="datetime-local"
+                    min={tier.phaseOpensAt ? toDatetimeLocal(tier.phaseOpensAt) : nowLocal}
                     value={toDatetimeLocal(tier.phaseClosesAt ?? "")}
                     onChange={(e) => updateTier(tier.id, { phaseClosesAt: e.target.value })}
                     className={INPUT}

@@ -74,10 +74,10 @@ export default async function PublicOrganizerPage({
             </div>
           )}
           <div className="pb-2">
-            <h1 className="flex items-center gap-2 text-2xl font-black tracking-tight sm:text-3xl">
-              <span className="truncate">{organizer.name}</span>
+            <h1 className="flex items-start gap-2 text-2xl font-black tracking-tight sm:text-3xl">
+              <span className="break-words">{organizer.name}</span>
               {organizer.verified ? (
-                <BadgeCheck className="h-7 w-7 shrink-0 text-violet-neon" />
+                <BadgeCheck className="mt-1 h-7 w-7 shrink-0 text-violet-neon" />
               ) : null}
             </h1>
             {/* Social icons */}

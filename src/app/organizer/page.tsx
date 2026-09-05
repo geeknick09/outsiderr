@@ -74,11 +74,16 @@ export default async function OrganizerPage({
   ]);
 
   // Analytics tab: fetch per-event analytics
+  // Also fetch for events tab so sorting by waitlist/revenue works
   let analyticsData: Awaited<ReturnType<typeof getOrganizerEventAnalytics>>[] = [];
-  if (tab === "analytics") {
+  if (tab === "analytics" || tab === "events") {
     analyticsData = await Promise.all(
       events.map((event) => getOrganizerEventAnalytics(user, event.id)),
     );
+  }
+  const analyticsMap: Record<string, NonNullable<(typeof analyticsData)[number]>> = {};
+  for (const a of analyticsData) {
+    if (a) analyticsMap[a.eventId] = a;
   }
 
   // Clubs tab: fetch organizer's clubs + members
@@ -111,7 +116,7 @@ export default async function OrganizerPage({
       </div>
 
       {tab === "events" ? (
-        <OrganizerEventsList events={events} />
+        <OrganizerEventsList events={events} analyticsMap={analyticsMap} />
       ) : tab === "create" ? (
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
           <Suspense

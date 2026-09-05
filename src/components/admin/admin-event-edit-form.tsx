@@ -147,6 +147,8 @@ export function AdminEventEditForm({
           <span className="text-xs font-semibold text-muted">Starts At</span>
           <input
             type="datetime-local"
+            required
+            min={new Date().toISOString().slice(0, 16)}
             value={form.startsAt}
             onChange={(e) => setForm({ ...form, startsAt: e.target.value })}
             className={INPUT}
@@ -156,6 +158,8 @@ export function AdminEventEditForm({
           <span className="text-xs font-semibold text-muted">Ends At</span>
           <input
             type="datetime-local"
+            required
+            min={form.startsAt || new Date().toISOString().slice(0, 16)}
             value={form.endsAt}
             onChange={(e) => setForm({ ...form, endsAt: e.target.value })}
             className={INPUT}

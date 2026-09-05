@@ -91,41 +91,31 @@ export async function listMyWaitlistEntries(user: CurrentUser): Promise<Waitlist
 /**
  * When a ticket becomes available (e.g. order rejected/cancelled, inventory restocked),
  * auto-offer it to the first WAITING user on the waitlist for that tier.
+ * Uses the atomic `offer_waitlist_next` RPC which locks the row with FOR UPDATE
+ * to prevent race conditions when multiple tickets free up simultaneously.
  * Sets status to OFFERED with a 24h expiry. Creates an in-app notification.
  */
 export async function autoOfferWaitlist(tierId: string): Promise<void> {
   const supabase = await createClient();
 
-  // Find the first WAITING entry for this tier, ordered by position
-  const { data: next } = await supabase
-    .from("waitlist")
-    .select("*")
-    .eq("tier_id", tierId)
-    .eq("status", "WAITING")
-    .order("position", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  // Use the atomic RPC — it locks the waitlist row with SELECT FOR UPDATE,
+  // picks the first WAITING entry, marks it OFFERED with 24h expiry, and
+  // returns the entry so we can create a notification.
+  const { data: entry, error } = await supabase
+    .rpc("offer_waitlist_next", { p_tier_id: tierId });
 
-  if (!next) return; // No one on the waitlist
-
-  // Mark as OFFERED with 24h expiry
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-  const { error: updateError } = await supabase
-    .from("waitlist")
-    .update({ status: "OFFERED", offered_at: new Date().toISOString(), expires_at: expiresAt })
-    .eq("id", next.id);
-
-  if (updateError) {
-    console.error("autoOfferWaitlist: failed to update entry", updateError);
+  if (error) {
+    console.error("autoOfferWaitlist: RPC error", error);
     return;
   }
+  if (!entry) return; // No one on the waitlist
 
   // Create an in-app notification
   const { error: notifError } = await supabase
     .from("event_notifications")
     .insert({
-      event_id: next.event_id,
-      user_id: next.user_id,
+      event_id: entry.event_id,
+      user_id: entry.user_id,
       type: "WAITLIST_OFFER",
       message: "A ticket just became available! You have 24 hours to book before it goes to the next person.",
     });

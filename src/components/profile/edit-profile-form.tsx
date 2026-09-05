@@ -156,6 +156,7 @@ export function EditProfileForm({
           <input
             name="birthDate"
             type="date"
+            max={new Date().toISOString().slice(0, 10)}
             defaultValue={initialBirthDate}
             className={INPUT}
           />

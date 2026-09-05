@@ -204,6 +204,7 @@ export interface Ticket {
   checkedInAt: string | null;
   startsAt: string;
   venueName: string;
+  organizerContactEmail?: string | null;
 }
 
 export type ScanOutcome = "VALID" | "ALREADY_USED" | "INVALID";

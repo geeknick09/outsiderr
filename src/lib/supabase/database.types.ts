@@ -373,7 +373,7 @@ export type Database = {
       };
       offer_waitlist_next: {
         Args: { p_tier_id: string };
-        Returns: void;
+        Returns: WaitlistRow;
       };
       increment_club_member_count: {
         Args: { p_club_id: string };

@@ -897,7 +897,7 @@ $$;
 
 -- Offer the next person on a tier's waitlist.
 create or replace function public.offer_waitlist_next(p_tier_id uuid)
-returns void
+returns public.waitlist
 language plpgsql
 security definer
 set search_path = public
@@ -912,13 +912,16 @@ begin
    limit 1
      for update;
 
-  if not found then return; end if;
+  if not found then return null; end if;
 
   update public.waitlist
      set status     = 'OFFERED',
          offered_at = now(),
          expires_at = now() + interval '24 hours'
-   where id = v_next.id;
+   where id = v_next.id
+  returning * into v_next;
+
+  return v_next;
 end;
 $$;
 
