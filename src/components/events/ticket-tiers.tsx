@@ -195,19 +195,27 @@ export function TicketTiers({
           <p className="text-sm font-semibold text-muted">
             {hasPhases ? "All phases sold out" : "All tiers sold out"}
           </p>
-          {event.tiers.map((tier) => {
-            const wl = waitlistData.find((w) => w.tierId === tier.id);
-            return (
-              <WaitlistJoinRow
-                key={tier.id}
-                tierId={tier.id}
-                eventId={event.id}
-                tierName={tier.name}
-                waitlistEntry={wl?.entry ?? null}
-                waitlistCount={wl?.count ?? 0}
-              />
-            );
-          })}
+          {event.tiers
+            .filter((tier) => {
+              // For phased events, only show the active or next upcoming phase for waitlist
+              if (tier.tierType !== "FLAT_PHASE") return tier.quantitySold >= tier.quantity;
+              const phase = phaseAvailability.find((p) => p.tier.id === tier.id);
+              if (!phase) return false;
+              return phase.status === "ACTIVE" || phase.status === "UPCOMING";
+            })
+            .map((tier) => {
+              const wl = waitlistData.find((w) => w.tierId === tier.id);
+              return (
+                <WaitlistJoinRow
+                  key={tier.id}
+                  tierId={tier.id}
+                  eventId={event.id}
+                  tierName={tier.name}
+                  waitlistEntry={wl?.entry ?? null}
+                  waitlistCount={wl?.count ?? 0}
+                />
+              );
+            })}
         </div>
       ) : null}
     </section>

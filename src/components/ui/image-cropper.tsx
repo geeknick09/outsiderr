@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Cropper, { type Area } from "react-easy-crop";
 
 import { Button } from "@/components/ui/button";
@@ -27,8 +27,13 @@ export function ImageCropper({
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
 
-  const imageUrl = URL.createObjectURL(file);
+  useEffect(() => {
+    const url = URL.createObjectURL(file);
+    setImageUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
 
   const onCropChange = useCallback((_: Area, pixels: Area) => {
     setCroppedAreaPixels(pixels);
@@ -42,12 +47,10 @@ export function ImageCropper({
       onCropComplete(cropped);
     } finally {
       setProcessing(false);
-      URL.revokeObjectURL(imageUrl);
     }
   }
 
   function handleCancel() {
-    URL.revokeObjectURL(imageUrl);
     onCancel();
   }
 
@@ -56,16 +59,26 @@ export function ImageCropper({
       <div className="w-full max-w-md space-y-4 rounded-3xl bg-white p-6 dark:bg-zinc-900">
         <h3 className="text-sm font-bold">{title}</h3>
 
-        <div className="relative h-64 w-full overflow-hidden rounded-2xl bg-zinc-100 dark:bg-zinc-800">
-          <Cropper
-            image={imageUrl}
-            crop={crop}
-            zoom={zoom}
-            aspect={aspect}
-            onCropChange={setCrop}
-            onZoomChange={setZoom}
-            onCropComplete={onCropChange}
-          />
+        <div className="relative h-64 w-full overflow-hidden rounded-2xl bg-zinc-900">
+          {imageUrl ? (
+            <Cropper
+              image={imageUrl}
+              crop={crop}
+              zoom={zoom}
+              aspect={aspect}
+              onCropChange={setCrop}
+              onZoomChange={setZoom}
+              onCropComplete={onCropChange}
+              style={{
+                containerStyle: { borderRadius: "1rem" },
+                cropAreaStyle: { border: "2px solid rgba(139,92,246,0.6)" },
+              }}
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-muted">
+              Loading image…
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3">

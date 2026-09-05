@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { AtSign, BadgeCheck, CalendarDays, Clock, Globe, Link2, MessageCircle, Play } from "lucide-react";
@@ -39,9 +38,9 @@ export default async function PublicOrganizerPage({
   const past = events.filter((e) => isPast(e.startsAt));
 
   return (
-    <div className="-mt-6">
-      {/* Cover banner */}
-      <div className="relative h-48 w-full overflow-hidden sm:h-64 sm:rounded-b-3xl">
+    <div className="space-y-6 py-6">
+      {/* Cover banner — same style as organizer dashboard */}
+      <div className="relative h-40 w-full overflow-hidden rounded-3xl sm:h-52">
         {organizer.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -50,110 +49,110 @@ export default async function PublicOrganizerPage({
             className="h-full w-full object-cover"
           />
         ) : (
-          <div className="h-full w-full bg-neon-gradient" />
+          <div className="h-full w-full bg-neon-gradient opacity-80" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-zinc-50 via-zinc-50/20 to-transparent dark:from-ink dark:via-ink/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
       </div>
 
-      <div className="mx-auto max-w-5xl space-y-8 px-4">
-        {/* Profile header — avatar overlapping cover */}
-        <div className="flex items-end gap-5 -mt-16">
-          {organizer.avatarUrl ? (
-            <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-3xl border-4 border-zinc-50 shadow-lg dark:border-ink sm:h-28 sm:w-28">
-              <Image
-                src={organizer.avatarUrl}
-                alt={organizer.name}
-                fill
-                sizes="112px"
-                className="object-cover"
-              />
-            </div>
-          ) : (
-            <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-3xl border-4 border-zinc-50 bg-neon-gradient text-3xl font-black text-white shadow-lg dark:border-ink sm:h-28 sm:w-28">
-              {organizer.name.slice(0, 1).toUpperCase()}
-            </div>
-          )}
-          <div className="pb-2">
-            <h1 className="flex items-start gap-2 text-2xl font-black tracking-tight sm:text-3xl">
-              <span className="break-words">{organizer.name}</span>
-              {organizer.verified ? (
-                <BadgeCheck className="mt-1 h-7 w-7 shrink-0 text-violet-neon" />
-              ) : null}
-            </h1>
-            {/* Social icons */}
-            <div className="mt-1 flex items-center gap-3">
-              {organizer.instagramUrl ? (
-                <a
-                  href={organizer.instagramUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-muted hover:text-violet-neon"
-                  aria-label="Instagram"
-                >
-                  <AtSign className="h-5 w-5" />
-                </a>
-              ) : null}
-              {organizer.youtubeUrl ? (
-                <a
-                  href={organizer.youtubeUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-muted hover:text-violet-neon"
-                  aria-label="YouTube"
-                >
-                  <Play className="h-5 w-5" />
-                </a>
-              ) : null}
-              {organizer.xUrl ? (
-                <a
-                  href={organizer.xUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-muted hover:text-violet-neon"
-                  aria-label="X"
-                >
-                  <MessageCircle className="h-5 w-5" />
-                </a>
-              ) : null}
-              {organizer.facebookUrl ? (
-                <a
-                  href={organizer.facebookUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-muted hover:text-violet-neon"
-                  aria-label="Facebook"
-                >
-                  <Globe className="h-5 w-5" />
-                </a>
-              ) : null}
-              {organizer.linkedinUrl ? (
-                <a
-                  href={organizer.linkedinUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-muted hover:text-violet-neon"
-                  aria-label="LinkedIn"
-                >
-                  <Link2 className="h-5 w-5" />
-                </a>
-              ) : null}
-            </div>
-            {organizer.bio ? (
-              <p className="mt-1 max-w-xl text-sm text-muted line-clamp-2">{organizer.bio}</p>
+      {/* Avatar + name + bio row — same layout as OrganizerHeader */}
+      <div className="flex items-end gap-4 -mt-12 px-2">
+        {organizer.avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={organizer.avatarUrl}
+            alt={organizer.name}
+            className="h-20 w-20 rounded-2xl border-4 border-zinc-50 object-cover shadow-lg dark:border-ink sm:h-24 sm:w-24"
+          />
+        ) : (
+          <div className="flex h-20 w-20 items-center justify-center rounded-2xl border-4 border-zinc-50 bg-neon-gradient text-3xl font-black text-white shadow-lg dark:border-ink sm:h-24 sm:w-24">
+            {organizer.name.slice(0, 1).toUpperCase()}
+          </div>
+        )}
+        <div className="min-w-0 flex-1 pb-1">
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-black tracking-tight sm:text-3xl">{organizer.name}</h1>
+            {organizer.verified ? (
+              <BadgeCheck className="h-6 w-6 shrink-0 text-violet-neon" />
+            ) : null}
+          </div>
+          {organizer.bio ? (
+            <p className="text-sm text-muted line-clamp-2">{organizer.bio}</p>
+          ) : null}
+          {/* Social icons */}
+          <div className="mt-1 flex items-center gap-3">
+            {organizer.instagramUrl ? (
+              <a
+                href={organizer.instagramUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-muted hover:text-violet-neon"
+                aria-label="Instagram"
+              >
+                <AtSign className="h-5 w-5" />
+              </a>
+            ) : null}
+            {organizer.youtubeUrl ? (
+              <a
+                href={organizer.youtubeUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-muted hover:text-violet-neon"
+                aria-label="YouTube"
+              >
+                <Play className="h-5 w-5" />
+              </a>
+            ) : null}
+            {organizer.xUrl ? (
+              <a
+                href={organizer.xUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-muted hover:text-violet-neon"
+                aria-label="X"
+              >
+                <MessageCircle className="h-5 w-5" />
+              </a>
+            ) : null}
+            {organizer.facebookUrl ? (
+              <a
+                href={organizer.facebookUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-muted hover:text-violet-neon"
+                aria-label="Facebook"
+              >
+                <Globe className="h-5 w-5" />
+              </a>
+            ) : null}
+            {organizer.linkedinUrl ? (
+              <a
+                href={organizer.linkedinUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-muted hover:text-violet-neon"
+                aria-label="LinkedIn"
+              >
+                <Link2 className="h-5 w-5" />
+              </a>
             ) : null}
           </div>
         </div>
+      </div>
 
-        {/* About / Description section — separate from header, no overlap */}
-        {organizer.description ? (
-          <section className="glass rounded-3xl p-5">
+      {/* About / Description section */}
+      {organizer.description ? (
+        <section className="mx-auto max-w-5xl px-4">
+          <div className="glass rounded-3xl p-5">
             <h2 className="text-sm font-bold uppercase tracking-wide text-muted">About</h2>
             <p className="mt-2 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
               {organizer.description}
             </p>
-          </section>
-        ) : null}
+          </div>
+        </section>
+      ) : null}
 
+      {/* Events */}
+      <div className="mx-auto max-w-5xl space-y-8 px-4">
         {/* Upcoming Events */}
         <section className="space-y-4">
           <div className="flex items-center gap-2">

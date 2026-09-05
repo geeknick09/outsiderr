@@ -44,9 +44,15 @@ export function computePhaseAvailability(
   let carryForward = 0;
   let activeFound = false;
 
-  return phases.map((tier) => {
+  return phases.map((tier, index) => {
     const opensAt = tier.phaseOpensAt ? new Date(tier.phaseOpensAt).getTime() : null;
-    const closesAt = tier.phaseClosesAt ? new Date(tier.phaseClosesAt).getTime() : null;
+    // If phaseClosesAt is not set, the phase implicitly closes when the NEXT phase opens
+    const nextOpensAt = phases[index + 1]?.phaseOpensAt
+      ? new Date(phases[index + 1].phaseOpensAt!).getTime()
+      : null;
+    const closesAt = tier.phaseClosesAt
+      ? new Date(tier.phaseClosesAt).getTime()
+      : nextOpensAt;
 
     const effectiveQuantity = tier.quantity + carryForward;
     const effectiveAvailable = effectiveQuantity - tier.quantitySold;

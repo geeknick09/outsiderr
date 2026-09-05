@@ -73,7 +73,8 @@ export function EditEventForm({ event }: { event: EventDetail }) {
     })),
   );
 
-  // Track dirty state by comparing current values to original
+  // Track dirty state by comparing current values to original.
+  // Build a consistent snapshot: controlled fields use state, uncontrolled read DOM.
   const originalSnapshot = JSON.stringify({
     title: event.title,
     description: event.description,
@@ -90,12 +91,8 @@ export function EditEventForm({ event }: { event: EventDetail }) {
     })),
   });
 
-  function checkDirty(current: unknown) {
-    setDirty(JSON.stringify(current) !== originalSnapshot);
-  }
-
-  function updateField<T>(field: string, value: T) {
-    const snapshot = {
+  function currentSnapshot() {
+    return {
       title: (document.querySelector('[name="title"]') as HTMLInputElement)?.value ?? event.title,
       description: (document.querySelector('[name="description"]') as HTMLTextAreaElement)?.value ?? event.description,
       venueName: (document.querySelector('[name="venueName"]') as HTMLInputElement)?.value ?? event.venueName,
@@ -104,9 +101,16 @@ export function EditEventForm({ event }: { event: EventDetail }) {
       startsAt,
       endsAt,
       tiers: tiers.map((t) => ({ id: t.id, name: t.name, price: t.price, quantity: t.quantity })),
-      [field]: value,
     };
-    checkDirty(snapshot);
+  }
+
+  function checkDirty(snapshot?: Record<string, unknown>) {
+    const current = snapshot ?? currentSnapshot();
+    setDirty(JSON.stringify(current) !== originalSnapshot);
+  }
+
+  function updateField() {
+    checkDirty();
   }
 
   function validateDates(start: string, end: string) {
@@ -163,18 +167,20 @@ export function EditEventForm({ event }: { event: EventDetail }) {
     });
   }
 
-  // Recompute dirty on any state change
+  // Recompute dirty whenever controlled fields change
   useEffect(() => {
-    checkDirty({
-      title: event.title,
-      description: event.description,
-      venueName: event.venueName,
-      venueAddress: event.venueAddress,
+    // Read DOM for uncontrolled inputs + state for controlled ones
+    const snapshot = {
+      title: (document.querySelector('[name="title"]') as HTMLInputElement)?.value ?? event.title,
+      description: (document.querySelector('[name="description"]') as HTMLTextAreaElement)?.value ?? event.description,
+      venueName: (document.querySelector('[name="venueName"]') as HTMLInputElement)?.value ?? event.venueName,
+      venueAddress: (document.querySelector('[name="venueAddress"]') as HTMLTextAreaElement)?.value ?? event.venueAddress,
       googleMapsLink: mapsLink,
       startsAt,
       endsAt,
       tiers: tiers.map((t) => ({ id: t.id, name: t.name, price: t.price, quantity: t.quantity })),
-    });
+    };
+    checkDirty(snapshot);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startsAt, endsAt, mapsLink, tiers]);
 
@@ -190,7 +196,7 @@ export function EditEventForm({ event }: { event: EventDetail }) {
           name="title"
           required
           defaultValue={event.title}
-          onChange={() => updateField("title", (document.querySelector('[name="title"]') as HTMLInputElement)?.value)}
+          onChange={() => updateField()}
           className={INPUT}
         />
       </Field>
@@ -229,7 +235,7 @@ export function EditEventForm({ event }: { event: EventDetail }) {
           name="description"
           rows={4}
           defaultValue={event.description}
-          onChange={() => updateField("description", (document.querySelector('[name="description"]') as HTMLTextAreaElement)?.value)}
+          onChange={() => updateField()}
           className={INPUT}
         />
       </Field>
@@ -239,7 +245,7 @@ export function EditEventForm({ event }: { event: EventDetail }) {
           name="venueName"
           required
           defaultValue={event.venueName}
-          onChange={() => updateField("venueName", (document.querySelector('[name="venueName"]') as HTMLInputElement)?.value)}
+          onChange={() => updateField()}
           className={INPUT}
         />
       </Field>
@@ -249,7 +255,7 @@ export function EditEventForm({ event }: { event: EventDetail }) {
           name="venueAddress"
           rows={2}
           defaultValue={event.venueAddress}
-          onChange={() => updateField("venueAddress", (document.querySelector('[name="venueAddress"]') as HTMLTextAreaElement)?.value)}
+          onChange={() => updateField()}
           className={INPUT}
         />
       </Field>
@@ -265,7 +271,7 @@ export function EditEventForm({ event }: { event: EventDetail }) {
             } else {
               setMapsError(null);
             }
-            updateField("googleMapsLink", e.target.value);
+            updateField();
           }}
           placeholder="https://maps.app.goo.gl/… or https://maps.google.com/…"
           className={`${INPUT} ${mapsError ? "border-red-500" : ""}`}
@@ -319,11 +325,11 @@ export function EditEventForm({ event }: { event: EventDetail }) {
             type="datetime-local"
             name="startsAt"
             required
-            min={nowLocal}
             value={startsAt}
             onChange={(e) => {
               setStartsAt(e.target.value);
               validateDates(e.target.value, endsAt);
+              updateField();
             }}
             className={INPUT}
           />
@@ -333,11 +339,12 @@ export function EditEventForm({ event }: { event: EventDetail }) {
             type="datetime-local"
             name="endsAt"
             required
-            min={startsAt || nowLocal}
+            min={startsAt}
             value={endsAt}
             onChange={(e) => {
               setEndsAt(e.target.value);
               validateDates(startsAt, e.target.value);
+              updateField();
             }}
             className={INPUT}
           />
