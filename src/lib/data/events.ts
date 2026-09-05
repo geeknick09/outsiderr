@@ -77,6 +77,7 @@ function toSummary(row: EventRow, tiers: TicketTier[]): EventSummary {
     isFeatured: row.is_featured,
     registrationsCount: row.registrations_count,
     tags: row.tags ?? [],
+    status: row.status,
     pricingMode: (row.pricing_mode ?? "PAID") as PricingMode,
   };
 }
@@ -119,7 +120,7 @@ export async function listEvents(query: EventQuery = {}): Promise<EventSummary[]
   let request = supabase
     .from("events")
     .select("*")
-    .eq("status", "PUBLISHED")
+    .in("status", ["PUBLISHED", "POSTPONED"])
     .order("starts_at", { ascending: true });
 
   if (query.city) request = request.eq("city", query.city);

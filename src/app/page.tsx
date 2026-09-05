@@ -53,11 +53,15 @@ export default async function DiscoveryPage({
     .filter((event) => isPast(event.startsAt))
     .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
 
-  const featured = upcoming
+  // Postponed events are still live — show them in their own section
+  const postponed = upcoming.filter((event) => event.status === "POSTPONED");
+  const live = upcoming.filter((event) => event.status !== "POSTPONED");
+
+  const featured = live
     .filter((event) => event.isFeatured)
     .slice(0, MAX_FEATURED_EVENTS);
-  const today = upcoming.filter((event) => isToday(event.startsAt));
-  const popular = [...upcoming]
+  const today = live.filter((event) => isToday(event.startsAt));
+  const popular = [...live]
     .sort((a, b) => b.registrationsCount - a.registrationsCount)
     .slice(0, 8);
 
@@ -141,7 +145,15 @@ export default async function DiscoveryPage({
         events={today}
       />
       <EventSection title="Popular Events" events={popular} />
-      <EventSection title="All Events" events={upcoming} />
+      <EventSection title="All Events" events={live} />
+
+      {postponed.length > 0 ? (
+        <EventSection
+          title="Postponed Events"
+          subtitle="New dates announced — stay tuned"
+          events={postponed}
+        />
+      ) : null}
 
       <PastEventSection
         title="Past Events"
@@ -149,7 +161,7 @@ export default async function DiscoveryPage({
         events={past}
       />
 
-      {upcoming.length === 0 && past.length === 0 ? (
+      {live.length === 0 && postponed.length === 0 && past.length === 0 ? (
         <div className="glass rounded-3xl p-10 text-center">
           <h2 className="text-lg font-bold">
             {search ? `No results for "${search}"` : "Nothing here yet"}

@@ -1,0 +1,22 @@
+Fix postponed events disappearing from homepage and category chips
+
+Root cause: listEvents query filtered with .eq("status", "PUBLISHED")
+only, so POSTPONED events were excluded from the homepage, category
+chips, and search results.
+
+Changes:
+- listEvents now queries .in("status", ["PUBLISHED", "POSTPONED"]) so
+  postponed events appear alongside live events
+- toSummary now maps the status field so the UI can distinguish live
+  vs postponed events
+- EventCard shows a "Postponed" badge (amber) on postponed events
+- Homepage splits upcoming into "live" and "postponed" batches:
+  - Live events appear in Happening Today / Popular / All Events
+  - Postponed events appear in a dedicated "Postponed Events" section
+    with subtitle "New dates announced — stay tuned"
+- Postponed events remain bookable on the event detail page (the
+  starts_at is updated to the new date when postponed)
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

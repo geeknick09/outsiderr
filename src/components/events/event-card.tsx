@@ -56,6 +56,14 @@ export function EventCard({
           </div>
         ) : null}
 
+        {event.status === "POSTPONED" ? (
+          <div className="absolute right-3 top-3">
+            <Badge tone="warning" className="bg-black/60 text-amber-300">
+              Postponed
+            </Badge>
+          </div>
+        ) : null}
+
         <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/80 to-transparent" />
         <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2">
           <Badge tone="violet" className="bg-black/50 text-white">
