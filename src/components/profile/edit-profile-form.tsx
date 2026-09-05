@@ -54,6 +54,26 @@ export function EditProfileForm({
   const [selectedTags, setSelectedTags] = useState<Set<string>>(
     new Set(initialTags),
   );
+  const [birthDate, setBirthDate] = useState(initialBirthDate);
+  const [birthDateError, setBirthDateError] = useState<string | null>(null);
+
+  function handleBirthDateChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const value = e.target.value;
+    setBirthDate(value);
+    if (value) {
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      const selected = new Date(value + "T00:00:00");
+      if (selected > today) {
+        setBirthDateError("Birthdate cannot be in the future.");
+        setBirthDate("");
+      } else {
+        setBirthDateError(null);
+      }
+    } else {
+      setBirthDateError(null);
+    }
+  }
 
   async function handleAvatarUpload(file: File) {
     setUploading(true);
@@ -152,9 +172,13 @@ export function EditProfileForm({
             name="birthDate"
             type="date"
             max={new Date().toLocaleDateString("en-CA")}
-            defaultValue={initialBirthDate}
+            value={birthDate}
+            onChange={handleBirthDateChange}
             className={`${INPUT} box-border overflow-hidden`}
           />
+          {birthDateError ? (
+            <span className="block text-xs text-red-500">{birthDateError}</span>
+          ) : null}
         </label>
 
         <label className="block space-y-1.5">

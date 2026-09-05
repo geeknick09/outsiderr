@@ -30,6 +30,16 @@ export async function updateProfileAction(
 
   if (!fullName) return { error: "Name is required.", success: false };
 
+  // Server-side: reject future birthdate (mobile browsers don't enforce max)
+  if (birthDate) {
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    const selected = new Date(birthDate + "T00:00:00");
+    if (selected > today) {
+      return { error: "Birthdate cannot be in the future.", success: false };
+    }
+  }
+
   try {
     await updateUserProfile(user, {
       fullName,

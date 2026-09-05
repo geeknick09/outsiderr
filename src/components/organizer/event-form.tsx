@@ -142,7 +142,9 @@ export function EventForm({
   const [lng, setLng] = useState(sv?.longitude ?? "");
 
   function validateDates(start: string, end: string) {
-    if (end && start && new Date(end) <= new Date(start)) {
+    if (start && new Date(start) < new Date()) {
+      setDateError("Start date and time cannot be in the past.");
+    } else if (end && start && new Date(end) <= new Date(start)) {
       setDateError("End date and time must be after the start date and time.");
     } else {
       setDateError(null);
