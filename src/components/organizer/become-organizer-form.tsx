@@ -5,6 +5,7 @@ import { CheckCircle2, ChevronRight, Upload } from "lucide-react";
 
 import { createOrganizerAction, type CreateOrganizerState } from "@/actions/organizer";
 import { Button } from "@/components/ui/button";
+import { ImageUploadWithCrop } from "@/components/ui/image-cropper";
 import { QrCode } from "@/components/ui/qr-code";
 import { uploadPublicFile } from "@/lib/upload";
 import { upiIntent, validateUpiId } from "@/lib/upi";
@@ -43,6 +44,8 @@ export function BecomeOrganizerForm() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [coverUrl, setCoverUrl] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [facebookUrl, setFacebookUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -184,6 +187,8 @@ export function BecomeOrganizerForm() {
             <input type="hidden" name="avatarUrl" value={avatarUrl} />
             <input type="hidden" name="coverUrl" value={coverUrl} />
             <input type="hidden" name="instagramUrl" value={instagramUrl} />
+            <input type="hidden" name="youtubeUrl" value={youtubeUrl} />
+            <input type="hidden" name="facebookUrl" value={facebookUrl} />
             <input type="hidden" name="panNumber" value={panNumber.toUpperCase()} />
             <input type="hidden" name="panName" value={panName} />
             <input type="hidden" name="gstNumber" value={gstNumber.toUpperCase()} />
@@ -248,6 +253,27 @@ export function BecomeOrganizerForm() {
                     />
                   </label>
 
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className={LABEL}>
+                      <span className={LABEL_TEXT}>YouTube URL (optional)</span>
+                      <input
+                        value={youtubeUrl}
+                        onChange={(e) => setYoutubeUrl(e.target.value)}
+                        placeholder="https://youtube.com/@yourhandle"
+                        className={INPUT}
+                      />
+                    </label>
+                    <label className={LABEL}>
+                      <span className={LABEL_TEXT}>Facebook URL (optional)</span>
+                      <input
+                        value={facebookUrl}
+                        onChange={(e) => setFacebookUrl(e.target.value)}
+                        placeholder="https://facebook.com/yourpage"
+                        className={INPUT}
+                      />
+                    </label>
+                  </div>
+
                   <div className="space-y-1.5">
                     <span className={LABEL_TEXT}>Profile photo</span>
                     <div className="flex items-center gap-4">
@@ -259,16 +285,16 @@ export function BecomeOrganizerForm() {
                           No photo
                         </div>
                       )}
-                      <label className="flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-3 text-sm text-muted hover:border-violet-neon dark:border-white/15">
-                        <Upload className="h-4 w-4" />
-                        {uploading ? "Uploading…" : avatarUrl ? "Change photo" : "Upload photo"}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => void handleAvatar(e.target.files?.[0])}
-                        />
-                      </label>
+                      <ImageUploadWithCrop
+                        onCropped={handleAvatar}
+                        aspect={1}
+                        label={
+                          <span className="flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-3 text-sm text-muted hover:border-violet-neon dark:border-white/15">
+                            <Upload className="h-4 w-4" />
+                            {uploading ? "Uploading…" : avatarUrl ? "Change photo" : "Upload photo"}
+                          </span>
+                        }
+                      />
                     </div>
                     {uploadError ? (
                       <>
@@ -299,16 +325,16 @@ export function BecomeOrganizerForm() {
                           No cover photo
                         </div>
                       )}
-                      <label className="flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-3 text-sm text-muted hover:border-violet-neon dark:border-white/15">
-                        <Upload className="h-4 w-4" />
-                        {uploading ? "Uploading…" : coverUrl ? "Change cover" : "Upload cover"}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => void handleCover(e.target.files?.[0])}
-                        />
-                      </label>
+                      <ImageUploadWithCrop
+                        onCropped={handleCover}
+                        aspect={3}
+                        label={
+                          <span className="flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-3 text-sm text-muted hover:border-violet-neon dark:border-white/15">
+                            <Upload className="h-4 w-4" />
+                            {uploading ? "Uploading…" : coverUrl ? "Change cover" : "Upload cover"}
+                          </span>
+                        }
+                      />
                     </div>
                   </div>
                 </div>
@@ -346,7 +372,7 @@ export function BecomeOrganizerForm() {
                   </label>
 
                   <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-600 dark:text-amber-400">
-                    Your PAN details are encrypted and used only for tax compliance. They are never shared publicly.
+                    Your PAN details are stored securely and used only for tax compliance. They are never shared publicly.
                   </div>
                 </div>
               )}
