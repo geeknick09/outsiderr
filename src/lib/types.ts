@@ -79,9 +79,21 @@ export interface Organizer {
   avatarUrl: string | null;
   coverUrl: string | null;
   instagramUrl: string | null;
+  youtubeUrl: string | null;
+  xUrl: string | null;
+  facebookUrl: string | null;
+  linkedinUrl: string | null;
   upiId: string | null;
   upiQrUrl: string | null;
   verified: boolean;
+  panNumber?: string | null;
+  panName?: string | null;
+  gstNumber?: string | null;
+  gstBusinessName?: string | null;
+  bankAccountNumber?: string | null;
+  bankIfsc?: string | null;
+  bankAccountName?: string | null;
+  bankAccountType?: string | null;
 }
 
 export interface UserProfile {
@@ -93,6 +105,10 @@ export interface UserProfile {
   birthDate: string | null;
   interestedTags: string[];
   instagramUrl: string | null;
+  youtubeUrl: string | null;
+  xUrl: string | null;
+  facebookUrl: string | null;
+  linkedinUrl: string | null;
 }
 
 export interface TicketTier {
@@ -125,6 +141,8 @@ export interface EventSummary {
   tags: string[];
   status?: EventStatus;
   pricingMode: PricingMode;
+  totalCapacity?: number;
+  ticketsSold?: number;
 }
 
 export interface EventDetail extends EventSummary {
@@ -145,6 +163,10 @@ export interface EventDetail extends EventSummary {
   contactEmail: string | null;
   contactPhone: string | null;
   instagramUrl: string | null;
+  youtubeUrl: string | null;
+  xUrl: string | null;
+  facebookUrl: string | null;
+  linkedinUrl: string | null;
 }
 
 export interface Order {
@@ -193,6 +215,9 @@ export interface ScanResult {
     eventTitle: string;
     tierName: string;
     holderName: string | null;
+    holderEmail: string | null;
+    holderPhone: string | null;
+    quantity: number;
     checkedInAt: string | null;
   };
 }

@@ -40,6 +40,10 @@ export interface CreateEventState {
     contactEmail: string;
     contactPhone: string;
     instagramUrl: string;
+    youtubeUrl: string;
+    xUrl: string;
+    facebookUrl: string;
+    linkedinUrl: string;
   };
 }
 
@@ -112,6 +116,10 @@ function extractFormValues(formData: FormData): CreateEventState["values"] {
     contactEmail: String(formData.get("contactEmail") ?? ""),
     contactPhone: String(formData.get("contactPhone") ?? ""),
     instagramUrl: String(formData.get("instagramUrl") ?? ""),
+    youtubeUrl: String(formData.get("youtubeUrl") ?? ""),
+    xUrl: String(formData.get("xUrl") ?? ""),
+    facebookUrl: String(formData.get("facebookUrl") ?? ""),
+    linkedinUrl: String(formData.get("linkedinUrl") ?? ""),
   };
 }
 
@@ -134,6 +142,32 @@ function parsePhases(formData: FormData): TicketTierInput[] {
       phaseClosesAt: closesAtList[index] ? new Date(closesAtList[index]).toISOString() : null,
     }))
     .filter((phase) => phase.name.length > 0 && phase.quantity > 0);
+}
+
+/** Validate that phases are sequential: each opens after the previous closes (or opens). */
+function validatePhases(phases: TicketTierInput[]): string | null {
+  for (let i = 0; i < phases.length; i++) {
+    const p = phases[i];
+    if (!p.phaseOpensAt) continue;
+    const opens = new Date(p.phaseOpensAt).getTime();
+    // Phase opens must be in the future
+    if (opens < Date.now()) {
+      return `Phase ${i + 1} open date cannot be in the past.`;
+    }
+    // Phase closes must be after opens
+    if (p.phaseClosesAt && new Date(p.phaseClosesAt).getTime() <= opens) {
+      return `Phase ${i + 1} close date must be after its open date.`;
+    }
+    // Next phase must open after previous phase closes (or opens if no close)
+    if (i > 0) {
+      const prev = phases[i - 1];
+      const prevBoundary = prev.phaseClosesAt ?? prev.phaseOpensAt;
+      if (prevBoundary && opens <= new Date(prevBoundary).getTime()) {
+        return `Phase ${i + 1} must open after Phase ${i}'s ${prev.phaseClosesAt ? "close" : "open"} date.`;
+      }
+    }
+  }
+  return null;
 }
 
 function buildTiers(formData: FormData, pricingMode: PricingMode): TicketTierInput[] {
@@ -170,9 +204,21 @@ export async function createEventAction(
 
   const tiers = buildTiers(formData, pricingMode);
 
+  // Validate phase sequencing for PHASED mode
+  if (pricingMode === "PHASED") {
+    const phaseError = validatePhases(tiers.filter((t) => t.tierType === "FLAT_PHASE"));
+    if (phaseError) return { error: phaseError, values: extractFormValues(formData) };
+  }
+
   if (!title) return { error: "Give the event a title.", values: extractFormValues(formData) };
   if (!startsAt)
     return { error: "Pick a start date and time.", values: extractFormValues(formData) };
+
+  // Validate start date is not in the past
+  const startDate = new Date(startsAt);
+  if (startDate.getTime() < Date.now()) {
+    return { error: "Start date and time cannot be in the past.", values: extractFormValues(formData) };
+  }
 
   // Validate tiers
   if (pricingMode !== "FREE") {
@@ -189,8 +235,11 @@ export async function createEventAction(
     }
   }
 
-  // Validate end date is after start date
+  // Validate end date is required and after start date
   const endsAtRaw = String(formData.get("endsAt") ?? "");
+  if (!endsAtRaw) {
+    return { error: "End date and time is required.", values: extractFormValues(formData) };
+  }
   if (endsAtRaw) {
     const startMs = new Date(startsAt).getTime();
     const endMs = new Date(endsAtRaw).getTime();
@@ -277,6 +326,10 @@ export async function createEventAction(
       contactEmail: String(formData.get("contactEmail") ?? "").trim() || null,
       contactPhone: String(formData.get("contactPhone") ?? "").trim() || null,
       instagramUrl: String(formData.get("instagramUrl") ?? "").trim() || null,
+      youtubeUrl: String(formData.get("youtubeUrl") ?? "").trim() || null,
+      xUrl: String(formData.get("xUrl") ?? "").trim() || null,
+      facebookUrl: String(formData.get("facebookUrl") ?? "").trim() || null,
+      linkedinUrl: String(formData.get("linkedinUrl") ?? "").trim() || null,
     });
 
     // Create door staff order if requested
@@ -351,13 +404,14 @@ export async function updateEventAction(
   const googleMapsLink = String(formData.get("googleMapsLink") ?? "").trim() || null;
   const endsAt = String(formData.get("endsAt") ?? "").trim();
 
-  // Validate end date is after start date
-  if (endsAt) {
-    const startMs = new Date(startsAt).getTime();
-    const endMs = new Date(endsAt).getTime();
-    if (endMs <= startMs) {
-      return { error: "End date and time must be after the start date and time." };
-    }
+  // Validate end date is required and after start date
+  if (!endsAt) {
+    return { error: "End date and time is required." };
+  }
+  const startMs = new Date(startsAt).getTime();
+  const endMs = new Date(endsAt).getTime();
+  if (endMs <= startMs) {
+    return { error: "End date and time must be after the start date and time." };
   }
 
   try {
@@ -366,6 +420,8 @@ export async function updateEventAction(
     const tierNames = formData.getAll("tierName[]").map(String);
     const tierPrices = formData.getAll("tierPrice[]").map((v) => Number(v));
     const tierQtys = formData.getAll("tierQty[]").map((v) => Number(v));
+    const tierPhaseOpensAt = formData.getAll("tierPhaseOpensAt[]").map(String);
+    const tierPhaseClosesAt = formData.getAll("tierPhaseClosesAt[]").map(String);
     const tiers = tierIds.length > 0 && tierNames.length > 0
       ? tierNames.map((name, i) => ({
           id: tierIds[i] || undefined,
@@ -373,6 +429,8 @@ export async function updateEventAction(
           pricePaise: Math.round((tierPrices[i] || 0) * 100),
           quantity: tierQtys[i] || 0,
           perks: [],
+          phaseOpensAt: tierPhaseOpensAt[i] ? new Date(tierPhaseOpensAt[i]).toISOString() : null,
+          phaseClosesAt: tierPhaseClosesAt[i] ? new Date(tierPhaseClosesAt[i]).toISOString() : null,
         }))
       : undefined;
 
@@ -390,11 +448,17 @@ export async function updateEventAction(
         .split(",")
         .map((t) => t.trim())
         .filter(Boolean),
+      city: String(formData.get("city") ?? "").trim() as City | undefined,
+      category: String(formData.get("category") ?? "").trim() as EventCategory | undefined,
       tiers,
       photoUrls: formData.getAll("photoUrls[]").map(String).filter(Boolean),
       contactEmail: String(formData.get("contactEmail") ?? "").trim() || null,
       contactPhone: String(formData.get("contactPhone") ?? "").trim() || null,
       instagramUrl: String(formData.get("instagramUrl") ?? "").trim() || null,
+      youtubeUrl: String(formData.get("youtubeUrl") ?? "").trim() || null,
+      xUrl: String(formData.get("xUrl") ?? "").trim() || null,
+      facebookUrl: String(formData.get("facebookUrl") ?? "").trim() || null,
+      linkedinUrl: String(formData.get("linkedinUrl") ?? "").trim() || null,
     });
   } catch (error) {
     return {

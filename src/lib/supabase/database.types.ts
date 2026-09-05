@@ -18,6 +18,10 @@ export type ProfileRow = {
   birth_date: string | null;
   interested_tags: string[];
   instagram_url: string | null;
+  youtube_url: string | null;
+  x_url: string | null;
+  facebook_url: string | null;
+  linkedin_url: string | null;
   theme_preference: ThemePreference;
   is_organizer: boolean;
   is_admin: boolean;
@@ -32,6 +36,10 @@ export type OrganizerRow = {
   avatar_url: string | null;
   cover_url: string | null;
   instagram_url: string | null;
+  youtube_url: string | null;
+  x_url: string | null;
+  facebook_url: string | null;
+  linkedin_url: string | null;
   upi_id: string | null;
   upi_qr_url: string | null;
   verified: boolean;
@@ -67,6 +75,10 @@ export type EventRow = {
   contact_email: string | null;
   contact_phone: string | null;
   instagram_url: string | null;
+  youtube_url: string | null;
+  x_url: string | null;
+  facebook_url: string | null;
+  linkedin_url: string | null;
   created_at: string;
 }
 
@@ -266,7 +278,7 @@ export type EventNotificationRow = {
   id: string;
   event_id: string;
   user_id: string;
-  type: "CANCELLATION" | "POSTPONEMENT" | "RESCHEDULE";
+  type: "CANCELLATION" | "POSTPONEMENT" | "RESCHEDULE" | "WAITLIST_OFFER" | "VENUE_CHANGE" | "CITY_CHANGE" | "TIME_CHANGE";
   message: string;
   read: boolean;
   created_at: string;

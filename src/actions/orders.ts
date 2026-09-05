@@ -12,7 +12,7 @@ import {
   rejectOrder,
 } from "@/lib/data/orders";
 import { getEvent } from "@/lib/data/events";
-import { addInterestedTags } from "@/lib/data/profile";
+import { addInterestedTags, updateUserProfile } from "@/lib/data/profile";
 import type { ScanResult } from "@/lib/types";
 
 export interface CheckoutState {
@@ -57,6 +57,19 @@ export async function submitPaymentAction(
     } catch {
       // Non-critical — don't block booking on tag merge failure
     }
+    // Auto-save buyer details to profile (best-effort)
+    try {
+      const buyerName = String(formData.get("buyerName") ?? "").trim();
+      const buyerPhone = String(formData.get("buyerPhone") ?? "").trim();
+      if (buyerName || buyerPhone) {
+        await updateUserProfile(user, {
+          ...(buyerName ? { fullName: buyerName } : {}),
+          ...(buyerPhone ? { phone: buyerPhone } : {}),
+        });
+      }
+    } catch {
+      // Non-critical — don't block booking on profile update failure
+    }
     revalidatePath("/tickets");
     revalidatePath("/profile");
     redirect("/tickets?submitted=1");
@@ -90,6 +103,19 @@ export async function submitPaymentAction(
     if (event?.tags?.length) await addInterestedTags(user, event.tags);
   } catch {
     // Non-critical — don't block booking on tag merge failure
+  }
+  // Auto-save buyer details to profile (best-effort)
+  try {
+    const buyerName = String(formData.get("buyerName") ?? "").trim();
+    const buyerPhone = String(formData.get("buyerPhone") ?? "").trim();
+    if (buyerName || buyerPhone) {
+      await updateUserProfile(user, {
+        ...(buyerName ? { fullName: buyerName } : {}),
+        ...(buyerPhone ? { phone: buyerPhone } : {}),
+      });
+    }
+  } catch {
+    // Non-critical — don't block booking on profile update failure
   }
 
   revalidatePath("/tickets");

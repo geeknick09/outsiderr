@@ -32,6 +32,10 @@ function toOrganizer(row: OrganizerRow): Organizer {
     avatarUrl: row.avatar_url,
     coverUrl: (row as { cover_url?: string | null }).cover_url ?? null,
     instagramUrl: (row as { instagram_url?: string | null }).instagram_url ?? null,
+    youtubeUrl: (row as { youtube_url?: string | null }).youtube_url ?? null,
+    xUrl: (row as { x_url?: string | null }).x_url ?? null,
+    facebookUrl: (row as { facebook_url?: string | null }).facebook_url ?? null,
+    linkedinUrl: (row as { linkedin_url?: string | null }).linkedin_url ?? null,
     upiId: row.upi_id,
     upiQrUrl: row.upi_qr_url,
     verified: row.verified,
@@ -101,6 +105,10 @@ function toDetail(
     contactEmail: row.contact_email ?? null,
     contactPhone: row.contact_phone ?? null,
     instagramUrl: (row as { instagram_url?: string | null }).instagram_url ?? null,
+    youtubeUrl: (row as { youtube_url?: string | null }).youtube_url ?? null,
+    xUrl: (row as { x_url?: string | null }).x_url ?? null,
+    facebookUrl: (row as { facebook_url?: string | null }).facebook_url ?? null,
+    linkedinUrl: (row as { linkedin_url?: string | null }).linkedin_url ?? null,
   };
 }
 

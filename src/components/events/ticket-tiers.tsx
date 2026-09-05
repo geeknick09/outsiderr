@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { BellRing, Check, Clock, Loader2, Sparkles, TrendingUp, X } from "lucide-react";
 
+
 import { joinWaitlistAction, leaveWaitlistAction } from "@/actions/waitlist";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -68,51 +69,22 @@ export function TicketTiers({
         <span className="text-xs text-muted">1 ticket per order</span>
       </div>
 
-      {/* Phase timeline (if event has phases) */}
-      {hasPhases ? (
-        <div className="mb-4 space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-            Pricing phases
-          </p>
-          {phaseAvailability.map((p) => (
-            <div
-              key={p.tier.id}
-              className={cn(
-                "flex items-center justify-between rounded-2xl border px-3 py-2 text-xs",
-                p.isActive
-                  ? "border-violet-neon bg-violet-neon/10"
-                  : p.status === "UPCOMING"
-                    ? "border-zinc-200 dark:border-white/10"
-                    : "border-zinc-200 opacity-60 dark:border-white/10",
-              )}
-            >
-              <div className="flex items-center gap-2">
-                {p.isActive ? (
-                  <TrendingUp className="h-3.5 w-3.5 text-violet-neon" />
-                ) : p.status === "UPCOMING" ? (
-                  <Clock className="h-3.5 w-3.5 text-muted" />
-                ) : (
-                  <Check className="h-3.5 w-3.5 text-muted" />
-                )}
-                <span className="font-semibold">{p.tier.name}</span>
-                {p.isActive ? <Badge tone="violet">Active</Badge> : null}
-                {p.status === "SOLD_OUT" ? <Badge tone="neutral">Sold out</Badge> : null}
-                {p.status === "CLOSED" ? <Badge tone="neutral">Closed</Badge> : null}
-                {p.status === "UPCOMING" && p.tier.phaseOpensAt ? (
-                  <span className="text-muted">
-                    Opens {new Date(p.tier.phaseOpensAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                  </span>
-                ) : null}
-              </div>
-              <div className="text-right">
-                <span className="font-bold">{formatPaise(p.tier.pricePaise)}</span>
-                <span className="ml-2 text-muted">
-                  {p.effectiveAvailable} left
-                  {p.carryForward > 0 ? ` (+${p.carryForward} carried)` : ""}
-                </span>
-              </div>
-            </div>
-          ))}
+      {/* Current phase indicator — only show the active phase, hide the full timeline */}
+      {hasPhases && activePhase ? (
+        <div className="mb-4 rounded-2xl border border-violet-neon/30 bg-violet-neon/5 p-3">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-3.5 w-3.5 text-violet-neon" />
+            <span className="text-xs font-semibold text-violet-neon">
+              {activePhase.tier.name}
+            </span>
+            <Badge tone="violet">Current pricing</Badge>
+          </div>
+          {activePhase.tier.phaseClosesAt ? (
+            <p className="mt-1 flex items-center gap-1 text-[11px] text-muted">
+              <Clock className="h-3 w-3" />
+              Closes {new Date(activePhase.tier.phaseClosesAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+            </p>
+          ) : null}
         </div>
       ) : null}
 

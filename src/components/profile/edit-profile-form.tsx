@@ -1,11 +1,13 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Check } from "lucide-react";
+import { Check, Upload } from "lucide-react";
 
 import { updateProfileAction } from "@/actions/profile";
 import { Button } from "@/components/ui/button";
+import { ImageUploadWithCrop } from "@/components/ui/image-cropper";
 import { PREDEFINED_EVENT_TAGS } from "@/lib/constants";
+import { uploadPublicFile } from "@/lib/upload";
 import { cn } from "@/lib/utils";
 
 const INPUT =
@@ -16,14 +18,24 @@ export function EditProfileForm({
   initialPhone,
   initialEmail,
   initialBirthDate,
+  initialAvatarUrl,
   initialInstagramUrl,
+  initialYoutubeUrl,
+  initialXUrl,
+  initialFacebookUrl,
+  initialLinkedinUrl,
   initialTags,
 }: {
   initialName: string;
   initialPhone: string;
   initialEmail: string;
   initialBirthDate: string;
+  initialAvatarUrl: string;
   initialInstagramUrl: string;
+  initialYoutubeUrl: string;
+  initialXUrl: string;
+  initialFacebookUrl: string;
+  initialLinkedinUrl: string;
   initialTags: string[];
 }) {
   const [state, formAction, pending] = useActionState(updateProfileAction, {
@@ -31,9 +43,30 @@ export function EditProfileForm({
     success: false,
   });
   const [instagramUrl, setInstagramUrl] = useState(initialInstagramUrl);
+  const [youtubeUrl, setYoutubeUrl] = useState(initialYoutubeUrl);
+  const [xUrl, setXUrl] = useState(initialXUrl);
+  const [facebookUrl, setFacebookUrl] = useState(initialFacebookUrl);
+  const [linkedinUrl, setLinkedinUrl] = useState(initialLinkedinUrl);
+  const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<Set<string>>(
     new Set(initialTags),
   );
+
+  async function handleAvatarUpload(file: File) {
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const url = await uploadPublicFile(file, "avatars");
+      if (url) setAvatarUrl(url);
+      else setUploadError("Upload failed. Please try again.");
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   function toggleTag(tag: string) {
     setSelectedTags((prev) => {
@@ -49,6 +82,34 @@ export function EditProfileForm({
       {/* Personal details */}
       <section className="glass space-y-4 rounded-3xl p-5">
         <h2 className="text-base font-bold">Personal details</h2>
+
+        {/* Profile photo */}
+        <div className="flex items-center gap-4">
+          <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10">
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatarUrl} alt="Profile" className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-neon-gradient text-2xl font-black text-white">
+                {initialName.slice(0, 1).toUpperCase()}
+              </div>
+            )}
+          </div>
+          <div className="space-y-1">
+            <ImageUploadWithCrop
+              onCropped={handleAvatarUpload}
+              aspect={1}
+              label={
+                <span className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-2.5 text-sm text-muted hover:border-violet-neon dark:border-white/15">
+                  <Upload className="h-4 w-4" />
+                  {uploading ? "Uploading…" : "Upload photo"}
+                </span>
+              }
+            />
+            {uploadError ? <p className="text-xs text-red-500">{uploadError}</p> : null}
+          </div>
+        </div>
+        <input type="hidden" name="avatarUrl" value={avatarUrl} />
 
         <label className="block space-y-1.5">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted">
@@ -113,6 +174,66 @@ export function EditProfileForm({
           />
         </label>
         <input type="hidden" name="instagramUrl" value={instagramUrl} />
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block space-y-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+              YouTube URL (optional)
+            </span>
+            <input
+              type="url"
+              value={youtubeUrl}
+              onChange={(e) => setYoutubeUrl(e.target.value)}
+              placeholder="https://youtube.com/@yourchannel"
+              className={INPUT}
+            />
+          </label>
+          <input type="hidden" name="youtubeUrl" value={youtubeUrl} />
+
+          <label className="block space-y-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+              X URL (optional)
+            </span>
+            <input
+              type="url"
+              value={xUrl}
+              onChange={(e) => setXUrl(e.target.value)}
+              placeholder="https://x.com/yourhandle"
+              className={INPUT}
+            />
+          </label>
+          <input type="hidden" name="xUrl" value={xUrl} />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block space-y-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+              Facebook URL (optional)
+            </span>
+            <input
+              type="url"
+              value={facebookUrl}
+              onChange={(e) => setFacebookUrl(e.target.value)}
+              placeholder="https://facebook.com/yourhandle"
+              className={INPUT}
+            />
+          </label>
+          <input type="hidden" name="facebookUrl" value={facebookUrl} />
+
+          <label className="block space-y-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+              LinkedIn URL (optional)
+            </span>
+            <input
+              type="url"
+              value={linkedinUrl}
+              onChange={(e) => setLinkedinUrl(e.target.value)}
+              placeholder="https://linkedin.com/in/yourhandle"
+              className={INPUT}
+            />
+          </label>
+          <input type="hidden" name="linkedinUrl" value={linkedinUrl} />
+        </div>
       </section>
 
       {/* Interested-in tags */}

@@ -10,7 +10,7 @@ export async function getUserProfile(
   const supabase = await createClient();
   const { data } = await supabase
     .from("profiles")
-    .select("id, full_name, phone, avatar_url, birth_date, interested_tags, instagram_url")
+    .select("id, full_name, phone, avatar_url, birth_date, interested_tags, instagram_url, youtube_url, x_url, facebook_url, linkedin_url")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -24,6 +24,10 @@ export async function getUserProfile(
     birthDate: data.birth_date,
     interestedTags: data.interested_tags ?? [],
     instagramUrl: (data as { instagram_url?: string | null }).instagram_url ?? null,
+    youtubeUrl: (data as { youtube_url?: string | null }).youtube_url ?? null,
+    xUrl: (data as { x_url?: string | null }).x_url ?? null,
+    facebookUrl: (data as { facebook_url?: string | null }).facebook_url ?? null,
+    linkedinUrl: (data as { linkedin_url?: string | null }).linkedin_url ?? null,
   };
 }
 
@@ -33,6 +37,11 @@ export interface UpdateProfileInput {
   birthDate?: string | null;
   interestedTags?: string[];
   instagramUrl?: string | null;
+  youtubeUrl?: string | null;
+  xUrl?: string | null;
+  facebookUrl?: string | null;
+  linkedinUrl?: string | null;
+  avatarUrl?: string | null;
 }
 
 export async function updateUserProfile(
@@ -46,6 +55,11 @@ export async function updateUserProfile(
   if (input.interestedTags !== undefined)
     update.interested_tags = input.interestedTags;
   if (input.instagramUrl !== undefined) update.instagram_url = input.instagramUrl;
+  if (input.youtubeUrl !== undefined) update.youtube_url = input.youtubeUrl;
+  if (input.xUrl !== undefined) update.x_url = input.xUrl;
+  if (input.facebookUrl !== undefined) update.facebook_url = input.facebookUrl;
+  if (input.linkedinUrl !== undefined) update.linkedin_url = input.linkedinUrl;
+  if (input.avatarUrl !== undefined) update.avatar_url = input.avatarUrl;
 
   const supabase = await createClient();
   const { error } = await supabase

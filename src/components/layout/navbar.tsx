@@ -2,11 +2,16 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { LocationSelector } from "@/components/layout/location-selector";
+import { NotificationBell } from "@/components/layout/notification-bell";
 import { ThemeLogo } from "@/components/layout/theme-logo";
 import { UserMenu } from "@/components/layout/user-menu";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { getCurrentUser } from "@/lib/auth";
 import { getOrganizerProfile } from "@/lib/data/organizer";
+import {
+  getUnreadNotificationCount,
+  listUserNotifications,
+} from "@/lib/data/notifications";
 import { createClient } from "@/lib/supabase/server";
 
 export async function Navbar() {
@@ -14,6 +19,8 @@ export async function Navbar() {
 
   let isAdmin = false;
   let isOrganizer = false;
+  let notifications: Awaited<ReturnType<typeof listUserNotifications>> = [];
+  let unreadCount = 0;
   if (user) {
     const supabase = await createClient();
     const { data: profile } = await supabase
@@ -29,6 +36,11 @@ export async function Navbar() {
       const organizer = await getOrganizerProfile(user);
       isOrganizer = !!organizer;
     }
+    // Fetch notifications
+    [notifications, unreadCount] = await Promise.all([
+      listUserNotifications(user),
+      getUnreadNotificationCount(user),
+    ]);
   }
 
   return (
@@ -43,6 +55,12 @@ export async function Navbar() {
             <LocationSelector />
           </Suspense>
           <ThemeToggle />
+          {user ? (
+            <NotificationBell
+              initialNotifications={notifications}
+              initialUnreadCount={unreadCount}
+            />
+          ) : null}
           <UserMenu name={user?.name ?? null} isAdmin={isAdmin} isOrganizer={isOrganizer} />
         </div>
       </nav>

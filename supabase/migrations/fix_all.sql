@@ -909,5 +909,57 @@ create unique index if not exists club_members_club_user_unique
   on public.club_members(club_id, user_id);
 
 -- ----------------------------------------------------------------
+-- STEP 13: Allow PHASED pricing mode on events
+-- The app supports 4 pricing modes: FREE, FLAT, PAID, PHASED
+-- but the original check constraint only allowed FREE, FLAT, PAID.
+-- Drop both old constraint names (schema.sql vs migration created different names)
+-- and add a single clean constraint.
+-- ----------------------------------------------------------------
+alter table public.events drop constraint if exists events_pricing_mode_check;
+alter table public.events drop constraint if exists events_pricing_model_check;
+alter table public.events add constraint events_pricing_mode_check
+  check (pricing_mode in ('FREE','FLAT','PAID','PHASED'));
+
+-- ----------------------------------------------------------------
+-- Social links: YouTube + X for profiles, organizers, events
+-- ----------------------------------------------------------------
+alter table public.profiles add column if not exists youtube_url text;
+alter table public.profiles add column if not exists x_url text;
+alter table public.profiles add column if not exists facebook_url text;
+alter table public.profiles add column if not exists linkedin_url text;
+alter table public.organizers add column if not exists youtube_url text;
+alter table public.organizers add column if not exists x_url text;
+alter table public.organizers add column if not exists facebook_url text;
+alter table public.organizers add column if not exists linkedin_url text;
+alter table public.events add column if not exists youtube_url text;
+alter table public.events add column if not exists x_url text;
+alter table public.events add column if not exists facebook_url text;
+alter table public.events add column if not exists linkedin_url text;
+
+-- ----------------------------------------------------------------
+-- Notification types: add WAITLIST_OFFER, VENUE_CHANGE, CITY_CHANGE, TIME_CHANGE
+-- ----------------------------------------------------------------
+do $$ begin
+  if not exists (select 1 from pg_enum where enumlabel = 'WAITLIST_OFFER' and enumtypid = (select oid from pg_type where typname = 'event_notification_type')) then
+    alter type event_notification_type add value 'WAITLIST_OFFER';
+  end if;
+end $$;
+do $$ begin
+  if not exists (select 1 from pg_enum where enumlabel = 'VENUE_CHANGE' and enumtypid = (select oid from pg_type where typname = 'event_notification_type')) then
+    alter type event_notification_type add value 'VENUE_CHANGE';
+  end if;
+end $$;
+do $$ begin
+  if not exists (select 1 from pg_enum where enumlabel = 'CITY_CHANGE' and enumtypid = (select oid from pg_type where typname = 'event_notification_type')) then
+    alter type event_notification_type add value 'CITY_CHANGE';
+  end if;
+end $$;
+do $$ begin
+  if not exists (select 1 from pg_enum where enumlabel = 'TIME_CHANGE' and enumtypid = (select oid from pg_type where typname = 'event_notification_type')) then
+    alter type event_notification_type add value 'TIME_CHANGE';
+  end if;
+end $$;
+
+-- ----------------------------------------------------------------
 -- DONE.
 -- ----------------------------------------------------------------

@@ -22,7 +22,7 @@ exception when duplicate_object then null; end $$;
 
 -- Notification type for event updates
 do $$ begin
-  create type public.event_notification_type as enum ('CANCELLATION','POSTPONEMENT','RESCHEDULE');
+  create type public.event_notification_type as enum ('CANCELLATION','POSTPONEMENT','RESCHEDULE','WAITLIST_OFFER','VENUE_CHANGE','CITY_CHANGE','TIME_CHANGE');
 exception when duplicate_object then null; end $$;
 do $$ begin
   create type event_category as enum (
@@ -85,6 +85,10 @@ create table if not exists public.profiles (
   birth_date       date,
   interested_tags  text[]      not null default '{}',
   instagram_url    text,
+  youtube_url      text,
+  x_url            text,
+  facebook_url     text,
+  linkedin_url     text,
   theme_preference text        not null default 'dark'
                                check (theme_preference in ('dark','light','system')),
   is_organizer     boolean     not null default false,
@@ -100,6 +104,10 @@ create table if not exists public.organizers (
   avatar_url          text,
   cover_url           text,
   instagram_url      text,
+  youtube_url        text,
+  x_url              text,
+  facebook_url       text,
+  linkedin_url       text,
   upi_id              text,
   upi_qr_url          text,
   -- KYC / payout details
@@ -143,10 +151,14 @@ create table if not exists public.events (
   terms               text[]          not null default '{}',
   registrations_count integer         not null default 0,
   pricing_mode        text            not null default 'PAID'
-                      check (pricing_mode in ('FREE','FLAT','PAID')),
+                      check (pricing_mode in ('FREE','FLAT','PAID','PHASED')),
   contact_email       text,
   contact_phone       text,
   instagram_url       text,
+  youtube_url         text,
+  x_url               text,
+  facebook_url        text,
+  linkedin_url        text,
   created_at          timestamptz     not null default now()
 );
 create index if not exists events_city_starts_idx on public.events(city, starts_at);
@@ -462,7 +474,7 @@ create index if not exists club_members_user_idx on public.club_members(user_id)
 alter table public.profiles       add column if not exists is_admin     boolean not null default false;
 alter table public.events         add column if not exists tags         text[]  not null default '{}';
 alter table public.events         add column if not exists photo_urls   text[]  not null default '{}';
-alter table public.events         add column if not exists pricing_mode text    not null default 'PAID' check (pricing_mode in ('FREE','FLAT','PAID'));
+alter table public.events         add column if not exists pricing_mode text    not null default 'PAID' check (pricing_mode in ('FREE','FLAT','PAID','PHASED'));
 alter table public.events         add column if not exists google_maps_link text;
 alter table public.orders         add column if not exists buyer_email  text;
 alter table public.orders         add column if not exists buyer_gender text;

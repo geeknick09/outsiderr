@@ -48,6 +48,10 @@ export interface CreateEventInput {
   contactEmail: string | null;
   contactPhone: string | null;
   instagramUrl: string | null;
+  youtubeUrl: string | null;
+  xUrl: string | null;
+  facebookUrl: string | null;
+  linkedinUrl: string | null;
 }
 
 export async function getOrganizerProfile(
@@ -68,9 +72,21 @@ export async function getOrganizerProfile(
     avatarUrl: data.avatar_url,
     coverUrl: (data as { cover_url?: string | null }).cover_url ?? null,
     instagramUrl: (data as { instagram_url?: string | null }).instagram_url ?? null,
+    youtubeUrl: (data as { youtube_url?: string | null }).youtube_url ?? null,
+    xUrl: (data as { x_url?: string | null }).x_url ?? null,
+    facebookUrl: (data as { facebook_url?: string | null }).facebook_url ?? null,
+    linkedinUrl: (data as { linkedin_url?: string | null }).linkedin_url ?? null,
     upiId: data.upi_id,
     upiQrUrl: data.upi_qr_url,
     verified: data.verified,
+    panNumber: (data as { pan_number?: string | null }).pan_number ?? null,
+    panName: (data as { pan_name?: string | null }).pan_name ?? null,
+    gstNumber: (data as { gst_number?: string | null }).gst_number ?? null,
+    gstBusinessName: (data as { gst_business_name?: string | null }).gst_business_name ?? null,
+    bankAccountNumber: (data as { bank_account_number?: string | null }).bank_account_number ?? null,
+    bankIfsc: (data as { bank_ifsc?: string | null }).bank_ifsc ?? null,
+    bankAccountName: (data as { bank_account_name?: string | null }).bank_account_name ?? null,
+    bankAccountType: (data as { bank_account_type?: string | null }).bank_account_type ?? null,
   };
 }
 
@@ -90,16 +106,17 @@ export async function listOrganizerEvents(
 
   const { data: tiers } = await supabase
     .from("ticket_tiers")
-    .select("event_id, price_paise")
+    .select("event_id, price_paise, quantity, quantity_sold")
     .in(
       "event_id",
       events.map((event) => event.id),
     );
 
   return events.map((event) => {
-    const prices = (tiers ?? [])
-      .filter((tier) => tier.event_id === event.id)
-      .map((tier) => tier.price_paise);
+    const eventTiers = (tiers ?? []).filter((tier) => tier.event_id === event.id);
+    const prices = eventTiers.map((tier) => tier.price_paise);
+    const totalCapacity = eventTiers.reduce((sum, t) => sum + (t.quantity ?? 0), 0);
+    const ticketsSold = eventTiers.reduce((sum, t) => sum + (t.quantity_sold ?? 0), 0);
     return {
       id: event.id,
       title: event.title,
@@ -115,6 +132,8 @@ export async function listOrganizerEvents(
       tags: event.tags ?? [],
       status: event.status as import("@/lib/types").EventStatus,
       pricingMode: (event.pricing_mode ?? "PAID") as PricingMode,
+      totalCapacity,
+      ticketsSold,
     };
   });
 }
@@ -157,9 +176,14 @@ export async function createEvent(
       contact_email: input.contactEmail ?? null,
       contact_phone: input.contactPhone ?? null,
       instagram_url: input.instagramUrl ?? null,
+      youtube_url: input.youtubeUrl ?? null,
+      x_url: input.xUrl ?? null,
+      facebook_url: input.facebookUrl ?? null,
+      linkedin_url: input.linkedinUrl ?? null,
       pricing_mode: input.pricingMode,
       status: "PUBLISHED",
-    })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any)
     .select("id")
     .single();
   if (error) {
@@ -354,11 +378,17 @@ export interface UpdateEventInput {
   startsAt: string;
   endsAt: string | null;
   tags: string[];
-  tiers?: { id?: string; name: string; pricePaise: number; quantity: number; perks: string[] }[];
+  city?: City;
+  category?: EventCategory;
+  tiers?: { id?: string; name: string; pricePaise: number; quantity: number; perks: string[]; phaseOpensAt?: string | null; phaseClosesAt?: string | null }[];
   photoUrls?: string[];
   contactEmail?: string | null;
   contactPhone?: string | null;
   instagramUrl?: string | null;
+  youtubeUrl?: string | null;
+  xUrl?: string | null;
+  facebookUrl?: string | null;
+  linkedinUrl?: string | null;
 }
 
 export async function updateEvent(
@@ -370,6 +400,14 @@ export async function updateEvent(
   if (!organizer) throw new Error("No organizer profile.");
 
   const supabase = await createClient();
+
+  // Fetch current event to detect changes for notifications
+  const { data: currentEvent } = await supabase
+    .from("events")
+    .select("venue_name, city, starts_at, ends_at")
+    .eq("id", eventId)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("events")
     .update({
@@ -383,14 +421,68 @@ export async function updateEvent(
       starts_at: input.startsAt,
       ends_at: input.endsAt,
       tags: input.tags,
+      ...(input.city !== undefined ? { city: input.city } : {}),
+      ...(input.category !== undefined ? { category: input.category } : {}),
       ...(input.photoUrls !== undefined ? { photo_urls: input.photoUrls } : {}),
       ...(input.contactEmail !== undefined ? { contact_email: input.contactEmail } : {}),
       ...(input.contactPhone !== undefined ? { contact_phone: input.contactPhone } : {}),
       ...(input.instagramUrl !== undefined ? { instagram_url: input.instagramUrl } : {}),
-    })
+      ...(input.youtubeUrl !== undefined ? { youtube_url: input.youtubeUrl } : {}),
+      ...(input.xUrl !== undefined ? { x_url: input.xUrl } : {}),
+      ...(input.facebookUrl !== undefined ? { facebook_url: input.facebookUrl } : {}),
+      ...(input.linkedinUrl !== undefined ? { linkedin_url: input.linkedinUrl } : {}),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any)
     .eq("id", eventId)
     .eq("organizer_id", organizer.id);
   if (error) throw error;
+
+  // Send notifications to ticket holders if key details changed
+  if (currentEvent) {
+    const changes: { type: string; message: string }[] = [];
+
+    if (currentEvent.venue_name !== input.venueName) {
+      changes.push({
+        type: "VENUE_CHANGE",
+        message: `Venue changed from "${currentEvent.venue_name}" to "${input.venueName}".`,
+      });
+    }
+    if (input.city && currentEvent.city !== input.city) {
+      changes.push({
+        type: "CITY_CHANGE",
+        message: `City changed from ${currentEvent.city} to ${input.city}.`,
+      });
+    }
+    if (currentEvent.starts_at !== input.startsAt) {
+      changes.push({
+        type: "TIME_CHANGE",
+        message: `Event time has been updated. Please check the new schedule.`,
+      });
+    }
+
+    if (changes.length > 0) {
+      // Get all ticket holders for this event
+      const { data: tickets } = await supabase
+        .from("tickets")
+        .select("user_id")
+        .eq("event_id", eventId)
+        .in("status", ["VALID", "USED"]);
+
+      const userIds = [...new Set((tickets ?? []).map((t) => t.user_id).filter(Boolean))];
+      if (userIds.length > 0) {
+        const notifications = userIds.flatMap((userId) =>
+          changes.map((change) => ({
+            event_id: eventId,
+            user_id: userId,
+            type: change.type as "CANCELLATION" | "POSTPONEMENT" | "RESCHEDULE" | "WAITLIST_OFFER" | "VENUE_CHANGE" | "CITY_CHANGE" | "TIME_CHANGE",
+            message: change.message,
+          })),
+        );
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await supabase.from("event_notifications").insert(notifications as any);
+      }
+    }
+  }
 
   // Update tiers if provided
   if (input.tiers) {
@@ -427,6 +519,10 @@ export async function updateEvent(
     // Update/insert tiers
     for (let i = 0; i < input.tiers.length; i++) {
       const tier = input.tiers[i];
+      // Prevent negative quantity
+      if (tier.quantity < 0) {
+        throw new Error("Ticket quantity cannot be negative.");
+      }
       if (tier.id) {
         // Update existing tier — preserve quantity_sold
         const { error: tierError } = await supabase
@@ -437,7 +533,10 @@ export async function updateEvent(
             quantity: tier.quantity,
             perks: tier.perks,
             sort_order: i,
-          })
+            ...(tier.phaseOpensAt !== undefined ? { phase_opens_at: tier.phaseOpensAt } : {}),
+            ...(tier.phaseClosesAt !== undefined ? { phase_closes_at: tier.phaseClosesAt } : {}),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any)
           .eq("id", tier.id)
           .eq("event_id", eventId);
         if (tierError) throw tierError;
@@ -452,7 +551,10 @@ export async function updateEvent(
             quantity: tier.quantity,
             perks: tier.perks,
             sort_order: i,
-          });
+            ...(tier.phaseOpensAt !== undefined ? { phase_opens_at: tier.phaseOpensAt } : {}),
+            ...(tier.phaseClosesAt !== undefined ? { phase_closes_at: tier.phaseClosesAt } : {}),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any);
         if (tierError) throw tierError;
       }
     }
@@ -482,6 +584,10 @@ export interface CreateOrganizerInput {
   avatarUrl: string | null;
   coverUrl: string | null;
   instagramUrl: string | null;
+  youtubeUrl: string | null;
+  xUrl: string | null;
+  facebookUrl: string | null;
+  linkedinUrl: string | null;
   panNumber: string;
   panName: string;
   gstNumber: string;
@@ -517,6 +623,10 @@ export async function createOrganizerProfile(
       avatar_url: input.avatarUrl,
       cover_url: input.coverUrl,
       instagram_url: input.instagramUrl,
+      youtube_url: input.youtubeUrl,
+      x_url: input.xUrl,
+      facebook_url: input.facebookUrl,
+      linkedin_url: input.linkedinUrl,
     } as any)
     .select("id")
     .single();
@@ -561,9 +671,21 @@ export interface UpdateOrganizerInput {
   avatarUrl: string | null;
   coverUrl?: string | null;
   instagramUrl?: string | null;
+  youtubeUrl?: string | null;
+  xUrl?: string | null;
+  facebookUrl?: string | null;
+  linkedinUrl?: string | null;
+  panNumber?: string;
+  panName?: string;
+  gstNumber?: string;
+  gstBusinessName?: string;
+  bankAccountNumber?: string;
+  bankIfsc?: string;
+  bankAccountName?: string;
+  bankAccountType?: string;
 }
 
-/** Updates an organizer's profile (name, bio, UPI ID, avatar, cover). */
+/** Updates an organizer's profile (name, bio, UPI ID, avatar, cover, social, KYC). */
 export async function updateOrganizerProfile(
   user: CurrentUser,
   input: UpdateOrganizerInput,
@@ -572,16 +694,31 @@ export async function updateOrganizerProfile(
   if (!organizer) throw new Error("No organizer profile found.");
 
   const supabase = await createClient();
+  const update: Record<string, string | null> = {
+    name: input.name,
+    bio: input.bio || null,
+    upi_id: input.upiId || null,
+    avatar_url: input.avatarUrl,
+  };
+  if (input.coverUrl !== undefined) update.cover_url = input.coverUrl;
+  if (input.instagramUrl !== undefined) update.instagram_url = input.instagramUrl;
+  if (input.youtubeUrl !== undefined) update.youtube_url = input.youtubeUrl;
+  if (input.xUrl !== undefined) update.x_url = input.xUrl;
+  if (input.facebookUrl !== undefined) update.facebook_url = input.facebookUrl;
+  if (input.linkedinUrl !== undefined) update.linkedin_url = input.linkedinUrl;
+  if (input.panNumber !== undefined) update.pan_number = input.panNumber;
+  if (input.panName !== undefined) update.pan_name = input.panName;
+  if (input.gstNumber !== undefined) update.gst_number = input.gstNumber;
+  if (input.gstBusinessName !== undefined) update.gst_business_name = input.gstBusinessName;
+  if (input.bankAccountNumber !== undefined) update.bank_account_number = input.bankAccountNumber;
+  if (input.bankIfsc !== undefined) update.bank_ifsc = input.bankIfsc;
+  if (input.bankAccountName !== undefined) update.bank_account_name = input.bankAccountName;
+  if (input.bankAccountType !== undefined) update.bank_account_type = input.bankAccountType;
+
   const { error } = await supabase
     .from("organizers")
-    .update({
-      name: input.name,
-      bio: input.bio || null,
-      upi_id: input.upiId || null,
-      avatar_url: input.avatarUrl,
-      ...(input.coverUrl !== undefined ? { cover_url: input.coverUrl } : {}),
-      ...(input.instagramUrl !== undefined ? { instagram_url: input.instagramUrl } : {}),
-    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .update(update as any)
     .eq("id", organizer.id);
 
   if (error) throw error;

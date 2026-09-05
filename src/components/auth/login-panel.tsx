@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Mail } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -15,7 +14,6 @@ export function LoginPanel({ next }: { next: string }) {
 }
 
 function SupabaseLogin({ next }: { next: string }) {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -37,8 +35,8 @@ function SupabaseLogin({ next }: { next: string }) {
         setError(signInError.message);
         return;
       }
-      router.replace(next);
-      router.refresh();
+      // Hard navigation to ensure server components re-render with new session
+      window.location.href = next;
     } else {
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
@@ -54,8 +52,8 @@ function SupabaseLogin({ next }: { next: string }) {
         setMode("signin");
         return;
       }
-      router.replace(next);
-      router.refresh();
+      // Hard navigation to ensure server components re-render with new session
+      window.location.href = next;
     }
   }
 

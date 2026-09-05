@@ -4,12 +4,15 @@ import type { Metadata } from "next";
 import { BarChart2, ChevronLeft, LayoutDashboard, ScanLine } from "lucide-react";
 
 import { AnalyticsPanel } from "@/components/organizer/analytics-panel";
+import { AttendeesTable } from "@/components/organizer/attendees-table";
 import { EditEventForm } from "@/components/organizer/edit-event-form";
 import { CancelPostponeButtons } from "@/components/organizer/cancel-postpone-buttons";
 import { DoorStaffPaymentPanel } from "@/components/organizer/door-staff-payment";
 import { DoorStaffRequest } from "@/components/organizer/door-staff-request";
 import { HeroBoostPanel } from "@/components/organizer/hero-boost-panel";
+import { PastEventGalleryManager } from "@/components/organizer/past-event-gallery-manager";
 import { ShareButton } from "@/components/events/share-button";
+import { WaitlistPanel } from "@/components/organizer/waitlist-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -17,6 +20,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { getEvent } from "@/lib/data/events";
 import { getDoorStaffOrder } from "@/lib/data/door-staff";
 import { getOrganizerEventAnalytics } from "@/lib/data/organizer";
+import { listEventOrders, listEventTickets } from "@/lib/data/admin";
+import { listEventWaitlist } from "@/lib/data/waitlist";
 import { publishEventAction } from "@/actions/events";
 import { getCancellationChargePercent, getPostponementChargePercent, getDoorStaffPricing, getDoorStaffAvailable, getHeroBoostPrice, getHeroBoostDurationDays } from "@/lib/data/platform-settings";
 import { getHeroBoostForEvent } from "@/lib/data/hero-boosts";
@@ -44,7 +49,7 @@ export default async function ManageEventPage({
 
   const { id } = await params;
 
-  const [event, analytics, cancelChargePct, postponeChargePct, doorStaffOrder, doorStaffPricing, doorStaffAvailable, heroBoost, heroBoostPrice, heroBoostDuration] = await Promise.all([
+  const [event, analytics, cancelChargePct, postponeChargePct, doorStaffOrder, doorStaffPricing, doorStaffAvailable, heroBoost, heroBoostPrice, heroBoostDuration, orders, tickets, waitlistEntries] = await Promise.all([
     getEvent(id),
     getOrganizerEventAnalytics(user, id),
     getCancellationChargePercent(),
@@ -55,6 +60,9 @@ export default async function ManageEventPage({
     getHeroBoostForEvent(user, id),
     getHeroBoostPrice(),
     getHeroBoostDurationDays(),
+    listEventOrders(id),
+    listEventTickets(id),
+    listEventWaitlist(id),
   ]);
 
   if (!event || !analytics) notFound();
@@ -157,13 +165,20 @@ export default async function ManageEventPage({
       </section>
 
       {analytics.waitlistCount > 0 ? (
-        <div className="glass rounded-3xl p-5">
-          <p className="text-sm text-muted">
-            <span className="font-bold text-zinc-900 dark:text-white">{analytics.waitlistCount}</span>{" "}
-            {analytics.waitlistCount === 1 ? "person" : "people"} on the waitlist
-          </p>
-        </div>
+        <WaitlistPanel waitlistCount={analytics.waitlistCount} entries={waitlistEntries} />
       ) : null}
+
+      {/* Attendees / Orders list */}
+      <section className="space-y-3">
+        <h2 className="text-lg font-bold">Attendees ({orders.length})</h2>
+        {orders.length === 0 ? (
+          <div className="glass rounded-2xl p-5 text-sm text-muted">
+            No bookings yet.
+          </div>
+        ) : (
+          <AttendeesTable orders={orders} tickets={tickets} />
+        )}
+      </section>
 
       {/* Edit form — disabled for cancelled and past events */}
       {event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast ? (
@@ -234,6 +249,11 @@ export default async function ManageEventPage({
             />
           </div>
         </section>
+      ) : null}
+
+      {/* Past events — allow gallery photo deletion only */}
+      {eventPast ? (
+        <PastEventGalleryManager eventId={event.id} photoUrls={event.photoUrls} />
       ) : null}
     </div>
   );

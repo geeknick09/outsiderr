@@ -59,6 +59,10 @@ export async function createOrganizerAction(
   try {
     await createOrganizerProfile(user, {
       name, bio, upiId, avatarUrl, coverUrl, instagramUrl,
+      youtubeUrl: String(formData.get("youtubeUrl") ?? "").trim() || null,
+      xUrl: String(formData.get("xUrl") ?? "").trim() || null,
+      facebookUrl: String(formData.get("facebookUrl") ?? "").trim() || null,
+      linkedinUrl: String(formData.get("linkedinUrl") ?? "").trim() || null,
       panNumber, panName,
       gstNumber, gstBusinessName,
       bankAccountNumber, bankIfsc, bankAccountName, bankAccountType,
@@ -87,12 +91,37 @@ export async function updateOrganizerAction(
   const avatarUrl = String(formData.get("avatarUrl") ?? "").trim() || null;
   const coverUrl = String(formData.get("coverUrl") ?? "").trim() || null;
   const instagramUrl = String(formData.get("instagramUrl") ?? "").trim() || null;
+  const youtubeUrl = String(formData.get("youtubeUrl") ?? "").trim() || null;
+  const xUrl = String(formData.get("xUrl") ?? "").trim() || null;
+  const facebookUrl = String(formData.get("facebookUrl") ?? "").trim() || null;
+  const linkedinUrl = String(formData.get("linkedinUrl") ?? "").trim() || null;
+  const panNumber = String(formData.get("panNumber") ?? "").trim() || undefined;
+  const panName = String(formData.get("panName") ?? "").trim() || undefined;
+  const gstNumber = String(formData.get("gstNumber") ?? "").trim() || undefined;
+  const gstBusinessName = String(formData.get("gstBusinessName") ?? "").trim() || undefined;
+  const bankAccountNumber = String(formData.get("bankAccountNumber") ?? "").trim() || undefined;
+  const bankIfsc = String(formData.get("bankIfsc") ?? "").trim() || undefined;
+  const bankAccountName = String(formData.get("bankAccountName") ?? "").trim() || undefined;
+  const bankAccountType = String(formData.get("bankAccountType") ?? "").trim() || undefined;
 
   if (!name) return { error: "Enter your organizer name." };
   if (!upiId) return { error: "Enter a UPI ID so attendees can pay you." };
 
+  // Validate PAN format if provided
+  if (panNumber && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(panNumber)) {
+    return { error: "PAN number format is invalid. Expected: ABCDE1234F" };
+  }
+  // Validate IFSC if provided
+  if (bankIfsc && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(bankIfsc)) {
+    return { error: "IFSC code format is invalid. Expected: ABCD0123456" };
+  }
+
   try {
-    await updateOrganizerProfile(user, { name, bio, upiId, avatarUrl, coverUrl, instagramUrl });
+    await updateOrganizerProfile(user, {
+      name, bio, upiId, avatarUrl, coverUrl, instagramUrl, youtubeUrl, xUrl, facebookUrl, linkedinUrl,
+      panNumber, panName, gstNumber, gstBusinessName,
+      bankAccountNumber, bankIfsc, bankAccountName, bankAccountType,
+    });
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Could not update organizer profile.",

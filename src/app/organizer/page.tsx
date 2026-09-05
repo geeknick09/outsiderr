@@ -4,9 +4,11 @@ import { lazy, Suspense } from "react";
 import { BarChart2 } from "lucide-react";
 
 import { AnalyticsPanel } from "@/components/organizer/analytics-panel";
+import { AggregatedAnalytics } from "@/components/organizer/aggregated-analytics";
 import { BecomeOrganizerForm } from "@/components/organizer/become-organizer-form";
 import { ClubForm } from "@/components/organizer/club-form";
 import { ClubMembersPanel } from "@/components/organizer/club-members-panel";
+import { OrganizerEventsList } from "@/components/organizer/organizer-events-list";
 import { OrganizerHeader } from "@/components/organizer/organizer-header";
 import { VerificationQueue } from "@/components/organizer/verification-queue";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +21,7 @@ import {
 import { listClubMembers, listMyClubs } from "@/lib/data/clubs";
 import { listPendingOrders } from "@/lib/data/orders";
 import { getTermsVersion, getDoorStaffPricing, getDoorStaffMax, getDoorStaffAvailable } from "@/lib/data/platform-settings";
-import { formatDateTime, isPast } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 
 // Lazy load EventForm — it pulls in Leaflet (~140kB) via MapPicker
 const EventForm = lazy(() =>
@@ -109,55 +111,7 @@ export default async function OrganizerPage({
       </div>
 
       {tab === "events" ? (
-        <div className="space-y-3">
-          {events.length === 0 ? (
-            <p className="glass rounded-3xl p-5 text-sm text-muted">
-              No events yet.{" "}
-              <Link href="/organizer?tab=create" className="underline hover:text-violet-neon">
-                Create your first event
-              </Link>
-              .
-            </p>
-          ) : (
-            events.map((event) => {
-              const past = isPast(event.startsAt);
-              return (
-              <Link
-                key={event.id}
-                href={`/organizer/events/${event.id}`}
-                className="glass flex flex-wrap items-center justify-between gap-3 rounded-3xl p-4 transition-colors hover:border-violet-neon/50"
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-semibold">{event.title}</p>
-                  <p className="text-xs text-muted">{formatDateTime(event.startsAt)}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge tone="neutral">{event.registrationsCount} registered</Badge>
-                  <Badge
-                    tone={
-                      past
-                        ? "neutral"
-                        : event.status === "PUBLISHED"
-                        ? "success"
-                        : event.status === "CANCELLED"
-                        ? "danger"
-                        : "neutral"
-                    }
-                  >
-                    {past
-                      ? "Completed"
-                      : event.status === "PUBLISHED"
-                      ? "Live"
-                      : event.status === "CANCELLED"
-                      ? "Cancelled"
-                      : "Draft"}
-                  </Badge>
-                </div>
-              </Link>
-              );
-            })
-          )}
-        </div>
+        <OrganizerEventsList events={events} />
       ) : tab === "create" ? (
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
           <Suspense
@@ -201,36 +155,48 @@ export default async function OrganizerPage({
         <VerificationQueue orders={pending} />
       ) : tab === "analytics" ? (
         <div className="space-y-6">
-          {events.length === 0 ? (
-            <p className="glass rounded-3xl p-5 text-sm text-muted">
-              No events yet.
-            </p>
-          ) : (
-            events.map((event, index) => {
-              const analytics = analyticsData[index];
-              if (!analytics) return null;
-              return (
-                <div key={event.id} className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Link
-                      href={`/organizer/events/${event.id}`}
-                      className="text-base font-bold hover:text-violet-neon"
-                    >
-                      {event.title}
-                    </Link>
-                    <Link
-                      href={`/organizer/events/${event.id}/report`}
-                      className="flex items-center gap-1.5 text-xs text-muted hover:text-violet-neon"
-                    >
-                      <BarChart2 className="h-3.5 w-3.5" />
-                      Print report
-                    </Link>
-                  </div>
-                  <AnalyticsPanel analytics={analytics} />
-                </div>
-              );
-            })
-          )}
+          {/* Aggregated analytics across all events */}
+          <div>
+            <h2 className="mb-3 text-lg font-bold">Overview — All Events</h2>
+            <AggregatedAnalytics events={events} analyticsData={analyticsData.filter((a): a is NonNullable<typeof a> => !!a)} />
+          </div>
+
+          {/* Per-event breakdown */}
+          {events.length > 0 ? (
+            <div>
+              <h2 className="mb-3 text-lg font-bold">Per-Event Breakdown</h2>
+              <div className="space-y-6">
+                {events.map((event, index) => {
+                  const analytics = analyticsData[index];
+                  if (!analytics) return null;
+                  return (
+                    <div key={event.id} className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Link
+                          href={`/organizer/events/${event.id}`}
+                          className="text-base font-bold hover:text-violet-neon"
+                        >
+                          {event.title}
+                        </Link>
+                        <Link
+                          href={`/organizer/events/${event.id}/report`}
+                          className="flex items-center gap-1.5 text-xs text-muted hover:text-violet-neon"
+                        >
+                          <BarChart2 className="h-3.5 w-3.5" />
+                          Print report
+                        </Link>
+                      </div>
+                      <AnalyticsPanel
+                        analytics={analytics}
+                        capacity={event.totalCapacity}
+                        ticketsSold={event.ticketsSold}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : tab === "clubs" ? (
         <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">

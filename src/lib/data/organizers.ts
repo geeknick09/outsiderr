@@ -7,7 +7,7 @@ export async function getPublicOrganizer(id: string): Promise<Organizer | null> 
   const supabase = await createClient();
   const { data } = await supabase
     .from("organizers")
-    .select("id, name, bio, avatar_url, cover_url, instagram_url, upi_id, upi_qr_url, verified")
+    .select("id, name, bio, avatar_url, cover_url, instagram_url, youtube_url, x_url, facebook_url, linkedin_url, upi_id, upi_qr_url, verified")
     .eq("id", id)
     .single();
 
@@ -19,6 +19,10 @@ export async function getPublicOrganizer(id: string): Promise<Organizer | null> 
     avatarUrl: data.avatar_url,
     coverUrl: (data as { cover_url?: string | null }).cover_url ?? null,
     instagramUrl: (data as { instagram_url?: string | null }).instagram_url ?? null,
+    youtubeUrl: (data as { youtube_url?: string | null }).youtube_url ?? null,
+    xUrl: (data as { x_url?: string | null }).x_url ?? null,
+    facebookUrl: (data as { facebook_url?: string | null }).facebook_url ?? null,
+    linkedinUrl: (data as { linkedin_url?: string | null }).linkedin_url ?? null,
     upiId: data.upi_id,
     upiQrUrl: data.upi_qr_url,
     verified: data.verified,

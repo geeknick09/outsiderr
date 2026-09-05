@@ -44,6 +44,29 @@ export function EventDoorScanner({
   const [manualHash, setManualHash] = useState("");
   const [validating, setValidating] = useState(false);
   const [scanCount, setScanCount] = useState(0);
+  const [recentScans, setRecentScans] = useState<{ hash: string; outcome: string; time: string; holder?: string | null }[]>([]);
+
+  const playBeep = useCallback((outcome: string) => {
+    try {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      if (outcome === "VALID") {
+        osc.frequency.value = 880; // High beep for valid
+      } else {
+        osc.frequency.value = 220; // Low beep for invalid/already used
+      }
+      gain.gain.value = 0.1;
+      osc.start();
+      osc.stop(ctx.currentTime + 0.15);
+      osc.onended = () => ctx.close();
+    } catch {
+      // Audio not available — non-critical
+    }
+  }, []);
 
   const submitHash = useCallback(async (hash: string) => {
     if (busyRef.current || cooldownRef.current) return;
@@ -51,14 +74,26 @@ export function EventDoorScanner({
     setValidating(true);
     const res = await checkInTicketAction(hash, eventId);
     setResult(res);
+    playBeep(res.outcome);
     if (res.outcome === "VALID") setScanCount((c) => c + 1);
+    setRecentScans((prev) =>
+      [
+        {
+          hash: hash.slice(0, 16),
+          outcome: String(res.outcome),
+          time: new Date().toLocaleTimeString("en-IN"),
+          holder: res.ticket?.holderName ?? null,
+        },
+        ...prev,
+      ].slice(0, 10),
+    );
     setValidating(false);
     cooldownRef.current = true;
     setTimeout(() => {
       cooldownRef.current = false;
     }, 3000);
     busyRef.current = false;
-  }, [eventId]);
+  }, [eventId, playBeep]);
 
   const stop = useCallback(async () => {
     const scanner = scannerRef.current;
@@ -166,16 +201,37 @@ export function EventDoorScanner({
           <p className="mt-2 text-lg font-black">{outcome.title}</p>
           <p className="text-sm">{result.message}</p>
           {result.ticket ? (
-            <div className="mt-3 space-y-1 rounded-2xl bg-black/10 p-3 dark:bg-white/5">
-              <p className="text-xs text-muted">{result.ticket.eventTitle}</p>
-              <p className="text-base font-black">
-                {result.ticket.tierName}
-              </p>
-              {result.ticket.holderName ? (
-                <p className="text-sm">{result.ticket.holderName}</p>
+            <div className="mt-3 space-y-1.5 rounded-2xl bg-black/10 p-3 text-left dark:bg-white/5">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted">Event</p>
+              <p className="text-sm font-black">{result.ticket.eventTitle}</p>
+              <div className="my-2 border-t border-black/10 dark:border-white/10" />
+              <p className="text-xs font-bold uppercase tracking-wide text-muted">Name</p>
+              <p className="text-sm font-bold">{result.ticket.holderName ?? "—"}</p>
+              {result.ticket.holderEmail ? (
+                <>
+                  <p className="mt-1 text-xs font-bold uppercase tracking-wide text-muted">Email</p>
+                  <p className="text-xs">{result.ticket.holderEmail}</p>
+                </>
               ) : null}
+              {result.ticket.holderPhone ? (
+                <>
+                  <p className="mt-1 text-xs font-bold uppercase tracking-wide text-muted">Phone</p>
+                  <p className="text-xs">{result.ticket.holderPhone}</p>
+                </>
+              ) : null}
+              <div className="my-2 border-t border-black/10 dark:border-white/10" />
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-muted">Tier</p>
+                  <p className="text-sm font-semibold">{result.ticket.tierName}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-bold uppercase tracking-wide text-muted">Pax</p>
+                  <p className="text-lg font-black">{result.ticket.quantity}</p>
+                </div>
+              </div>
               {result.ticket.checkedInAt ? (
-                <p className="text-xs text-muted">
+                <p className="mt-2 text-xs text-muted">
                   Checked in: {new Date(result.ticket.checkedInAt).toLocaleTimeString("en-IN")}
                 </p>
               ) : null}
@@ -201,6 +257,42 @@ export function EventDoorScanner({
           Check in
         </Button>
       </form>
+
+      {/* Recent scans */}
+      {recentScans.length > 0 ? (
+        <div className="glass rounded-3xl p-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+            Recent scans
+          </p>
+          <div className="space-y-1.5">
+            {recentScans.map((scan, i) => (
+              <div
+                key={`${scan.hash}-${i}`}
+                className="flex items-center justify-between rounded-xl bg-black/5 px-3 py-2 text-xs dark:bg-white/5"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-mono text-[10px] text-muted">{scan.hash}…</p>
+                  {scan.holder ? <p className="font-semibold">{scan.holder}</p> : null}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={
+                      scan.outcome === "VALID"
+                        ? "font-bold text-emerald-600 dark:text-emerald-300"
+                        : scan.outcome === "ALREADY_USED"
+                        ? "font-bold text-amber-600 dark:text-amber-300"
+                        : "font-bold text-red-600 dark:text-red-300"
+                    }
+                  >
+                    {scan.outcome === "VALID" ? "✓" : scan.outcome === "ALREADY_USED" ? "↻" : "✕"}
+                  </span>
+                  <span className="text-[10px] text-muted">{scan.time}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

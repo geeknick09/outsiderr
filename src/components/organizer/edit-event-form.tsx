@@ -2,12 +2,13 @@
 
 import dynamic from "next/dynamic";
 import { Suspense, useActionState, useEffect, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { MapPin, Plus, Trash2 } from "lucide-react";
 
 import { updateEventAction, type UpdateEventState } from "@/actions/events";
 import { GalleryUploader } from "@/components/organizer/gallery-uploader";
 import { TagPicker } from "@/components/organizer/event-form";
 import { Button } from "@/components/ui/button";
+import { CATEGORIES, CITIES } from "@/lib/constants";
 import { isGoogleMapsLink } from "@/lib/upi";
 import type { EventDetail } from "@/lib/types";
 
@@ -33,6 +34,9 @@ interface EditableTier {
   quantity: string;
   quantitySold: number;
   isNew?: boolean;
+  tierType?: string;
+  phaseOpensAt?: string;
+  phaseClosesAt?: string;
 }
 
 export function EditEventForm({ event }: { event: EventDetail }) {
@@ -47,6 +51,12 @@ export function EditEventForm({ event }: { event: EventDetail }) {
   const [mapsLink, setMapsLink] = useState(event.googleMapsLink ?? "");
   const [mapsError, setMapsError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [lat, setLat] = useState(event.latitude ? String(event.latitude) : "");
+  const [lng, setLng] = useState(event.longitude ? String(event.longitude) : "");
+
+  // "Now" in local datetime-local format for min attributes
+  const nowLocal = new Date().toISOString().slice(0, 16);
 
   // Tier state
   const [tiers, setTiers] = useState<EditableTier[]>(
@@ -56,6 +66,9 @@ export function EditEventForm({ event }: { event: EventDetail }) {
       price: (t.pricePaise / 100).toFixed(0),
       quantity: String(t.quantity),
       quantitySold: t.quantitySold,
+      tierType: t.tierType,
+      phaseOpensAt: t.phaseOpensAt ?? "",
+      phaseClosesAt: t.phaseClosesAt ?? "",
     })),
   );
 
@@ -181,6 +194,35 @@ export function EditEventForm({ event }: { event: EventDetail }) {
         />
       </Field>
 
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Category">
+          <select
+            name="category"
+            defaultValue={event.category}
+            className={INPUT}
+          >
+            {CATEGORIES.filter((c) => c.value !== "ALL").map((c) => (
+              <option key={c.value} value={c.value} className="bg-white dark:bg-zinc-900">
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="City">
+          <select
+            name="city"
+            defaultValue={event.city}
+            className={INPUT}
+          >
+            {CITIES.map((c) => (
+              <option key={c.value} value={c.value} className="bg-white dark:bg-zinc-900">
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+
       <Field label="About the event">
         <textarea
           name="description"
@@ -211,26 +253,6 @@ export function EditEventForm({ event }: { event: EventDetail }) {
         />
       </Field>
 
-      {/* Map picker for venue location */}
-      <div className="space-y-1.5">
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-          Location on map (optional)
-        </span>
-        <Suspense
-          fallback={
-            <div className="flex h-64 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 dark:border-white/10 dark:bg-white/5">
-              <p className="text-xs text-muted">Loading map…</p>
-            </div>
-          }
-        >
-          <MapPicker
-            initialLat={event.latitude ? String(event.latitude) : undefined}
-            initialLng={event.longitude ? String(event.longitude) : undefined}
-            onLocationChange={() => setDirty(true)}
-          />
-        </Suspense>
-      </div>
-
       <Field label="Google Maps link">
         <input
           name="googleMapsLink"
@@ -250,12 +272,53 @@ export function EditEventForm({ event }: { event: EventDetail }) {
         {mapsError ? <span className="block text-xs text-red-500">{mapsError}</span> : null}
       </Field>
 
+      {/* Hidden inputs for lat/lng */}
+      <input type="hidden" name="latitude" value={lat} />
+      <input type="hidden" name="longitude" value={lng} />
+
+      {/* Optional map picker — collapsible */}
+      <div className="space-y-2">
+        <button
+          type="button"
+          onClick={() => setShowMapPicker((v) => !v)}
+          className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted hover:text-violet-neon"
+        >
+          <MapPin className="h-4 w-4" />
+          {showMapPicker ? "Hide map picker" : "Choose location on map (optional)"}
+        </button>
+        {showMapPicker ? (
+          <div className="space-y-1.5">
+            <p className="text-xs text-muted">
+              Use this if you don&apos;t have a Google Maps link. Click the map or drag the marker to set the exact location.
+            </p>
+            <Suspense
+              fallback={
+                <div className="flex h-64 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 dark:border-white/10 dark:bg-white/5">
+                  <p className="text-xs text-muted">Loading map…</p>
+                </div>
+              }
+            >
+              <MapPicker
+                initialLat={lat || (event.latitude ? String(event.latitude) : undefined)}
+                initialLng={lng || (event.longitude ? String(event.longitude) : undefined)}
+                onLocationChange={(newLat, newLng) => {
+                  setLat(String(newLat));
+                  setLng(String(newLng));
+                  setDirty(true);
+                }}
+              />
+            </Suspense>
+          </div>
+        ) : null}
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Starts at">
           <input
             type="datetime-local"
             name="startsAt"
             required
+            min={nowLocal}
             value={startsAt}
             onChange={(e) => {
               setStartsAt(e.target.value);
@@ -264,10 +327,12 @@ export function EditEventForm({ event }: { event: EventDetail }) {
             className={INPUT}
           />
         </Field>
-        <Field label="Ends at (optional)">
+        <Field label="Ends at">
           <input
             type="datetime-local"
             name="endsAt"
+            required
+            min={startsAt || nowLocal}
             value={endsAt}
             onChange={(e) => {
               setEndsAt(e.target.value);
@@ -326,6 +391,44 @@ export function EditEventForm({ event }: { event: EventDetail }) {
         />
       </Field>
 
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="YouTube URL (optional)">
+          <input
+            name="youtubeUrl"
+            defaultValue={event.youtubeUrl ?? ""}
+            placeholder="https://youtube.com/@yourevent"
+            className={INPUT}
+          />
+        </Field>
+        <Field label="X URL (optional)">
+          <input
+            name="xUrl"
+            defaultValue={event.xUrl ?? ""}
+            placeholder="https://x.com/yourevent"
+            className={INPUT}
+          />
+        </Field>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Facebook URL (optional)">
+          <input
+            name="facebookUrl"
+            defaultValue={event.facebookUrl ?? ""}
+            placeholder="https://facebook.com/yourevent"
+            className={INPUT}
+          />
+        </Field>
+        <Field label="LinkedIn URL (optional)">
+          <input
+            name="linkedinUrl"
+            defaultValue={event.linkedinUrl ?? ""}
+            placeholder="https://linkedin.com/in/yourevent"
+            className={INPUT}
+          />
+        </Field>
+      </div>
+
       {/* Ticket tier editing — dynamic add/remove */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
@@ -380,7 +483,7 @@ export function EditEventForm({ event }: { event: EventDetail }) {
               <input
                 name="tierQty[]"
                 type="number"
-                min={tier.quantitySold}
+                min={Math.max(0, tier.quantitySold)}
                 step="1"
                 required
                 value={tier.quantity}
@@ -389,6 +492,31 @@ export function EditEventForm({ event }: { event: EventDetail }) {
                 className={INPUT}
               />
             </div>
+            {/* Phase date editing — only for FLAT_PHASE tiers */}
+            {tier.tierType === "FLAT_PHASE" ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="text-[10px] font-semibold uppercase text-muted">Phase opens at</label>
+                  <input
+                    name="tierPhaseOpensAt[]"
+                    type="datetime-local"
+                    value={toDatetimeLocal(tier.phaseOpensAt ?? "")}
+                    onChange={(e) => updateTier(tier.id, { phaseOpensAt: e.target.value })}
+                    className={INPUT}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold uppercase text-muted">Phase closes at</label>
+                  <input
+                    name="tierPhaseClosesAt[]"
+                    type="datetime-local"
+                    value={toDatetimeLocal(tier.phaseClosesAt ?? "")}
+                    onChange={(e) => updateTier(tier.id, { phaseClosesAt: e.target.value })}
+                    className={INPUT}
+                  />
+                </div>
+              </div>
+            ) : null}
           </div>
         ))}
         <p className="text-[10px] text-muted">

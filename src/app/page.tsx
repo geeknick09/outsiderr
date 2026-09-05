@@ -15,6 +15,7 @@ import {
 } from "@/lib/constants";
 import { listEvents } from "@/lib/data/events";
 import { getHeroEvents } from "@/lib/data/hero-boosts";
+import { getMyEventsToday } from "@/lib/data/orders";
 import {
   getHeroBoostEnabled,
   getHeroMaxVisibleEvents,
@@ -22,7 +23,8 @@ import {
   getTaglineHeader,
   getTaglineSubheader,
 } from "@/lib/data/platform-settings";
-import { isPast, isToday } from "@/lib/format";
+import { getCurrentUser } from "@/lib/auth";
+import { formatDateTime, isPast, isToday } from "@/lib/format";
 import type { City, EventCategory } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -69,6 +71,10 @@ export default async function DiscoveryPage({
     ? await getHeroEvents(heroRotationInterval, heroMaxVisible)
     : [];
 
+  // "Your Events Today" — only for logged-in users
+  const currentUser = await getCurrentUser();
+  const myEventsToday = currentUser ? await getMyEventsToday(currentUser) : [];
+
   return (
     <div>
       <div className="mb-6 flex items-start justify-between gap-4">
@@ -101,6 +107,31 @@ export default async function DiscoveryPage({
 
       {/* Hero Boost carousel — only shown in "All" view (no category filter) */}
       {!category && heroEvents.length > 0 ? <HeroCarousel events={heroEvents} /> : null}
+
+      {/* Your Events Today — only for logged-in users with events today */}
+      {myEventsToday.length > 0 ? (
+        <section className="mb-10">
+          <div className="mb-3">
+            <h2 className="text-xl font-black tracking-tight">Your Events Today</h2>
+            <p className="text-sm text-muted">Don&apos;t miss out — these are happening today!</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {myEventsToday.map((ev) => (
+              <Link
+                key={ev.eventId}
+                href={`/events/${ev.eventId}`}
+                className="glass block rounded-2xl p-4 transition-all hover:border-violet-neon/50 hover:shadow-[0_0_20px_rgba(139,92,246,0.25)]"
+              >
+                <p className="text-sm font-bold">{ev.eventTitle}</p>
+                <p className="mt-1 text-xs text-muted">
+                  {formatDateTime(ev.startsAt)} · {ev.venueName}
+                </p>
+                <p className="mt-1 text-xs font-semibold text-violet-neon">{ev.tierName}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <FeaturedCarousel events={featured} />
 

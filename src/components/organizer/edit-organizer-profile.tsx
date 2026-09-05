@@ -1,10 +1,11 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Check, Upload, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 
 import { updateOrganizerAction, type UpdateOrganizerState } from "@/actions/organizer";
 import { Button } from "@/components/ui/button";
+import { ImageUploadWithCrop } from "@/components/ui/image-cropper";
 import { QrCode } from "@/components/ui/qr-code";
 import { uploadPublicFile } from "@/lib/upload";
 import { upiIntent, validateUpiId } from "@/lib/upi";
@@ -100,16 +101,11 @@ export function EditOrganizerProfile({
                   No photo
                 </div>
               )}
-              <label className="flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-3 text-sm text-muted hover:border-violet-neon dark:border-white/15">
-                <Upload className="h-4 w-4" />
-                {uploading ? "Uploading…" : avatarUrl ? "Change" : "Upload"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => void handleAvatar(e.target.files?.[0])}
-                />
-              </label>
+              <ImageUploadWithCrop
+                onCropped={handleAvatar}
+                aspect={1}
+                label={uploading ? "Uploading…" : avatarUrl ? "Change" : "Upload"}
+              />
             </div>
             <input type="hidden" name="avatarUrl" value={avatarUrl} />
             {uploadError ? <p className="text-xs text-amber-500">{uploadError}</p> : null}
@@ -133,16 +129,11 @@ export function EditOrganizerProfile({
                   No cover photo
                 </div>
               )}
-              <label className="flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-3 text-sm text-muted hover:border-violet-neon dark:border-white/15">
-                <Upload className="h-4 w-4" />
-                {uploading ? "Uploading…" : coverUrl ? "Change cover" : "Upload cover"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => void handleCover(e.target.files?.[0])}
-                />
-              </label>
+              <ImageUploadWithCrop
+                onCropped={handleCover}
+                aspect={3}
+                label={uploading ? "Uploading…" : coverUrl ? "Change cover" : "Upload cover"}
+              />
             </div>
             <input type="hidden" name="coverUrl" value={coverUrl} />
             <input type="hidden" name="instagramUrl" value={instagramUrl} />
@@ -183,6 +174,134 @@ export function EditOrganizerProfile({
               className={INPUT}
             />
           </label>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block space-y-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+                YouTube URL (optional)
+              </span>
+              <input
+                name="youtubeUrl"
+                defaultValue={organizer.youtubeUrl ?? ""}
+                placeholder="https://youtube.com/@yourhandle"
+                className={INPUT}
+              />
+            </label>
+            <label className="block space-y-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+                X URL (optional)
+              </span>
+              <input
+                name="xUrl"
+                defaultValue={organizer.xUrl ?? ""}
+                placeholder="https://x.com/yourhandle"
+                className={INPUT}
+              />
+            </label>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block space-y-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+                Facebook URL (optional)
+              </span>
+              <input
+                name="facebookUrl"
+                defaultValue={organizer.facebookUrl ?? ""}
+                placeholder="https://facebook.com/yourhandle"
+                className={INPUT}
+              />
+            </label>
+            <label className="block space-y-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+                LinkedIn URL (optional)
+              </span>
+              <input
+                name="linkedinUrl"
+                defaultValue={organizer.linkedinUrl ?? ""}
+                placeholder="https://linkedin.com/in/yourhandle"
+                className={INPUT}
+              />
+            </label>
+          </div>
+
+          {/* KYC / Bank details */}
+          <div className="space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
+            <p className="text-xs font-bold uppercase tracking-wide text-muted">
+              KYC &amp; Bank details
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block space-y-1">
+                <span className="text-xs text-muted">PAN number</span>
+                <input
+                  name="panNumber"
+                  defaultValue={organizer.panNumber ?? ""}
+                  placeholder="ABCDE1234F"
+                  className={INPUT}
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-xs text-muted">Name on PAN</span>
+                <input
+                  name="panName"
+                  defaultValue={organizer.panName ?? ""}
+                  className={INPUT}
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-xs text-muted">GST number (optional)</span>
+                <input
+                  name="gstNumber"
+                  defaultValue={organizer.gstNumber ?? ""}
+                  className={INPUT}
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-xs text-muted">GST business name (optional)</span>
+                <input
+                  name="gstBusinessName"
+                  defaultValue={organizer.gstBusinessName ?? ""}
+                  className={INPUT}
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-xs text-muted">Bank account number</span>
+                <input
+                  name="bankAccountNumber"
+                  defaultValue={organizer.bankAccountNumber ?? ""}
+                  className={INPUT}
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-xs text-muted">IFSC</span>
+                <input
+                  name="bankIfsc"
+                  defaultValue={organizer.bankIfsc ?? ""}
+                  placeholder="ABCD0123456"
+                  className={INPUT}
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-xs text-muted">Account holder name</span>
+                <input
+                  name="bankAccountName"
+                  defaultValue={organizer.bankAccountName ?? ""}
+                  className={INPUT}
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-xs text-muted">Account type</span>
+                <select
+                  name="bankAccountType"
+                  defaultValue={organizer.bankAccountType ?? "SAVINGS"}
+                  className={INPUT}
+                >
+                  <option value="SAVINGS">Savings</option>
+                  <option value="CURRENT">Current</option>
+                </select>
+              </label>
+            </div>
+          </div>
 
           <label className="block space-y-1.5">
             <span className="text-xs font-semibold uppercase tracking-wide text-muted">

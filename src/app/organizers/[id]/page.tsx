@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { AtSign, BadgeCheck, CalendarDays, Clock } from "lucide-react";
+import { AtSign, BadgeCheck, CalendarDays, Clock, Globe, Link2, MessageCircle, Play } from "lucide-react";
 
 import { EventCard } from "@/components/events/event-card";
 import { Badge } from "@/components/ui/badge";
@@ -75,22 +75,69 @@ export default async function PublicOrganizerPage({
           )}
           <div className="pb-2">
             <h1 className="flex items-center gap-2 text-2xl font-black tracking-tight sm:text-3xl">
-              {organizer.name}
+              <span className="truncate">{organizer.name}</span>
               {organizer.verified ? (
-                <BadgeCheck className="h-7 w-7 text-violet-neon" />
+                <BadgeCheck className="h-7 w-7 shrink-0 text-violet-neon" />
               ) : null}
+            </h1>
+            {/* Social icons */}
+            <div className="mt-1 flex items-center gap-3">
               {organizer.instagramUrl ? (
                 <a
                   href={organizer.instagramUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center text-violet-neon hover:underline"
+                  className="text-muted hover:text-violet-neon"
                   aria-label="Instagram"
                 >
-                  <AtSign className="h-6 w-6" />
+                  <AtSign className="h-5 w-5" />
                 </a>
               ) : null}
-            </h1>
+              {organizer.youtubeUrl ? (
+                <a
+                  href={organizer.youtubeUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-muted hover:text-violet-neon"
+                  aria-label="YouTube"
+                >
+                  <Play className="h-5 w-5" />
+                </a>
+              ) : null}
+              {organizer.xUrl ? (
+                <a
+                  href={organizer.xUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-muted hover:text-violet-neon"
+                  aria-label="X"
+                >
+                  <MessageCircle className="h-5 w-5" />
+                </a>
+              ) : null}
+              {organizer.facebookUrl ? (
+                <a
+                  href={organizer.facebookUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-muted hover:text-violet-neon"
+                  aria-label="Facebook"
+                >
+                  <Globe className="h-5 w-5" />
+                </a>
+              ) : null}
+              {organizer.linkedinUrl ? (
+                <a
+                  href={organizer.linkedinUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-muted hover:text-violet-neon"
+                  aria-label="LinkedIn"
+                >
+                  <Link2 className="h-5 w-5" />
+                </a>
+              ) : null}
+            </div>
             {organizer.bio ? (
               <p className="mt-1 max-w-xl text-sm text-muted">{organizer.bio}</p>
             ) : null}

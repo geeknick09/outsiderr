@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { Suspense, useActionState, useState } from "react";
-import { Plus, ShieldCheck, Trash2, Upload, Users } from "lucide-react";
+import { MapPin, Plus, ShieldCheck, Trash2, Upload, Users } from "lucide-react";
 
 import { createEventAction, type CreateEventState } from "@/actions/events";
 import { Button } from "@/components/ui/button";
@@ -136,6 +136,9 @@ export function EventForm({
   const [mapsLink, setMapsLink] = useState(sv?.googleMapsLink ?? "");
   const [mapsError, setMapsError] = useState<string | null>(null);
   const [instagramUrl, setInstagramUrl] = useState(sv?.instagramUrl ?? "");
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [lat, setLat] = useState(sv?.latitude ?? "");
+  const [lng, setLng] = useState(sv?.longitude ?? "");
 
   function validateDates(start: string, end: string) {
     if (end && start && new Date(end) <= new Date(start)) {
@@ -154,10 +157,43 @@ export function EventForm({
     emptyPhase(),
   ]);
 
+  // "Now" in local datetime-local format (YYYY-MM-DDTHH:mm) for min attributes
+  const nowLocal = new Date().toISOString().slice(0, 16);
+  const [phaseError, setPhaseError] = useState<string | null>(null);
+
+  function validatePhases(rows: PhaseRow[]) {
+    for (let i = 0; i < rows.length; i++) {
+      const p = rows[i];
+      if (!p.opensAt) continue;
+      // Phase opens must be in the future
+      if (new Date(p.opensAt) < new Date()) {
+        setPhaseError(`Phase ${i + 1} open date cannot be in the past.`);
+        return;
+      }
+      // Phase closes must be after opens
+      if (p.closesAt && p.opensAt && new Date(p.closesAt) <= new Date(p.opensAt)) {
+        setPhaseError(`Phase ${i + 1} close date must be after its open date.`);
+        return;
+      }
+      // Next phase opens must be after previous phase closes (or opens)
+      if (i > 0) {
+        const prev = rows[i - 1];
+        const prevBoundary = prev.closesAt ?? prev.opensAt;
+        if (prevBoundary && p.opensAt && new Date(p.opensAt) <= new Date(prevBoundary)) {
+          setPhaseError(`Phase ${i + 1} must open after Phase ${i}'s ${prev.closesAt ? "close" : "open"} date.`);
+          return;
+        }
+      }
+    }
+    setPhaseError(null);
+  }
+
   function updatePhase(key: string, patch: Partial<PhaseRow>) {
-    setPhases((rows) =>
-      rows.map((row) => (row.key === key ? { ...row, ...patch } : row)),
-    );
+    setPhases((rows) => {
+      const updated = rows.map((row) => (row.key === key ? { ...row, ...patch } : row));
+      validatePhases(updated);
+      return updated;
+    });
   }
 
   function updateTier(key: string, patch: Partial<TierRow>) {
@@ -220,6 +256,7 @@ export function EventForm({
               type="datetime-local"
               name="startsAt"
               required
+              min={nowLocal}
               value={startsAt}
               onChange={(e) => {
                 setStartsAt(e.target.value);
@@ -228,10 +265,12 @@ export function EventForm({
               className={INPUT}
             />
           </Field>
-          <Field label="Ends at (optional)">
+          <Field label="Ends at">
             <input
               type="datetime-local"
               name="endsAt"
+              required
+              min={startsAt || nowLocal}
               value={endsAt}
               onChange={(e) => {
                 setEndsAt(e.target.value);
@@ -309,25 +348,6 @@ export function EventForm({
             />
           </Field>
 
-          <div className="space-y-1.5">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-              Location on map (optional)
-            </span>
-            <Suspense
-              fallback={
-                <div className="flex h-64 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 dark:border-white/10 dark:bg-white/5">
-                  <p className="text-xs text-muted">Loading map…</p>
-                </div>
-              }
-            >
-              <MapPicker
-                initialLat={sv?.latitude}
-                initialLng={sv?.longitude}
-                onLocationChange={() => {}}
-              />
-            </Suspense>
-          </div>
-
           <Field label="Google Maps link *">
             <input
               name="googleMapsLink"
@@ -348,6 +368,45 @@ export function EventForm({
               <span className="block text-xs text-red-500">{mapsError}</span>
             ) : null}
           </Field>
+
+          {/* Hidden inputs for lat/lng — populated by the map picker */}
+          <input type="hidden" name="latitude" value={lat} />
+          <input type="hidden" name="longitude" value={lng} />
+
+          {/* Optional map picker — collapsible */}
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => setShowMapPicker((v) => !v)}
+              className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted hover:text-violet-neon"
+            >
+              <MapPin className="h-4 w-4" />
+              {showMapPicker ? "Hide map picker" : "Choose location on map (optional)"}
+            </button>
+            {showMapPicker ? (
+              <div className="space-y-1.5">
+                <p className="text-xs text-muted">
+                  Use this if you don&apos;t have a Google Maps link. Click the map or drag the marker to set the exact location.
+                </p>
+                <Suspense
+                  fallback={
+                    <div className="flex h-64 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 dark:border-white/10 dark:bg-white/5">
+                      <p className="text-xs text-muted">Loading map…</p>
+                    </div>
+                  }
+                >
+                  <MapPicker
+                    initialLat={lat || sv?.latitude}
+                    initialLng={lng || sv?.longitude}
+                    onLocationChange={(newLat, newLng) => {
+                      setLat(String(newLat));
+                      setLng(String(newLng));
+                    }}
+                  />
+                </Suspense>
+              </div>
+            ) : null}
+          </div>
         </>
       )}
 
@@ -443,6 +502,44 @@ export function EventForm({
           />
         </Field>
         <input type="hidden" name="instagramUrl" value={instagramUrl} />
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="YouTube URL (optional)">
+            <input
+              name="youtubeUrl"
+              defaultValue={sv?.youtubeUrl ?? ""}
+              placeholder="https://youtube.com/@yourevent"
+              className={INPUT}
+            />
+          </Field>
+          <Field label="X URL (optional)">
+            <input
+              name="xUrl"
+              defaultValue={sv?.xUrl ?? ""}
+              placeholder="https://x.com/yourevent"
+              className={INPUT}
+            />
+          </Field>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Facebook URL (optional)">
+            <input
+              name="facebookUrl"
+              defaultValue={sv?.facebookUrl ?? ""}
+              placeholder="https://facebook.com/yourevent"
+              className={INPUT}
+            />
+          </Field>
+          <Field label="LinkedIn URL (optional)">
+            <input
+              name="linkedinUrl"
+              defaultValue={sv?.linkedinUrl ?? ""}
+              placeholder="https://linkedin.com/in/yourevent"
+              className={INPUT}
+            />
+          </Field>
+        </div>
       </section>
 
       {/* ── Pricing mode + tickets ── */}
@@ -475,7 +572,11 @@ export function EventForm({
           <PricingModeCard
             mode="PHASED"
             active={pricingMode === "PHASED"}
-            onClick={() => setPricingMode("PHASED")}
+            onClick={() => {
+              setPricingMode("PHASED");
+              // In PHASED mode, named tiers are optional — clear the default empty tier
+              setTiers((prev) => prev.length === 1 && !prev[0].name && !prev[0].price ? [] : prev);
+            }}
             title="Phased"
             description="Time-based flat pricing with carry-forward + optional named tiers."
           />
@@ -732,6 +833,7 @@ export function EventForm({
                   <Field label="Phase opens at">
                     <input
                       type="datetime-local"
+                      min={index === 0 ? nowLocal : (phases[index - 1].closesAt ?? phases[index - 1].opensAt ?? nowLocal)}
                       value={phase.opensAt}
                       onChange={(e) => updatePhase(phase.key, { opensAt: e.target.value })}
                       className={INPUT}
@@ -740,6 +842,7 @@ export function EventForm({
                   <Field label="Phase closes at (optional)">
                     <input
                       type="datetime-local"
+                      min={phase.opensAt || nowLocal}
                       value={phase.closesAt}
                       onChange={(e) => updatePhase(phase.key, { closesAt: e.target.value })}
                       className={INPUT}
@@ -753,6 +856,9 @@ export function EventForm({
                 ) : null}
               </div>
             ))}
+            {phaseError ? (
+              <p className="text-sm text-red-500">{phaseError}</p>
+            ) : null}
 
             {/* Optional named tiers alongside phases */}
             <div className="flex items-center justify-between">
@@ -777,18 +883,16 @@ export function EventForm({
               >
                 <div className="mb-3 flex items-center justify-between">
                   <span className="text-xs font-bold text-muted">Tier {index + 1}</span>
-                  {tiers.length > 1 ? (
-                    <button
-                      type="button"
-                      aria-label={`Remove tier ${index + 1}`}
-                      onClick={() =>
-                        setTiers((rows) => rows.filter((row) => row.key !== tier.key))
-                      }
-                      className="text-muted hover:text-red-500"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  ) : null}
+                  <button
+                    type="button"
+                    aria-label={`Remove tier ${index + 1}`}
+                    onClick={() =>
+                      setTiers((rows) => rows.filter((row) => row.key !== tier.key))
+                    }
+                    className="text-muted hover:text-red-500"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-3">
@@ -899,7 +1003,7 @@ export function EventForm({
 
       {state.error ? <p className="text-sm text-red-500">{state.error}</p> : null}
 
-      <Button type="submit" size="lg" disabled={pending || !!dateError || !!mapsError} loading={pending} loadingText="Publishing…">
+      <Button type="submit" size="lg" disabled={pending || !!dateError || !!mapsError || !!phaseError} loading={pending} loadingText="Publishing…">
         Publish event
       </Button>
     </form>

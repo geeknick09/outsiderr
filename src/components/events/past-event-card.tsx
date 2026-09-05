@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { MapPin } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -8,8 +9,8 @@ import type { EventSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /**
- * Non-interactive card for past/completed events.
- * Renders the same visual as EventCard but is not clickable.
+ * Clickable card for past/completed events.
+ * Links to the event detail page (read-only, no booking).
  */
 export function PastEventCard({
   event,
@@ -21,13 +22,12 @@ export function PastEventCard({
   const date = formatDateBadge(event.startsAt);
 
   return (
-    <div
+    <Link
+      href={`/events/${event.id}`}
       className={cn(
-        "group glass block overflow-hidden rounded-3xl opacity-60 grayscale transition-all duration-300",
-        "pointer-events-none cursor-not-allowed select-none",
+        "group glass block overflow-hidden rounded-3xl opacity-70 grayscale transition-all duration-300 hover:opacity-90 hover:grayscale-0",
         className,
       )}
-      aria-disabled
     >
       <div className="relative aspect-[4/5] w-full overflow-hidden bg-zinc-200 dark:bg-white/5">
         {event.cardPosterUrl ? (
@@ -73,6 +73,6 @@ export function PastEventCard({
           <span className="truncate">{event.venueName}</span>
         </p>
       </div>
-    </div>
+    </Link>
   );
 }

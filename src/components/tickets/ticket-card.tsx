@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarDays, Clock, MapPin, Ticket as TicketIcon, X } from "lucide-react";
+import Link from "next/link";
+import { CalendarDays, Clock, MapPin, Printer, Ticket as TicketIcon, X } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { QrCode } from "@/components/ui/qr-code";
@@ -14,16 +15,20 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
   const [expanded, setExpanded] = useState(false);
   const expired = isPast(ticket.startsAt);
   const used = ticket.status === "USED";
-  const void_ = ticket.status === "VOID" || ticket.status === "CANCELLED";
+  const cancelled = ticket.status === "CANCELLED";
+  const void_ = ticket.status === "VOID";
+  const notOpenable = expired || cancelled || void_;
 
-  // Status badge logic — expired takes priority over "Valid"
-  const badgeTone = expired || void_ ? "neutral" : used ? "success" : "success";
+  // Status badge logic
+  const badgeTone = expired || cancelled || void_ ? "neutral" : used ? "success" : "success";
   const badgeLabel = expired
-    ? "Event Ended"
+    ? "Expired"
+    : cancelled
+    ? "Cancelled"
     : void_
     ? "Void"
     : used
-    ? "Checked In"
+    ? "Scanned"
     : "Valid";
 
   return (
@@ -31,11 +36,11 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
       {/* Compact card */}
       <button
         type="button"
-        onClick={() => !expired && setExpanded(true)}
-        disabled={expired}
+        onClick={() => !notOpenable && setExpanded(true)}
+        disabled={notOpenable}
         className={cn(
           "glass flex w-full flex-col gap-4 rounded-3xl p-4 text-left transition-all",
-          expired
+          notOpenable
             ? "cursor-not-allowed opacity-50 grayscale"
             : "cursor-pointer hover:border-violet-neon/50 hover:shadow-[0_0_20px_rgba(139,92,246,0.25)]",
         )}
@@ -54,6 +59,20 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
                 </span>
               </div>
             ) : null}
+            {cancelled ? (
+              <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/50">
+                <span className="rotate-[-20deg] rounded-md bg-red-600/90 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">
+                  Cancelled
+                </span>
+              </div>
+            ) : null}
+            {void_ ? (
+              <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/40">
+                <span className="rotate-[-20deg] rounded-md bg-zinc-600/90 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-white">
+                  Void
+                </span>
+              </div>
+            ) : null}
           </div>
           <div className="min-w-0 space-y-1">
             <p className="truncate text-sm font-bold">{ticket.eventTitle}</p>
@@ -66,15 +85,15 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
         <p
           className={cn(
             "text-center text-xs font-semibold",
-            expired ? "text-muted" : "text-violet-neon",
+            notOpenable ? "text-muted" : "text-violet-neon",
           )}
         >
-          {expired ? "Event has ended" : "Tap to view full ticket"}
+          {expired ? "Event has ended" : cancelled ? "Event cancelled" : void_ ? "Ticket voided" : "Tap to view full ticket"}
         </p>
       </button>
 
-      {/* Expanded modal overlay — only for non-expired tickets */}
-      {expanded && !expired ? (
+      {/* Expanded modal overlay — only for non-expired/non-cancelled tickets */}
+      {expanded && !notOpenable ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
           onClick={() => setExpanded(false)}
@@ -108,7 +127,7 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
                 {ticket.qrHash.slice(0, 24)}…
               </p>
               <Badge tone={used ? "success" : "success"} className="mt-3">
-                {used ? "Checked In" : "Valid"}
+                {used ? "Scanned" : "Valid"}
               </Badge>
             </div>
 
@@ -127,11 +146,18 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
             </div>
 
             {/* Footer */}
-            <div className="border-t border-zinc-200 px-6 py-4 dark:border-white/10">
+            <div className="flex items-center justify-between border-t border-zinc-200 px-6 py-4 dark:border-white/10">
               <DownloadQrButton
                 qrHash={ticket.qrHash}
                 filename={`ticket-${ticket.id.slice(0, 8)}.png`}
               />
+              <Link
+                href={`/tickets/${ticket.id}/print`}
+                className="flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700"
+              >
+                <Printer className="h-4 w-4" />
+                Print ticket
+              </Link>
             </div>
           </div>
         </div>

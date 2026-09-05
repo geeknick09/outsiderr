@@ -45,12 +45,25 @@ export async function createOrder(
     throw new Error("Not enough tickets left in this tier.");
   }
 
+  // Prevent double booking — 1 ticket per user per event (unless MAX_TICKETS_PER_ORDER > 1)
+  const supabase = await createClient();
+  if (MAX_TICKETS_PER_ORDER === 1) {
+    const { count } = await supabase
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", event.id)
+      .eq("user_id", user.id)
+      .in("status", ["CONFIRMED", "PENDING_VERIFICATION"]);
+    if (count && count > 0) {
+      throw new Error("You have already booked a ticket for this event.");
+    }
+  }
+
   // Use admin-configured commission tiers
   const feeTiers = await getFeeTiers();
   const feeBps = getFeeBpsForPrice(tier.pricePaise, feeTiers);
   const price = calculatePrice(tier.pricePaise, input.quantity, event.feePayer, feeBps);
 
-  const supabase = await createClient();
   const { data, error } = await supabase
     .from("orders")
     .insert({
@@ -120,8 +133,21 @@ export async function createFreeOrder(
     throw new Error("Not enough tickets left.");
   }
 
-  // Supabase: use the create_free_order RPC (auto-confirms + mints tickets)
+  // Prevent double booking — 1 ticket per user per event (unless MAX_TICKETS_PER_ORDER > 1)
   const supabase = await createClient();
+  if (MAX_TICKETS_PER_ORDER === 1) {
+    const { count } = await supabase
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", event.id)
+      .eq("user_id", user.id)
+      .in("status", ["CONFIRMED", "PENDING_VERIFICATION"]);
+    if (count && count > 0) {
+      throw new Error("You have already booked a ticket for this event.");
+    }
+  }
+
+  // Supabase: use the create_free_order RPC (auto-confirms + mints tickets)
   const { data, error } = await supabase.rpc("create_free_order", {
     p_event_id: input.eventId,
     p_tier_id: input.tierId,
@@ -275,6 +301,56 @@ export async function listMyTickets(user: CurrentUser): Promise<Ticket[]> {
   });
 }
 
+/**
+ * Returns events the user has booked that are happening today (and haven't ended yet).
+ * Used for the "Your Events Today" homepage section.
+ */
+export async function getMyEventsToday(user: CurrentUser): Promise<
+  { eventId: string; eventTitle: string; startsAt: string; venueName: string; tierName: string }[]
+> {
+  const supabase = await createClient();
+  const { data: tickets } = await supabase
+    .from("tickets")
+    .select("event_id, tier_id")
+    .eq("user_id", user.id)
+    .in("status", ["VALID", "USED"]);
+
+  if (!tickets || tickets.length === 0) return [];
+
+  const eventIds = [...new Set(tickets.map((t) => t.event_id))];
+  const tierIds = [...new Set(tickets.map((t) => t.tier_id))];
+
+  const [{ data: events }, { data: tiers }] = await Promise.all([
+    supabase
+      .from("events")
+      .select("id, title, starts_at, ends_at, venue_name")
+      .in("id", eventIds),
+    supabase
+      .from("ticket_tiers")
+      .select("id, name")
+      .in("id", tierIds),
+  ]);
+
+  const now = new Date();
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+
+  return (events ?? [])
+    .filter((e) => {
+      const start = new Date(e.starts_at);
+      const end = e.ends_at ? new Date(e.ends_at) : new Date(e.starts_at);
+      // Event is happening today: start <= todayEnd AND end >= now
+      return start <= todayEnd && end >= now;
+    })
+    .map((e) => ({
+      eventId: e.id,
+      eventTitle: e.title,
+      startsAt: e.starts_at,
+      venueName: e.venue_name ?? "",
+      tierName: tiers?.find((t) => t.id === tickets.find((tk) => tk.event_id === e.id)?.tier_id)?.name ?? "Ticket",
+    }));
+}
+
 export async function approveOrder(orderId: string): Promise<void> {
   // Use the security-definer RPC — it bypasses RLS entirely for ticket minting
   const supabase = await createClient();
@@ -285,6 +361,14 @@ export async function approveOrder(orderId: string): Promise<void> {
 export async function rejectOrder(orderId: string, reason: string): Promise<void> {
   // Direct Supabase implementation — avoids RPC is_event_staff issues
   const supabase = await createClient();
+
+  // Get the tier_id before rejecting (for waitlist auto-offer)
+  const { data: order } = await supabase
+    .from("orders")
+    .select("tier_id")
+    .eq("id", orderId)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("orders")
     .update({
@@ -294,6 +378,16 @@ export async function rejectOrder(orderId: string, reason: string): Promise<void
     })
     .eq("id", orderId);
   if (error) throw new Error(error.message);
+
+  // Auto-offer to next waitlisted user if a tier was freed
+  if (order?.tier_id) {
+    try {
+      const { autoOfferWaitlist } = await import("@/lib/data/waitlist");
+      await autoOfferWaitlist(order.tier_id);
+    } catch {
+      // Non-critical — don't block rejection on waitlist offer failure
+    }
+  }
 }
 
 export async function checkInTicket(qrHash: string, eventId: string): Promise<ScanResult> {
@@ -308,6 +402,30 @@ export async function checkInTicket(qrHash: string, eventId: string): Promise<Sc
     return { outcome: "INVALID", message: "Ticket not recognised." };
   }
 
+  // Fetch additional ticket + order details for scanner display
+  const { data: ticketRow } = await supabase
+    .from("tickets")
+    .select("order_id")
+    .eq("qr_hash", hash)
+    .maybeSingle();
+
+  let holderEmail: string | null = null;
+  let holderPhone: string | null = null;
+  let quantity = 1;
+
+  if (ticketRow?.order_id) {
+    const { data: orderRow } = await supabase
+      .from("orders")
+      .select("buyer_email, buyer_phone, quantity")
+      .eq("id", ticketRow.order_id)
+      .maybeSingle();
+    if (orderRow) {
+      holderEmail = orderRow.buyer_email;
+      holderPhone = orderRow.buyer_phone;
+      quantity = orderRow.quantity ?? 1;
+    }
+  }
+
   return {
     outcome: row.outcome,
     message: row.outcome === "VALID" ? "Checked in." : "This ticket has already been checked in.",
@@ -315,6 +433,9 @@ export async function checkInTicket(qrHash: string, eventId: string): Promise<Sc
       eventTitle: row.event_title ?? "Event",
       tierName: row.tier_name ?? "Ticket",
       holderName: row.holder_name,
+      holderEmail,
+      holderPhone,
+      quantity,
       checkedInAt: row.checked_in_at,
     },
   };

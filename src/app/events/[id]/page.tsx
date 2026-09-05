@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { AtSign, BadgeCheck, CalendarDays, Info, Mail, MapPin, Phone } from "lucide-react";
+import { AtSign, BadgeCheck, CalendarDays, Globe, Info, Link2, Mail, MapPin, MessageCircle, Phone, Play } from "lucide-react";
 
 import { MapEmbed } from "@/components/events/map-embed";
 import { PhotoGallery } from "@/components/events/photo-gallery";
@@ -17,7 +17,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getEvent } from "@/lib/data/events";
 import { getFeeTiers } from "@/lib/data/platform-settings";
 import { getWaitlistEntry, getWaitlistCount } from "@/lib/data/waitlist";
-import { formatDateRange, mapsLink } from "@/lib/format";
+import { formatDateRange, isPast, mapsLink } from "@/lib/format";
 import { getFeeBpsForPrice } from "@/lib/pricing";
 
 export const dynamic = "force-dynamic";
@@ -68,7 +68,7 @@ export default async function EventDetailsPage({
 
   return (
     <div className="-mt-6">
-      <div className="relative -mx-4 aspect-[16/9] max-h-[420px] overflow-hidden sm:rounded-b-3xl">
+      <div className="relative -mx-4 h-[40vh] max-h-[340px] min-h-[200px] overflow-hidden sm:rounded-b-3xl">
         {banner ? (
           <Image
             src={banner}
@@ -195,22 +195,22 @@ export default async function EventDetailsPage({
                   {event.organizer.name.slice(0, 1)}
                 </div>
               )}
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-1.5 text-sm font-bold">
-                  {event.organizer.name}
+                  <span className="truncate">{event.organizer.name}</span>
                   {event.organizer.verified ? (
-                    <BadgeCheck className="h-4 w-4 text-violet-neon" />
+                    <BadgeCheck className="h-4 w-4 shrink-0 text-violet-neon" />
                   ) : null}
                 </p>
                 {event.organizer.bio ? (
-                  <p className="text-xs text-muted">{event.organizer.bio}</p>
+                  <p className="truncate text-xs text-muted">{event.organizer.bio}</p>
                 ) : null}
               </div>
             </Link>
           </section>
 
           {/* Contact details */}
-          {event.contactEmail || event.contactPhone || event.instagramUrl ? (
+          {event.contactEmail || event.contactPhone || event.instagramUrl || event.youtubeUrl || event.xUrl || event.facebookUrl || event.linkedinUrl ? (
             <section className="glass rounded-3xl p-5">
               <h2 className="mb-3 text-base font-bold">Contact Organizer</h2>
               <div className="space-y-2 text-sm">
@@ -232,22 +232,84 @@ export default async function EventDetailsPage({
                     {event.contactPhone}
                   </a>
                 ) : null}
-                {event.instagramUrl ? (
-                  <a
-                    href={event.instagramUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-2 text-muted hover:text-violet-neon"
-                  >
-                    <AtSign className="h-4 w-4" />
-                    {event.instagramUrl}
-                  </a>
-                ) : null}
+                <div className="flex items-center gap-3 pt-1">
+                  {event.instagramUrl ? (
+                    <a
+                      href={event.instagramUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-muted hover:text-violet-neon"
+                      aria-label="Instagram"
+                    >
+                      <AtSign className="h-5 w-5" />
+                    </a>
+                  ) : null}
+                  {event.youtubeUrl ? (
+                    <a
+                      href={event.youtubeUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-muted hover:text-violet-neon"
+                      aria-label="YouTube"
+                    >
+                      <Play className="h-5 w-5" />
+                    </a>
+                  ) : null}
+                  {event.xUrl ? (
+                    <a
+                      href={event.xUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-muted hover:text-violet-neon"
+                      aria-label="X"
+                    >
+                      <MessageCircle className="h-5 w-5" />
+                    </a>
+                  ) : null}
+                  {event.facebookUrl ? (
+                    <a
+                      href={event.facebookUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-muted hover:text-violet-neon"
+                      aria-label="Facebook"
+                    >
+                      <Globe className="h-5 w-5" />
+                    </a>
+                  ) : null}
+                  {event.linkedinUrl ? (
+                    <a
+                      href={event.linkedinUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-muted hover:text-violet-neon"
+                      aria-label="LinkedIn"
+                    >
+                      <Link2 className="h-5 w-5" />
+                    </a>
+                  ) : null}
+                </div>
               </div>
             </section>
           ) : null}
 
           <TermsAccordion terms={event.terms} />
+
+          {isPast(event.startsAt) ? (
+            <section className="glass rounded-3xl p-5 text-center">
+              <p className="text-sm font-bold">This event has ended</p>
+              <p className="mt-1 text-xs text-muted">
+                Check out more events in this category.
+              </p>
+              <Link
+                href={`/?category=${event.category}`}
+                className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-neon-gradient px-4 py-2 text-sm font-bold text-white"
+              >
+                <CalendarDays className="h-4 w-4" />
+                Explore more {CATEGORY_LABELS[event.category]} events
+              </Link>
+            </section>
+          ) : null}
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">

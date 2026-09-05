@@ -28,7 +28,12 @@ export default async function ProfilePage() {
         initialPhone={profile?.phone ?? user.phone ?? ""}
         initialEmail={user.email ?? ""}
         initialBirthDate={profile?.birthDate ?? ""}
+        initialAvatarUrl={profile?.avatarUrl ?? ""}
         initialInstagramUrl={profile?.instagramUrl ?? ""}
+        initialYoutubeUrl={profile?.youtubeUrl ?? ""}
+        initialXUrl={profile?.xUrl ?? ""}
+        initialFacebookUrl={profile?.facebookUrl ?? ""}
+        initialLinkedinUrl={profile?.linkedinUrl ?? ""}
         initialTags={profile?.interestedTags ?? []}
       />
     </div>

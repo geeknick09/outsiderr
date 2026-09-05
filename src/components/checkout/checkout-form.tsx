@@ -74,6 +74,9 @@ export function CheckoutForm({
             required
             className={INPUT}
           />
+          <span className="block text-xs text-amber-600 dark:text-amber-400">
+            Please provide a correct phone number. The organizer may contact you for event details. Outsiderr is not responsible if the phone number you provide is incorrect.
+          </span>
         </label>
       </div>
 

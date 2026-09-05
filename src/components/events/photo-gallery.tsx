@@ -18,19 +18,19 @@ export function PhotoGallery({
   return (
     <section>
       <h2 className="mb-3 text-base font-bold">Photos</h2>
-      <div className="flex gap-3 overflow-x-auto pb-2">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
         {photos.map((src, index) => (
           <button
             key={src}
             type="button"
             onClick={() => setSelected(src)}
-            className="group relative h-[186px] w-[280px] shrink-0 overflow-hidden rounded-2xl"
+            className="group relative aspect-square overflow-hidden rounded-2xl"
           >
             <Image
               src={src}
               alt={`${title} photo ${index + 1}`}
               fill
-              sizes="280px"
+              sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
               className="object-cover transition-transform group-hover:scale-105"
             />
             <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/30 group-hover:opacity-100">

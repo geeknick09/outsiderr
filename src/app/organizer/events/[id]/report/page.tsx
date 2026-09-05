@@ -1,5 +1,7 @@
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import type { Metadata } from "next";
+import { ChevronLeft } from "lucide-react";
 
 import { PrintButton } from "@/components/organizer/print-button";
 import { getCurrentUser } from "@/lib/auth";
@@ -48,8 +50,17 @@ export default async function EventReportPage({
     <div className="min-h-screen bg-white px-8 py-10 text-zinc-900 dark:bg-white dark:text-zinc-900">
       {/* Print button — hidden when printing */}
       <div className="mb-8 flex items-center justify-between print:hidden">
-        <p className="text-sm text-zinc-500">Print or save as PDF with Ctrl+P / ⌘+P</p>
-        <PrintButton />
+        <Link
+          href={`/organizer/events/${event.id}`}
+          className="flex items-center gap-1 text-sm font-semibold text-violet-neon hover:underline"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Back to event
+        </Link>
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-zinc-500">Print or save as PDF with Ctrl+P / ⌘+P</p>
+          <PrintButton />
+        </div>
       </div>
 
       {/* Report header */}

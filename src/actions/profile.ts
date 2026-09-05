@@ -21,6 +21,11 @@ export async function updateProfileAction(
   const phone = String(formData.get("phone") ?? "").trim();
   const birthDate = String(formData.get("birthDate") ?? "").trim();
   const instagramUrl = String(formData.get("instagramUrl") ?? "").trim() || null;
+  const youtubeUrl = String(formData.get("youtubeUrl") ?? "").trim() || null;
+  const xUrl = String(formData.get("xUrl") ?? "").trim() || null;
+  const facebookUrl = String(formData.get("facebookUrl") ?? "").trim() || null;
+  const linkedinUrl = String(formData.get("linkedinUrl") ?? "").trim() || null;
+  const avatarUrl = String(formData.get("avatarUrl") ?? "").trim() || null;
   const tags = formData.getAll("interestedTags").map(String);
 
   if (!fullName) return { error: "Name is required.", success: false };
@@ -31,6 +36,11 @@ export async function updateProfileAction(
       phone: phone || undefined,
       birthDate: birthDate || null,
       instagramUrl,
+      youtubeUrl,
+      xUrl,
+      facebookUrl,
+      linkedinUrl,
+      avatarUrl: avatarUrl || undefined,
       interestedTags: tags,
     });
   } catch (error) {
