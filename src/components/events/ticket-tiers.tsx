@@ -2,19 +2,33 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { BellRing, Check, Clock, Loader2, Sparkles, TrendingUp } from "lucide-react";
+import { BellRing, Check, Clock, Loader2, Sparkles, TrendingUp, X } from "lucide-react";
 
-import { joinWaitlistAction } from "@/actions/waitlist";
+import { joinWaitlistAction, leaveWaitlistAction } from "@/actions/waitlist";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatPaise } from "@/lib/format";
 import { computePhaseAvailability } from "@/lib/phases";
 import { calculatePrice } from "@/lib/pricing";
 import { isPast } from "@/lib/format";
-import type { EventDetail, TicketTier } from "@/lib/types";
+import type { EventDetail, TicketTier, WaitlistEntry } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export function TicketTiers({ event, feeBps }: { event: EventDetail; feeBps?: number }) {
+export interface WaitlistTierData {
+  tierId: string;
+  entry: WaitlistEntry | null;
+  count: number;
+}
+
+export function TicketTiers({
+  event,
+  feeBps,
+  waitlistData = [],
+}: {
+  event: EventDetail;
+  feeBps?: number;
+  waitlistData?: WaitlistTierData[];
+}) {
   const router = useRouter();
   const eventIsPast = isPast(event.startsAt);
   const [navigating, startNavigation] = useTransition();
@@ -209,14 +223,19 @@ export function TicketTiers({ event, feeBps }: { event: EventDetail; feeBps?: nu
           <p className="text-sm font-semibold text-muted">
             {hasPhases ? "All phases sold out" : "All tiers sold out"}
           </p>
-          {event.tiers.map((tier) => (
-            <WaitlistJoinRow
-              key={tier.id}
-              tierId={tier.id}
-              eventId={event.id}
-              tierName={tier.name}
-            />
-          ))}
+          {event.tiers.map((tier) => {
+            const wl = waitlistData.find((w) => w.tierId === tier.id);
+            return (
+              <WaitlistJoinRow
+                key={tier.id}
+                tierId={tier.id}
+                eventId={event.id}
+                tierName={tier.name}
+                waitlistEntry={wl?.entry ?? null}
+                waitlistCount={wl?.count ?? 0}
+              />
+            );
+          })}
         </div>
       ) : null}
     </section>
@@ -236,28 +255,57 @@ function WaitlistJoinRow({
   tierId,
   eventId,
   tierName,
+  waitlistEntry,
+  waitlistCount,
 }: {
   tierId: string;
   eventId: string;
   tierName: string;
+  waitlistEntry: WaitlistEntry | null;
+  waitlistCount: number;
 }) {
   const [pending, startTransition] = useTransition();
-  const [joined, setJoined] = useState(false);
+  const [entry, setEntry] = useState<WaitlistEntry | null>(waitlistEntry);
 
   function handleJoin() {
     startTransition(async () => {
       await joinWaitlistAction(eventId, tierId);
-      setJoined(true);
+      // Optimistically update — revalidation will bring the real state
+      setEntry({ id: "temp", tierId, eventId, createdAt: new Date().toISOString() } as WaitlistEntry);
+    });
+  }
+
+  function handleLeave() {
+    if (!entry) return;
+    startTransition(async () => {
+      await leaveWaitlistAction(entry.id, eventId);
+      setEntry(null);
     });
   }
 
   return (
     <div className="flex items-center justify-between rounded-2xl border border-zinc-200 px-4 py-3 dark:border-white/10">
-      <span className="text-sm font-semibold">{tierName}</span>
-      {joined ? (
-        <span className="flex items-center gap-1.5 text-xs text-lime-neon">
-          <Check className="h-3.5 w-3.5" /> On waitlist
-        </span>
+      <div>
+        <span className="text-sm font-semibold">{tierName}</span>
+        {waitlistCount > 0 ? (
+          <span className="ml-2 text-xs text-muted">{waitlistCount} on waitlist</span>
+        ) : null}
+      </div>
+      {entry ? (
+        <div className="flex items-center gap-2">
+          <span className="flex items-center gap-1.5 text-xs text-lime-neon">
+            <Check className="h-3.5 w-3.5" /> On waitlist
+          </span>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={handleLeave}
+            className="flex items-center gap-1 text-xs text-muted hover:text-red-500 disabled:opacity-50"
+          >
+            {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+            {pending ? "Leaving…" : "Leave"}
+          </button>
+        </div>
       ) : (
         <button
           type="button"

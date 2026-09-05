@@ -1,108 +1,104 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 
 /**
- * A thin top-of-page progress bar that appears during route transitions and
- * server action submissions.
+ * A thin top-of-page progress bar that appears during route transitions.
  *
- * Uses a combination of:
- * - `usePathname` to detect route changes
- * - A MutationObserver on `<body>` to detect when server action forms are
- *   submitted (form `action` attributes fire a submit event)
- * - A simple timer-based animation for the progress bar fill
+ * Uses `usePathname` and `useSearchParams` from next/navigation to detect
+ * when navigation starts. The bar fills gradually and completes when the
+ * new page has rendered.
  */
 export function NavigationProgress() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevPath = useRef(pathname + searchParams.toString());
 
   useEffect(() => {
-    let timer: ReturnType<typeof setInterval>;
-    let fadeTimer: ReturnType<typeof setTimeout>;
+    const currentPath = pathname + searchParams.toString();
 
-    function start() {
-      setLoading(true);
-      setProgress(0);
-      clearInterval(timer);
-      timer = setInterval(() => {
-        setProgress((p) => {
-          // Ease towards 90% — never reach 100% until we're done
-          if (p >= 90) return p;
-          return p + (90 - p) * 0.1;
-        });
-      }, 100);
-    }
+    // Only trigger if the path actually changed
+    if (currentPath === prevPath.current) return;
+    prevPath.current = currentPath;
 
-    function done() {
-      clearInterval(timer);
+    // Start progress
+    setLoading(true);
+    setProgress(0);
+
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
+
+    timerRef.current = setInterval(() => {
+      setProgress((p) => {
+        if (p >= 90) return p;
+        return p + (90 - p) * 0.1;
+      });
+    }, 100);
+
+    // Complete after a short delay (the new page has rendered)
+    const completeTimer = setTimeout(() => {
+      if (timerRef.current) clearInterval(timerRef.current);
       setProgress(100);
-      fadeTimer = setTimeout(() => {
+      fadeTimerRef.current = setTimeout(() => {
         setLoading(false);
         setProgress(0);
       }, 300);
-    }
+    }, 600);
 
-    // Detect form submissions (server actions use <form> submissions)
+    return () => clearTimeout(completeTimer);
+  }, [pathname, searchParams]);
+
+  // Also detect form submissions (server actions)
+  useEffect(() => {
     function handleSubmit(e: SubmitEvent) {
-      // Only react to forms with action/formAction (server action forms)
       const form = e.target as HTMLFormElement;
       if (form && form.method === "post") {
-        start();
-        // The server action will cause a revalidation / navigation
-        // We'll detect completion via the DOM changes
-        setTimeout(done, 5000); // Fallback: hide after 5s
+        setLoading(true);
+        setProgress(0);
+        if (timerRef.current) clearInterval(timerRef.current);
+        timerRef.current = setInterval(() => {
+          setProgress((p) => {
+            if (p >= 90) return p;
+            return p + (90 - p) * 0.1;
+          });
+        }, 100);
+        // Fallback: hide after 8s
+        setTimeout(() => {
+          if (timerRef.current) clearInterval(timerRef.current);
+          setProgress(100);
+          setTimeout(() => {
+            setLoading(false);
+            setProgress(0);
+          }, 300);
+        }, 8000);
       }
     }
-
     document.addEventListener("submit", handleSubmit);
-
-    // Detect route changes via popstate
-    function handlePopState() {
-      start();
-      done();
-    }
-    window.addEventListener("popstate", handlePopState);
-
-    // Detect clicks on internal links
-    function handleClick(e: MouseEvent) {
-      const target = e.target as HTMLElement;
-      const anchor = target.closest("a");
-      if (!anchor) return;
-      const href = anchor.getAttribute("href");
-      if (!href || href.startsWith("http") || href.startsWith("#") || href.startsWith("mailto:")) return;
-      // Only show for internal navigations that change the path
-      try {
-        const url = new URL(href, window.location.href);
-        if (url.pathname !== window.location.pathname) {
-          start();
-          // Hide after a short delay — the new page will render
-          setTimeout(done, 800);
-        }
-      } catch {
-        // ignore
-      }
-    }
-    document.addEventListener("click", handleClick);
-
     return () => {
       document.removeEventListener("submit", handleSubmit);
-      window.removeEventListener("popstate", handlePopState);
-      document.removeEventListener("click", handleClick);
-      clearInterval(timer);
-      clearTimeout(fadeTimer);
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
     };
   }, []);
 
   if (!loading && progress === 0) return null;
 
   return (
-    <div className="fixed inset-x-0 top-0 z-[9999] h-0.5 pointer-events-none">
+    <div className="fixed inset-x-0 top-0 z-[9999] h-1 pointer-events-none">
       <div
         className="h-full bg-neon-gradient transition-[width] duration-200 ease-out"
         style={{
           width: `${progress}%`,
           opacity: progress >= 100 ? 0 : 1,
-          transition: progress >= 100 ? "width 0.2s ease-out, opacity 0.3s ease-out" : "width 0.2s ease-out",
+          transition:
+            progress >= 100
+              ? "width 0.2s ease-out, opacity 0.3s ease-out"
+              : "width 0.2s ease-out",
         }}
       />
     </div>

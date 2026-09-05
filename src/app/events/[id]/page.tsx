@@ -11,7 +11,6 @@ import { ShareEventButton } from "@/components/events/share-event-button";
 import { TagPills } from "@/components/events/tag-pills";
 import { TermsAccordion } from "@/components/events/terms-accordion";
 import { TicketTiers } from "@/components/events/ticket-tiers";
-import { WaitlistButton } from "@/components/events/waitlist-button";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORY_LABELS, CITY_LABELS } from "@/lib/constants";
 import { getCurrentUser } from "@/lib/auth";
@@ -49,11 +48,12 @@ export default async function EventDetailsPage({
   const minTierPrice = event.tiers.length > 0 ? Math.min(...event.tiers.map((t) => t.pricePaise)) : 0;
   const feeBps = getFeeBpsForPrice(minTierPrice, feeTiers);
 
-  // Waitlist data for sold-out tiers
+  // Waitlist data for sold-out tiers (passed to TicketTiers so it can show
+  // "On waitlist" state and waitlist counts)
   const soldOutTiers = event.tiers.filter((t) => t.quantitySold >= t.quantity);
   const waitlistData = await Promise.all(
     soldOutTiers.map(async (tier) => ({
-      tier,
+      tierId: tier.id,
       entry: user ? await getWaitlistEntry(user, tier.id) : null,
       count: await getWaitlistCount(tier.id),
     })),
@@ -251,26 +251,7 @@ export default async function EventDetailsPage({
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-          <TicketTiers event={event} feeBps={feeBps} />
-
-          {/* Waitlist for sold-out tiers */}
-          {waitlistData.length > 0 ? (
-            <section className="glass rounded-3xl p-5">
-              <h2 className="mb-3 text-sm font-bold text-muted">Join the Waitlist</h2>
-              <div className="space-y-3">
-                {waitlistData.map(({ tier, entry, count }) => (
-                  <WaitlistButton
-                    key={tier.id}
-                    tierId={tier.id}
-                    eventId={event.id}
-                    tierName={tier.name}
-                    waitlistEntry={entry}
-                    waitlistCount={count}
-                  />
-                ))}
-              </div>
-            </section>
-          ) : null}
+          <TicketTiers event={event} feeBps={feeBps} waitlistData={waitlistData} />
 
           <p className="px-2 text-center text-xs text-muted">
             Payments are verified manually by the organizer.{" "}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { LocateFixed, MapPin } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ function nearestCity(latitude: number, longitude: number): City {
 
 export function LocationSelector() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const [detecting, setDetecting] = useState(false);
@@ -41,12 +42,16 @@ export function LocationSelector() {
     [router, searchParams],
   );
 
-  // Restore the last manual choice when the URL does not pin a city yet.
+  // Restore the last manual choice when on the homepage and the URL
+  // does not pin a city yet. We only do this on "/" so that navigating
+  // to event detail pages (which don't have a city param) doesn't
+  // redirect the user back to the homepage.
   useEffect(() => {
     if (paramCity) return;
+    if (pathname !== "/") return;
     const stored = window.localStorage.getItem(STORAGE_KEY) as City | null;
     if (stored && stored !== DEFAULT_CITY && CITY_LABELS[stored]) applyCity(stored);
-  }, [applyCity, paramCity]);
+  }, [applyCity, paramCity, pathname]);
 
   // Close dropdown on outside click
   useEffect(() => {

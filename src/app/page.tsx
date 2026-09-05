@@ -109,11 +109,7 @@ export default async function DiscoveryPage({
         subtitle="Doors open in a few hours"
         events={today}
       />
-      <EventSection
-        title="Popular Events"
-        subtitle="Ranked by registrations"
-        events={popular}
-      />
+      <EventSection title="Popular Events" events={popular} />
       <EventSection title="All Events" events={upcoming} />
 
       <PastEventSection
