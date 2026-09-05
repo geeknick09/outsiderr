@@ -434,6 +434,35 @@ export async function updateEventAction(
         }))
       : undefined;
 
+    // Server-side phase date validation (mirrors create flow)
+    if (tiers) {
+      const now = Date.now();
+      let prevBoundary: number | null = null;
+      for (const tier of tiers) {
+        if (tier.phaseOpensAt) {
+          const opens = new Date(tier.phaseOpensAt).getTime();
+          // Reject past dates (only for phases that haven't opened yet)
+          if (opens < now) {
+            return { error: `Phase "${tier.name}" has an opening date in the past.` };
+          }
+          // closesAt must be after opensAt
+          if (tier.phaseClosesAt) {
+            const closes = new Date(tier.phaseClosesAt).getTime();
+            if (closes <= opens) {
+              return { error: `Phase "${tier.name}" closing date must be after its opening date.` };
+            }
+          }
+          // Each phase must open after the previous phase's close (or open if no close)
+          if (prevBoundary !== null && opens <= prevBoundary) {
+            return { error: `Phase "${tier.name}" must open after the previous phase ends.` };
+          }
+          prevBoundary = tier.phaseClosesAt
+            ? new Date(tier.phaseClosesAt).getTime()
+            : opens;
+        }
+      }
+    }
+
     await updateEvent(user, eventId, {
       title,
       description: String(formData.get("description") ?? "").trim(),

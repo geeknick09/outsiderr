@@ -678,6 +678,86 @@ end;
 $$;
 
 -- ----------------------------------------------------------------
+-- STEP 7a: Atomic create_paid_order RPC (prevents concurrent overbooking)
+-- Uses SELECT FOR UPDATE on tier + double-booking check in one transaction.
+-- Inserts as PENDING_VERIFICATION — quantity_sold only increments on approval.
+-- ----------------------------------------------------------------
+create or replace function public.create_paid_order(
+  p_event_id        uuid,
+  p_tier_id         uuid,
+  p_quantity        integer,
+  p_unit_price_paise   integer,
+  p_subtotal_paise     integer,
+  p_platform_fee_paise integer,
+  p_total_paise        integer,
+  p_fee_payer          text,
+  p_utr_reference      text,
+  p_payment_proof_url  text,
+  p_buyer_name         text default null,
+  p_buyer_phone        text default null,
+  p_buyer_email        text default null,
+  p_buyer_gender       text default null
+)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order   public.orders;
+  v_tier    public.ticket_tiers;
+  v_event   public.events;
+  v_existing_count integer;
+begin
+  -- Lock the tier row to prevent concurrent overbooking
+  select * into v_tier from public.ticket_tiers where id = p_tier_id for update;
+  if not found then
+    raise exception 'Ticket tier not found';
+  end if;
+  if v_tier.price_paise = 0 then
+    raise exception 'This function is for paid tickets only';
+  end if;
+  if v_tier.quantity - v_tier.quantity_sold < p_quantity then
+    raise exception 'Not enough tickets left in this tier';
+  end if;
+
+  select * into v_event from public.events where id = p_event_id;
+  if not found then
+    raise exception 'Event not found';
+  end if;
+
+  -- Prevent double booking: check for existing active orders by this user for this event
+  select count(*) into v_existing_count
+  from public.orders
+  where event_id = p_event_id
+    and user_id = auth.uid()
+    and status in ('CONFIRMED', 'PENDING_VERIFICATION');
+  if v_existing_count > 0 then
+    raise exception 'You have already booked a ticket for this event';
+  end if;
+
+  -- Insert order as PENDING_VERIFICATION
+  insert into public.orders (
+    event_id, tier_id, user_id, quantity,
+    unit_price_paise, subtotal_paise, platform_fee_paise, total_paise,
+    fee_payer, status, utr_reference, payment_proof_url,
+    buyer_name, buyer_phone, buyer_email, buyer_gender
+  ) values (
+    p_event_id, p_tier_id, auth.uid(), p_quantity,
+    p_unit_price_paise, p_subtotal_paise, p_platform_fee_paise, p_total_paise,
+    p_fee_payer, 'PENDING_VERIFICATION', p_utr_reference, p_payment_proof_url,
+    p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender
+  )
+  returning * into v_order;
+
+  -- Do NOT increment quantity_sold here — only on approval
+  -- Do NOT mint tickets here — only on approval
+
+  return v_order;
+end;
+$$;
+
+-- ----------------------------------------------------------------
 -- STEP 7b: Atomic cancel_event RPC (replaces non-atomic app-layer flow)
 -- ----------------------------------------------------------------
 create or replace function public.cancel_event(

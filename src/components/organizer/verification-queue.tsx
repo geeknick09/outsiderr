@@ -12,6 +12,8 @@ import type { Order } from "@/lib/types";
 
 export function VerificationQueue({ orders }: { orders: Order[] }) {
   const [proofOrder, setProofOrder] = useState<Order | null>(null);
+  const [rejectingOrder, setRejectingOrder] = useState<Order | null>(null);
+  const [reason, setReason] = useState("");
 
   if (orders.length === 0) {
     return (
@@ -74,17 +76,16 @@ export function VerificationQueue({ orders }: { orders: Order[] }) {
                         Approve
                       </SubmitButton>
                     </form>
-                    <form action={rejectOrderAction}>
-                      <input type="hidden" name="orderId" value={order.id} />
-                      <input
-                        type="hidden"
-                        name="reason"
-                        value="Payment could not be verified."
-                      />
-                      <SubmitButton size="sm" variant="danger" loadingText="Rejecting…">
-                        Reject
-                      </SubmitButton>
-                    </form>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRejectingOrder(order);
+                        setReason("");
+                      }}
+                      className="rounded-xl bg-red-500/10 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-500/20"
+                    >
+                      Reject
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -92,6 +93,46 @@ export function VerificationQueue({ orders }: { orders: Order[] }) {
           </tbody>
         </table>
       </div>
+
+      {/* Rejection reason modal */}
+      <Modal
+        open={rejectingOrder !== null}
+        onClose={() => setRejectingOrder(null)}
+        title={`Reject order — ${rejectingOrder?.buyerName ?? ""}`}
+      >
+        <form action={rejectOrderAction} className="space-y-4">
+          <input type="hidden" name="orderId" value={rejectingOrder?.id ?? ""} />
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted">
+              Rejection reason
+            </label>
+            <textarea
+              name="reason"
+              required
+              rows={3}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="e.g. UTR does not match our records. Please re-submit with the correct transaction reference."
+              className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white"
+            />
+            <p className="mt-1 text-xs text-muted">
+              This reason will be visible to the attendee on their ticket page.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <SubmitButton variant="danger" loadingText="Rejecting…">
+              Confirm rejection
+            </SubmitButton>
+            <button
+              type="button"
+              onClick={() => setRejectingOrder(null)}
+              className="rounded-xl border border-zinc-200 px-4 py-2.5 text-sm font-semibold text-muted hover:border-violet-neon dark:border-white/10"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       <Modal
         open={proofOrder !== null}

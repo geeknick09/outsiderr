@@ -342,6 +342,25 @@ export type Database = {
         };
         Returns: OrderRow;
       };
+      create_paid_order: {
+        Args: {
+          p_event_id: string;
+          p_tier_id: string;
+          p_quantity: number;
+          p_unit_price_paise: number;
+          p_subtotal_paise: number;
+          p_platform_fee_paise: number;
+          p_total_paise: number;
+          p_fee_payer: string;
+          p_utr_reference: string | null;
+          p_payment_proof_url: string | null;
+          p_buyer_name: string | null;
+          p_buyer_phone: string | null;
+          p_buyer_email: string | null;
+          p_buyer_gender: string | null;
+        };
+        Returns: OrderRow;
+      };
       check_in_ticket: {
         Args: { p_qr_hash: string; p_event_id: string };
         Returns: {

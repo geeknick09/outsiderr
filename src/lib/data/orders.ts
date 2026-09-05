@@ -45,48 +45,35 @@ export async function createOrder(
     throw new Error("Not enough tickets left in this tier.");
   }
 
-  // Prevent double booking — 1 ticket per user per event (unless MAX_TICKETS_PER_ORDER > 1)
   const supabase = await createClient();
-  if (MAX_TICKETS_PER_ORDER === 1) {
-    const { count } = await supabase
-      .from("orders")
-      .select("id", { count: "exact", head: true })
-      .eq("event_id", event.id)
-      .eq("user_id", user.id)
-      .in("status", ["CONFIRMED", "PENDING_VERIFICATION"]);
-    if (count && count > 0) {
-      throw new Error("You have already booked a ticket for this event.");
-    }
-  }
 
   // Use admin-configured commission tiers
   const feeTiers = await getFeeTiers();
   const feeBps = getFeeBpsForPrice(tier.pricePaise, feeTiers);
   const price = calculatePrice(tier.pricePaise, input.quantity, event.feePayer, feeBps);
 
-  const { data, error } = await supabase
-    .from("orders")
-    .insert({
-      event_id: event.id,
-      tier_id: tier.id,
-      user_id: user.id,
-      quantity: input.quantity,
-      unit_price_paise: tier.pricePaise,
-      subtotal_paise: price.subtotalPaise,
-      platform_fee_paise: price.platformFeePaise,
-      total_paise: price.totalPaise,
-      fee_payer: event.feePayer,
-      status: "PENDING_VERIFICATION",
-      utr_reference: input.utrReference,
-      payment_proof_url: input.paymentProofUrl,
-      buyer_name: input.buyerName,
-      buyer_phone: input.buyerPhone,
-      buyer_email: input.buyerEmail,
-      buyer_gender: input.buyerGender,
-    })
-    .select("*")
-    .single();
+  // Use atomic RPC to prevent concurrent overbooking + double booking race condition.
+  // The RPC locks the tier row (SELECT FOR UPDATE), checks inventory, checks for
+  // existing active orders, and inserts — all in one transaction.
+  const { data, error } = await supabase.rpc("create_paid_order", {
+    p_event_id: event.id,
+    p_tier_id: tier.id,
+    p_quantity: input.quantity,
+    p_unit_price_paise: tier.pricePaise,
+    p_subtotal_paise: price.subtotalPaise,
+    p_platform_fee_paise: price.platformFeePaise,
+    p_total_paise: price.totalPaise,
+    p_fee_payer: event.feePayer,
+    p_utr_reference: input.utrReference,
+    p_payment_proof_url: input.paymentProofUrl,
+    p_buyer_name: input.buyerName || null,
+    p_buyer_phone: input.buyerPhone || null,
+    p_buyer_email: input.buyerEmail || null,
+    p_buyer_gender: input.buyerGender || null,
+  });
+
   if (error) throw error;
+  if (!data) throw new Error("Failed to create order.");
 
   return {
     id: data.id,
