@@ -401,6 +401,7 @@ async function main() {
               log("Front Row → pending boost created", true, `id=${pendingBoostId}`);
 
               await goto(adminPage, `${BASE}/admin/boosts`);
+              await adminPage.waitForSelector('button:has-text("Verify & Activate")', { timeout: 20000 }).catch(() => {});
               await adminPage.waitForTimeout(3000);
 
               const activateBtn = adminPage.locator('button:has-text("Verify & Activate")').first();
