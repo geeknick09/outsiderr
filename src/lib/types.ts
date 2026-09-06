@@ -283,9 +283,11 @@ export interface EventAnalytics {
   confirmedOrders: number;
   pendingOrders: number;
   rejectedOrders: number;
-  grossRevenuePaise: number;
-  platformFeePaise: number;
-  netPayoutPaise: number;
+  grossRevenuePaise: number;       // subtotal (ticket face value × qty)
+  commissionPaise: number;         // organizer commission deducted
+  convenienceFeePaise: number;     // buyer convenience fee added
+  platformFeePaise: number;        // commission + convenience (total platform revenue)
+  netPayoutPaise: number;          // what organizer receives = subtotal - commission
   checkIns: number;
   waitlistCount: number;
 }
@@ -295,9 +297,12 @@ export interface AdminStats {
   activeEvents: number;
   totalOrders: number;
   pendingOrders: number;
-  totalRevenuePaise: number;
-  grossRevenuePaise: number;
-  totalPlatformFeePaise: number;
+  totalRevenuePaise: number;       // total_paise (what buyers paid)
+  grossRevenuePaise: number;       // subtotal_paise (ticket sales before fees)
+  totalCommissionPaise: number;    // commission_paise (organizer commission)
+  totalConvenienceFeePaise: number; // convenience_fee_paise (buyer convenience fee)
+  totalPlatformFeePaise: number;   // commission + convenience (total platform revenue)
+  totalOrganizerPayoutPaise: number; // what organizers receive
   activeBoosts: number;
   pendingBoosts: number;
 }

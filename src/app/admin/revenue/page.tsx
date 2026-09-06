@@ -16,21 +16,26 @@ export default async function AdminRevenuePage() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
         <div className="glass rounded-3xl p-5">
           <p className="mb-1 text-xs text-muted">Gross Revenue</p>
           <p className="text-3xl font-black text-lime-neon">{formatPaise(analytics.totalGrossPaise)}</p>
-          <p className="mt-1 text-xs text-muted">Total ticket sales (before fees)</p>
+          <p className="mt-1 text-xs text-muted">Ticket sales (before fees)</p>
         </div>
         <div className="glass rounded-3xl p-5">
-          <p className="mb-1 text-xs text-muted">Platform Commission</p>
+          <p className="mb-1 text-xs text-muted">Platform Revenue</p>
           <p className="text-3xl font-black text-violet-neon">{formatPaise(analytics.totalPlatformFeePaise)}</p>
-          <p className="mt-1 text-xs text-muted">Collected from all confirmed orders</p>
+          <p className="mt-1 text-xs text-muted">Commission + convenience fee</p>
         </div>
         <div className="glass rounded-3xl p-5">
           <p className="mb-1 text-xs text-muted">Net Payouts</p>
           <p className="text-3xl font-black text-pink-neon">{formatPaise(analytics.totalNetPayoutPaise)}</p>
-          <p className="mt-1 text-xs text-muted">To be paid to organizers</p>
+          <p className="mt-1 text-xs text-muted">To organizers (subtotal − commission)</p>
+        </div>
+        <div className="glass rounded-3xl p-5">
+          <p className="mb-1 text-xs text-muted">Total Transaction Volume</p>
+          <p className="text-3xl font-black text-violet-neon">{formatPaise(analytics.totalGrossPaise + analytics.totalPlatformFeePaise)}</p>
+          <p className="mt-1 text-xs text-muted">Gross + convenience fee (what buyers paid)</p>
         </div>
       </div>
 

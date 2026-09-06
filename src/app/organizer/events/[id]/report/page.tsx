@@ -95,19 +95,25 @@ export default async function EventReportPage({
               <td className="py-2 text-right font-semibold">{analytics.pendingOrders}</td>
             </tr>
             <tr className="border-b border-zinc-100">
-              <td className="py-2 text-zinc-500">Gross revenue</td>
+              <td className="py-2 text-zinc-500">Gross revenue (ticket sales)</td>
               <td className="py-2 text-right font-semibold">
                 {formatPaise(analytics.grossRevenuePaise)}
               </td>
             </tr>
             <tr className="border-b border-zinc-100">
-              <td className="py-2 text-zinc-500">Platform fee (5%)</td>
+              <td className="py-2 text-zinc-500">Platform commission</td>
               <td className="py-2 text-right font-semibold text-zinc-400">
-                − {formatPaise(analytics.platformFeePaise)}
+                − {formatPaise(analytics.commissionPaise)}
+              </td>
+            </tr>
+            <tr className="border-b border-zinc-100">
+              <td className="py-2 text-zinc-500">Convenience fee (paid by buyer)</td>
+              <td className="py-2 text-right font-semibold text-zinc-400">
+                {formatPaise(analytics.convenienceFeePaise)}
               </td>
             </tr>
             <tr className="border-b-2 border-zinc-300">
-              <td className="py-3 font-bold">Net payout</td>
+              <td className="py-3 font-bold">Net payout to organizer</td>
               <td className="py-3 text-right text-lg font-black">
                 {formatPaise(analytics.netPayoutPaise)}
               </td>

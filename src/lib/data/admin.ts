@@ -18,7 +18,7 @@ export async function getAdminStats(): Promise<AdminStats> {
   const supabase = await createClient();
   const [events, orders, boosts, heroBoosts] = await Promise.all([
     supabase.from("events").select("id, status"),
-    supabase.from("orders").select("id, status, total_paise, subtotal_paise, platform_fee_paise"),
+    supabase.from("orders").select("id, status, total_paise, subtotal_paise, platform_fee_paise, commission_paise, convenience_fee_paise, organizer_payout_paise"),
     supabase.from("boosts").select("id, status"),
     supabase.from("hero_boosts").select("id, status"),
   ]);
@@ -34,7 +34,10 @@ export async function getAdminStats(): Promise<AdminStats> {
     pendingOrders: ords.filter((o) => o.status === "PENDING_VERIFICATION").length,
     totalRevenuePaise: confirmed.reduce((s, o) => s + o.total_paise, 0),
     grossRevenuePaise: confirmed.reduce((s, o) => s + (o.subtotal_paise ?? 0), 0),
+    totalCommissionPaise: confirmed.reduce((s, o) => s + (o.commission_paise ?? 0), 0),
+    totalConvenienceFeePaise: confirmed.reduce((s, o) => s + (o.convenience_fee_paise ?? 0), 0),
     totalPlatformFeePaise: confirmed.reduce((s, o) => s + (o.platform_fee_paise ?? 0), 0),
+    totalOrganizerPayoutPaise: confirmed.reduce((s, o) => s + (o.organizer_payout_paise ?? 0), 0),
     activeBoosts: bsts.filter((b) => b.status === "ACTIVE").length
       + hbsts.filter((b) => b.status === "ACTIVE").length,
     pendingBoosts: bsts.filter((b) => b.status === "PENDING").length
@@ -183,23 +186,29 @@ export async function getEventAnalytics(eventId: string): Promise<EventAnalytics
   const supabase = await createClient();
   const [eventRes, ordersRes, ticketsRes, waitlistRes] = await Promise.all([
     supabase.from("events").select("title").eq("id", eventId).single(),
-    supabase.from("orders").select("status, total_paise, platform_fee_paise").eq("event_id", eventId),
+    supabase.from("orders").select("status, subtotal_paise, commission_paise, convenience_fee_paise, platform_fee_paise, organizer_payout_paise").eq("event_id", eventId),
     supabase.from("tickets").select("status").eq("event_id", eventId),
     supabase.from("waitlist").select("id", { count: "exact", head: true }).eq("event_id", eventId).eq("status", "WAITING"),
   ]);
   const orders = ordersRes.data ?? [];
   const tickets = ticketsRes.data ?? [];
   const confirmed = orders.filter((o) => o.status === "CONFIRMED");
-  const gross = confirmed.reduce((s, o) => s + o.total_paise, 0);
-  const fee = confirmed.reduce((s, o) => s + o.platform_fee_paise, 0);
+  const gross = confirmed.reduce((s, o) => s + (o.subtotal_paise ?? 0), 0);
+  const commission = confirmed.reduce((s, o) => s + (o.commission_paise ?? 0), 0);
+  const convenience = confirmed.reduce((s, o) => s + (o.convenience_fee_paise ?? 0), 0);
+  const platformFee = confirmed.reduce((s, o) => s + (o.platform_fee_paise ?? 0), 0);
+  const payout = confirmed.reduce((s, o) => s + (o.organizer_payout_paise ?? 0), 0);
   return {
     eventId, eventTitle: eventRes.data?.title ?? "Event",
     totalOrders: orders.length,
     confirmedOrders: confirmed.length,
     pendingOrders: orders.filter((o) => o.status === "PENDING_VERIFICATION").length,
     rejectedOrders: orders.filter((o) => o.status === "REJECTED").length,
-    grossRevenuePaise: gross, platformFeePaise: fee,
-    netPayoutPaise: gross - fee,
+    grossRevenuePaise: gross,
+    commissionPaise: commission,
+    convenienceFeePaise: convenience,
+    platformFeePaise: platformFee,
+    netPayoutPaise: payout,
     checkIns: tickets.filter((t) => t.status === "USED").length,
     waitlistCount: waitlistRes.count ?? 0,
   };
@@ -331,7 +340,7 @@ export async function getRevenueAnalytics(): Promise<RevenueAnalytics> {
   const supabase = await createClient();
   const { data: orders } = await supabase
     .from("orders")
-    .select("event_id, subtotal_paise, platform_fee_paise, status")
+    .select("event_id, subtotal_paise, commission_paise, convenience_fee_paise, platform_fee_paise, organizer_payout_paise, status")
     .eq("status", "CONFIRMED")
     .order("created_at", { ascending: false })
     .limit(2000);
@@ -347,7 +356,7 @@ export async function getRevenueAnalytics(): Promise<RevenueAnalytics> {
   const orgMap = Object.fromEntries((organizers ?? []).map((o) => [o.id, o.name]));
 
   const perEventMap = new Map<string, { eventId: string; eventTitle: string; organizerName: string; confirmedOrders: number; grossPaise: number; platformFeePaise: number; netPayoutPaise: number }>();
-  let totalGross = 0, totalFee = 0;
+  let totalGross = 0, totalFee = 0, totalPayout = 0;
   for (const o of orders) {
     const evt = eventMap[o.event_id];
     const key = o.event_id;
@@ -360,15 +369,16 @@ export async function getRevenueAnalytics(): Promise<RevenueAnalytics> {
     entry.confirmedOrders++;
     entry.grossPaise += o.subtotal_paise ?? 0;
     entry.platformFeePaise += o.platform_fee_paise ?? 0;
-    entry.netPayoutPaise += (o.subtotal_paise ?? 0) - (o.platform_fee_paise ?? 0);
+    entry.netPayoutPaise += o.organizer_payout_paise ?? 0;
     perEventMap.set(key, entry);
     totalGross += o.subtotal_paise ?? 0;
     totalFee += o.platform_fee_paise ?? 0;
+    totalPayout += o.organizer_payout_paise ?? 0;
   }
   return {
     totalGrossPaise: totalGross,
     totalPlatformFeePaise: totalFee,
-    totalNetPayoutPaise: totalGross - totalFee,
+    totalNetPayoutPaise: totalPayout,
     perEvent: [...perEventMap.values()].sort((a, b) => b.grossPaise - a.grossPaise),
   };
 }

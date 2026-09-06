@@ -17,8 +17,8 @@ export default async function AdminPage() {
   const cards = [
     { label: "Total events", value: String(stats.totalEvents), sub: `${stats.activeEvents} live` },
     { label: "Total orders", value: String(stats.totalOrders), sub: `${stats.pendingOrders} pending` },
-    { label: "Gross revenue", value: formatPaise(stats.grossRevenuePaise), sub: `Platform fee ${formatPaise(stats.totalPlatformFeePaise)}` },
-    { label: "Net payouts", value: formatPaise(stats.grossRevenuePaise - stats.totalPlatformFeePaise) },
+    { label: "Gross revenue", value: formatPaise(stats.grossRevenuePaise), sub: `Commission ${formatPaise(stats.totalCommissionPaise)}` },
+    { label: "Net payouts", value: formatPaise(stats.totalOrganizerPayoutPaise), sub: `Platform earns ${formatPaise(stats.totalPlatformFeePaise)}` },
     {
       label: "Active boosts",
       value: String(stats.activeBoosts),
