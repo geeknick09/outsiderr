@@ -72,6 +72,9 @@ export async function createOrder(
     p_buyer_phone: input.buyerPhone || null,
     p_buyer_email: input.buyerEmail || null,
     p_buyer_gender: input.buyerGender || null,
+    p_commission_paise: price.commissionPaise,
+    p_convenience_fee_paise: price.convenienceFeePaise,
+    p_organizer_payout_paise: price.organizerPayoutPaise,
   });
 
   if (error) throw new Error(error.message || "Failed to create order.");

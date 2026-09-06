@@ -53,6 +53,7 @@ export interface CreateEventInput {
   xUrl: string | null;
   facebookUrl: string | null;
   linkedinUrl: string | null;
+  status?: import("@/lib/types").EventStatus;
 }
 
 export async function getOrganizerProfile(
@@ -68,6 +69,7 @@ export async function getOrganizerProfile(
 
   return {
     id: data.id,
+    ownerId: (data as { owner_id?: string }).owner_id ?? "",
     name: data.name,
     bio: data.bio,
     description: (data as { description?: string | null }).description ?? null,
@@ -127,6 +129,7 @@ export async function listOrganizerEvents(
       city: event.city,
       venueName: event.venue_name,
       startsAt: event.starts_at,
+      endsAt: (event as { ends_at?: string | null }).ends_at ?? null,
       cardPosterUrl: event.card_poster_url,
       bannerPosterUrl: event.banner_poster_url,
       minPricePaise: prices.length ? Math.min(...prices) : 0,
@@ -185,7 +188,7 @@ export async function createEvent(
       facebook_url: input.facebookUrl ?? null,
       linkedin_url: input.linkedinUrl ?? null,
       pricing_mode: input.pricingMode,
-      status: "PUBLISHED",
+      status: input.status ?? "PUBLISHED",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
     .select("id")

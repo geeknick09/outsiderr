@@ -45,6 +45,9 @@ export function EditProfileForm({
     error: null,
     success: false,
   });
+  const [fullName, setFullName] = useState(initialName);
+  const [phone, setPhone] = useState(initialPhone);
+  const [gender, setGender] = useState(initialGender);
   const [instagramUrl, setInstagramUrl] = useState(initialInstagramUrl);
   const [youtubeUrl, setYoutubeUrl] = useState(initialYoutubeUrl);
   const [xUrl, setXUrl] = useState(initialXUrl);
@@ -58,6 +61,20 @@ export function EditProfileForm({
   );
   const [birthDate, setBirthDate] = useState(initialBirthDate);
   const [birthDateError, setBirthDateError] = useState<string | null>(null);
+
+  // Track whether any field has changed from initial values
+  const isDirty =
+    fullName !== initialName ||
+    phone !== initialPhone ||
+    gender !== initialGender ||
+    instagramUrl !== initialInstagramUrl ||
+    youtubeUrl !== initialYoutubeUrl ||
+    xUrl !== initialXUrl ||
+    facebookUrl !== initialFacebookUrl ||
+    linkedinUrl !== initialLinkedinUrl ||
+    avatarUrl !== initialAvatarUrl ||
+    birthDate !== initialBirthDate ||
+    [...selectedTags].sort().join(",") !== [...new Set(initialTags)].sort().join(",");
 
   function handleBirthDateChange(e: React.ChangeEvent<HTMLInputElement>) {
     const value = e.target.value;
@@ -140,7 +157,8 @@ export function EditProfileForm({
           <input
             name="fullName"
             required
-            defaultValue={initialName}
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
             className={INPUT}
           />
         </label>
@@ -150,7 +168,7 @@ export function EditProfileForm({
             <span className="text-xs font-semibold uppercase tracking-wide text-muted">
               Phone
             </span>
-            <PhoneInput name="phone" defaultValue={initialPhone} />
+            <PhoneInput name="phone" defaultValue={initialPhone} onValueChange={setPhone} />
           </label>
           <label className="block space-y-1.5">
             <span className="text-xs font-semibold uppercase tracking-wide text-muted">
@@ -187,7 +205,7 @@ export function EditProfileForm({
           <span className="text-xs font-semibold uppercase tracking-wide text-muted">
             Gender <span className="normal-case text-zinc-400">(optional)</span>
           </span>
-          <select name="gender" defaultValue={initialGender} className={INPUT}>
+          <select name="gender" value={gender} onChange={(e) => setGender(e.target.value)} className={INPUT}>
             <option value="" className="bg-white dark:bg-zinc-900">Prefer not to say</option>
             <option value="male" className="bg-white dark:bg-zinc-900">Male</option>
             <option value="female" className="bg-white dark:bg-zinc-900">Female</option>
@@ -348,7 +366,7 @@ export function EditProfileForm({
         <p className="text-sm text-red-500">{state.error}</p>
       ) : null}
 
-      <Button type="submit" size="lg" disabled={pending || !!birthDateError} className="w-full" loading={pending} loadingText="Saving…">
+      <Button type="submit" size="lg" disabled={pending || !!birthDateError || !isDirty} className="w-full" loading={pending} loadingText="Saving…">
         Save profile
       </Button>
     </form>

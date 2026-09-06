@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Suspense, useActionState, useState } from "react";
+import { Suspense, useActionState, useEffect, useState } from "react";
 import { MapPin, Plus, ShieldCheck, Trash2, Upload, Users } from "lucide-react";
 
 import { createEventAction, type CreateEventState } from "@/actions/events";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { GalleryUploader } from "@/components/organizer/gallery-uploader";
 import { CATEGORIES, CITIES, PREDEFINED_EVENT_TAGS } from "@/lib/constants";
+import { nowISTInput } from "@/lib/datetime";
 import { uploadPublicFile } from "@/lib/upload";
 import { isGoogleMapsLink } from "@/lib/upi";
 import { cn } from "@/lib/utils";
@@ -128,7 +129,6 @@ export function EventForm({
   const [pricingMode, setPricingMode] = useState<PricingMode>(
     (sv?.pricingMode as PricingMode) ?? "PAID",
   );
-  const [, setNeedsDoorStaff] = useState(sv?.needsDoorStaff ?? false);
   const [eventTitle, setEventTitle] = useState(sv?.title ?? "");
   const [startsAt, setStartsAt] = useState(sv?.startsAt ?? "");
   const [endsAt, setEndsAt] = useState(sv?.endsAt ?? "");
@@ -142,9 +142,11 @@ export function EventForm({
   const [lng, setLng] = useState(sv?.longitude ?? "");
 
   function validateDates(start: string, end: string) {
-    if (start && new Date(start) < new Date()) {
+    // Treat naive datetime-local values as IST (UTC+05:30)
+    const parseIST = (s: string) => new Date(/[Z+-]/.test(s.slice(-6)) ? s : `${s}+05:30`);
+    if (start && parseIST(start) < new Date()) {
       setDateError("Start date and time cannot be in the past.");
-    } else if (end && start && new Date(end) <= new Date(start)) {
+    } else if (end && start && parseIST(end) <= parseIST(start)) {
       setDateError("End date and time must be after the start date and time.");
     } else {
       setDateError(null);
@@ -160,21 +162,27 @@ export function EventForm({
     emptyPhase(),
   ]);
 
-  // "Now" in local datetime-local format (YYYY-MM-DDTHH:mm) for min attributes
-  const nowLocal = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  // "Now" in IST datetime-local format (YYYY-MM-DDTHH:mm) for min attributes
+  // Use state + useEffect to avoid hydration mismatch (server vs client time difference)
+  const [nowLocal, setNowLocal] = useState("");
+  useEffect(() => {
+    setNowLocal(nowISTInput());
+  }, []);
   const [phaseError, setPhaseError] = useState<string | null>(null);
 
   function validatePhases(rows: PhaseRow[]) {
+    // Treat naive datetime-local values as IST (UTC+05:30)
+    const parseIST = (s: string) => new Date(/[Z+-]/.test(s.slice(-6)) ? s : `${s}+05:30`);
     for (let i = 0; i < rows.length; i++) {
       const p = rows[i];
       if (!p.opensAt) continue;
       // Phase opens must be in the future
-      if (new Date(p.opensAt) < new Date()) {
+      if (parseIST(p.opensAt) < new Date()) {
         setPhaseError(`Phase ${i + 1} open date cannot be in the past.`);
         return;
       }
       // Phase closes must be after opens
-      if (p.closesAt && p.opensAt && new Date(p.closesAt) <= new Date(p.opensAt)) {
+      if (p.closesAt && p.opensAt && parseIST(p.closesAt) <= parseIST(p.opensAt)) {
         setPhaseError(`Phase ${i + 1} close date must be after its open date.`);
         return;
       }
@@ -182,7 +190,7 @@ export function EventForm({
       if (i > 0) {
         const prev = rows[i - 1];
         const prevBoundary = prev.closesAt ?? prev.opensAt;
-        if (prevBoundary && p.opensAt && new Date(p.opensAt) <= new Date(prevBoundary)) {
+        if (prevBoundary && p.opensAt && parseIST(p.opensAt) <= parseIST(prevBoundary)) {
           setPhaseError(`Phase ${i + 1} must open after Phase ${i}'s ${prev.closesAt ? "close" : "open"} date.`);
           return;
         }
@@ -985,33 +993,10 @@ export function EventForm({
         ) : null}
       </section>
 
-      <section className="glass space-y-4 rounded-3xl p-5">
-        <h2 className="text-base font-bold">Platform fee &amp; staffing</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <FeeOption
-            value="BUYER"
-            title="Pass 5% fee to buyer"
-            description="Buyer pays ticket price + 5%."
-            defaultChecked={sv?.feePayer !== "ORGANIZER"}
-          />
-          <FeeOption
-            value="ORGANIZER"
-            title="Absorb 5% fee"
-            description="Buyer pays the listed price; 5% is deducted from your payout."
-            defaultChecked={sv?.feePayer === "ORGANIZER"}
-          />
-        </div>
-
-        {/* Door staff — disabled for this release (kept in admin only) */}
-        {/* <DoorStaffCard
-          defaultChecked={sv?.needsDoorStaff ?? false}
-          onCheckedChange={setNeedsDoorStaff}
-          pricing={doorStaffPricing}
-          maxStaff={doorStaffMax}
-          defaultTermsChecked={sv?.doorStaffTerms ?? false}
-        /> */}
-
-      </section>
+      {/* Platform fee & staffing section hidden from organizers —
+          default feePayer is BUYER, set via hidden input below.
+          Door staff is also disabled for this release. */}
+      <input type="hidden" name="feePayer" value={sv?.feePayer ?? "BUYER"} />
 
       {/* General T&C for the whole form */}
       <label className="flex cursor-pointer items-start gap-2 rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
@@ -1026,16 +1011,40 @@ export function EventForm({
           I confirm that the event details are accurate and I have the rights to publish this event.
           I agree to Outsiderr&apos;s{" "}
           <strong className="text-violet-neon">Organizer Terms ({termsVersion})</strong> and
-          understand that the platform fee (5%) is non-refundable. I am responsible for managing
+          understand that platform fees may apply on paid events. I am responsible for managing
           refunds to attendees if the event is cancelled.
         </span>
       </label>
 
       {state.error ? <p className="text-sm text-red-500">{state.error}</p> : null}
 
-      <Button type="submit" size="lg" disabled={pending || !!dateError || !!mapsError || !!phaseError} loading={pending} loadingText="Publishing…">
-        Publish event
-      </Button>
+      {/* saveMode is set by which button is clicked — default to publish */}
+      <input type="hidden" name="saveMode" value="publish" />
+
+      <div className="flex flex-wrap gap-3">
+        <Button type="submit" size="lg" disabled={pending || !!dateError || !!mapsError || !!phaseError} loading={pending} loadingText="Publishing…">
+          Publish event
+        </Button>
+        <Button
+          type="submit"
+          variant="secondary"
+          size="lg"
+          disabled={pending}
+          loading={pending}
+          loadingText="Saving…"
+          formAction={undefined}
+          onClick={(e) => {
+            // Set the hidden saveMode field to "draft" before submitting
+            const form = e.currentTarget.closest("form");
+            if (form) {
+              const hidden = form.querySelector('input[name="saveMode"]') as HTMLInputElement | null;
+              if (hidden) hidden.value = "draft";
+            }
+          }}
+        >
+          Save as draft
+        </Button>
+      </div>
     </form>
   );
 }

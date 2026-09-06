@@ -798,7 +798,10 @@ create or replace function public.create_paid_order(
   p_buyer_name         text default null,
   p_buyer_phone        text default null,
   p_buyer_email        text default null,
-  p_buyer_gender       text default null
+  p_buyer_gender       text default null,
+  p_commission_paise      integer default 0,
+  p_convenience_fee_paise integer default 0,
+  p_organizer_payout_paise integer default 0
 )
 returns public.orders
 language plpgsql
@@ -843,12 +846,14 @@ begin
     event_id, tier_id, user_id, quantity,
     unit_price_paise, subtotal_paise, platform_fee_paise, total_paise,
     fee_payer, status, utr_reference, payment_proof_url,
-    buyer_name, buyer_phone, buyer_email, buyer_gender
+    buyer_name, buyer_phone, buyer_email, buyer_gender,
+    commission_paise, convenience_fee_paise, organizer_payout_paise
   ) values (
     p_event_id, p_tier_id, auth.uid(), p_quantity,
     p_unit_price_paise, p_subtotal_paise, p_platform_fee_paise, p_total_paise,
     p_fee_payer::fee_payer, 'PENDING_VERIFICATION', p_utr_reference, p_payment_proof_url,
-    p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender
+    p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender,
+    p_commission_paise, p_convenience_fee_paise, p_organizer_payout_paise
   )
   returning * into v_order;
 

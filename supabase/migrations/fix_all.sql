@@ -696,7 +696,10 @@ create or replace function public.create_paid_order(
   p_buyer_name         text default null,
   p_buyer_phone        text default null,
   p_buyer_email        text default null,
-  p_buyer_gender       text default null
+  p_buyer_gender       text default null,
+  p_commission_paise      integer default 0,
+  p_convenience_fee_paise integer default 0,
+  p_organizer_payout_paise integer default 0
 )
 returns public.orders
 language plpgsql
@@ -741,12 +744,14 @@ begin
     event_id, tier_id, user_id, quantity,
     unit_price_paise, subtotal_paise, platform_fee_paise, total_paise,
     fee_payer, status, utr_reference, payment_proof_url,
-    buyer_name, buyer_phone, buyer_email, buyer_gender
+    buyer_name, buyer_phone, buyer_email, buyer_gender,
+    commission_paise, convenience_fee_paise, organizer_payout_paise
   ) values (
     p_event_id, p_tier_id, auth.uid(), p_quantity,
     p_unit_price_paise, p_subtotal_paise, p_platform_fee_paise, p_total_paise,
     p_fee_payer::fee_payer, 'PENDING_VERIFICATION', p_utr_reference, p_payment_proof_url,
-    p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender
+    p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender,
+    p_commission_paise, p_convenience_fee_paise, p_organizer_payout_paise
   )
   returning * into v_order;
 
@@ -758,7 +763,83 @@ end;
 $$;
 
 -- ----------------------------------------------------------------
--- STEP 7b: Atomic cancel_event RPC (replaces non-atomic app-layer flow)
+-- STEP 7b: Door scanner check-in RPC — validate + mark USED
+-- Returns VALID, ALREADY_USED, or INVALID
+-- ----------------------------------------------------------------
+create or replace function public.check_in_ticket(p_qr_hash text, p_event_id uuid)
+returns table (
+  outcome       text,
+  event_title   text,
+  tier_name     text,
+  holder_name   text,
+  checked_in_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_ticket public.tickets;
+begin
+  select * into v_ticket
+    from public.tickets
+   where qr_hash = p_qr_hash
+     for update;
+
+  if not found then
+    return query
+      select 'INVALID'::text, null::text, null::text, null::text, null::timestamptz;
+    return;
+  end if;
+
+  if v_ticket.event_id <> p_event_id then
+    return query
+      select 'INVALID'::text, null::text, null::text, null::text, null::timestamptz;
+    return;
+  end if;
+
+  if not public.is_event_staff(v_ticket.event_id) then
+    raise exception 'Not authorised to scan tickets for this event';
+  end if;
+
+  if v_ticket.status <> 'VALID' then
+    return query
+      select
+        case when v_ticket.status = 'USED' then 'ALREADY_USED' else 'INVALID' end,
+        e.title,
+        t.name,
+        p.full_name,
+        v_ticket.checked_in_at
+      from public.events       e
+      join public.ticket_tiers t on t.id = v_ticket.tier_id
+      left join public.profiles p on p.id = v_ticket.user_id
+      where e.id = v_ticket.event_id;
+    return;
+  end if;
+
+  update public.tickets
+     set status        = 'USED',
+         checked_in_at = now(),
+         checked_in_by = auth.uid()
+   where id = v_ticket.id
+  returning * into v_ticket;
+
+  return query
+    select
+      'VALID'::text,
+      e.title,
+      t.name,
+      p.full_name,
+      v_ticket.checked_in_at
+    from public.events       e
+    join public.ticket_tiers t on t.id = v_ticket.tier_id
+    left join public.profiles p on p.id = v_ticket.user_id
+    where e.id = v_ticket.event_id;
+end;
+$$;
+
+-- ----------------------------------------------------------------
+-- STEP 7c: Atomic cancel_event RPC (replaces non-atomic app-layer flow)
 -- ----------------------------------------------------------------
 create or replace function public.cancel_event(
   p_event_id uuid,

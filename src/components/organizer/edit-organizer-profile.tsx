@@ -30,7 +30,6 @@ export function EditOrganizerProfile({
   const [description, setDescription] = useState(organizer.description ?? "");
   const [upiId, setUpiId] = useState(organizer.upiId ?? "");
   const [avatarUrl, setAvatarUrl] = useState(organizer.avatarUrl ?? "");
-  const [coverUrl, setCoverUrl] = useState(organizer.coverUrl ?? "");
   const [instagramUrl, setInstagramUrl] = useState(organizer.instagramUrl ?? "");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -47,21 +46,6 @@ export function EditOrganizerProfile({
     try {
       const url = await uploadPublicFile(file, "organizer-profiles");
       if (url) setAvatarUrl(url);
-      else setUploadError("Upload failed. Paste an image URL instead.");
-    } catch (err) {
-      setUploadError(err instanceof Error ? err.message : "Upload failed.");
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function handleCover(file: File | undefined) {
-    if (!file) return;
-    setUploading(true);
-    setUploadError(null);
-    try {
-      const url = await uploadPublicFile(file, "organizer-covers");
-      if (url) setCoverUrl(url);
       else setUploadError("Upload failed. Paste an image URL instead.");
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed.");
@@ -112,33 +96,9 @@ export function EditOrganizerProfile({
             {uploadError ? <p className="text-xs text-amber-500">{uploadError}</p> : null}
           </div>
 
-          {/* Cover photo */}
-          <div className="space-y-1.5">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-              Cover photo
-            </span>
-            <div className="space-y-2">
-              {coverUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={coverUrl}
-                  alt="Cover"
-                  className="h-28 w-full rounded-2xl object-cover border border-zinc-200 dark:border-white/10"
-                />
-              ) : (
-                <div className="flex h-28 w-full items-center justify-center rounded-2xl border border-dashed border-zinc-300 text-xs text-muted dark:border-white/15">
-                  No cover photo
-                </div>
-              )}
-              <ImageUploadWithCrop
-                onCropped={handleCover}
-                aspect={3}
-                label={uploading ? "Uploading…" : coverUrl ? "Change cover" : "Upload cover"}
-              />
-            </div>
-            <input type="hidden" name="coverUrl" value={coverUrl} />
-            <input type="hidden" name="instagramUrl" value={instagramUrl} />
-          </div>
+          {/* Cover photo removed — organizer only has optional profile pic */}
+          <input type="hidden" name="coverUrl" value="" />
+          <input type="hidden" name="instagramUrl" value={instagramUrl} />
 
           <label className="block space-y-1.5">
             <span className="text-xs font-semibold uppercase tracking-wide text-muted">

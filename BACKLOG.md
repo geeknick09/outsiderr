@@ -292,7 +292,7 @@ This document tracks all product, engineering, infrastructure, payment, organize
 ## 17. Known Issues & Action Required
 
 - [ ] **Run `supabase/migrations/fix_all.sql`** in Supabase SQL Editor — Must be re-run to apply: strict admin function (no fallback), commission tier settings, phased pricing columns on `ticket_tiers` (`tier_type`, `phase_order`, `phase_opens_at`, `phase_closes_at`), user profile columns on `profiles` (`birth_date`, `interested_tags`, `instagram_url`), cover photo + Instagram URL columns on `organizers` (`cover_url`, `instagram_url`), Instagram URL column on `events` (`instagram_url`), and all prior migrations.
-- [ ] **Run `supabase/migrations/fix_all.sql`** (re-run after QA fixes) — Now includes: secured `approve_order`/`reject_order` RPCs with `is_event_staff` auth check + stock check, new `cancel_event` atomic RPC, new `postpone_event` atomic RPC, unique constraint on `club_members(club_id, user_id)`.
+- [ ] **Run `supabase/migrations/fix_all.sql`** (re-run after QA fixes) — Now includes: secured `approve_order`/`reject_order` RPCs with `is_event_staff` auth check + stock check, new `cancel_event` atomic RPC, new `postpone_event` atomic RPC, unique constraint on `club_members(club_id, user_id)`, **updated `create_paid_order` RPC with fee snapshot parameters** (`p_commission_paise`, `p_convenience_fee_paise`, `p_organizer_payout_paise`), **`check_in_ticket` RPC** (door scanner check-in with `p_event_id` parameter).
 - [ ] **Run `supabase/migrations/wipe_all.sql`** if you want a clean reset — now includes commission tier seeds and auto-promote first admin trigger.
 - [ ] **Set `NEXT_PUBLIC_PLATFORM_UPI_ID`** env var — Required for the UPI QR code displayed in the Hero Boost payment panel.
 

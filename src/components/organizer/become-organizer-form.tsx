@@ -42,7 +42,6 @@ export function BecomeOrganizerForm() {
   const [bio, setBio] = useState("");
   const [description, setDescription] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
-  const [coverUrl, setCoverUrl] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [facebookUrl, setFacebookUrl] = useState("");
@@ -85,21 +84,6 @@ export function BecomeOrganizerForm() {
     try {
       const url = await uploadPublicFile(file, `${safeOrg}/profile`);
       if (url) setAvatarUrl(url);
-      else setUploadError("Upload failed. Paste an image URL instead.");
-    } catch (err) {
-      setUploadError(err instanceof Error ? err.message : "Upload failed.");
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function handleCover(file: File | undefined) {
-    if (!file) return;
-    setUploading(true);
-    setUploadError(null);
-    try {
-      const url = await uploadPublicFile(file, `${safeOrg}/cover`);
-      if (url) setCoverUrl(url);
       else setUploadError("Upload failed. Paste an image URL instead.");
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed.");
@@ -185,7 +169,7 @@ export function BecomeOrganizerForm() {
             <input type="hidden" name="bio" value={bio} />
             <input type="hidden" name="description" value={description} />
             <input type="hidden" name="avatarUrl" value={avatarUrl} />
-            <input type="hidden" name="coverUrl" value={coverUrl} />
+            <input type="hidden" name="coverUrl" value="" />
             <input type="hidden" name="instagramUrl" value={instagramUrl} />
             <input type="hidden" name="youtubeUrl" value={youtubeUrl} />
             <input type="hidden" name="facebookUrl" value={facebookUrl} />
@@ -309,34 +293,6 @@ export function BecomeOrganizerForm() {
                     ) : null}
                   </div>
 
-                  {/* Cover photo */}
-                  <div className="space-y-1.5">
-                    <span className={LABEL_TEXT}>Cover photo (optional)</span>
-                    <div className="space-y-2">
-                      {coverUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={coverUrl}
-                          alt="Cover"
-                          className="h-32 w-full rounded-2xl object-cover border border-zinc-200 dark:border-white/10"
-                        />
-                      ) : (
-                        <div className="flex h-32 w-full items-center justify-center rounded-2xl border border-dashed border-zinc-300 text-xs text-muted dark:border-white/15">
-                          No cover photo
-                        </div>
-                      )}
-                      <ImageUploadWithCrop
-                        onCropped={handleCover}
-                        aspect={3}
-                        label={
-                          <span className="flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-3 text-sm text-muted hover:border-violet-neon dark:border-white/15">
-                            <Upload className="h-4 w-4" />
-                            {uploading ? "Uploading…" : coverUrl ? "Change cover" : "Upload cover"}
-                          </span>
-                        }
-                      />
-                    </div>
-                  </div>
                 </div>
               )}
 

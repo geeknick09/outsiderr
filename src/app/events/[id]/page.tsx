@@ -41,6 +41,23 @@ export default async function EventDetailsPage({
   const [event, user] = await Promise.all([getEvent(id), getCurrentUser()]);
   if (!event) notFound();
 
+  // Draft events are only visible to the organizer and admins
+  if (event.status === "DRAFT") {
+    const isOrganizer = user && event.organizer.ownerId === user.id;
+    let isAdmin = false;
+    if (user && !isOrganizer) {
+      const { createClient } = await import("@/lib/supabase/server");
+      const supabase = await createClient();
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user.id)
+        .maybeSingle();
+      isAdmin = profile?.is_admin === true;
+    }
+    if (!isOrganizer && !isAdmin) notFound();
+  }
+
   const banner = event.bannerPosterUrl ?? event.cardPosterUrl;
 
   // Waitlist data for sold-out tiers (passed to TicketTiers so it can show
@@ -113,34 +130,46 @@ export default async function EventDetailsPage({
                 <CalendarDays className="h-4 w-4 text-violet-neon" />
                 {formatDateRange(event.startsAt, event.endsAt)}
               </span>
-              <a
-                href={
-                  event.googleMapsLink
-                    ? event.googleMapsLink
-                    : mapsLink(
-                        event.latitude,
-                        event.longitude,
-                        `${event.venueName}, ${event.venueAddress}`,
-                      )
-                }
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-start gap-2 hover:text-violet-neon"
-              >
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-pink-neon" />
-                <span>
-                  {event.venueName}
-                  <span className="block text-xs text-muted">{event.venueAddress}</span>
-                </span>
-              </a>
+              {event.venueName === "TBA" || !event.latitude || !event.longitude ? (
+                <div className="flex items-start gap-2">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-pink-neon" />
+                  <span>
+                    Venue TBA
+                    <span className="block text-xs text-muted">Location will be announced later</span>
+                  </span>
+                </div>
+              ) : (
+                <a
+                  href={
+                    event.googleMapsLink
+                      ? event.googleMapsLink
+                      : mapsLink(
+                          event.latitude,
+                          event.longitude,
+                          `${event.venueName}, ${event.venueAddress}`,
+                        )
+                  }
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-start gap-2 hover:text-violet-neon"
+                >
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-pink-neon" />
+                  <span>
+                    {event.venueName}
+                    <span className="block text-xs text-muted">{event.venueAddress}</span>
+                  </span>
+                </a>
+              )}
             </div>
 
-            <MapEmbed
-              latitude={event.latitude}
-              longitude={event.longitude}
-              venueName={event.venueName}
-              googleMapsLink={event.googleMapsLink}
-            />
+            {event.venueName !== "TBA" && event.latitude && event.longitude ? (
+              <MapEmbed
+                latitude={event.latitude}
+                longitude={event.longitude}
+                venueName={event.venueName}
+                googleMapsLink={event.googleMapsLink}
+              />
+            ) : null}
           </div>
 
           <section className="glass rounded-3xl p-5">

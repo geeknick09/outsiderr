@@ -83,11 +83,17 @@ export default async function ManageEventPage({
       ? "violet"
       : "neutral";
 
+  // Check if event is happening now (between startsAt and endsAt)
+  const nowMs = Date.now();
+  const startMs = new Date(event.startsAt).getTime();
+  const endMs = event.endsAt ? new Date(event.endsAt).getTime() : startMs + 2 * 60 * 60 * 1000;
+  const isHappeningNow = !eventPast && nowMs >= startMs && nowMs <= endMs;
+
   const statusLabel =
     eventPast
       ? "Completed"
       : event.status === "PUBLISHED"
-      ? "Live"
+      ? (isHappeningNow ? "Live" : "Published")
       : event.status === "CANCELLED"
       ? "Cancelled"
       : event.status === "CANCELLATION_REQUESTED"
@@ -161,11 +167,13 @@ export default async function ManageEventPage({
         ) : null}
       </div>
 
-      {/* Analytics */}
-      <section className="space-y-3">
-        <h2 className="text-lg font-bold">Analytics</h2>
-        <AnalyticsPanel analytics={analytics} />
-      </section>
+      {/* Analytics — hidden for draft events (no data yet) */}
+      {event.status !== "DRAFT" ? (
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold">Analytics</h2>
+          <AnalyticsPanel analytics={analytics} />
+        </section>
+      ) : null}
 
       {analytics.waitlistCount > 0 ? (
         <WaitlistPanel waitlistCount={analytics.waitlistCount} entries={waitlistEntries} />
@@ -183,9 +191,16 @@ export default async function ManageEventPage({
         )}
       </section>
 
-      {/* Edit form — disabled for cancelled and past events */}
-      {event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast ? (
+      {/* Edit form — disabled for cancelled, past, and events starting within 2 hours */}
+      {event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast && (startMs - nowMs) > 2 * 60 * 60 * 1000 ? (
         <EditEventForm event={event} />
+      ) : event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast && (startMs - nowMs) <= 2 * 60 * 60 * 1000 ? (
+        <div className="glass rounded-3xl p-5">
+          <h2 className="mb-2 text-base font-bold">Edit Event</h2>
+          <p className="text-sm text-muted">
+            Editing is locked within 2 hours of the event start time. The event details are now final.
+          </p>
+        </div>
       ) : null}
 
       {/* Front Row — disabled for cancelled and past events */}

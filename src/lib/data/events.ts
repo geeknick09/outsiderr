@@ -27,6 +27,7 @@ export interface EventQuery {
 function toOrganizer(row: OrganizerRow): Organizer {
   return {
     id: row.id,
+    ownerId: (row as { owner_id?: string }).owner_id ?? "",
     name: row.name,
     bio: row.bio,
     description: (row as { description?: string | null }).description ?? null,

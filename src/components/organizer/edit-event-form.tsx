@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { Suspense, useActionState, useEffect, useState } from "react";
+
 import { MapPin, Plus, Trash2 } from "lucide-react";
 
 import { updateEventAction, type UpdateEventState } from "@/actions/events";
@@ -10,6 +11,7 @@ import { TagPicker } from "@/components/organizer/event-form";
 import { Button } from "@/components/ui/button";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { CATEGORIES, CITIES } from "@/lib/constants";
+import { utcToISTInput, nowISTInput } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
 import { isGoogleMapsLink } from "@/lib/upi";
 import type { EventDetail } from "@/lib/types";
@@ -23,10 +25,9 @@ const MapPicker = dynamic(
 const INPUT =
   "w-full min-w-0 box-border rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon [color-scheme:light] dark:[color-scheme:dark] dark:border-white/10 dark:bg-white/5 dark:text-white";
 
-/** Convert an ISO datetime string to the value expected by datetime-local inputs. */
+/** Convert a UTC ISO string to a datetime-local input value in IST. */
 function toDatetimeLocal(iso: string): string {
-  if (!iso) return "";
-  return iso.slice(0, 16);
+  return utcToISTInput(iso);
 }
 
 interface EditableTier {
@@ -58,8 +59,12 @@ export function EditEventForm({ event }: { event: EventDetail }) {
   const [lat, setLat] = useState(event.latitude ? String(event.latitude) : "");
   const [lng, setLng] = useState(event.longitude ? String(event.longitude) : "");
 
-  // "Now" in local datetime-local format for min attributes
-  const nowLocal = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  // "Now" in IST datetime-local format for min attributes
+  // Use state + useEffect to avoid hydration mismatch (server vs client time difference)
+  const [nowLocal, setNowLocal] = useState("");
+  useEffect(() => {
+    setNowLocal(nowISTInput());
+  }, []);
 
   // Tier state
   const [tiers, setTiers] = useState<EditableTier[]>(
@@ -74,6 +79,19 @@ export function EditEventForm({ event }: { event: EventDetail }) {
       phaseClosesAt: t.phaseClosesAt ?? "",
     })),
   );
+
+  // Validate tiers — no negative price or quantity, no empty names
+  const tierError = (() => {
+    for (const t of tiers) {
+      const price = Number(t.price);
+      const qty = Number(t.quantity);
+      if (t.name.trim().length === 0) return "All tiers must have a name.";
+      if (isNaN(price) || price < 0) return `Tier "${t.name || "unnamed"}" has an invalid price.`;
+      if (isNaN(qty) || qty < 0) return `Tier "${t.name || "unnamed"}" has an invalid quantity.`;
+      if (qty < t.quantitySold) return `Tier "${t.name}" quantity (${qty}) cannot be less than already sold (${t.quantitySold}).`;
+    }
+    return null;
+  })();
 
   // Track dirty state by comparing current values to original.
   // Build a consistent snapshot: controlled fields use state, uncontrolled read DOM.
@@ -116,7 +134,8 @@ export function EditEventForm({ event }: { event: EventDetail }) {
   }
 
   function validateDates(start: string, end: string) {
-    if (end && start && new Date(end) <= new Date(start)) {
+    const parseIST = (s: string) => new Date(/[Z+-]/.test(s.slice(-6)) ? s : `${s}+05:30`);
+    if (end && start && parseIST(end) <= parseIST(start)) {
       setDateError("End date and time must be after the start date and time.");
     } else {
       setDateError(null);
@@ -124,12 +143,13 @@ export function EditEventForm({ event }: { event: EventDetail }) {
   }
 
   function validatePhases(rows: EditableTier[]) {
+    const parseIST = (s: string) => new Date(/[Z+-]/.test(s.slice(-6)) ? s : `${s}+05:30`);
     const phases = rows.filter((t) => t.tierType === "FLAT_PHASE");
     for (let i = 0; i < phases.length; i++) {
       const p = phases[i];
       if (!p.phaseOpensAt) continue;
       // Phase closes must be after opens
-      if (p.phaseClosesAt && new Date(p.phaseClosesAt) <= new Date(p.phaseOpensAt)) {
+      if (p.phaseClosesAt && parseIST(p.phaseClosesAt) <= parseIST(p.phaseOpensAt)) {
         setPhaseError(`Phase ${i + 1} close date must be after its open date.`);
         return;
       }
@@ -137,7 +157,7 @@ export function EditEventForm({ event }: { event: EventDetail }) {
       if (i > 0) {
         const prev = phases[i - 1];
         const prevBoundary = prev.phaseClosesAt || prev.phaseOpensAt;
-        if (prevBoundary && new Date(p.phaseOpensAt) <= new Date(prevBoundary)) {
+        if (prevBoundary && parseIST(p.phaseOpensAt) <= parseIST(prevBoundary)) {
           setPhaseError(
             `Phase ${i + 1} must open after Phase ${i}'s ${prev.phaseClosesAt ? "close" : "open"} date.`,
           );
@@ -600,8 +620,9 @@ export function EditEventForm({ event }: { event: EventDetail }) {
       </div>
 
       {state.error ? <p className="text-sm text-red-500">{state.error}</p> : null}
+      {tierError ? <p className="text-sm text-red-500">{tierError}</p> : null}
 
-      <Button type="submit" disabled={pending || !!dateError || !!phaseError || !!mapsError || !dirty} loading={pending} loadingText="Saving…">
+      <Button type="submit" disabled={pending || !!dateError || !!phaseError || !!mapsError || !!tierError || !dirty} loading={pending} loadingText="Saving…">
         Save changes
       </Button>
       {!dirty ? (

@@ -6,6 +6,7 @@ import { Check, X } from "lucide-react";
 import { adminUpdateEventAction } from "@/actions/admin";
 import { Button } from "@/components/ui/button";
 import { CATEGORY_LABELS, CITY_LABELS } from "@/lib/constants";
+import { istToUTC, utcToISTInput } from "@/lib/datetime";
 import type { EventCategory, City } from "@/lib/types";
 
 const INPUT =
@@ -40,8 +41,8 @@ export function AdminEventEditForm({
     city,
     venueName,
     venueAddress,
-    startsAt: startsAt.slice(0, 16),
-    endsAt: endsAt.slice(0, 16),
+    startsAt: utcToISTInput(startsAt),
+    endsAt: utcToISTInput(endsAt),
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +50,8 @@ export function AdminEventEditForm({
   const [dateError, setDateError] = useState<string | null>(null);
 
   function validateDates(start: string, end: string) {
-    if (end && start && new Date(end) <= new Date(start)) {
+    const parseIST = (s: string) => new Date(/[Z+-]/.test(s.slice(-6)) ? s : `${s}+05:30`);
+    if (end && start && parseIST(end) <= parseIST(start)) {
       setDateError("End date and time must be after the start date and time.");
     } else {
       setDateError(null);
@@ -59,8 +61,8 @@ export function AdminEventEditForm({
   function startEdit() {
     setForm({
       title, description, category, city, venueName, venueAddress,
-      startsAt: startsAt.slice(0, 16),
-      endsAt: endsAt.slice(0, 16),
+      startsAt: utcToISTInput(startsAt),
+      endsAt: utcToISTInput(endsAt),
     });
     setError(null);
     setEditing(true);
@@ -76,8 +78,8 @@ export function AdminEventEditForm({
       city: form.city,
       venueName: form.venueName,
       venueAddress: form.venueAddress,
-      startsAt: new Date(form.startsAt).toISOString(),
-      endsAt: new Date(form.endsAt).toISOString(),
+      startsAt: istToUTC(form.startsAt),
+      endsAt: istToUTC(form.endsAt),
     });
     if (result.error) {
       setError(result.error);

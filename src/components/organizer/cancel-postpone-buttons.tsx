@@ -1,19 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AlertTriangle, CalendarClock, X } from "lucide-react";
 
 import { cancelEventAction, postponeEventAction } from "@/actions/events";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { nowISTInput, utcToISTInput } from "@/lib/datetime";
 import type { EventDetail } from "@/lib/types";
 
 const INPUT =
   "w-full min-w-0 box-border rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon [color-scheme:light] dark:[color-scheme:dark] dark:border-white/10 dark:bg-white/5 dark:text-white";
 
 function toDatetimeLocal(iso: string): string {
-  if (!iso) return "";
-  return iso.slice(0, 16);
+  return utcToISTInput(iso);
 }
 
 export function CancelPostponeButtons({
@@ -30,6 +30,10 @@ export function CancelPostponeButtons({
   const [newStartsAt, setNewStartsAt] = useState(toDatetimeLocal(event.startsAt));
   const [newEndsAt, setNewEndsAt] = useState(event.endsAt ? toDatetimeLocal(event.endsAt) : "");
   const [postponeError, setPostponeError] = useState<string | null>(null);
+  const [nowLocal, setNowLocal] = useState("");
+  useEffect(() => {
+    setNowLocal(nowISTInput());
+  }, []);
 
   function validatePostponeDates(start: string, end: string) {
     const now = new Date();
@@ -178,7 +182,7 @@ export function CancelPostponeButtons({
                     type="datetime-local"
                     name="newStartsAt"
                     required
-                    min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+                    min={nowLocal}
                     value={newStartsAt}
                     onChange={(e) => {
                       setNewStartsAt(e.target.value);
@@ -194,7 +198,7 @@ export function CancelPostponeButtons({
                   <input
                     type="datetime-local"
                     name="newEndsAt"
-                    min={newStartsAt || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+                    min={newStartsAt || nowLocal}
                     value={newEndsAt}
                     onChange={(e) => {
                       setNewEndsAt(e.target.value);

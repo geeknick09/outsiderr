@@ -11,13 +11,41 @@ import { Badge } from "@/components/ui/badge";
 import { ActionButton } from "@/components/ui/submit-button";
 import { listAllAdminEvents } from "@/lib/data/admin";
 import { CATEGORY_LABELS, CITY_LABELS } from "@/lib/constants";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, isPast } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { EventCategory, City } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Admin: Events — Outsiderr" };
+
+/** Check if an event is currently happening (between startsAt and endsAt). */
+function isHappeningNow(startsAt: string, endsAt: string | null | undefined): boolean {
+  const now = Date.now();
+  const start = new Date(startsAt).getTime();
+  const end = endsAt ? new Date(endsAt).getTime() : start + 2 * 60 * 60 * 1000;
+  return now >= start && now <= end;
+}
+
+/** Get a human-friendly status label with Live/Published distinction. */
+function getStatusLabel(status: string, startsAt: string, endsAt: string | null | undefined): string {
+  if (status === "PUBLISHED") {
+    if (isPast(startsAt)) return "Completed";
+    if (isHappeningNow(startsAt, endsAt)) return "Live";
+    return "Published";
+  }
+  return status.replace(/_/g, " ");
+}
+
+function getStatusTone(status: string, startsAt: string, endsAt: string | null | undefined): "success" | "danger" | "neutral" | "violet" {
+  if (status === "PUBLISHED") {
+    if (isPast(startsAt)) return "neutral";
+    return "success";
+  }
+  if (status === "CANCELLED") return "danger";
+  if (status === "POSTPONED") return "violet";
+  return "neutral";
+}
 
 export default async function AdminEventsPage({
   searchParams,
@@ -66,7 +94,10 @@ export default async function AdminEventsPage({
       </form>
 
       <div className="space-y-2">
-        {events.map((event) => (
+        {events.map((event) => {
+          const statusLabel = getStatusLabel(event.status, event.startsAt, event.endsAt);
+          const statusTone = getStatusTone(event.status, event.startsAt, event.endsAt);
+          return (
           <div key={event.id} className="glass space-y-3 rounded-3xl p-4">
             <div className="flex flex-wrap items-center gap-3">
               <div className="min-w-0 flex-1">
@@ -83,12 +114,8 @@ export default async function AdminEventsPage({
                 <p className="text-xs text-muted">{event.registrationsCount} registrations</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge
-                  tone={
-                    event.status === "PUBLISHED" ? "success" : event.status === "CANCELLED" ? "danger" : "neutral"
-                  }
-                >
-                  {event.status.replace(/_/g, " ")}
+                <Badge tone={statusTone}>
+                  {statusLabel}
                 </Badge>
                 {event.isFeatured ? <Badge tone="lime">Featured</Badge> : null}
                 {event.pricingMode === "PHASED" ? <Badge tone="violet">Phased</Badge> : null}
@@ -137,6 +164,19 @@ export default async function AdminEventsPage({
                       className="border-zinc-200 text-muted hover:border-lime-400 hover:text-lime-600 dark:border-white/10"
                     >
                       Re-publish
+                    </ActionButton>
+                  </form>
+                ) : event.status === "DRAFT" ? (
+                  <form>
+                    <ActionButton
+                      formAction={async () => {
+                        "use server";
+                        await adminUpdateEventStatusAction(event.id, "PUBLISHED");
+                      }}
+                      loadingText="…"
+                      className="border-zinc-200 text-muted hover:border-lime-400 hover:text-lime-600 dark:border-white/10"
+                    >
+                      Publish
                     </ActionButton>
                   </form>
                 ) : null}
@@ -236,7 +276,8 @@ export default async function AdminEventsPage({
               </form>
             ) : null}
           </div>
-        ))}
+          );
+        })}
         {events.length === 0 ? (
           <p className="glass rounded-3xl p-5 text-sm text-muted">No events found.</p>
         ) : null}

@@ -11,7 +11,6 @@ import { ClubMembersPanel } from "@/components/organizer/club-members-panel";
 import { OrganizerEventsList } from "@/components/organizer/organizer-events-list";
 import { OrganizerHeader } from "@/components/organizer/organizer-header";
 import { VerificationQueue } from "@/components/organizer/verification-queue";
-import { Badge } from "@/components/ui/badge";
 import { getCurrentUser } from "@/lib/auth";
 import {
   getOrganizerEventAnalytics,
@@ -21,7 +20,6 @@ import {
 import { listClubMembers, listMyClubs } from "@/lib/data/clubs";
 import { listPendingOrders } from "@/lib/data/orders";
 import { getTermsVersion, getDoorStaffPricing, getDoorStaffMax, getDoorStaffAvailable } from "@/lib/data/platform-settings";
-import { formatDateTime } from "@/lib/format";
 
 // Lazy load EventForm — it pulls in Leaflet (~140kB) via MapPicker
 const EventForm = lazy(() =>
@@ -119,90 +117,74 @@ export default async function OrganizerPage({
       {tab === "events" ? (
         <OrganizerEventsList events={events} analyticsMap={analyticsMap} />
       ) : tab === "create" ? (
-        <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-          <Suspense
-            fallback={
-              <div className="glass flex h-96 items-center justify-center rounded-3xl">
-                <p className="text-sm text-muted">Loading event form…</p>
-              </div>
-            }
-          >
-            <EventForm
-              organizerName={organizerProfile.name}
-              termsVersion={termsVersion}
-              doorStaffPricing={doorStaffPricing}
-              doorStaffMax={Math.min(doorStaffMax, doorStaffAvailable)}
-            />
-          </Suspense>
-          <aside className="glass h-fit space-y-3 rounded-3xl p-5">
-            <h2 className="text-base font-bold">Your events</h2>
-            {events.length === 0 ? (
-              <p className="text-sm text-muted">No events yet.</p>
-            ) : (
-              events.map((event) => (
-                <Link
-                  key={event.id}
-                  href={`/events/${event.id}`}
-                  className="block rounded-2xl border border-zinc-200 p-3 text-sm transition-colors hover:border-violet-neon dark:border-white/10"
-                >
-                  <span className="block font-semibold">{event.title}</span>
-                  <span className="block text-xs text-muted">
-                    {formatDateTime(event.startsAt)}
-                  </span>
-                  <Badge tone="neutral" className="mt-2">
-                    {event.registrationsCount} registered
-                  </Badge>
-                </Link>
-              ))
-            )}
-          </aside>
-        </div>
+        <Suspense
+          fallback={
+            <div className="glass flex h-96 items-center justify-center rounded-3xl">
+              <p className="text-sm text-muted">Loading event form…</p>
+            </div>
+          }
+        >
+          <EventForm
+            organizerName={organizerProfile.name}
+            termsVersion={termsVersion}
+            doorStaffPricing={doorStaffPricing}
+            doorStaffMax={Math.min(doorStaffMax, doorStaffAvailable)}
+          />
+        </Suspense>
       ) : tab === "verify" ? (
         <VerificationQueue orders={pending} organizerEventIds={events.map((e) => e.id)} />
       ) : tab === "analytics" ? (
         <div className="space-y-6">
-          {/* Aggregated analytics across all events */}
-          <div>
-            <h2 className="mb-3 text-lg font-bold">Overview — All Events</h2>
-            <AggregatedAnalytics events={events} analyticsData={analyticsData.filter((a): a is NonNullable<typeof a> => !!a)} />
-          </div>
+          {/* Aggregated analytics across all events (exclude drafts) */}
+          {(() => {
+            const nonDraftEvents = events.filter((e) => e.status !== "DRAFT");
+            const nonDraftAnalytics = nonDraftEvents.map((e) => analyticsMap[e.id]).filter((a): a is NonNullable<typeof a> => !!a);
+            return (
+              <>
+                <div>
+                  <h2 className="mb-3 text-lg font-bold">Overview — All Events</h2>
+                  <AggregatedAnalytics events={nonDraftEvents} analyticsData={nonDraftAnalytics} />
+                </div>
 
-          {/* Per-event breakdown */}
-          {events.length > 0 ? (
-            <div>
-              <h2 className="mb-3 text-lg font-bold">Per-Event Breakdown</h2>
-              <div className="space-y-6">
-                {events.map((event, index) => {
-                  const analytics = analyticsData[index];
-                  if (!analytics) return null;
-                  return (
-                    <div key={event.id} className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <Link
-                          href={`/organizer/events/${event.id}`}
-                          className="text-base font-bold hover:text-violet-neon"
-                        >
-                          {event.title}
-                        </Link>
-                        <Link
-                          href={`/organizer/events/${event.id}/report`}
-                          className="flex items-center gap-1.5 text-xs text-muted hover:text-violet-neon"
-                        >
-                          <BarChart2 className="h-3.5 w-3.5" />
-                          Print report
-                        </Link>
-                      </div>
-                      <AnalyticsPanel
-                        analytics={analytics}
-                        capacity={event.totalCapacity}
-                        ticketsSold={event.ticketsSold}
-                      />
+                {/* Per-event breakdown */}
+                {nonDraftEvents.length > 0 ? (
+                  <div>
+                    <h2 className="mb-3 text-lg font-bold">Per-Event Breakdown</h2>
+                    <div className="space-y-6">
+                      {nonDraftEvents.map((event) => {
+                        const analytics = analyticsMap[event.id];
+                        if (!analytics) return null;
+                        return (
+                          <div key={event.id} className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <Link
+                                href={`/organizer/events/${event.id}`}
+                                className="text-base font-bold hover:text-violet-neon"
+                              >
+                                {event.title}
+                              </Link>
+                              <Link
+                                href={`/organizer/events/${event.id}/report`}
+                                className="flex items-center gap-1.5 text-xs text-muted hover:text-violet-neon"
+                              >
+                                <BarChart2 className="h-3.5 w-3.5" />
+                                Print report
+                              </Link>
+                            </div>
+                            <AnalyticsPanel
+                              analytics={analytics}
+                              capacity={event.totalCapacity}
+                              ticketsSold={event.ticketsSold}
+                            />
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
+                  </div>
+                ) : null}
+              </>
+            );
+          })()}
         </div>
       ) : tab === "clubs" ? (
         <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">

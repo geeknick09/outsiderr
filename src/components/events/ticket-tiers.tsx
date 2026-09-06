@@ -8,7 +8,7 @@ import { BellRing, Check, Clock, Loader2, Sparkles, X } from "lucide-react";
 import { joinWaitlistAction, leaveWaitlistAction } from "@/actions/waitlist";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatPaise } from "@/lib/format";
+import { formatDateTime, formatPaise } from "@/lib/format";
 import { useRealtime } from "@/lib/hooks/use-realtime";
 import { computePhaseAvailability } from "@/lib/phases";
 import { calculatePrice } from "@/lib/pricing";
@@ -128,7 +128,7 @@ export function TicketTiers({
                   ) : isUpcomingPhase ? (
                     <span className="flex items-center gap-1 text-muted">
                       <Clock className="h-3 w-3" />
-                      Opens {new Date(p.tier.phaseOpensAt!).toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      Opens {formatDateTime(p.tier.phaseOpensAt!)}
                     </span>
                   ) : isClosed ? (
                     <Badge tone="neutral">{p.status === "SOLD_OUT" ? "Sold out" : "Closed"}</Badge>
@@ -254,12 +254,7 @@ export function TicketTiers({
                     </p>
                     <p className="mt-1 text-xs text-muted">
                       First phase ({nextUpcoming.tier.name}) opens{" "}
-                      {new Date(nextUpcoming.tier.phaseOpensAt!).toLocaleDateString("en-IN", {
-                        day: "numeric",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      {formatDateTime(nextUpcoming.tier.phaseOpensAt!)}
                     </p>
                   </div>
                 );
@@ -277,7 +272,7 @@ export function TicketTiers({
               return (
                 <p className="text-sm font-semibold text-muted">
                   {nextUpcoming
-                    ? `Next phase (${nextUpcoming.tier.name}) opens ${new Date(nextUpcoming.tier.phaseOpensAt!).toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`
+                    ? `Next phase (${nextUpcoming.tier.name}) opens ${formatDateTime(nextUpcoming.tier.phaseOpensAt!)}`
                     : "All phases sold out"}
                 </p>
               );

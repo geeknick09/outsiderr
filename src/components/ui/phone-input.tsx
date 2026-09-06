@@ -15,11 +15,13 @@ export function PhoneInput({
   defaultValue,
   className,
   required = false,
+  onValueChange,
 }: {
   name: string;
   defaultValue?: string;
   className?: string;
   required?: boolean;
+  onValueChange?: (fullValue: string) => void;
 }) {
   // Strip any existing +91 prefix from default value
   const stripped = (defaultValue ?? "").replace(/^\+91\s?/, "");
@@ -34,6 +36,9 @@ export function PhoneInput({
       setError("Enter a valid 10-digit Indian phone number.");
     } else {
       setError(null);
+    }
+    if (onValueChange) {
+      onValueChange(raw ? `+91${raw}` : "");
     }
   }
 

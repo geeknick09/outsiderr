@@ -76,6 +76,7 @@ export interface DoorStaffOrder {
 
 export interface Organizer {
   id: string;
+  ownerId: string;
   name: string;
   bio: string | null;
   description: string | null;
@@ -138,6 +139,7 @@ export interface EventSummary {
   city: City;
   venueName: string;
   startsAt: string;
+  endsAt?: string | null;
   cardPosterUrl: string | null;
   bannerPosterUrl: string | null;
   minPricePaise: number;

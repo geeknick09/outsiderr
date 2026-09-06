@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/lib/auth";
 import { createEvent, updateEvent, updateEventStatus, type TicketTierInput } from "@/lib/data/organizer";
+import { istToUTC } from "@/lib/datetime";
 import type { City, EventCategory, FeePayer, PricingMode } from "@/lib/types";
 
 export interface CreateEventState {
@@ -140,8 +141,8 @@ function parsePhases(formData: FormData): TicketTierInput[] {
       perks: [],
       tierType: "FLAT_PHASE" as const,
       phaseOrder: index + 1,
-      phaseOpensAt: opensAtList[index] ? new Date(opensAtList[index]).toISOString() : null,
-      phaseClosesAt: closesAtList[index] ? new Date(closesAtList[index]).toISOString() : null,
+      phaseOpensAt: opensAtList[index] ? istToUTC(opensAtList[index]) : null,
+      phaseClosesAt: closesAtList[index] ? istToUTC(closesAtList[index]) : null,
     }))
     .filter((phase) => phase.name.length > 0 && phase.quantity > 0);
 }
@@ -200,6 +201,9 @@ export async function createEventAction(
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=%2Forganizer");
 
+  const saveMode = String(formData.get("saveMode") ?? "publish"); // "publish" | "draft"
+  const isDraft = saveMode === "draft";
+
   const title = String(formData.get("title") ?? "").trim();
   const startsAt = String(formData.get("startsAt") ?? "");
   const pricingMode = String(formData.get("pricingMode") ?? "PAID") as PricingMode;
@@ -213,72 +217,77 @@ export async function createEventAction(
   }
 
   if (!title) return { error: "Give the event a title.", values: extractFormValues(formData) };
-  if (!startsAt)
-    return { error: "Pick a start date and time.", values: extractFormValues(formData) };
 
-  // Validate start date is not in the past
-  const startDate = new Date(startsAt);
-  if (startDate.getTime() < Date.now()) {
-    return { error: "Start date and time cannot be in the past.", values: extractFormValues(formData) };
-  }
+  const needsDoorStaff = formData.get("needsDoorStaff") === "on";
 
-  // Validate tiers
-  if (pricingMode !== "FREE") {
-    for (const tier of tiers) {
-      if (!tier.name || tier.name.trim().length < 2) {
-        return { error: "Each tier must have a name (at least 2 characters).", values: extractFormValues(formData) };
-      }
-      if (tier.pricePaise < 100) {
-        return { error: "Each tier price must be at least ₹1.", values: extractFormValues(formData) };
-      }
-      if (tier.quantity < 1) {
-        return { error: "Each tier must have at least 1 ticket.", values: extractFormValues(formData) };
+  // For drafts, only require a title — everything else can be filled in later
+  if (!isDraft) {
+    if (!startsAt)
+      return { error: "Pick a start date and time.", values: extractFormValues(formData) };
+
+    // Validate start date is not in the past (interpret naive datetime-local as IST)
+    const startDate = new Date(/[Z+-]/.test(startsAt.slice(-6)) ? startsAt : `${startsAt}+05:30`);
+    if (startDate.getTime() < Date.now()) {
+      return { error: "Start date and time cannot be in the past.", values: extractFormValues(formData) };
+    }
+
+    // Validate tiers
+    if (pricingMode !== "FREE") {
+      for (const tier of tiers) {
+        if (!tier.name || tier.name.trim().length < 2) {
+          return { error: "Each tier must have a name (at least 2 characters).", values: extractFormValues(formData) };
+        }
+        if (tier.pricePaise < 100) {
+          return { error: "Each tier price must be at least ₹1.", values: extractFormValues(formData) };
+        }
+        if (tier.quantity < 1) {
+          return { error: "Each tier must have at least 1 ticket.", values: extractFormValues(formData) };
+        }
       }
     }
-  }
 
-  // Validate end date is required and after start date
-  const endsAtRaw = String(formData.get("endsAt") ?? "");
-  if (!endsAtRaw) {
-    return { error: "End date and time is required.", values: extractFormValues(formData) };
-  }
-  if (endsAtRaw) {
-    const startMs = new Date(startsAt).getTime();
-    const endMs = new Date(endsAtRaw).getTime();
-    if (endMs <= startMs) {
+    // Validate end date is required and after start date
+    const endsAtRaw = String(formData.get("endsAt") ?? "");
+    if (!endsAtRaw) {
+      return { error: "End date and time is required.", values: extractFormValues(formData) };
+    }
+    if (endsAtRaw) {
+      const startMs = new Date(/[Z+-]/.test(startsAt.slice(-6)) ? startsAt : `${startsAt}+05:30`).getTime();
+      const endMs = new Date(/[Z+-]/.test(endsAtRaw.slice(-6)) ? endsAtRaw : `${endsAtRaw}+05:30`).getTime();
+      if (endMs <= startMs) {
+        return {
+          error: "End date and time must be after the start date and time.",
+          values: extractFormValues(formData),
+        };
+      }
+    }
+
+    if (tiers.length === 0)
+      return { error: "Add at least one ticket tier.", values: extractFormValues(formData) };
+    if (tiers.some((tier) => tier.quantity <= 0)) {
       return {
-        error: "End date and time must be after the start date and time.",
+        error: "Every tier needs a quantity of at least 1.",
         values: extractFormValues(formData),
       };
     }
-  }
 
-  if (tiers.length === 0)
-    return { error: "Add at least one ticket tier.", values: extractFormValues(formData) };
-  if (tiers.some((tier) => tier.quantity <= 0)) {
-    return {
-      error: "Every tier needs a quantity of at least 1.",
-      values: extractFormValues(formData),
-    };
-  }
+    // Validate door staff terms
+    const doorStaffTerms = formData.get("doorStaffTerms") === "on";
+    if (needsDoorStaff && !doorStaffTerms) {
+      return {
+        error: "Please accept the door staff terms & refund policy.",
+        values: extractFormValues(formData),
+      };
+    }
 
-  // Validate door staff terms
-  const needsDoorStaff = formData.get("needsDoorStaff") === "on";
-  const doorStaffTerms = formData.get("doorStaffTerms") === "on";
-  if (needsDoorStaff && !doorStaffTerms) {
-    return {
-      error: "Please accept the door staff terms & refund policy.",
-      values: extractFormValues(formData),
-    };
-  }
-
-  // Validate general organizer terms
-  const organizerTerms = formData.get("organizerTerms") === "on";
-  if (!organizerTerms) {
-    return {
-      error: "Please accept the Outsiderr terms to publish the event.",
-      values: extractFormValues(formData),
-    };
+    // Validate general organizer terms
+    const organizerTerms = formData.get("organizerTerms") === "on";
+    if (!organizerTerms) {
+      return {
+        error: "Please accept the Outsiderr terms to publish the event.",
+        values: extractFormValues(formData),
+      };
+    }
   }
 
   const endsAt = String(formData.get("endsAt") ?? "");
@@ -316,8 +325,8 @@ export async function createEventAction(
       latitude: latitude ? Number(latitude) : null,
       longitude: longitude ? Number(longitude) : null,
       googleMapsLink,
-      startsAt: new Date(startsAt).toISOString(),
-      endsAt: endsAt ? new Date(endsAt).toISOString() : null,
+      startsAt: istToUTC(startsAt),
+      endsAt: endsAt ? istToUTC(endsAt) : null,
       cardPosterUrl: String(formData.get("cardPosterUrl") ?? "") || null,
       bannerPosterUrl: String(formData.get("bannerPosterUrl") ?? "") || null,
       feePayer: String(formData.get("feePayer") ?? "BUYER") as FeePayer,
@@ -333,6 +342,7 @@ export async function createEventAction(
       xUrl: String(formData.get("xUrl") ?? "").trim() || null,
       facebookUrl: String(formData.get("facebookUrl") ?? "").trim() || null,
       linkedinUrl: String(formData.get("linkedinUrl") ?? "").trim() || null,
+      status: isDraft ? "DRAFT" : "PUBLISHED",
     });
 
     // Create door staff order if requested
@@ -376,7 +386,12 @@ export async function createEventAction(
 
   revalidatePath("/");
   revalidatePath("/organizer");
-  redirect(`/organizer/events/${eventId}`);
+  // Drafts redirect to the organizer events list; published events go to the event page
+  if (isDraft) {
+    redirect(`/organizer?tab=events`);
+  } else {
+    redirect(`/organizer/events/${eventId}`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -432,8 +447,8 @@ export async function updateEventAction(
           pricePaise: Math.round((tierPrices[i] || 0) * 100),
           quantity: tierQtys[i] || 0,
           perks: [],
-          phaseOpensAt: tierPhaseOpensAt[i] ? new Date(tierPhaseOpensAt[i]).toISOString() : null,
-          phaseClosesAt: tierPhaseClosesAt[i] ? new Date(tierPhaseClosesAt[i]).toISOString() : null,
+          phaseOpensAt: tierPhaseOpensAt[i] ? istToUTC(tierPhaseOpensAt[i]) : null,
+          phaseClosesAt: tierPhaseClosesAt[i] ? istToUTC(tierPhaseClosesAt[i]) : null,
         }))
       : undefined;
 
@@ -474,8 +489,8 @@ export async function updateEventAction(
       latitude: latitude ? Number(latitude) : null,
       longitude: longitude ? Number(longitude) : null,
       googleMapsLink,
-      startsAt: new Date(startsAt).toISOString(),
-      endsAt: endsAt ? new Date(endsAt).toISOString() : null,
+      startsAt: istToUTC(startsAt),
+      endsAt: endsAt ? istToUTC(endsAt) : null,
       tags: String(formData.get("tags") ?? "")
         .split(",")
         .map((t) => t.trim())
@@ -578,8 +593,8 @@ export async function postponeEventAction(formData: FormData): Promise<void> {
   await postponeEvent(
     user,
     eventId,
-    new Date(newStartsAt).toISOString(),
-    newEndsAt ? new Date(newEndsAt).toISOString() : null,
+    istToUTC(newStartsAt),
+    newEndsAt ? istToUTC(newEndsAt) : null,
     reason,
   );
 
