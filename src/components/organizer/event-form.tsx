@@ -20,7 +20,7 @@ const MapPicker = dynamic(
 );
 
 const INPUT =
-  "w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon dark:[color-scheme:dark] dark:border-white/10 dark:bg-white/5 dark:text-white";
+  "w-full min-w-0 box-border rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon [color-scheme:light] dark:[color-scheme:dark] dark:border-white/10 dark:bg-white/5 dark:text-white";
 
 const SELECT_OPTION = "bg-white text-zinc-900 dark:bg-zinc-900 dark:text-white";
 

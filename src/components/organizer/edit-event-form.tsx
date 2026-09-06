@@ -21,7 +21,7 @@ const MapPicker = dynamic(
 );
 
 const INPUT =
-  "w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white";
+  "w-full min-w-0 box-border rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon [color-scheme:light] dark:[color-scheme:dark] dark:border-white/10 dark:bg-white/5 dark:text-white";
 
 /** Convert an ISO datetime string to the value expected by datetime-local inputs. */
 function toDatetimeLocal(iso: string): string {
@@ -50,6 +50,7 @@ export function EditEventForm({ event }: { event: EventDetail }) {
   const [startsAt, setStartsAt] = useState(toDatetimeLocal(event.startsAt));
   const [endsAt, setEndsAt] = useState(event.endsAt ? toDatetimeLocal(event.endsAt) : "");
   const [dateError, setDateError] = useState<string | null>(null);
+  const [phaseError, setPhaseError] = useState<string | null>(null);
   const [mapsLink, setMapsLink] = useState(event.googleMapsLink ?? "");
   const [mapsError, setMapsError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -122,9 +123,35 @@ export function EditEventForm({ event }: { event: EventDetail }) {
     }
   }
 
+  function validatePhases(rows: EditableTier[]) {
+    const phases = rows.filter((t) => t.tierType === "FLAT_PHASE");
+    for (let i = 0; i < phases.length; i++) {
+      const p = phases[i];
+      if (!p.phaseOpensAt) continue;
+      // Phase closes must be after opens
+      if (p.phaseClosesAt && new Date(p.phaseClosesAt) <= new Date(p.phaseOpensAt)) {
+        setPhaseError(`Phase ${i + 1} close date must be after its open date.`);
+        return;
+      }
+      // Next phase must open after previous phase's close (or open if no close)
+      if (i > 0) {
+        const prev = phases[i - 1];
+        const prevBoundary = prev.phaseClosesAt || prev.phaseOpensAt;
+        if (prevBoundary && new Date(p.phaseOpensAt) <= new Date(prevBoundary)) {
+          setPhaseError(
+            `Phase ${i + 1} must open after Phase ${i}'s ${prev.phaseClosesAt ? "close" : "open"} date.`,
+          );
+          return;
+        }
+      }
+    }
+    setPhaseError(null);
+  }
+
   function updateTier(id: string, patch: Partial<EditableTier>) {
     const updated = tiers.map((t) => (t.id === id ? { ...t, ...patch } : t));
     setTiers(updated);
+    validatePhases(updated);
     checkDirty({
       title: event.title,
       description: event.description,
@@ -472,7 +499,16 @@ export function EditEventForm({ event }: { event: EventDetail }) {
           </Button>
         </div>
 
-        {tiers.map((tier, index) => (
+        {(() => {
+          // Build a lookup: for FLAT_PHASE tiers, what is the previous phase's boundary?
+          const phaseList = tiers.filter((t) => t.tierType === "FLAT_PHASE");
+          return tiers.map((tier, index) => {
+            const phaseIdx = phaseList.indexOf(tier);
+            const prevPhase = phaseIdx > 0 ? phaseList[phaseIdx - 1] : null;
+            const phaseOpenMin = prevPhase
+              ? toDatetimeLocal(prevPhase.phaseClosesAt || prevPhase.phaseOpensAt || "") || nowLocal
+              : nowLocal;
+            return (
           <div key={tier.id} className="space-y-2 rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted">
@@ -531,7 +567,7 @@ export function EditEventForm({ event }: { event: EventDetail }) {
                   <input
                     name="tierPhaseOpensAt[]"
                     type="datetime-local"
-                    min={nowLocal}
+                    min={phaseOpenMin}
                     value={toDatetimeLocal(tier.phaseOpensAt ?? "")}
                     onChange={(e) => updateTier(tier.id, { phaseOpensAt: e.target.value })}
                     className={INPUT}
@@ -551,7 +587,12 @@ export function EditEventForm({ event }: { event: EventDetail }) {
               </div>
             ) : null}
           </div>
-        ))}
+            );
+          });
+        })()}
+        {phaseError ? (
+          <p className="text-sm text-red-500">{phaseError}</p>
+        ) : null}
         <p className="text-[10px] text-muted">
           Price is in ₹ (rupees). Quantity cannot be less than already sold.
           Tiers with sales cannot be removed.
@@ -560,7 +601,7 @@ export function EditEventForm({ event }: { event: EventDetail }) {
 
       {state.error ? <p className="text-sm text-red-500">{state.error}</p> : null}
 
-      <Button type="submit" disabled={pending || !!dateError || !!mapsError || !dirty} loading={pending} loadingText="Saving…">
+      <Button type="submit" disabled={pending || !!dateError || !!phaseError || !!mapsError || !dirty} loading={pending} loadingText="Saving…">
         Save changes
       </Button>
       {!dirty ? (

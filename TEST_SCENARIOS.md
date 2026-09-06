@@ -1516,6 +1516,249 @@ This is the single most important test. Run it in order:
 
 ---
 
+## SECTION 25 — Supabase Realtime (Live UI Updates)
+
+These tests verify that the app updates in realtime without page reloads.
+All tests require two browser windows (or two tabs) and both users must be logged in.
+
+### TC-25.1 Realtime Publication Configured
+**Steps:**
+1. Run `node scripts/test-realtime.mjs`
+2. Check output
+**Expected:**
+- "All 4 required tables are in the publication" — PASS
+- Tables listed: `event_notifications`, `ticket_tiers`, `orders`, `tickets`
+- Channel status reaches `SUBSCRIBED`
+- Note: "Not received" is OK for the unauthenticated test client (RLS blocks it)
+
+### TC-25.2 Notification Bell — Live Badge Update
+**Prerequisites:** User A has a ticket for an event. Organizer is signed in in Browser B.
+**Steps:**
+1. Browser A: Sign in as User A, stay on any page (e.g., homepage)
+2. Browser B: Sign in as organizer, edit the event (change venue name)
+3. Save the edit
+**Expected (Browser A):**
+- Bell badge count increments within ~2 seconds
+- No page reload occurs
+- Click bell → new "Venue Changed" notification at the top of the dropdown
+- Notification shows event title, message, and timestamp
+
+### TC-25.3 Notification Bell — Cancellation
+**Prerequisites:** User A has a confirmed ticket. Organizer signed in in Browser B.
+**Steps:**
+1. Browser A: User A stays on homepage
+2. Browser B: Organizer cancels the event
+**Expected (Browser A):**
+- Bell badge increments within ~2 seconds
+- New notification type: "Event Cancelled" (red text)
+- Message includes reason + refund mention
+
+### TC-25.4 Notification Bell — Waitlist Offer
+**Prerequisites:** User A is on waitlist. Organizer signed in in Browser B.
+**Steps:**
+1. Browser A: User A stays on any page
+2. Browser B: Organizer rejects an existing order for the sold-out tier (triggers waitlist auto-offer)
+**Expected (Browser A):**
+- Bell badge increments within ~2 seconds
+- New notification type: "Ticket Available!" (green text)
+- Message: "A ticket just became available! You have 24 hours to book..."
+
+### TC-25.5 Notification Bell — Mark as Read Still Works
+**Steps:**
+1. After receiving a live notification (TC-25.2), click the bell
+2. Click the checkmark on the new notification
+**Expected:**
+- Notification marked as read (background clears)
+- Badge count decrements
+
+### TC-25.6 Notification Bell — Mark All Read
+**Steps:**
+1. Have 2+ unread notifications (trigger multiple event edits)
+2. Click bell → "Mark all read"
+**Expected:**
+- All notifications marked read
+- Badge count goes to 0
+
+### TC-25.7 Notification Bell — No Duplicates
+**Steps:**
+1. Organizer changes venue, city, AND time in one edit
+2. Save
+**Expected (Browser A):**
+- Bell increments by 3 (one notification per change type: VENUE_CHANGE, CITY_CHANGE, TIME_CHANGE)
+- All 3 notifications appear in dropdown
+- No duplicate notifications
+
+### TC-25.8 Event Detail — Live Inventory Update
+**Prerequisites:** A published event with a tier (qty 5, 0 sold). Two users signed in.
+**Steps:**
+1. Browser A: User A opens the event detail page (`/events/[id]`)
+2. Note the tier remaining count (e.g., "5 left")
+3. Browser B: User B books 1 ticket on the same event
+4. If paid event: organizer approves the order
+**Expected (Browser A):**
+- Tier remaining count updates from "5 left" to "4 left" within ~2 seconds
+- No page reload
+- If tier sells out completely: shows "Sold out" state immediately
+
+### TC-25.9 Event Detail — Phase Activation (Realtime)
+**Prerequisites:** A phased event with Phase 1 (qty 2) and Phase 2 (qty 5). Two users.
+**Steps:**
+1. Browser A: User A opens the event detail page (Phase 1 is active)
+2. Browser B: User B books 2 tickets (fills Phase 1 completely)
+3. Organizer approves both orders
+**Expected (Browser A):**
+- Phase 1 shows "Sold out" within ~2 seconds
+- Phase 2 becomes the active phase automatically
+- No page reload needed
+
+### TC-25.10 Ticket Wallet — Live Order Status (Pending → Confirmed)
+**Prerequisites:** User A books a paid ticket (order = PENDING_VERIFICATION). Organizer signed in.
+**Steps:**
+1. Browser A: User A stays on `/tickets` page
+2. Browser B: Organizer goes to Verify tab, approves the order
+**Expected (Browser A):**
+- Order status badge changes from "Pending verification" (amber) to "Confirmed" (green) within ~2 seconds
+- No page reload
+- New ticket appears in "Passes" section (via router.refresh)
+
+### TC-25.11 Ticket Wallet — Live Ticket Status (Scanned)
+**Prerequisites:** User A has a confirmed ticket. Organizer has scanner open.
+**Steps:**
+1. Browser A: User A stays on `/tickets` page
+2. Browser B: Organizer scans the QR code at the door
+**Expected (Browser A):**
+- Ticket status changes to "Scanned" within ~2 seconds
+- "Scanned" badge appears on the ticket card
+- QR overlay shows "Scanned" text
+- No page reload
+
+### TC-25.12 Ticket Wallet — Rejection Updates Status
+**Prerequisites:** User A has a pending order. Organizer signed in.
+**Steps:**
+1. Browser A: User A stays on `/tickets`
+2. Browser B: Organizer rejects the order with reason "Invalid UTR"
+**Expected (Browser A):**
+- Order status changes to "Rejected" (red) within ~2 seconds
+- Rejection reason appears under the order
+- No page reload
+
+### TC-25.13 Organizer Verify Queue — New Order Appears Live
+**Prerequisites:** Organizer signed in on Verify tab. User signed in in Browser B.
+**Steps:**
+1. Browser A: Organizer stays on `/organizer?tab=verify`
+2. Browser B: User books a paid ticket (submits UTR + proof)
+**Expected (Browser A):**
+- New pending order appears in the verification table within ~2 seconds
+- No page reload
+- Order shows attendee name, event, UTR, amount, proof link
+
+### TC-25.14 Organizer Verify Queue — Approved Order Disappears
+**Prerequisites:** Organizer has 2+ pending orders on Verify tab.
+**Steps:**
+1. Organizer clicks "Approve" on one order
+**Expected:**
+- Approved order disappears from the queue within ~1 second
+- Other pending orders remain
+- No page reload
+
+### TC-25.15 Organizer Verify Queue — Rejected Order Disappears
+**Steps:**
+1. Organizer clicks "Reject" on an order, enters reason, confirms
+**Expected:**
+- Rejected order disappears from the queue within ~1 second
+- No page reload
+
+### TC-25.16 Realtime — Tab Focus Reconnect
+**Steps:**
+1. Open the app in Browser A, verify bell badge is updating
+2. Switch to a different tab (or minimize browser) for 10+ seconds
+3. Switch back to the app tab
+4. Trigger a notification from Browser B
+**Expected:**
+- Realtime connection reconnects on tab focus
+- New notifications still arrive within ~2 seconds
+- No missed notifications
+
+### TC-25.17 Realtime — No WebSocket Leaks
+**Steps:**
+1. Open the app, browse 5+ pages (homepage, event detail, tickets, organizer, profile)
+2. Open browser devtools → Network → WS (WebSocket)
+3. Check active WebSocket connections
+**Expected:**
+- Only 1 WebSocket connection to Supabase Realtime active
+- No duplicate connections from page navigation
+- Old channels are cleaned up on unmount
+
+### TC-25.18 Realtime — No Console Errors
+**Steps:**
+1. Open browser devtools console
+2. Browse: homepage → event detail → tickets → organizer verify tab
+3. Stay on each page for 5 seconds
+4. Check console for errors
+**Expected:**
+- No red errors in console
+- No "channel already exists" warnings
+- No "WebSocket connection failed" errors
+
+### TC-25.19 Realtime — Multiple Users Simultaneously
+**Steps:**
+1. Open 3 browser windows: User A, User B, Organizer
+2. Organizer edits an event that both User A and User B have tickets for
+3. Check both User A and User B bell badges
+**Expected:**
+- Both users receive the notification independently
+- Both badge counts increment
+- No interference between users
+
+### TC-25.20 Realtime — RLS Security (Cross-User Isolation)
+**Steps:**
+1. User A and User C are both logged in (different accounts)
+2. Organizer triggers a notification for User A only (edits an event User A has a ticket for, but User C does not)
+**Expected:**
+- User A's bell badge increments
+- User C's bell badge does NOT increment
+- User C does not receive User A's notification (RLS enforces `user_id = auth.uid()`)
+
+---
+
+## CRITICAL PATH — Realtime End-to-End
+
+This tests the full realtime loop across all 4 surfaces in one session.
+
+### Setup
+1. Create a PAID event with 1 tier (qty 3, ₹500)
+2. User A and User B both have accounts
+3. Organizer is signed in
+
+### Step 1: User Books (Verify Queue Live)
+4. User A opens `/tickets` in Browser A
+5. User B books a ticket in Browser B
+6. **Verify:** Organizer's verify queue shows the new order live (no refresh)
+
+### Step 2: Organizer Approves (Ticket Wallet Live)
+7. Organizer approves the order
+8. **Verify:** User B's ticket wallet shows status change Pending → Confirmed live
+9. **Verify:** New ticket appears in "Passes" section live
+
+### Step 3: Another User Books (Event Inventory Live)
+10. User A opens the event detail page in Browser A
+11. User C books a ticket in Browser C
+12. Organizer approves
+13. **Verify:** User A sees tier remaining count drop from "3 left" to "1 left" live
+
+### Step 4: Organizer Edits Event (Notification Bell Live)
+14. Organizer changes the venue name
+15. **Verify:** User A's bell badge increments live
+16. **Verify:** User A clicks bell → "Venue Changed" notification visible
+
+### Step 5: Organizer Scans (Ticket Status Live)
+17. Organizer opens scanner, scans User B's QR
+18. **Verify:** User B's ticket shows "Scanned" badge live on `/tickets`
+
+**If all 5 steps pass, the realtime system is working end-to-end.**
+
+---
+
 ## Test Results Template
 
 | TC # | Scenario | Status | Notes |
@@ -1523,6 +1766,27 @@ This is the single most important test. Run it in order:
 | 1.1 | Sign up | | |
 | 1.2 | Sign in | | |
 | ... | ... | | |
+| 25.1 | Realtime publication configured | | |
+| 25.2 | Notification bell — live badge update | | |
+| 25.3 | Notification bell — cancellation | | |
+| 25.4 | Notification bell — waitlist offer | | |
+| 25.5 | Notification bell — mark as read | | |
+| 25.6 | Notification bell — mark all read | | |
+| 25.7 | Notification bell — no duplicates | | |
+| 25.8 | Event detail — live inventory update | | |
+| 25.9 | Event detail — phase activation (realtime) | | |
+| 25.10 | Ticket wallet — live order status | | |
+| 25.11 | Ticket wallet — live ticket status (scanned) | | |
+| 25.12 | Ticket wallet — rejection updates status | | |
+| 25.13 | Verify queue — new order appears live | | |
+| 25.14 | Verify queue — approved order disappears | | |
+| 25.15 | Verify queue — rejected order disappears | | |
+| 25.16 | Realtime — tab focus reconnect | | |
+| 25.17 | Realtime — no WebSocket leaks | | |
+| 25.18 | Realtime — no console errors | | |
+| 25.19 | Realtime — multiple users simultaneously | | |
+| 25.20 | Realtime — RLS security (cross-user isolation) | | |
+| RT-E2E | Realtime critical path (all 5 steps) | | |
 
 **Status values:** PASS / FAIL / BLOCKED / SKIP
 
@@ -1548,3 +1812,11 @@ This is the single most important test. Run it in order:
 - [ ] Phased events: next phase opens on sellout or time close, carry-forward works
 - [ ] Checkout: gender prefilled, saved to profile, email saved to order only
 - [ ] No horizontal scroll on mobile
+- [ ] Realtime: notification bell updates live (no page reload)
+- [ ] Realtime: event tier count updates live when someone books
+- [ ] Realtime: ticket wallet status changes live (Pending → Confirmed → Scanned)
+- [ ] Realtime: organizer verify queue shows new orders live
+- [ ] Realtime: no WebSocket leaks (1 connection after browsing multiple pages)
+- [ ] Realtime: no console errors on any page
+- [ ] Realtime: RLS isolation — users don't receive each other's notifications
+- [ ] Realtime: tab focus reconnect works (switch away and back, notifications still arrive)

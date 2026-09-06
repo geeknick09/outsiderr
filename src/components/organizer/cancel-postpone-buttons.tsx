@@ -9,7 +9,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import type { EventDetail } from "@/lib/types";
 
 const INPUT =
-  "w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white";
+  "w-full min-w-0 box-border rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon [color-scheme:light] dark:[color-scheme:dark] dark:border-white/10 dark:bg-white/5 dark:text-white";
 
 function toDatetimeLocal(iso: string): string {
   if (!iso) return "";

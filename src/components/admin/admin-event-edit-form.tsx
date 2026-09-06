@@ -9,7 +9,7 @@ import { CATEGORY_LABELS, CITY_LABELS } from "@/lib/constants";
 import type { EventCategory, City } from "@/lib/types";
 
 const INPUT =
-  "w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white";
+  "w-full min-w-0 box-border rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon [color-scheme:light] dark:[color-scheme:dark] dark:border-white/10 dark:bg-white/5 dark:text-white";
 
 export function AdminEventEditForm({
   eventId,
@@ -46,6 +46,15 @@ export function AdminEventEditForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [dateError, setDateError] = useState<string | null>(null);
+
+  function validateDates(start: string, end: string) {
+    if (end && start && new Date(end) <= new Date(start)) {
+      setDateError("End date and time must be after the start date and time.");
+    } else {
+      setDateError(null);
+    }
+  }
 
   function startEdit() {
     setForm({
@@ -148,9 +157,11 @@ export function AdminEventEditForm({
           <input
             type="datetime-local"
             required
-            min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
             value={form.startsAt}
-            onChange={(e) => setForm({ ...form, startsAt: e.target.value })}
+            onChange={(e) => {
+              setForm({ ...form, startsAt: e.target.value });
+              validateDates(e.target.value, form.endsAt);
+            }}
             className={INPUT}
           />
         </label>
@@ -159,9 +170,12 @@ export function AdminEventEditForm({
           <input
             type="datetime-local"
             required
-            min={form.startsAt || new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+            min={form.startsAt}
             value={form.endsAt}
-            onChange={(e) => setForm({ ...form, endsAt: e.target.value })}
+            onChange={(e) => {
+              setForm({ ...form, endsAt: e.target.value });
+              validateDates(form.startsAt, e.target.value);
+            }}
             className={INPUT}
           />
         </label>
@@ -175,9 +189,10 @@ export function AdminEventEditForm({
           className={INPUT}
         />
       </label>
+      {dateError ? <p className="text-sm text-red-500">{dateError}</p> : null}
       {error ? <p className="text-sm text-red-500">{error}</p> : null}
       <div className="flex gap-2">
-        <Button type="button" size="sm" onClick={handleSave} disabled={saving} loading={saving} loadingText="Saving…">
+        <Button type="button" size="sm" onClick={handleSave} disabled={saving || !!dateError} loading={saving} loadingText="Saving…">
           <Check className="h-4 w-4" />
           Save
         </Button>

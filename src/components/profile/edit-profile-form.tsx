@@ -12,7 +12,7 @@ import { uploadPublicFile } from "@/lib/upload";
 import { cn } from "@/lib/utils";
 
 const INPUT =
-  "w-full box-border rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white";
+  "w-full min-w-0 box-border rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon [color-scheme:light] dark:[color-scheme:dark] dark:border-white/10 dark:bg-white/5 dark:text-white";
 
 export function EditProfileForm({
   initialName,
@@ -68,7 +68,6 @@ export function EditProfileForm({
       const selected = new Date(value + "T00:00:00");
       if (selected > today) {
         setBirthDateError("Birthdate cannot be in the future.");
-        setBirthDate("");
       } else {
         setBirthDateError(null);
       }
@@ -349,7 +348,7 @@ export function EditProfileForm({
         <p className="text-sm text-red-500">{state.error}</p>
       ) : null}
 
-      <Button type="submit" size="lg" disabled={pending} className="w-full" loading={pending} loadingText="Saving…">
+      <Button type="submit" size="lg" disabled={pending || !!birthDateError} className="w-full" loading={pending} loadingText="Saving…">
         Save profile
       </Button>
     </form>
