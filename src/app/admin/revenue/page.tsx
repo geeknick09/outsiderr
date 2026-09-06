@@ -16,39 +16,49 @@ export default async function AdminRevenuePage() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="glass rounded-3xl p-5">
-          <p className="mb-1 text-xs text-muted">Gross Revenue</p>
+          <p className="mb-1 text-xs text-muted">Total Transaction Volume (GMV)</p>
+          <p className="text-3xl font-black text-white">{formatPaise(analytics.totalBuyerPaidPaise)}</p>
+          <p className="mt-1 text-xs text-muted">Total amount collected from buyers (subtotal + convenience)</p>
+        </div>
+        <div className="glass rounded-3xl p-5">
+          <p className="mb-1 text-xs text-muted">Gross Ticket Sales</p>
           <p className="text-3xl font-black text-lime-neon">{formatPaise(analytics.totalGrossPaise)}</p>
-          <p className="mt-1 text-xs text-muted">Ticket sales (before fees)</p>
+          <p className="mt-1 text-xs text-muted">Face value of all confirmed tickets sold</p>
         </div>
         <div className="glass rounded-3xl p-5">
-          <p className="mb-1 text-xs text-muted">Platform Revenue</p>
-          <p className="text-3xl font-black text-violet-neon">{formatPaise(analytics.totalPlatformFeePaise)}</p>
-          <p className="mt-1 text-xs text-muted">Commission + convenience fee</p>
-        </div>
-        <div className="glass rounded-3xl p-5">
-          <p className="mb-1 text-xs text-muted">Net Payouts</p>
+          <p className="mb-1 text-xs text-muted">Total Net Payouts</p>
           <p className="text-3xl font-black text-pink-neon">{formatPaise(analytics.totalNetPayoutPaise)}</p>
-          <p className="mt-1 text-xs text-muted">To organizers (subtotal − commission)</p>
+          <p className="mt-1 text-xs text-muted">Payable to organizers (subtotal − commission)</p>
         </div>
         <div className="glass rounded-3xl p-5">
-          <p className="mb-1 text-xs text-muted">Total Transaction Volume</p>
-          <p className="text-3xl font-black text-violet-neon">{formatPaise(analytics.totalGrossPaise + analytics.totalPlatformFeePaise)}</p>
-          <p className="mt-1 text-xs text-muted">Gross + convenience fee (what buyers paid)</p>
+          <p className="mb-1 text-xs text-muted">Platform Commission</p>
+          <p className="text-3xl font-black text-violet-neon">{formatPaise(analytics.totalCommissionPaise)}</p>
+          <p className="mt-1 text-xs text-muted">Earned from organizer ticket sales (tiered 5% - 10%)</p>
+        </div>
+        <div className="glass rounded-3xl p-5">
+          <p className="mb-1 text-xs text-muted">Buyer Convenience Fees</p>
+          <p className="text-3xl font-black text-cyan-400">{formatPaise(analytics.totalConvenienceFeePaise)}</p>
+          <p className="mt-1 text-xs text-muted">Earned from buyer checkout fees (~2%)</p>
+        </div>
+        <div className="glass rounded-3xl p-5">
+          <p className="mb-1 text-xs text-muted">Gross Platform Earnings</p>
+          <p className="text-3xl font-black text-emerald-400">{formatPaise(analytics.totalPlatformFeePaise)}</p>
+          <p className="mt-1 text-xs text-muted">Commission + convenience fee (before taxes & vendor costs)</p>
         </div>
       </div>
 
       {/* Per-event breakdown */}
       <div className="space-y-3">
-        <h2 className="text-lg font-bold">Per-Event Breakdown</h2>
+        <h2 className="text-lg font-bold">Per-Event Financial Breakdown</h2>
         {analytics.perEvent.length === 0 ? (
           <p className="glass rounded-3xl p-5 text-sm text-muted">No confirmed orders yet.</p>
         ) : (
           <div className="space-y-2">
             {analytics.perEvent.map((row) => (
-              <div key={row.eventId} className="glass flex flex-wrap items-center gap-3 rounded-3xl p-4">
-                <div className="min-w-0 flex-1">
+              <div key={row.eventId} className="glass flex flex-wrap items-center justify-between gap-4 rounded-3xl p-4">
+                <div className="min-w-0 max-w-sm flex-1">
                   <a
                     href={`/events/${row.eventId}`}
                     target="_blank"
@@ -57,20 +67,28 @@ export default async function AdminRevenuePage() {
                     {row.eventTitle} ↗
                   </a>
                   <p className="text-xs text-muted">
-                    {row.organizerName} · {row.confirmedOrders} order{row.confirmedOrders === 1 ? "" : "s"}
+                    {row.organizerName} · {row.confirmedOrders} confirmed order{row.confirmedOrders === 1 ? "" : "s"}
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-4 text-sm">
-                  <div className="text-right">
-                    <p className="text-xs text-muted">Gross</p>
-                    <p className="font-bold text-lime-neon">{formatPaise(row.grossPaise)}</p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-5 sm:text-right">
+                  <div>
+                    <p className="text-muted">Buyer Paid</p>
+                    <p className="font-semibold text-white">{formatPaise(row.buyerPaidPaise)}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs text-muted">Fee</p>
-                    <p className="font-bold text-violet-neon">{formatPaise(row.platformFeePaise)}</p>
+                  <div>
+                    <p className="text-muted">Ticket Sales</p>
+                    <p className="font-semibold text-lime-neon">{formatPaise(row.grossPaise)}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs text-muted">Net</p>
+                  <div>
+                    <p className="text-muted">Commission</p>
+                    <p className="font-semibold text-violet-neon">−{formatPaise(row.commissionPaise)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted">Platform Gross</p>
+                    <p className="font-semibold text-emerald-400">{formatPaise(row.platformFeePaise)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted">Net Payout</p>
                     <p className="font-bold text-pink-neon">{formatPaise(row.netPayoutPaise)}</p>
                   </div>
                 </div>

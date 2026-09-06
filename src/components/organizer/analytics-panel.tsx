@@ -25,7 +25,7 @@ export function AnalyticsPanel({
     {
       label: "Net payout",
       value: formatPaise(analytics.netPayoutPaise),
-      sub: `Platform fee ${formatPaise(analytics.platformFeePaise)}`,
+      sub: `Commission −${formatPaise(analytics.commissionPaise)}`,
     },
     {
       label: "Tickets sold",

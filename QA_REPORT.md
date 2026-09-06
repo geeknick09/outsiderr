@@ -20,8 +20,9 @@
 | Front Row Boost | 2 | 2 | 0 | ✅ PASS (in critical flow) |
 | Money Calculation Accuracy | 104 | 104 | 0 | ✅ PASS |
 | E2E Money & Inventory Reconciliation | 45 | 45 | 0 | ✅ PASS |
+| Admin & Organizer Revenue Sync | 18 | 18 | 0 | ✅ PASS |
 | Load Test | 4 levels | 2 tested | — | ⚠️ Dev server limitation |
-| **TOTAL** | **244+** | **244** | **0** | ✅ |
+| **TOTAL** | **262+** | **262** | **0** | ✅ |
 
 ---
 
@@ -263,4 +264,5 @@ Updated all components:
 | `scripts/tba-category-test.mjs` | TBA venue + category rename | 10/10 PASS |
 | `scripts/money-accuracy-test.mjs` | Unit pricing & fee invariant test | 104/104 PASS |
 | `scripts/e2e-money-inventory-test.mjs` | E2E order flow, inventory & reconciliation | 45/45 PASS |
+| `scripts/revenue-sync-test.mjs` | Cross-tab revenue & payout sync test | 18/18 PASS |
 | `scripts/load-test.mjs` | Load test 50/100/150/200 users | 50: 80%, 100: 26% (dev server) |

@@ -322,15 +322,21 @@ export async function listEventTickets(eventId: string): Promise<Ticket[]> {
 
 // ---------------------------------------------------------------- revenue analytics
 export interface RevenueAnalytics {
-  totalGrossPaise: number;
-  totalPlatformFeePaise: number;
-  totalNetPayoutPaise: number;
+  totalBuyerPaidPaise: number;       // total collections from buyers
+  totalGrossPaise: number;           // ticket face value subtotal
+  totalCommissionPaise: number;      // commission from organizers
+  totalConvenienceFeePaise: number;  // convenience fee from buyers
+  totalPlatformFeePaise: number;     // total gross platform revenue (commission + convenience)
+  totalNetPayoutPaise: number;       // total net payable to organizers
   perEvent: {
     eventId: string;
     eventTitle: string;
     organizerName: string;
     confirmedOrders: number;
+    buyerPaidPaise: number;
     grossPaise: number;
+    commissionPaise: number;
+    convenienceFeePaise: number;
     platformFeePaise: number;
     netPayoutPaise: number;
   }[];
@@ -340,12 +346,20 @@ export async function getRevenueAnalytics(): Promise<RevenueAnalytics> {
   const supabase = await createClient();
   const { data: orders } = await supabase
     .from("orders")
-    .select("event_id, subtotal_paise, commission_paise, convenience_fee_paise, platform_fee_paise, organizer_payout_paise, status")
+    .select("event_id, total_paise, subtotal_paise, commission_paise, convenience_fee_paise, platform_fee_paise, organizer_payout_paise, status")
     .eq("status", "CONFIRMED")
     .order("created_at", { ascending: false })
     .limit(2000);
   if (!orders || orders.length === 0) {
-    return { totalGrossPaise: 0, totalPlatformFeePaise: 0, totalNetPayoutPaise: 0, perEvent: [] };
+    return {
+      totalBuyerPaidPaise: 0,
+      totalGrossPaise: 0,
+      totalCommissionPaise: 0,
+      totalConvenienceFeePaise: 0,
+      totalPlatformFeePaise: 0,
+      totalNetPayoutPaise: 0,
+      perEvent: [],
+    };
   }
   const eventIds = [...new Set(orders.map((o) => o.event_id))];
   const [{ data: events }, { data: organizers }] = await Promise.all([
@@ -355,8 +369,20 @@ export async function getRevenueAnalytics(): Promise<RevenueAnalytics> {
   const eventMap = Object.fromEntries((events ?? []).map((e) => [e.id, e]));
   const orgMap = Object.fromEntries((organizers ?? []).map((o) => [o.id, o.name]));
 
-  const perEventMap = new Map<string, { eventId: string; eventTitle: string; organizerName: string; confirmedOrders: number; grossPaise: number; platformFeePaise: number; netPayoutPaise: number }>();
-  let totalGross = 0, totalFee = 0, totalPayout = 0;
+  const perEventMap = new Map<string, {
+    eventId: string;
+    eventTitle: string;
+    organizerName: string;
+    confirmedOrders: number;
+    buyerPaidPaise: number;
+    grossPaise: number;
+    commissionPaise: number;
+    convenienceFeePaise: number;
+    platformFeePaise: number;
+    netPayoutPaise: number;
+  }>();
+
+  let totalBuyerPaid = 0, totalGross = 0, totalCommission = 0, totalConvenience = 0, totalFee = 0, totalPayout = 0;
   for (const o of orders) {
     const evt = eventMap[o.event_id];
     const key = o.event_id;
@@ -364,19 +390,35 @@ export async function getRevenueAnalytics(): Promise<RevenueAnalytics> {
       eventId: o.event_id,
       eventTitle: evt?.title ?? "Event",
       organizerName: evt ? (orgMap[evt.organizer_id] ?? "Organizer") : "Organizer",
-      confirmedOrders: 0, grossPaise: 0, platformFeePaise: 0, netPayoutPaise: 0,
+      confirmedOrders: 0,
+      buyerPaidPaise: 0,
+      grossPaise: 0,
+      commissionPaise: 0,
+      convenienceFeePaise: 0,
+      platformFeePaise: 0,
+      netPayoutPaise: 0,
     };
     entry.confirmedOrders++;
+    entry.buyerPaidPaise += o.total_paise ?? 0;
     entry.grossPaise += o.subtotal_paise ?? 0;
+    entry.commissionPaise += o.commission_paise ?? 0;
+    entry.convenienceFeePaise += o.convenience_fee_paise ?? 0;
     entry.platformFeePaise += o.platform_fee_paise ?? 0;
     entry.netPayoutPaise += o.organizer_payout_paise ?? 0;
     perEventMap.set(key, entry);
+
+    totalBuyerPaid += o.total_paise ?? 0;
     totalGross += o.subtotal_paise ?? 0;
+    totalCommission += o.commission_paise ?? 0;
+    totalConvenience += o.convenience_fee_paise ?? 0;
     totalFee += o.platform_fee_paise ?? 0;
     totalPayout += o.organizer_payout_paise ?? 0;
   }
   return {
+    totalBuyerPaidPaise: totalBuyerPaid,
     totalGrossPaise: totalGross,
+    totalCommissionPaise: totalCommission,
+    totalConvenienceFeePaise: totalConvenience,
     totalPlatformFeePaise: totalFee,
     totalNetPayoutPaise: totalPayout,
     perEvent: [...perEventMap.values()].sort((a, b) => b.grossPaise - a.grossPaise),

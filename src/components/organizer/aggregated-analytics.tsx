@@ -7,6 +7,7 @@ interface AggregatedData {
   pendingOrders: number;
   rejectedOrders: number;
   grossRevenuePaise: number;
+  commissionPaise: number;
   platformFeePaise: number;
   netPayoutPaise: number;
   checkIns: number;
@@ -23,6 +24,7 @@ function aggregate(events: EventSummary[], analytics: EventAnalytics[]): Aggrega
     pendingOrders: analytics.reduce((s, a) => s + a.pendingOrders, 0),
     rejectedOrders: analytics.reduce((s, a) => s + a.rejectedOrders, 0),
     grossRevenuePaise: analytics.reduce((s, a) => s + a.grossRevenuePaise, 0),
+    commissionPaise: analytics.reduce((s, a) => s + (a.commissionPaise ?? 0), 0),
     platformFeePaise: analytics.reduce((s, a) => s + a.platformFeePaise, 0),
     netPayoutPaise: analytics.reduce((s, a) => s + a.netPayoutPaise, 0),
     checkIns: analytics.reduce((s, a) => s + a.checkIns, 0),
@@ -108,7 +110,7 @@ export function AggregatedAnalytics({
     {
       label: "Net payout",
       value: formatPaise(agg.netPayoutPaise),
-      sub: `Fee ${formatPaise(agg.platformFeePaise)}`,
+      sub: `Commission −${formatPaise(agg.commissionPaise)}`,
     },
     { label: "Check-ins", value: String(agg.checkIns) },
     { label: "No-shows", value: String(agg.noShows), sub: agg.confirmedOrders > 0 ? `${Math.round((agg.noShows / agg.confirmedOrders) * 100)}% of confirmed` : undefined },
