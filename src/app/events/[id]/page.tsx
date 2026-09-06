@@ -15,10 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { CATEGORY_LABELS, CITY_LABELS } from "@/lib/constants";
 import { getCurrentUser } from "@/lib/auth";
 import { getEvent } from "@/lib/data/events";
-import { getFeeTiers } from "@/lib/data/platform-settings";
 import { getWaitlistEntry, getWaitlistCount } from "@/lib/data/waitlist";
 import { formatDateRange, isPast, mapsLink } from "@/lib/format";
-import { getFeeBpsForPrice } from "@/lib/pricing";
 
 export const dynamic = "force-dynamic";
 
@@ -40,13 +38,10 @@ export default async function EventDetailsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [event, user, feeTiers] = await Promise.all([getEvent(id), getCurrentUser(), getFeeTiers()]);
+  const [event, user] = await Promise.all([getEvent(id), getCurrentUser()]);
   if (!event) notFound();
 
   const banner = event.bannerPosterUrl ?? event.cardPosterUrl;
-  // Compute fee bps from the cheapest tier for display
-  const minTierPrice = event.tiers.length > 0 ? Math.min(...event.tiers.map((t) => t.pricePaise)) : 0;
-  const feeBps = getFeeBpsForPrice(minTierPrice, feeTiers);
 
   // Waitlist data for sold-out tiers (passed to TicketTiers so it can show
   // "On waitlist" state and waitlist counts)
@@ -313,7 +308,7 @@ export default async function EventDetailsPage({
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-          <TicketTiers event={event} feeBps={feeBps} waitlistData={waitlistData} />
+          <TicketTiers event={event} waitlistData={waitlistData} />
 
           <p className="px-2 text-center text-xs text-muted">
             Payments are verified manually by the organizer.{" "}

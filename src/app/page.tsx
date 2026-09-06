@@ -11,7 +11,6 @@ import {
   CATEGORY_LABELS,
   CITY_LABELS,
   DEFAULT_CITY,
-  MAX_FEATURED_EVENTS,
 } from "@/lib/constants";
 import { listEvents } from "@/lib/data/events";
 import { getHeroEvents } from "@/lib/data/hero-boosts";
@@ -20,6 +19,8 @@ import {
   getHeroBoostEnabled,
   getHeroMaxVisibleEvents,
   getHeroRotationIntervalMinutes,
+  getMaxPopularPerCity,
+  getMaxSponsoredPerCity,
   getTaglineHeader,
   getTaglineSubheader,
 } from "@/lib/data/platform-settings";
@@ -57,13 +58,19 @@ export default async function DiscoveryPage({
   const postponed = upcoming.filter((event) => event.status === "POSTPONED");
   const live = upcoming.filter((event) => event.status !== "POSTPONED");
 
+  // Admin-configurable caps for popular + sponsored per city
+  const [maxPopular, maxSponsored] = await Promise.all([
+    getMaxPopularPerCity(),
+    getMaxSponsoredPerCity(),
+  ]);
+
   const featured = live
     .filter((event) => event.isFeatured)
-    .slice(0, MAX_FEATURED_EVENTS);
+    .slice(0, maxSponsored);
   const today = live.filter((event) => isToday(event.startsAt));
   const popular = [...live]
     .sort((a, b) => b.registrationsCount - a.registrationsCount)
-    .slice(0, 8);
+    .slice(0, maxPopular);
 
   // Hero Boost events
   const heroEnabled = await getHeroBoostEnabled();
@@ -93,12 +100,15 @@ export default async function DiscoveryPage({
             {CITY_LABELS[city]}
           </p>
         </div>
+        {/* Clubs & Crews disabled for this release */}
+        {/*
         <Link
           href="/clubs"
           className="shrink-0 rounded-full bg-neon-gradient px-5 py-2.5 text-sm font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90"
         >
           Join a Club / Crew
         </Link>
+        */}
       </div>
 
       <Suspense fallback={<div className="mb-6 h-12" />}>

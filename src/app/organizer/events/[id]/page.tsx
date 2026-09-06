@@ -188,7 +188,7 @@ export default async function ManageEventPage({
         <EditEventForm event={event} />
       ) : null}
 
-      {/* Hero Boost — disabled for cancelled and past events */}
+      {/* Front Row — disabled for cancelled and past events */}
       {event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast ? (
         <HeroBoostPanel
           eventId={event.id}
@@ -220,8 +220,8 @@ export default async function ManageEventPage({
         </section>
       ) : null}
 
-      {/* Door staff — disabled for past events */}
-      {eventPast ? null : doorStaffOrder ? (
+      {/* Door staff — disabled for this release (kept in admin only) */}
+      {/* eventPast ? null : doorStaffOrder ? (
         <DoorStaffPaymentPanel
           order={doorStaffOrder}
           platformUpiId={process.env.NEXT_PUBLIC_PLATFORM_UPI_ID ?? "outsiderr@upi"}
@@ -235,7 +235,7 @@ export default async function ManageEventPage({
             maxStaff={Math.min(5, doorStaffAvailable)}
           />
         </section>
-      ) : null}
+      ) : null */}
 
       {/* Cancel / Postpone — disabled for past events */}
       {!eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (

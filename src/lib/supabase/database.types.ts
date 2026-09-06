@@ -16,6 +16,7 @@ export type ProfileRow = {
   phone: string | null;
   avatar_url: string | null;
   birth_date: string | null;
+  gender: string | null;
   interested_tags: string[];
   instagram_url: string | null;
   youtube_url: string | null;
@@ -54,6 +55,7 @@ export type EventRow = {
   description: string;
   things_to_know: string[];
   category: EventCategory;
+  categories: string[];
   city: City;
   venue_name: string;
   venue_address: string;
@@ -65,6 +67,10 @@ export type EventRow = {
   card_poster_url: string | null;
   banner_poster_url: string | null;
   fee_payer: FeePayer;
+  commission_bps: number;
+  commission_enabled: boolean;
+  convenience_fee_bps: number;
+  convenience_fee_enabled: boolean;
   status: EventStatus;
   is_featured: boolean;
   needs_door_staff: boolean;
@@ -107,6 +113,9 @@ export type OrderRow = {
   unit_price_paise: number;
   subtotal_paise: number;
   platform_fee_paise: number;
+  commission_paise: number;
+  convenience_fee_paise: number;
+  organizer_payout_paise: number;
   total_paise: number;
   fee_payer: FeePayer;
   status: OrderStatus;
@@ -221,6 +230,18 @@ export type HeroBoostRow = {
   updated_at: string;
 }
 
+export type AdminChangeLogRow = {
+  id: string;
+  admin_id: string;
+  table_name: string;
+  entity_id: string | null;
+  field_name: string;
+  old_value: string | null;
+  new_value: string | null;
+  reason: string | null;
+  created_at: string;
+}
+
 export type ClubMemberRow = {
   id: string;
   club_id: string;
@@ -320,6 +341,7 @@ export type Database = {
       door_staff_orders: Table<DoorStaffOrderRow, "event_id" | "organizer_id" | "number_of_staff" | "service_amount_paise">;
       legal_pages: Table<LegalPageRow, "slug" | "title" | "content">;
       hero_boosts: Table<HeroBoostRow, "event_id" | "organizer_id" | "amount_paise">;
+      admin_change_log: Table<AdminChangeLogRow, "admin_id" | "table_name" | "field_name">;
     };
     Views: Record<string, never>;
     Functions: {

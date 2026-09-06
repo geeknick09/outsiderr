@@ -65,10 +65,12 @@ function minPrice(tiers: TicketTier[]): number {
 }
 
 function toSummary(row: EventRow, tiers: TicketTier[]): EventSummary {
+  const categoriesRaw = (row as { categories?: string[] }).categories ?? [];
   return {
     id: row.id,
     title: row.title,
     category: row.category,
+    categories: categoriesRaw.length > 0 ? categoriesRaw as EventCategory[] : [row.category],
     city: row.city,
     venueName: row.venue_name,
     startsAt: row.starts_at,
@@ -98,6 +100,10 @@ function toDetail(
     googleMapsLink: row.google_maps_link ?? null,
     endsAt: row.ends_at,
     feePayer: row.fee_payer,
+    commissionBps: (row as { commission_bps?: number }).commission_bps ?? 1000,
+    commissionEnabled: (row as { commission_enabled?: boolean }).commission_enabled ?? true,
+    convenienceFeeBps: (row as { convenience_fee_bps?: number }).convenience_fee_bps ?? 200,
+    convenienceFeeEnabled: (row as { convenience_fee_enabled?: boolean }).convenience_fee_enabled ?? true,
     status: row.status,
     needsDoorStaff: row.needs_door_staff,
     terms: row.terms ?? [],
@@ -125,8 +131,8 @@ export async function listEvents(query: EventQuery = {}): Promise<EventSummary[]
     .order("starts_at", { ascending: true });
 
   if (query.city) request = request.eq("city", query.city);
-  // Use text cast to avoid 22P02 enum errors while DB migrations are in flight
-  if (query.category) request = (request as ReturnType<typeof request.eq>).filter("category::text", "eq", query.category);
+  // Filter by categories array (contains) — supports multi-category events
+  if (query.category) request = request.contains("categories", [query.category]);
   if (search) {
     request = request.or(`title.ilike.%${search}%,venue_name.ilike.%${search}%,description.ilike.%${search}%`);
   }

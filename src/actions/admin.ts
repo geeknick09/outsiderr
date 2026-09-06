@@ -145,6 +145,79 @@ export async function adminUpdateSlotPriceAction(slot: number, pricePaise: numbe
   revalidatePath("/organizer/boost");
 }
 
+export async function adminUpdateEventFeesAction(
+  eventId: string,
+  data: {
+    commissionBps?: number;
+    commissionEnabled?: boolean;
+    convenienceFeeBps?: number;
+    convenienceFeeEnabled?: boolean;
+  },
+  reason?: string,
+): Promise<{ error: string | null }> {
+  try {
+    const user = await requireAdmin();
+    const supabase = await createClient();
+
+    // Fetch current values for audit log
+    const { data: current } = await supabase
+      .from("events")
+      .select("commission_bps, commission_enabled, convenience_fee_bps, convenience_fee_enabled")
+      .eq("id", eventId)
+      .maybeSingle();
+
+    // Build update object
+    const update: Record<string, number | boolean> = {};
+    const auditEntries: { field: string; oldVal: string; newVal: string }[] = [];
+
+    if (data.commissionBps !== undefined && data.commissionBps !== current?.commission_bps) {
+      update.commission_bps = data.commissionBps;
+      auditEntries.push({ field: "commission_bps", oldVal: String(current?.commission_bps ?? ""), newVal: String(data.commissionBps) });
+    }
+    if (data.commissionEnabled !== undefined && data.commissionEnabled !== current?.commission_enabled) {
+      update.commission_enabled = data.commissionEnabled;
+      auditEntries.push({ field: "commission_enabled", oldVal: String(current?.commission_enabled ?? ""), newVal: String(data.commissionEnabled) });
+    }
+    if (data.convenienceFeeBps !== undefined && data.convenienceFeeBps !== current?.convenience_fee_bps) {
+      update.convenience_fee_bps = data.convenienceFeeBps;
+      auditEntries.push({ field: "convenience_fee_bps", oldVal: String(current?.convenience_fee_bps ?? ""), newVal: String(data.convenienceFeeBps) });
+    }
+    if (data.convenienceFeeEnabled !== undefined && data.convenienceFeeEnabled !== current?.convenience_fee_enabled) {
+      update.convenience_fee_enabled = data.convenienceFeeEnabled;
+      auditEntries.push({ field: "convenience_fee_enabled", oldVal: String(current?.convenience_fee_enabled ?? ""), newVal: String(data.convenienceFeeEnabled) });
+    }
+
+    if (Object.keys(update).length === 0) {
+      return { error: null };
+    }
+
+    // Update the event
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await supabase.from("events").update(update as any).eq("id", eventId);
+    if (error) throw error;
+
+    // Insert audit log entries
+    for (const entry of auditEntries) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await supabase.from("admin_change_log").insert({
+        admin_id: user.id,
+        table_name: "events",
+        entity_id: eventId,
+        field_name: entry.field,
+        old_value: entry.oldVal,
+        new_value: entry.newVal,
+        reason: reason ?? null,
+      } as any);
+    }
+
+    revalidatePath("/admin/events");
+    revalidatePath(`/events/${eventId}`);
+    return { error: null };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to update fees." };
+  }
+}
+
 export async function adminApproveClubAction(clubId: string): Promise<void> {
   await requireAdmin();
   await setClubVerified(clubId, true);

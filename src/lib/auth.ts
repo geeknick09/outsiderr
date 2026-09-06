@@ -9,6 +9,7 @@ export interface CurrentUser {
   email: string | null;
   isDemo: boolean;
   birthDate: string | null;
+  gender: string | null;
   interestedTags: string[];
 }
 
@@ -21,7 +22,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, phone, birth_date, interested_tags")
+    .select("full_name, phone, birth_date, gender, interested_tags")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -32,6 +33,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     email: user.email ?? null,
     isDemo: false,
     birthDate: profile?.birth_date ?? null,
+    gender: (profile as { gender?: string | null })?.gender ?? null,
     interestedTags: profile?.interested_tags ?? [],
   };
 }

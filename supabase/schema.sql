@@ -26,7 +26,7 @@ do $$ begin
 exception when duplicate_object then null; end $$;
 do $$ begin
   create type event_category as enum (
-    'CYPHER_BATTLE','SKATE_STUNT','FITNESS','JAM_GIG','WORKSHOP','OTHER'
+    'CYPHER_BATTLE','SKATE_STUNT','FITNESS','JAM_GIG','HIP_HOP_PARTY','CAR_BIKE_MEET','WORKSHOP','OTHER'
   );
 exception when duplicate_object then null; end $$;
 
@@ -52,6 +52,8 @@ end $$;
 alter type event_category add value if not exists 'CYPHER_BATTLE';
 alter type event_category add value if not exists 'SKATE_STUNT';
 alter type event_category add value if not exists 'JAM_GIG';
+alter type event_category add value if not exists 'HIP_HOP_PARTY';
+alter type event_category add value if not exists 'CAR_BIKE_MEET';
 alter type event_category add value if not exists 'WORKSHOP';
 alter type event_category add value if not exists 'OTHER';
 
@@ -83,6 +85,7 @@ create table if not exists public.profiles (
   phone            text,
   avatar_url       text,
   birth_date       date,
+  gender           text        check (gender in ('male','female','non-binary','other')),
   interested_tags  text[]      not null default '{}',
   instagram_url    text,
   youtube_url      text,
@@ -135,6 +138,7 @@ create table if not exists public.events (
   tags                text[]          not null default '{}',
   photo_urls          text[]          not null default '{}',
   category            event_category  not null,
+  categories          text[]          not null default '{}',  -- multi-category support
   city                city            not null,
   venue_name          text            not null,
   venue_address       text            not null default '',
@@ -153,6 +157,10 @@ create table if not exists public.events (
   registrations_count integer         not null default 0,
   pricing_mode        text            not null default 'PAID'
                       check (pricing_mode in ('FREE','FLAT','PAID','PHASED')),
+  commission_bps          integer     not null default 1000,  -- 10% organizer commission
+  commission_enabled      boolean     not null default true,
+  convenience_fee_bps     integer     not null default 200,   -- 2% buyer convenience fee
+  convenience_fee_enabled boolean     not null default true,
   contact_email       text,
   contact_phone       text,
   instagram_url       text,
@@ -194,6 +202,9 @@ create table if not exists public.orders (
   unit_price_paise    integer      not null check (unit_price_paise >= 0),
   subtotal_paise      integer      not null,
   platform_fee_paise  integer      not null,
+  commission_paise    integer      not null default 0,    -- organizer commission
+  convenience_fee_paise integer    not null default 0,   -- buyer convenience fee
+  organizer_payout_paise integer   not null default 0,   -- what organizer receives
   total_paise         integer      not null,
   fee_payer           fee_payer    not null,
   status              order_status not null default 'PENDING_VERIFICATION',
@@ -295,6 +306,23 @@ create table if not exists public.platform_settings (
   updated_at  timestamptz not null default now(),
   updated_by  uuid references auth.users(id)
 );
+
+-- ------------------------------------------------------- admin_change_log
+-- Audit trail for all admin overrides (commission, convenience fee, etc.)
+-- Records who changed what, from what value, to what value, and why.
+create table if not exists public.admin_change_log (
+  id          uuid        primary key default gen_random_uuid(),
+  admin_id    uuid        not null references auth.users(id),
+  table_name  text        not null,           -- e.g. 'events', 'platform_settings'
+  entity_id   text,                           -- e.g. event UUID or settings key
+  field_name  text        not null,           -- e.g. 'commission_bps'
+  old_value   text,
+  new_value   text,
+  reason      text,
+  created_at  timestamptz not null default now()
+);
+create index if not exists admin_change_log_created_idx on public.admin_change_log(created_at desc);
+create index if not exists admin_change_log_entity_idx on public.admin_change_log(table_name, entity_id);
 
 -- ------------------------------------------------------- legal_pages
 -- DB-backed legal/policy pages (Terms, Privacy, Refund, etc.)
@@ -809,7 +837,7 @@ begin
   ) values (
     p_event_id, p_tier_id, auth.uid(), p_quantity,
     p_unit_price_paise, p_subtotal_paise, p_platform_fee_paise, p_total_paise,
-    p_fee_payer, 'PENDING_VERIFICATION', p_utr_reference, p_payment_proof_url,
+    p_fee_payer::fee_payer, 'PENDING_VERIFICATION', p_utr_reference, p_payment_proof_url,
     p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender
   )
   returning * into v_order;

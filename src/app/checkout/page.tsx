@@ -6,10 +6,10 @@ import { CheckoutForm } from "@/components/checkout/checkout-form";
 import { QrCode } from "@/components/ui/qr-code";
 import { MAX_TICKETS_PER_ORDER } from "@/lib/constants";
 import { getEvent } from "@/lib/data/events";
-import { getFeeTiers, getOrganizerWhatsappNumber } from "@/lib/data/platform-settings";
+import { getOrganizerWhatsappNumber } from "@/lib/data/platform-settings";
 import { formatDateTime, formatPaise } from "@/lib/format";
 import { getCurrentUser } from "@/lib/auth";
-import { calculatePrice, getFeeBpsForPrice } from "@/lib/pricing";
+import { calculatePrice } from "@/lib/pricing";
 import { upiIntent } from "@/lib/upi";
 
 export const dynamic = "force-dynamic";
@@ -37,10 +37,13 @@ export default async function CheckoutPage({
   if (!event || !tier) notFound();
 
   const isFree = tier.pricePaise === 0;
-  // Use admin-configured commission tiers
-  const feeTiers = await getFeeTiers();
-  const feeBps = getFeeBpsForPrice(tier.pricePaise, feeTiers);
-  const price = calculatePrice(tier.pricePaise, quantity, event.feePayer, feeBps);
+  // Use per-event commission + convenience fee config
+  const price = calculatePrice(tier.pricePaise, quantity, event.feePayer, undefined, {
+    commissionBps: event.commissionBps,
+    commissionEnabled: event.commissionEnabled,
+    convenienceFeeBps: event.convenienceFeeBps,
+    convenienceFeeEnabled: event.convenienceFeeEnabled,
+  });
   const intent = upiIntent({
     upiId: event.organizer.upiId ?? "outsiderr@upi",
     payeeName: event.organizer.name,
@@ -85,6 +88,8 @@ export default async function CheckoutPage({
             quantity={quantity}
             defaultName={user?.name ?? ""}
             defaultPhone={user?.phone ?? ""}
+            defaultEmail={user?.email ?? ""}
+            defaultGender={user?.gender ?? ""}
             isFree={isFree}
           />
         </div>
@@ -97,11 +102,8 @@ export default async function CheckoutPage({
             </p>
             <dl className="mt-4 space-y-2 text-sm">
               <Row label={`${tier.name} × ${quantity}`} value={isFree ? "Free" : formatPaise(price.subtotalPaise)} />
-              {!isFree && event.feePayer === "BUYER" ? (
-              <Row label={`Platform fee (${Math.round(price.feeBps / 100)}%)`} value={formatPaise(price.platformFeePaise)} />
-              ) : null}
-              {!isFree && event.feePayer === "ORGANIZER" ? (
-                <Row label="Platform fee" value="Paid by organizer" />
+              {!isFree && price.convenienceFeePaise > 0 ? (
+                <Row label={`Convenience fee (${Math.round(price.convenienceFeePaise / price.subtotalPaise * 100)}%)`} value={formatPaise(price.convenienceFeePaise)} />
               ) : null}
               {!isFree ? (
                 <div className="border-t border-zinc-200 pt-2 dark:border-white/10">

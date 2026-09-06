@@ -29,6 +29,7 @@ export interface CreateEventInput {
   thingsToKnow: string[];
   tags: string[];
   category: EventCategory;
+  categories?: EventCategory[];
   city: City;
   venueName: string;
   venueAddress: string;
@@ -122,6 +123,7 @@ export async function listOrganizerEvents(
       id: event.id,
       title: event.title,
       category: event.category,
+      categories: ((event as { categories?: string[] }).categories ?? [event.category]) as EventCategory[],
       city: event.city,
       venueName: event.venue_name,
       startsAt: event.starts_at,
@@ -159,6 +161,7 @@ export async function createEvent(
       description: input.description,
       things_to_know: input.thingsToKnow,
       category: input.category,
+      categories: input.categories ?? [input.category],
       city: input.city,
       venue_name: input.venueName,
       venue_address: input.venueAddress,
@@ -381,6 +384,7 @@ export interface UpdateEventInput {
   tags: string[];
   city?: City;
   category?: EventCategory;
+  categories?: EventCategory[];
   tiers?: { id?: string; name: string; pricePaise: number; quantity: number; perks: string[]; phaseOpensAt?: string | null; phaseClosesAt?: string | null }[];
   photoUrls?: string[];
   contactEmail?: string | null;
@@ -424,6 +428,7 @@ export async function updateEvent(
       tags: input.tags,
       ...(input.city !== undefined ? { city: input.city } : {}),
       ...(input.category !== undefined ? { category: input.category } : {}),
+      ...(input.categories !== undefined ? { categories: input.categories } : {}),
       ...(input.photoUrls !== undefined ? { photo_urls: input.photoUrls } : {}),
       ...(input.contactEmail !== undefined ? { contact_email: input.contactEmail } : {}),
       ...(input.contactPhone !== undefined ? { contact_phone: input.contactPhone } : {}),

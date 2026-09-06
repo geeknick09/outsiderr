@@ -52,7 +52,7 @@ export function HeroBoostPanel({
       <section className="glass space-y-4 rounded-3xl p-5">
         <div className="flex items-center gap-2">
           <Rocket className="h-5 w-5 text-violet-neon" />
-          <h2 className="text-lg font-bold">Hero Boost — Active</h2>
+          <h2 className="text-lg font-bold">Front Row — Active</h2>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <StatusRow label="Status" value="Active" icon={<CheckCircle2 className="h-4 w-4 text-lime-neon" />} />
@@ -61,7 +61,7 @@ export function HeroBoostPanel({
           <StatusRow label="Expires" value={boost.expiresAt ? formatDateTime(boost.expiresAt) : "—"} />
         </div>
         <p className="text-xs text-muted">
-          Your event is featured in the Hero section and rotates with other featured events.
+          Your event is featured in the Front Row carousel and rotates with other featured events.
         </p>
       </section>
     );
@@ -73,7 +73,7 @@ export function HeroBoostPanel({
       <section className="glass space-y-4 rounded-3xl p-5">
         <div className="flex items-center gap-2">
           <Clock className="h-5 w-5 text-amber-500" />
-          <h2 className="text-lg font-bold">Hero Boost — Payment Pending</h2>
+          <h2 className="text-lg font-bold">Front Row — Payment Pending</h2>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <StatusRow label="Amount" value={`₹${priceRupees}`} />
@@ -133,10 +133,10 @@ export function HeroBoostPanel({
       <section className="glass space-y-3 rounded-3xl p-5">
         <div className="flex items-center gap-2">
           <XCircle className="h-5 w-5 text-red-500" />
-          <h2 className="text-lg font-bold">Hero Boost — {boost.status.charAt(0) + boost.status.slice(1).toLowerCase()}</h2>
+          <h2 className="text-lg font-bold">Front Row — {boost.status.charAt(0) + boost.status.slice(1).toLowerCase()}</h2>
         </div>
         <p className="text-sm text-muted">
-          This boost is no longer active. You can purchase a new one below if the event hasn&apos;t started.
+          This Front Row slot is no longer active. You can purchase a new one below if the event hasn&apos;t started.
         </p>
       </section>
     );
@@ -148,10 +148,10 @@ export function HeroBoostPanel({
       <section className="glass space-y-2 rounded-3xl p-5 opacity-60">
         <div className="flex items-center gap-2">
           <Rocket className="h-5 w-5 text-muted" />
-          <h2 className="text-lg font-bold">Hero Boost</h2>
+          <h2 className="text-lg font-bold">Front Row</h2>
         </div>
         <p className="text-sm text-muted">
-          Hero Boost is not available for events that have already started.
+          Front Row is not available for events that have already started.
         </p>
       </section>
     );
@@ -164,7 +164,7 @@ export function HeroBoostPanel({
         <h2 className="text-lg font-bold">Feature on Outsiderr</h2>
       </div>
       <p className="text-sm text-muted">
-        Get your event featured in the Hero section on the homepage. Your event will appear in the Hero section and rotate with other featured events.
+        Get your event featured in the Front Row carousel on the homepage. Your event will rotate with other featured events for maximum visibility.
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-2xl border border-zinc-200 p-3 dark:border-white/10">

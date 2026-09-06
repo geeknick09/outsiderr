@@ -1,16 +1,11 @@
 import Link from "next/link";
-import { CalendarDays, MapPin, Mic2, Rocket, ScanLine, Shield, TrendingUp, Users, Zap } from "lucide-react";
+import { BarChart3, CalendarDays, MapPin, QrCode, Rocket, ScanLine, Shield, TrendingUp, Users, Zap } from "lucide-react";
 
 import { ThemeLogo } from "@/components/layout/theme-logo";
-import { getPlatformFeeBps } from "@/lib/data/platform-settings";
 
 export const metadata = { title: "List Your Event — Outsiderr" };
 
-export const dynamic = "force-dynamic";
-
 export default async function ListYourEventPage() {
-  const feeBps = await getPlatformFeeBps();
-  const feePercent = (feeBps / 100).toFixed(0);
   return (
     <div className="min-h-screen">
       {/* Hero */}
@@ -43,7 +38,7 @@ export default async function ListYourEventPage() {
             </Link>
           </div>
           <p className="mt-4 text-xs text-muted">
-            No listing fees. No commission on free events. You keep 100% of your ticket sales.
+            Free listing. We only charge a negligible fraction — and only when you actually sell.
           </p>
         </div>
       </section>
@@ -51,8 +46,8 @@ export default async function ListYourEventPage() {
       {/* Stats bar */}
       <section className="border-y border-zinc-200 px-4 py-8 dark:border-white/10">
         <div className="mx-auto grid max-w-4xl grid-cols-2 gap-6 text-center sm:grid-cols-4">
-          <Stat value="0%" label="Listing fees" />
-          <Stat value={`${feePercent}%`} label="Platform fee (paid events)" />
+          <Stat value="₹0" label="Listing fees" />
+          <Stat value="100%" label="Free events = zero cost" />
           <Stat value="Instant" label="QR ticket generation" />
           <Stat value="UPI" label="Direct to your account" />
         </div>
@@ -90,17 +85,40 @@ export default async function ListYourEventPage() {
         </div>
       </section>
 
-      {/* Features */}
+      {/* Features — what you get */}
       <section className="px-4 py-16">
         <div className="mx-auto max-w-4xl">
           <h2 className="text-center text-3xl font-black tracking-tight">
-            Everything you need to run your event
+            Everything you get — built in
           </h2>
-          <div className="mt-10 grid gap-6 sm:grid-cols-2">
+          <p className="mt-2 text-center text-sm text-muted">
+            Tools that would cost you thousands elsewhere. All included.
+          </p>
+          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <Feature
+              icon={QrCode}
+              title="QR ticket system"
+              description="Every ticket gets a unique QR code. Built-in scanner per event validates check-ins. No third-party scanner app needed."
+            />
+            <Feature
+              icon={BarChart3}
+              title="Full analytics & insights"
+              description="See exactly how your event is doing — bookings, revenue, waitlists, attendance. Know who came, who didn't, and what's trending."
+            />
+            <Feature
+              icon={TrendingUp}
+              title="Trends & insights"
+              description="Understand what's working in your city. Track registrations over time, spot patterns, and plan better events."
+            />
+            <Feature
+              icon={Users}
+              title="Attendee management"
+              description="See who booked, how many showed up, who didn't. Full attendee lists with contact details and check-in status."
+            />
             <Feature
               icon={Zap}
               title="Manual UPI payments"
-              description="Attendees pay directly to your UPI ID via QR. They submit the UTR, you verify — no payment gateway, no commission cut."
+              description="Attendees pay directly to your UPI ID via QR. They submit the UTR, you verify — no payment gateway, no middleman."
             />
             <Feature
               icon={ScanLine}
@@ -109,24 +127,40 @@ export default async function ListYourEventPage() {
             />
             <Feature
               icon={Rocket}
-              title="Hero Boost"
+              title="Front Row boost"
               description="Feature your event on the homepage hero carousel. Get maximum visibility for a flat fee."
-            />
-            <Feature
-              icon={TrendingUp}
-              title="Real-time analytics"
-              description="Track registrations, ticket sales, revenue, and waitlist counts. Know exactly how your event is performing."
-            />
-            <Feature
-              icon={Mic2}
-              title="Clubs & Crews"
-              description="Build a community around your brand. Members can join free or paid clubs with UPI verification."
             />
             <Feature
               icon={Shield}
               title="Cancel & postpone support"
               description="Life happens. Cancel or postpone with automatic notifications to ticket holders and refund tracking."
             />
+            <Feature
+              icon={CalendarDays}
+              title="Phased ticketing"
+              description="Early bird, regular, last-minute — set up multiple phases with automatic carry-forward of unsold tickets."
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Why the small fee is worth it */}
+      <section className="px-4 py-16">
+        <div className="mx-auto max-w-3xl">
+          <div className="glass rounded-3xl p-8 text-center">
+            <h2 className="text-2xl font-black tracking-tight">
+              Free to list. Negligible fee only when you sell.
+            </h2>
+            <p className="mt-4 text-sm text-muted">
+              You read that right. Listing is completely free. For paid events, a small fraction
+              is deducted from your payout — and that fraction stands for nothing compared to what
+              you&apos;re getting: QR tickets, door scanner, full analytics, attendee insights,
+              trend tracking, phased ticketing, boost options, and more. Tools that would cost
+              you thousands on other platforms. All included. All working only when you actually sell.
+            </p>
+            <p className="mt-4 text-sm font-semibold text-violet-neon">
+              Free events? Zero cost. Zero commission. Zero fees. Forever.
+            </p>
           </div>
         </div>
       </section>
@@ -147,6 +181,13 @@ export default async function ListYourEventPage() {
               "Walkathons",
               "Underground gigs & jams",
               "DJ sets & open decks",
+              "Hip hop parties",
+              "Trap nights",
+              "Boom bap nights",
+              "Car & bike meetups",
+              "JDM meets",
+              "Superbike meets",
+              "Riders meets",
               "Graffiti cyphers",
               "Beatbox battles",
               "Dance battles",

@@ -745,7 +745,7 @@ begin
   ) values (
     p_event_id, p_tier_id, auth.uid(), p_quantity,
     p_unit_price_paise, p_subtotal_paise, p_platform_fee_paise, p_total_paise,
-    p_fee_payer, 'PENDING_VERIFICATION', p_utr_reference, p_payment_proof_url,
+    p_fee_payer::fee_payer, 'PENDING_VERIFICATION', p_utr_reference, p_payment_proof_url,
     p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender
   )
   returning * into v_order;
@@ -1007,6 +1007,7 @@ alter table public.profiles add column if not exists youtube_url text;
 alter table public.profiles add column if not exists x_url text;
 alter table public.profiles add column if not exists facebook_url text;
 alter table public.profiles add column if not exists linkedin_url text;
+alter table public.profiles add column if not exists gender text check (gender in ('male','female','non-binary','other'));
 alter table public.organizers add column if not exists youtube_url text;
 alter table public.organizers add column if not exists x_url text;
 alter table public.organizers add column if not exists facebook_url text;
@@ -1080,6 +1081,66 @@ begin
   return v_next;
 end;
 $$;
+
+-- ----------------------------------------------------------------
+-- Commission + convenience fee system
+-- ----------------------------------------------------------------
+alter table public.events add column if not exists commission_bps integer not null default 1000;
+alter table public.events add column if not exists commission_enabled boolean not null default true;
+alter table public.events add column if not exists convenience_fee_bps integer not null default 200;
+alter table public.events add column if not exists convenience_fee_enabled boolean not null default true;
+
+alter table public.orders add column if not exists commission_paise integer not null default 0;
+alter table public.orders add column if not exists convenience_fee_paise integer not null default 0;
+alter table public.orders add column if not exists organizer_payout_paise integer not null default 0;
+
+-- Audit log table for admin changes
+create table if not exists public.admin_change_log (
+  id          uuid        primary key default gen_random_uuid(),
+  admin_id    uuid        not null references auth.users(id),
+  table_name  text        not null,
+  entity_id   text,
+  field_name  text        not null,
+  old_value   text,
+  new_value   text,
+  reason      text,
+  created_at  timestamptz not null default now()
+);
+create index if not exists admin_change_log_created_idx on public.admin_change_log(created_at desc);
+create index if not exists admin_change_log_entity_idx on public.admin_change_log(table_name, entity_id);
+
+-- RLS for admin_change_log
+alter table public.admin_change_log enable row level security;
+drop policy if exists "admins read change log" on public.admin_change_log;
+create policy "admins read change log" on public.admin_change_log
+  for select to authenticated using (public.is_current_user_admin());
+drop policy if exists "admins insert change log" on public.admin_change_log;
+create policy "admins insert change log" on public.admin_change_log
+  for insert to authenticated with check (public.is_current_user_admin());
+
+-- Platform-level defaults for commission + convenience fee
+insert into public.platform_settings (key, value, description)
+values ('default_commission_bps', '1000', 'Default organizer commission in basis points (10%)')
+on conflict (key) do nothing;
+insert into public.platform_settings (key, value, description)
+values ('default_convenience_fee_bps', '200', 'Default buyer convenience fee in basis points (2%)')
+on conflict (key) do nothing;
+insert into public.platform_settings (key, value, description)
+values ('max_popular_per_city', '4', 'Max popular events shown per city on homepage')
+on conflict (key) do nothing;
+insert into public.platform_settings (key, value, description)
+values ('max_sponsored_per_city', '4', 'Max sponsored/featured events shown per city on homepage')
+on conflict (key) do nothing;
+
+-- ----------------------------------------------------------------
+-- Multi-category support + Hip Hop Party category
+-- ----------------------------------------------------------------
+alter type event_category add value if not exists 'HIP_HOP_PARTY';
+alter type event_category add value if not exists 'CAR_BIKE_MEET';
+alter table public.events add column if not exists categories text[] not null default '{}';
+
+-- Backfill: set categories = [category] for existing events
+update public.events set categories = array[category::text] where array_length(categories, 1) is null or array_length(categories, 1) = 0;
 
 -- ----------------------------------------------------------------
 -- DONE.

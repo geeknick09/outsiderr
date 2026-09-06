@@ -4,6 +4,7 @@ import {
   adminDeleteEventAction,
   adminToggleFeaturedAction,
   adminUpdateEventStatusAction,
+  adminUpdateEventFeesAction,
 } from "@/actions/admin";
 import { AdminEventEditForm } from "@/components/admin/admin-event-edit-form";
 import { Badge } from "@/components/ui/badge";
@@ -167,6 +168,73 @@ export default async function AdminEventsPage({
               startsAt={event.startsAt}
               endsAt={event.endsAt}
             />
+
+            {/* Commission + convenience fee controls */}
+            {event.pricingMode !== "FREE" ? (
+              <form action={async (formData: FormData) => {
+                "use server";
+                await adminUpdateEventFeesAction(event.id, {
+                  commissionBps: Number(formData.get("commissionBps") ?? 1000),
+                  commissionEnabled: formData.get("commissionEnabled") === "on",
+                  convenienceFeeBps: Number(formData.get("convenienceFeeBps") ?? 200),
+                  convenienceFeeEnabled: formData.get("convenienceFeeEnabled") === "on",
+                }, String(formData.get("reason") ?? "").trim() || undefined);
+              }} className="flex flex-wrap items-end gap-3 rounded-2xl bg-black/5 p-3 text-xs dark:bg-white/5">
+                <label className="space-y-1">
+                  <span className="font-semibold text-muted">Commission (%)</span>
+                  <input
+                    name="commissionBps"
+                    type="number"
+                    min={0}
+                    max={10000}
+                    step={100}
+                    defaultValue={event.commissionBps / 100}
+                    className="w-20 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5 dark:text-white"
+                  />
+                </label>
+                <label className="flex items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    name="commissionEnabled"
+                    defaultChecked={event.commissionEnabled}
+                    className="h-3.5 w-3.5"
+                  />
+                  <span className="text-muted">Commission on</span>
+                </label>
+                <label className="space-y-1">
+                  <span className="font-semibold text-muted">Convenience fee (%)</span>
+                  <input
+                    name="convenienceFeeBps"
+                    type="number"
+                    min={0}
+                    max={10000}
+                    step={100}
+                    defaultValue={event.convenienceFeeBps / 100}
+                    className="w-20 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5 dark:text-white"
+                  />
+                </label>
+                <label className="flex items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    name="convenienceFeeEnabled"
+                    defaultChecked={event.convenienceFeeEnabled}
+                    className="h-3.5 w-3.5"
+                  />
+                  <span className="text-muted">Convenience fee on</span>
+                </label>
+                <label className="flex-1 space-y-1">
+                  <span className="font-semibold text-muted">Reason (optional)</span>
+                  <input
+                    name="reason"
+                    placeholder="Why are you changing this?"
+                    className="w-full rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5 dark:text-white"
+                  />
+                </label>
+                <ActionButton className="border-violet-neon/40 text-violet-neon">
+                  Save fees
+                </ActionButton>
+              </form>
+            ) : null}
           </div>
         ))}
         {events.length === 0 ? (

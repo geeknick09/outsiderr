@@ -28,14 +28,14 @@ export default async function AdminBoostsPage() {
       <div>
         <h1 className="text-2xl font-black">Boosts</h1>
         <p className="text-sm text-muted">
-          {activeBoosts.length} active slot boosts · {heroActive.length} active Hero boosts · {heroPending.length} Hero pending
+          {activeBoosts.length} active slot boosts · {heroActive.length} active Front Row · {heroPending.length} Front Row pending
         </p>
       </div>
 
-      {/* ============ Hero Boosts Section ============ */}
+      {/* ============ Front Row Section ============ */}
       <section className="space-y-4">
         <div className="flex items-center gap-2">
-          <h2 className="text-lg font-bold">Hero Boosts</h2>
+          <h2 className="text-lg font-bold">Front Row</h2>
           <Badge tone="pink">Featured</Badge>
         </div>
 
@@ -49,7 +49,7 @@ export default async function AdminBoostsPage() {
 
         {/* Hero boost list */}
         {heroBoosts.length === 0 ? (
-          <p className="glass rounded-3xl p-5 text-sm text-muted">No Hero Boosts yet.</p>
+          <p className="glass rounded-3xl p-5 text-sm text-muted">No Front Row boosts yet.</p>
         ) : (
           <div className="space-y-3">
             {heroBoosts.map((boost) => (

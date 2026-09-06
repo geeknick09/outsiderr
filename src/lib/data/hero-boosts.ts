@@ -3,6 +3,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type { CurrentUser } from "@/lib/auth";
 import type {
+  EventCategory,
   HeroBoost,
   HeroBoostStatus,
   HeroBoostWithEvent,
@@ -408,6 +409,7 @@ export async function getHeroEvents(
       id: row.id,
       title: row.title,
       category: row.category,
+      categories: ((row as { categories?: string[] }).categories ?? [row.category]) as EventCategory[],
       city: row.city,
       venueName: row.venue_name,
       startsAt: row.starts_at,

@@ -23,7 +23,9 @@ const FALLBACKS: Record<string, unknown> = {
   hero_boost_price: 99900,
   hero_boost_duration_days: 7,
   hero_rotation_interval_minutes: 30,
-  hero_max_visible_events: 7,
+  hero_max_visible_events: 5,
+  max_popular_per_city: 4,
+  max_sponsored_per_city: 4,
   tagline_header: "Find what's happening outside the mainstream.",
   tagline_subheader: "Discover raw events happening today near you.",
   tagline_footer: "Cyphers, battles, stunts, skates, jams & real communities. Discover raw events happening today near you.",
@@ -164,6 +166,16 @@ export async function getHeroRotationIntervalMinutes(): Promise<number> {
 
 export async function getHeroMaxVisibleEvents(): Promise<number> {
   return getSettingInt("hero_max_visible_events");
+}
+
+export async function getMaxPopularPerCity(): Promise<number> {
+  const val = await getSettingInt("max_popular_per_city");
+  return val || 4;
+}
+
+export async function getMaxSponsoredPerCity(): Promise<number> {
+  const val = await getSettingInt("max_sponsored_per_city");
+  return val || 4;
 }
 
 export async function getTaglineHeader(): Promise<string> {

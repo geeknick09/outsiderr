@@ -22,7 +22,7 @@ export default async function AdminPage() {
     {
       label: "Active boosts",
       value: String(stats.activeBoosts),
-      sub: `${pendingHeroBoosts.length} Hero pending`,
+      sub: `${pendingHeroBoosts.length} Front Row pending`,
     },
   ];
 
@@ -51,9 +51,9 @@ export default async function AdminPage() {
         >
           <div>
             <p className="text-sm font-bold text-amber-500">
-              {pendingHeroBoosts.length} Hero Boost{pendingHeroBoosts.length === 1 ? "" : "s"} awaiting verification
+              {pendingHeroBoosts.length} Front Row{pendingHeroBoosts.length === 1 ? "" : "s"} awaiting verification
             </p>
-            <p className="text-xs text-muted">Review and activate pending Hero Boost payments →</p>
+            <p className="text-xs text-muted">Review and activate pending Front Row payments →</p>
           </div>
         </Link>
       ) : null}

@@ -20,6 +20,7 @@ export async function updateProfileAction(
   const fullName = String(formData.get("fullName") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
   const birthDate = String(formData.get("birthDate") ?? "").trim();
+  const gender = String(formData.get("gender") ?? "").trim() || null;
   const instagramUrl = String(formData.get("instagramUrl") ?? "").trim() || null;
   const youtubeUrl = String(formData.get("youtubeUrl") ?? "").trim() || null;
   const xUrl = String(formData.get("xUrl") ?? "").trim() || null;
@@ -45,6 +46,7 @@ export async function updateProfileAction(
       fullName,
       phone: phone || undefined,
       birthDate: birthDate || null,
+      gender,
       instagramUrl,
       youtubeUrl,
       xUrl,

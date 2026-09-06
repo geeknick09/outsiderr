@@ -2,8 +2,7 @@ import "server-only";
 
 import { MAX_TICKETS_PER_ORDER } from "@/lib/constants";
 import { getEvent } from "@/lib/data/events";
-import { getFeeTiers } from "@/lib/data/platform-settings";
-import { calculatePrice, getFeeBpsForPrice } from "@/lib/pricing";
+import { calculatePrice } from "@/lib/pricing";
 import { createClient } from "@/lib/supabase/server";
 import type { CurrentUser } from "@/lib/auth";
 import type { Order, ScanResult, Ticket } from "@/lib/types";
@@ -47,10 +46,13 @@ export async function createOrder(
 
   const supabase = await createClient();
 
-  // Use admin-configured commission tiers
-  const feeTiers = await getFeeTiers();
-  const feeBps = getFeeBpsForPrice(tier.pricePaise, feeTiers);
-  const price = calculatePrice(tier.pricePaise, input.quantity, event.feePayer, feeBps);
+  // Use per-event commission + convenience fee config
+  const price = calculatePrice(tier.pricePaise, input.quantity, event.feePayer, undefined, {
+    commissionBps: event.commissionBps,
+    commissionEnabled: event.commissionEnabled,
+    convenienceFeeBps: event.convenienceFeeBps,
+    convenienceFeeEnabled: event.convenienceFeeEnabled,
+  });
 
   // Use atomic RPC to prevent concurrent overbooking + double booking race condition.
   // The RPC locks the tier row (SELECT FOR UPDATE), checks inventory, checks for
@@ -72,7 +74,7 @@ export async function createOrder(
     p_buyer_gender: input.buyerGender || null,
   });
 
-  if (error) throw error;
+  if (error) throw new Error(error.message || "Failed to create order.");
   if (!data) throw new Error("Failed to create order.");
 
   return {
@@ -384,7 +386,7 @@ export async function checkInTicket(qrHash: string, eventId: string): Promise<Sc
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("check_in_ticket", { p_qr_hash: hash, p_event_id: eventId });
-  if (error) throw error;
+  if (error) throw new Error(error.message || "Check-in failed.");
 
   const row = data?.[0];
   if (!row || row.outcome === "INVALID") {

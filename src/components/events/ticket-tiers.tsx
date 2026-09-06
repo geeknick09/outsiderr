@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { BellRing, Check, Clock, Loader2, Sparkles, TrendingUp, X } from "lucide-react";
+import { BellRing, Check, Clock, Loader2, Sparkles, X } from "lucide-react";
 
 
 import { joinWaitlistAction, leaveWaitlistAction } from "@/actions/waitlist";
@@ -55,7 +55,12 @@ export function TicketTiers({
   const isFreeEvent = event.tiers.length > 0 && event.tiers.every((t) => t.pricePaise === 0);
   const selected = bookableTiers.find((tier) => tier.id === selectedId);
   const price = selected
-    ? calculatePrice(selected.pricePaise, 1, event.feePayer, feeBps)
+    ? calculatePrice(selected.pricePaise, 1, event.feePayer, undefined, {
+        commissionBps: event.commissionBps,
+        commissionEnabled: event.commissionEnabled,
+        convenienceFeeBps: event.convenienceFeeBps,
+        convenienceFeeEnabled: event.convenienceFeeEnabled,
+      })
     : null;
 
   const hasPhases = phaseTiers.length > 0;
@@ -69,22 +74,48 @@ export function TicketTiers({
         <span className="text-xs text-muted">1 ticket per order</span>
       </div>
 
-      {/* Current phase indicator — only show the active phase, hide the full timeline */}
-      {hasPhases && activePhase ? (
-        <div className="mb-4 rounded-2xl border border-violet-neon/30 bg-violet-neon/5 p-3">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-3.5 w-3.5 text-violet-neon" />
-            <span className="text-xs font-semibold text-violet-neon">
-              {activePhase.tier.name}
-            </span>
-            <Badge tone="violet">Current pricing</Badge>
-          </div>
-          {activePhase.tier.phaseClosesAt ? (
-            <p className="mt-1 flex items-center gap-1 text-[11px] text-muted">
-              <Clock className="h-3 w-3" />
-              Closes {new Date(activePhase.tier.phaseClosesAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-            </p>
-          ) : null}
+      {/* Phase timeline — show all phases with their status */}
+      {hasPhases ? (
+        <div className="mb-4 space-y-2">
+          {phaseAvailability.map((p) => {
+            const isCurrent = p.isActive;
+            const isUpcomingPhase = p.isUpcoming;
+            const isClosed = p.isPast || p.status === "CLOSED" || p.status === "SOLD_OUT";
+            return (
+              <div
+                key={p.tier.id}
+                className={cn(
+                  "flex items-center justify-between rounded-xl border p-2.5 text-xs",
+                  isCurrent
+                    ? "border-violet-neon/40 bg-violet-neon/10"
+                    : isUpcomingPhase
+                    ? "border-zinc-200 bg-zinc-50 dark:border-white/10 dark:bg-white/5"
+                    : "border-zinc-200/50 opacity-50 dark:border-white/5",
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={cn("font-semibold", isCurrent ? "text-violet-neon" : "")}>
+                    {p.tier.name}
+                  </span>
+                  <span className="font-bold">
+                    {p.tier.pricePaise === 0 ? "Free" : formatPaise(p.tier.pricePaise)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {isCurrent ? (
+                    <Badge tone="violet">Active now</Badge>
+                  ) : isUpcomingPhase ? (
+                    <span className="flex items-center gap-1 text-muted">
+                      <Clock className="h-3 w-3" />
+                      Opens {new Date(p.tier.phaseOpensAt!).toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  ) : isClosed ? (
+                    <Badge tone="neutral">{p.status === "SOLD_OUT" ? "Sold out" : "Closed"}</Badge>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
         </div>
       ) : null}
 
@@ -150,17 +181,12 @@ export function TicketTiers({
           {!isFreeEvent ? (
             <dl className="space-y-1.5 text-sm">
               <Row label="Ticket subtotal" value={formatPaise(price.subtotalPaise)} />
-              {event.feePayer === "BUYER" ? (
+              {price.convenienceFeePaise > 0 ? (
                 <Row
-                  label={`Platform fee (${Math.round(price.feeBps / 100)}%)`}
-                  value={formatPaise(price.platformFeePaise)}
+                  label={`Convenience fee (${Math.round(price.convenienceFeePaise / price.subtotalPaise * 100)}%)`}
+                  value={formatPaise(price.convenienceFeePaise)}
                 />
-              ) : (
-                <div className="flex items-center justify-between text-xs text-muted">
-                  <span>Platform fee</span>
-                  <Badge tone="success">Covered by organizer</Badge>
-                </div>
-              )}
+              ) : null}
               <div className="flex items-center-between pt-2 text-base font-black">
                 <dt>Total payable</dt>
                 <dd>{formatPaise(price.totalPaise)}</dd>
@@ -192,16 +218,62 @@ export function TicketTiers({
         </div>
       ) : bookableTiers.length === 0 ? (
         <div className="mt-5 space-y-3">
-          <p className="text-sm font-semibold text-muted">
-            {hasPhases ? "All phases sold out" : "All tiers sold out"}
-          </p>
+          {hasPhases ? (
+            // Phased event with no active phase — check if all upcoming, all closed, or all sold out
+            (() => {
+              const allUpcoming = phaseAvailability.length > 0 && phaseAvailability.every((p) => p.isUpcoming);
+              const allClosedOrSoldOut = phaseAvailability.length > 0 && phaseAvailability.every((p) => p.isPast || p.status === "SOLD_OUT" || p.status === "CLOSED");
+              const nextUpcoming = phaseAvailability.find((p) => p.isUpcoming);
+
+              if (allUpcoming && nextUpcoming) {
+                return (
+                  <div className="rounded-2xl border border-violet-neon/30 bg-violet-neon/5 p-4 text-center">
+                    <p className="text-sm font-semibold text-violet-neon">
+                      Tickets open soon
+                    </p>
+                    <p className="mt-1 text-xs text-muted">
+                      First phase ({nextUpcoming.tier.name}) opens{" "}
+                      {new Date(nextUpcoming.tier.phaseOpensAt!).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+                );
+              }
+
+              if (allClosedOrSoldOut) {
+                return (
+                  <p className="text-sm font-semibold text-muted">
+                    All phases are closed or sold out
+                  </p>
+                );
+              }
+
+              // Mixed state — some closed, some upcoming, none active
+              return (
+                <p className="text-sm font-semibold text-muted">
+                  {nextUpcoming
+                    ? `Next phase (${nextUpcoming.tier.name}) opens ${new Date(nextUpcoming.tier.phaseOpensAt!).toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`
+                    : "All phases sold out"}
+                </p>
+              );
+            })()
+          ) : (
+            <p className="text-sm font-semibold text-muted">
+              All tiers sold out
+            </p>
+          )}
           {event.tiers
             .filter((tier) => {
-              // For phased events, only show the active or next upcoming phase for waitlist
+              // For phased events, only show waitlist for the ACTIVE phase that is sold out
               if (tier.tierType !== "FLAT_PHASE") return tier.quantitySold >= tier.quantity;
               const phase = phaseAvailability.find((p) => p.tier.id === tier.id);
               if (!phase) return false;
-              return phase.status === "ACTIVE" || phase.status === "UPCOMING";
+              // Only show waitlist for active phases that are sold out, not upcoming ones
+              return phase.status === "SOLD_OUT";
             })
             .map((tier) => {
               const wl = waitlistData.find((w) => w.tierId === tier.id);

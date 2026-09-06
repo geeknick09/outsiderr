@@ -66,9 +66,13 @@ export function EventCard({
 
         <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/80 to-transparent" />
         <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2">
-          <Badge tone="violet" className="bg-black/50 text-white">
-            {CATEGORY_LABELS[event.category]}
-          </Badge>
+          <div className="flex flex-wrap gap-1">
+            {(event.categories ?? [event.category]).slice(0, 2).map((cat) => (
+              <Badge key={cat} tone="violet" className="bg-black/50 text-white">
+                {CATEGORY_LABELS[cat]}
+              </Badge>
+            ))}
+          </div>
           <span className="rounded-full bg-white/90 px-2.5 py-1 text-xs font-bold text-zinc-900">
             {formatPriceTag(event.minPricePaise)}
           </span>

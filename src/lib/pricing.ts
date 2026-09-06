@@ -5,6 +5,10 @@ export interface PriceBreakdown {
   subtotalPaise: number;
   /** Platform commission (tiered based on ticket price). */
   platformFeePaise: number;
+  /** Organizer commission deducted from payout. */
+  commissionPaise: number;
+  /** Buyer convenience fee added on top. */
+  convenienceFeePaise: number;
   /** What the buyer actually transfers over UPI. */
   totalPaise: number;
   /** What the organizer receives once the order is confirmed. */
@@ -52,27 +56,84 @@ export function platformFee(subtotalPaise: number, feeBps: number): number {
 }
 
 /**
- * BUYER  -> the platform fee is added on top of the ticket price.
- * ORGANIZER -> the buyer pays the listed price and the fee is deducted from the payout.
+ * Default commission + convenience fee rates (in basis points).
+ */
+export const DEFAULT_COMMISSION_BPS = 1000;  // 10%
+export const DEFAULT_CONVENIENCE_FEE_BPS = 200;  // 2%
+
+export interface EventFeeConfig {
+  commissionBps: number;
+  commissionEnabled: boolean;
+  convenienceFeeBps: number;
+  convenienceFeeEnabled: boolean;
+}
+
+/**
+ * Calculate price with the new dual-fee model:
+ *   - Buyer pays: subtotal + convenience fee
+ *   - Organizer receives: subtotal - commission
+ *   - Platform keeps: commission + convenience fee
  *
- * Uses tiered fee based on the per-ticket price.
+ * For free events (unitPricePaise = 0), all fees are 0.
+ *
+ * Falls back to legacy feePayer model if no fee config is provided.
  */
 export function calculatePrice(
   unitPricePaise: number,
   quantity: number,
   feePayer: FeePayer,
   feeBps?: number,
+  feeConfig?: EventFeeConfig | null,
 ): PriceBreakdown {
   const subtotalPaise = unitPricePaise * quantity;
   const grossRevenuePaise = subtotalPaise;
 
-  // Use tiered fee if feeBps is not provided, otherwise use the provided flat fee
+  // Free events: no fees at all
+  if (unitPricePaise === 0) {
+    return {
+      subtotalPaise: 0,
+      platformFeePaise: 0,
+      commissionPaise: 0,
+      convenienceFeePaise: 0,
+      grossRevenuePaise: 0,
+      feeBps: 0,
+      totalPaise: 0,
+      organizerPayoutPaise: 0,
+      feePayer,
+    };
+  }
+
+  // New dual-fee model
+  if (feeConfig) {
+    const commissionPaise = feeConfig.commissionEnabled
+      ? platformFee(subtotalPaise, feeConfig.commissionBps)
+      : 0;
+    const convenienceFeePaise = feeConfig.convenienceFeeEnabled
+      ? platformFee(subtotalPaise, feeConfig.convenienceFeeBps)
+      : 0;
+
+    return {
+      subtotalPaise,
+      platformFeePaise: commissionPaise + convenienceFeePaise,
+      commissionPaise,
+      convenienceFeePaise,
+      grossRevenuePaise,
+      feeBps: feeConfig.commissionBps,
+      totalPaise: subtotalPaise + convenienceFeePaise,
+      organizerPayoutPaise: subtotalPaise - commissionPaise,
+      feePayer,
+    };
+  }
+
+  // Legacy model: tiered fee with feePayer
   const effectiveFeeBps = feeBps ?? getFeeBpsForPrice(unitPricePaise);
   const platformFeePaise = platformFee(subtotalPaise, effectiveFeeBps);
 
   return {
     subtotalPaise,
     platformFeePaise,
+    commissionPaise: 0,
+    convenienceFeePaise: 0,
     grossRevenuePaise,
     feeBps: effectiveFeeBps,
     totalPaise:

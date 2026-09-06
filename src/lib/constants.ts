@@ -6,6 +6,8 @@ export const CATEGORIES: { value: EventCategory | "ALL"; label: string }[] = [
   { value: "SKATE_STUNT", label: "Skate & Stunts" },
   { value: "FITNESS", label: "Fitness" },
   { value: "JAM_GIG", label: "Jams & Gigs" },
+  { value: "HIP_HOP_PARTY", label: "Hip Hop Parties" },
+  { value: "CAR_BIKE_MEET", label: "Car & Bike Meetups" },
   { value: "WORKSHOP", label: "Workshops" },
   { value: "OTHER", label: "Others" },
 ];
@@ -48,6 +50,8 @@ export const CATEGORY_LABELS: Record<EventCategory, string> = {
   SKATE_STUNT: "Skate & Stunts",
   FITNESS: "Fitness",
   JAM_GIG: "Jams & Gigs",
+  HIP_HOP_PARTY: "Hip Hop Parties",
+  CAR_BIKE_MEET: "Car & Bike Meetups",
   WORKSHOP: "Workshops",
   OTHER: "Others",
 };
@@ -66,6 +70,10 @@ export const PREDEFINED_EVENT_TAGS: string[] = [
   "Run Club", "5K", "10K", "Marathon", "Walkathon", "Trail Run",
   // Gig / Jam
   "Live Music", "DJ Set", "Open Decks",
+  // Hip Hop Party
+  "Hip Hop Party", "Hip Hop", "Rap Party", "Trap Night", "Boom Bap Night",
+  // Car & Bike Meet
+  "Car Meet", "Bike Meet", "Motorcycle Meet", "JDM Meet", "Superbike Meet", "Riders Meet", "Cars & Coffee",
   // Workshop
   "Workshop", "Masterclass",
 ];

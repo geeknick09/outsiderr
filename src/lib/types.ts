@@ -4,6 +4,8 @@ export type EventCategory =
   | "FITNESS"
   | "JAM_GIG"
   | "WORKSHOP"
+  | "HIP_HOP_PARTY"
+  | "CAR_BIKE_MEET"
   | "OTHER";
 
 export type City = "KOLKATA" | "MUMBAI" | "DELHI" | "BENGALURU";
@@ -104,6 +106,7 @@ export interface UserProfile {
   email: string | null;
   avatarUrl: string | null;
   birthDate: string | null;
+  gender: string | null;
   interestedTags: string[];
   instagramUrl: string | null;
   youtubeUrl: string | null;
@@ -131,6 +134,7 @@ export interface EventSummary {
   id: string;
   title: string;
   category: EventCategory;
+  categories: EventCategory[];
   city: City;
   venueName: string;
   startsAt: string;
@@ -155,6 +159,10 @@ export interface EventDetail extends EventSummary {
   googleMapsLink: string | null;
   endsAt: string | null;
   feePayer: FeePayer;
+  commissionBps: number;
+  commissionEnabled: boolean;
+  convenienceFeeBps: number;
+  convenienceFeeEnabled: boolean;
   status: EventStatus;
   needsDoorStaff: boolean;
   terms: string[];
@@ -312,6 +320,10 @@ export interface AdminEvent {
   registrationsCount: number;
   isFeatured: boolean;
   pricingMode?: PricingMode;
+  commissionBps: number;
+  commissionEnabled: boolean;
+  convenienceFeeBps: number;
+  convenienceFeeEnabled: boolean;
 }
 
 export interface AdminUser {

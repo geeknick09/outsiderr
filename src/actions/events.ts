@@ -12,6 +12,7 @@ export interface CreateEventState {
   values?: {
     title: string;
     category: string;
+    categories: string[];
     city: string;
     startsAt: string;
     endsAt: string;
@@ -83,6 +84,7 @@ function extractFormValues(formData: FormData): CreateEventState["values"] {
   return {
     title: String(formData.get("title") ?? ""),
     category: String(formData.get("category") ?? "JAM_GIG"),
+    categories: formData.getAll("categories").map(String).filter(Boolean),
     city: String(formData.get("city") ?? "KOLKATA"),
     startsAt: String(formData.get("startsAt") ?? ""),
     endsAt: String(formData.get("endsAt") ?? ""),
@@ -306,7 +308,8 @@ export async function createEventAction(
         .split(",")
         .map((t) => t.trim())
         .filter(Boolean),
-      category: String(formData.get("category") ?? "JAM_GIG") as EventCategory,
+      category: (formData.getAll("categories")[0] ?? formData.get("category") ?? "JAM_GIG") as EventCategory,
+      categories: formData.getAll("categories").map(String).filter(Boolean) as EventCategory[],
       city: String(formData.get("city") ?? "KOLKATA") as City,
       venueName: venueMode === "TBA" ? "TBA" : String(formData.get("venueName") ?? "").trim(),
       venueAddress: venueMode === "TBA" ? "" : String(formData.get("venueAddress") ?? "").trim(),
@@ -478,7 +481,8 @@ export async function updateEventAction(
         .map((t) => t.trim())
         .filter(Boolean),
       city: String(formData.get("city") ?? "").trim() as City | undefined,
-      category: String(formData.get("category") ?? "").trim() as EventCategory | undefined,
+      category: String(formData.getAll("categories")[0] ?? formData.get("category") ?? "").trim() as EventCategory | undefined,
+      categories: formData.getAll("categories").map(String).filter(Boolean) as EventCategory[],
       tiers,
       photoUrls: formData.getAll("photoUrls[]").map(String).filter(Boolean),
       contactEmail: String(formData.get("contactEmail") ?? "").trim() || null,

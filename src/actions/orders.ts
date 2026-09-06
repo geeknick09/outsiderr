@@ -70,10 +70,12 @@ export async function submitPaymentAction(
     try {
       const buyerName = String(formData.get("buyerName") ?? "").trim();
       const buyerPhone = String(formData.get("buyerPhone") ?? "").trim();
-      if (buyerName || buyerPhone) {
+      const buyerGender = String(formData.get("buyerGender") ?? "").trim() || null;
+      if (buyerName || buyerPhone || buyerGender) {
         await updateUserProfile(user, {
           ...(buyerName ? { fullName: buyerName } : {}),
           ...(buyerPhone ? { phone: buyerPhone } : {}),
+          ...(buyerGender ? { gender: buyerGender } : {}),
         });
       }
     } catch {
@@ -103,7 +105,8 @@ export async function submitPaymentAction(
       buyerGender: String(formData.get("buyerGender") ?? "").trim() || null,
     });
   } catch (error) {
-    return { error: error instanceof Error ? error.message : "Could not submit payment." };
+    const msg = error instanceof Error ? error.message : (typeof error === "object" && error && "message" in error ? String(error.message) : "Could not submit payment.");
+    return { error: msg };
   }
 
   // Auto-merge event tags into user's interested-in list
@@ -117,10 +120,12 @@ export async function submitPaymentAction(
   try {
     const buyerName = String(formData.get("buyerName") ?? "").trim();
     const buyerPhone = String(formData.get("buyerPhone") ?? "").trim();
-    if (buyerName || buyerPhone) {
+    const buyerGender = String(formData.get("buyerGender") ?? "").trim() || null;
+    if (buyerName || buyerPhone || buyerGender) {
       await updateUserProfile(user, {
         ...(buyerName ? { fullName: buyerName } : {}),
         ...(buyerPhone ? { phone: buyerPhone } : {}),
+        ...(buyerGender ? { gender: buyerGender } : {}),
       });
     }
   } catch {

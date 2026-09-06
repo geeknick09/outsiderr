@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
-import type { Organizer, EventSummary, PricingMode } from "@/lib/types";
+import type { Organizer, EventSummary, EventCategory, PricingMode } from "@/lib/types";
 
 export async function getPublicOrganizer(id: string): Promise<Organizer | null> {
   const supabase = await createClient();
@@ -60,6 +60,7 @@ export async function listPublicOrganizerEvents(
       id: event.id,
       title: event.title,
       category: event.category,
+      categories: ((event as { categories?: string[] }).categories ?? [event.category]) as EventCategory[],
       city: event.city,
       venueName: event.venue_name,
       startsAt: event.starts_at,

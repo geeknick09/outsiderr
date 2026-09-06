@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Flame, MapPin } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { CITY_LABELS } from "@/lib/constants";
 import { formatDateTime, formatPriceTag } from "@/lib/format";
 import type { HeroEvent } from "@/lib/types";
 
@@ -33,13 +34,14 @@ export function HeroCarousel({ events }: { events: HeroEvent[] }) {
 
   const event = events[current];
   const poster = event.bannerPosterUrl ?? event.cardPosterUrl;
+  const cityLabel = CITY_LABELS[event.city as keyof typeof CITY_LABELS] ?? event.city;
 
   return (
     <section className="mb-10">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-xl font-black tracking-tight">
           <Flame className="h-5 w-5 text-pink-neon" />
-          Hero Events
+          Front Row
         </h2>
         <div className="flex gap-2">
           <CarouselButton label="Previous" onClick={() => go(-1)}>
@@ -103,7 +105,7 @@ export function HeroCarousel({ events }: { events: HeroEvent[] }) {
               </span>
               <span className="flex items-center gap-1">
                 <MapPin className="h-3.5 w-3.5" />
-                {event.venueName}
+                {event.venueName}, {cityLabel}
               </span>
             </div>
             <span className="inline-block rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-zinc-900">

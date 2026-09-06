@@ -28,6 +28,7 @@ export default async function ProfilePage() {
         initialPhone={profile?.phone ?? user.phone ?? ""}
         initialEmail={user.email ?? ""}
         initialBirthDate={profile?.birthDate ?? ""}
+        initialGender={profile?.gender ?? ""}
         initialAvatarUrl={profile?.avatarUrl ?? ""}
         initialInstagramUrl={profile?.instagramUrl ?? ""}
         initialYoutubeUrl={profile?.youtubeUrl ?? ""}

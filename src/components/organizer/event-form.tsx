@@ -225,18 +225,48 @@ export function EventForm({
         </Field>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Category">
-            <select
-              name="category"
-              className={INPUT}
-              defaultValue={sv?.category ?? "JAM_GIG"}
-            >
-              {CATEGORIES.filter((category) => category.value !== "ALL").map((category) => (
-                <option key={category.value} value={category.value} className={SELECT_OPTION}>
-                  {category.label}
-                </option>
-              ))}
-            </select>
+          <Field label="Categories (select all that apply)">
+            <div className="flex flex-wrap gap-2 rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
+              {CATEGORIES.filter((c) => c.value !== "ALL").map((cat) => {
+                const selectedCats = (sv?.categories as string[] | undefined) ?? (sv?.category ? [sv.category] : ["JAM_GIG"]);
+                const isSelected = selectedCats.includes(cat.value);
+                return (
+                  <label
+                    key={cat.value}
+                    className={cn(
+                      "cursor-pointer rounded-full border px-3 py-1.5 text-xs font-semibold transition-all",
+                      isSelected
+                        ? "border-violet-neon bg-violet-neon/15 text-violet-neon"
+                        : "border-zinc-200 text-zinc-600 hover:border-violet-neon/50 dark:border-white/10 dark:text-zinc-300",
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      name="categories"
+                      value={cat.value}
+                      defaultChecked={isSelected}
+                      className="hidden"
+                      onChange={(e) => {
+                        // Toggle visual state via parent label class
+                        const label = e.target.closest("label");
+                        if (label) {
+                          if (e.target.checked) {
+                            label.classList.add("border-violet-neon", "bg-violet-neon/15", "text-violet-neon");
+                            label.classList.remove("border-zinc-200", "text-zinc-600", "dark:border-white/10", "dark:text-zinc-300");
+                          } else {
+                            label.classList.remove("border-violet-neon", "bg-violet-neon/15", "text-violet-neon");
+                            label.classList.add("border-zinc-200", "text-zinc-600", "dark:border-white/10", "dark:text-zinc-300");
+                          }
+                        }
+                      }}
+                    />
+                    {cat.label}
+                  </label>
+                );
+              })}
+            </div>
+            {/* Hidden single category field for backward compat — uses first selected */}
+            <input type="hidden" name="category" value={(sv?.categories as string[] | undefined)?.[0] ?? sv?.category ?? "JAM_GIG"} readOnly />
           </Field>
           <Field label="City">
             <select
@@ -972,14 +1002,14 @@ export function EventForm({
           />
         </div>
 
-        {/* Door staff premium upsell card (includes staff count selector + terms) */}
-        <DoorStaffCard
+        {/* Door staff — disabled for this release (kept in admin only) */}
+        {/* <DoorStaffCard
           defaultChecked={sv?.needsDoorStaff ?? false}
           onCheckedChange={setNeedsDoorStaff}
           pricing={doorStaffPricing}
           maxStaff={doorStaffMax}
           defaultTermsChecked={sv?.doorStaffTerms ?? false}
-        />
+        /> */}
 
       </section>
 

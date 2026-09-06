@@ -7,7 +7,7 @@ import { updateProfileAction } from "@/actions/profile";
 import { Button } from "@/components/ui/button";
 import { ImageUploadWithCrop } from "@/components/ui/image-cropper";
 import { PhoneInput } from "@/components/ui/phone-input";
-import { PREDEFINED_EVENT_TAGS } from "@/lib/constants";
+import { CATEGORIES, PREDEFINED_EVENT_TAGS } from "@/lib/constants";
 import { uploadPublicFile } from "@/lib/upload";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +19,7 @@ export function EditProfileForm({
   initialPhone,
   initialEmail,
   initialBirthDate,
+  initialGender,
   initialAvatarUrl,
   initialInstagramUrl,
   initialYoutubeUrl,
@@ -31,6 +32,7 @@ export function EditProfileForm({
   initialPhone: string;
   initialEmail: string;
   initialBirthDate: string;
+  initialGender: string;
   initialAvatarUrl: string;
   initialInstagramUrl: string;
   initialYoutubeUrl: string;
@@ -184,6 +186,19 @@ export function EditProfileForm({
 
         <label className="block space-y-1.5">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+            Gender <span className="normal-case text-zinc-400">(optional)</span>
+          </span>
+          <select name="gender" defaultValue={initialGender} className={INPUT}>
+            <option value="" className="bg-white dark:bg-zinc-900">Prefer not to say</option>
+            <option value="male" className="bg-white dark:bg-zinc-900">Male</option>
+            <option value="female" className="bg-white dark:bg-zinc-900">Female</option>
+            <option value="non-binary" className="bg-white dark:bg-zinc-900">Non-binary</option>
+            <option value="other" className="bg-white dark:bg-zinc-900">Other</option>
+          </select>
+        </label>
+
+        <label className="block space-y-1.5">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted">
             Instagram URL (optional)
           </span>
           <input
@@ -262,33 +277,63 @@ export function EditProfileForm({
         <div>
           <h2 className="text-base font-bold">Interested in</h2>
           <p className="mt-1 text-xs text-muted">
-            Pick the tags you care about. We&apos;ll also auto-add tags from
+            Pick the categories and tags you care about. We&apos;ll also auto-add tags from
             events you book.
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {PREDEFINED_EVENT_TAGS.map((tag) => {
-            const active = selectedTags.has(tag);
-            return (
-              <button
-                key={tag}
-                type="button"
-                onClick={() => toggleTag(tag)}
-                className={cn(
-                  "rounded-full border px-3 py-1.5 text-xs font-semibold transition-all",
-                  active
-                    ? "border-violet-neon bg-violet-neon/15 text-violet-neon"
-                    : "border-zinc-200 text-zinc-600 hover:border-violet-neon/50 dark:border-white/10 dark:text-zinc-300",
-                )}
-              >
-                {tag}
-              </button>
-            );
-          })}
+        {/* Category chips */}
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Categories</p>
+          <div className="flex flex-wrap gap-2">
+            {CATEGORIES.filter((c) => c.value !== "ALL").map((cat) => {
+              const tag = `cat:${cat.value}`;
+              const active = selectedTags.has(tag);
+              return (
+                <button
+                  key={cat.value}
+                  type="button"
+                  onClick={() => toggleTag(tag)}
+                  className={cn(
+                    "rounded-full border px-3 py-1.5 text-xs font-semibold transition-all",
+                    active
+                      ? "border-violet-neon bg-violet-neon/15 text-violet-neon"
+                      : "border-zinc-200 text-zinc-600 hover:border-violet-neon/50 dark:border-white/10 dark:text-zinc-300",
+                  )}
+                >
+                  {cat.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Hidden inputs for selected tags */}
+        {/* Tag chips */}
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Tags</p>
+          <div className="flex flex-wrap gap-2">
+            {PREDEFINED_EVENT_TAGS.map((tag) => {
+              const active = selectedTags.has(tag);
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => toggleTag(tag)}
+                  className={cn(
+                    "rounded-full border px-3 py-1.5 text-xs font-semibold transition-all",
+                    active
+                      ? "border-violet-neon bg-violet-neon/15 text-violet-neon"
+                      : "border-zinc-200 text-zinc-600 hover:border-violet-neon/50 dark:border-white/10 dark:text-zinc-300",
+                  )}
+                >
+                  {tag}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Hidden inputs for selected tags (includes cat: prefixed category tags) */}
         {[...selectedTags].map((tag) => (
           <input key={tag} type="hidden" name="interestedTags" value={tag} />
         ))}

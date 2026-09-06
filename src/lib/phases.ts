@@ -6,17 +6,18 @@ import type { TicketTier } from "@/lib/types";
  * Phases are sequential (ordered by phaseOrder). Unsold tickets from
  * previous phases carry forward to the next phase.
  *
- * A phase ends when EITHER:
- *   - Its phase_closes_at is reached, OR
- *   - It's sold out (effective_available <= 0)
- *
- * The "active" phase is the first one that:
- *   - Has opened (now >= phase_opens_at, or phase_opens_at is null)
- *   - Has not closed (now < phase_closes_at, or phase_closes_at is null)
- *   - Has effective_available > 0
- *
- * If no phase matches (all sold out or all closed), the last phase is
- * returned as active (for display purposes, showing "sold out").
+ * RULES:
+ *   - Phase 1 opens at its own phase_opens_at (or immediately if not set).
+ *   - Phase N (N > 1) opens when the previous phase ENDS — regardless of
+ *     its own phase_opens_at. The opens_at for phases 2+ is a planned/
+ *     display time only.
+ *   - A phase ENDS when EITHER:
+ *       1. It's sold out (effective_available <= 0), OR
+ *       2. Its time is over (now >= phase_closes_at, or now >= next
+ *          phase's opens_at if no explicit closes_at)
+ *   - Only ONE phase is active at a time.
+ *   - If no phase is active (all ended), the last phase shows as sold out
+ *     or closed for display purposes.
  */
 
 export interface PhaseWithAvailability {
@@ -42,7 +43,8 @@ export function computePhaseAvailability(
 
   const nowMs = now.getTime();
   let carryForward = 0;
-  let activeFound = false;
+  // For phase 1, there's no previous phase to wait for — it's "ready"
+  let prevPhaseEnded = true;
 
   return phases.map((tier, index) => {
     const opensAt = tier.phaseOpensAt ? new Date(tier.phaseOpensAt).getTime() : null;
@@ -56,26 +58,36 @@ export function computePhaseAvailability(
 
     const effectiveQuantity = tier.quantity + carryForward;
     const effectiveAvailable = effectiveQuantity - tier.quantitySold;
-    const isUpcoming = opensAt !== null && nowMs < opensAt;
-    const isPast = closesAt !== null && nowMs >= closesAt;
     const isSoldOut = effectiveAvailable <= 0;
+    const isTimeOver = closesAt !== null && nowMs >= closesAt;
 
-    // Determine if this is the active phase
-    const hasOpened = opensAt === null || nowMs >= opensAt;
+    // A phase has ended if it's sold out OR its time is over
+    const hasEnded = isSoldOut || isTimeOver;
+
+    // Phase 1 opens at its own opensAt (or immediately if not set).
+    // Phase N (N > 1) opens when the previous phase has ended.
+    const hasOpened = index === 0
+      ? (opensAt === null || nowMs >= opensAt)
+      : prevPhaseEnded;
+
     const hasNotClosed = closesAt === null || nowMs < closesAt;
-    const isActive = !activeFound && hasOpened && hasNotClosed && !isSoldOut;
+    const isActive = hasOpened && hasNotClosed && !isSoldOut;
 
-    if (isActive) activeFound = true;
+    // Remember for the next iteration whether this phase has ended
+    prevPhaseEnded = hasEnded;
 
     // Update carry-forward for next phase: carry the EFFECTIVE unsold
     // (includes carry-forward from previous phases, not just this tier's own unsold)
     carryForward = Math.max(0, effectiveAvailable);
 
+    const isUpcoming = !hasOpened && !isTimeOver;
+    const isPast = isTimeOver && !isActive;
+
     let status: PhaseWithAvailability["status"];
-    if (isUpcoming) status = "UPCOMING";
-    else if (isActive) status = "ACTIVE";
+    if (isActive) status = "ACTIVE";
     else if (isSoldOut) status = "SOLD_OUT";
-    else status = "CLOSED";
+    else if (isTimeOver) status = "CLOSED";
+    else status = "UPCOMING";
 
     return {
       tier,

@@ -39,7 +39,8 @@ const TABS: { value: Tab; label: string }[] = [
   { value: "create", label: "Create Event" },
   { value: "verify", label: "Verification" },
   { value: "analytics", label: "Analytics" },
-  { value: "clubs", label: "Clubs & Crews" },
+  // Clubs & Crews disabled for this release — kept in admin only
+  // { value: "clubs", label: "Clubs & Crews" },
 ];
 
 export default async function OrganizerPage({

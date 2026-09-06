@@ -19,8 +19,8 @@ export default function AboutPage() {
           their tickets instantly.
         </p>
         <p>
-          For organizers, Outsiderr provides tools to publish events, sell tickets, manage
-          door staff, scan QR tickets at the entrance, boost event visibility, and build
+          For organizers, Outsiderr provides tools to publish events, sell tickets,
+          scan QR tickets at the entrance, boost event visibility, and build
           a community through clubs and crews.
         </p>
         <p>

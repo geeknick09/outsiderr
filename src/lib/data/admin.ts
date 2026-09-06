@@ -51,7 +51,7 @@ export async function listAllAdminEvents(filters?: {
   const supabase = await createClient();
   let query = supabase
     .from("events")
-    .select("id, title, description, category, city, status, starts_at, ends_at, venue_name, venue_address, is_featured, registrations_count, organizer_id, pricing_mode")
+    .select("id, title, description, category, city, status, starts_at, ends_at, venue_name, venue_address, is_featured, registrations_count, organizer_id, pricing_mode, commission_bps, commission_enabled, convenience_fee_bps, convenience_fee_enabled")
     .order("starts_at", { ascending: false });
 
   if (filters?.search) {
@@ -91,6 +91,10 @@ export async function listAllAdminEvents(filters?: {
     registrationsCount: row.registrations_count,
     isFeatured: row.is_featured,
     pricingMode: (row as { pricing_mode?: string }).pricing_mode as PricingMode | undefined,
+    commissionBps: (row as { commission_bps?: number }).commission_bps ?? 1000,
+    commissionEnabled: (row as { commission_enabled?: boolean }).commission_enabled ?? true,
+    convenienceFeeBps: (row as { convenience_fee_bps?: number }).convenience_fee_bps ?? 200,
+    convenienceFeeEnabled: (row as { convenience_fee_enabled?: boolean }).convenience_fee_enabled ?? true,
   }));
 }
 

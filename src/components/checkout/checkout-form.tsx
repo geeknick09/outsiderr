@@ -17,6 +17,8 @@ export function CheckoutForm({
   quantity,
   defaultName,
   defaultPhone,
+  defaultEmail,
+  defaultGender,
   isFree = false,
 }: {
   eventId: string;
@@ -24,6 +26,8 @@ export function CheckoutForm({
   quantity: number;
   defaultName: string;
   defaultPhone: string;
+  defaultEmail: string;
+  defaultGender: string;
   isFree?: boolean;
 }) {
   const [state, formAction, pending] = useActionState<CheckoutState, FormData>(
@@ -78,12 +82,13 @@ export function CheckoutForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block space-y-1.5">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-            Email <span className="normal-case text-zinc-400">(optional)</span>
+            Email
           </span>
           <input
             name="buyerEmail"
             type="email"
-            defaultValue=""
+            defaultValue={defaultEmail}
+            required
             placeholder="you@example.com"
             className={INPUT}
           />
@@ -92,7 +97,7 @@ export function CheckoutForm({
           <span className="text-xs font-semibold uppercase tracking-wide text-muted">
             Gender <span className="normal-case text-zinc-400">(optional)</span>
           </span>
-          <select name="buyerGender" defaultValue="" className={INPUT}>
+          <select name="buyerGender" defaultValue={defaultGender} className={INPUT}>
             <option value="" className="bg-white dark:bg-zinc-900">Prefer not to say</option>
             <option value="male" className="bg-white dark:bg-zinc-900">Male</option>
             <option value="female" className="bg-white dark:bg-zinc-900">Female</option>

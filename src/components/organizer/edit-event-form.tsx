@@ -10,6 +10,7 @@ import { TagPicker } from "@/components/organizer/event-form";
 import { Button } from "@/components/ui/button";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { CATEGORIES, CITIES } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 import { isGoogleMapsLink } from "@/lib/upi";
 import type { EventDetail } from "@/lib/types";
 
@@ -202,18 +203,46 @@ export function EditEventForm({ event }: { event: EventDetail }) {
       </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Category">
-          <select
-            name="category"
-            defaultValue={event.category}
-            className={INPUT}
-          >
-            {CATEGORIES.filter((c) => c.value !== "ALL").map((c) => (
-              <option key={c.value} value={c.value} className="bg-white dark:bg-zinc-900">
-                {c.label}
-              </option>
-            ))}
-          </select>
+        <Field label="Categories (select all that apply)">
+          <div className="flex flex-wrap gap-2 rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
+            {CATEGORIES.filter((c) => c.value !== "ALL").map((cat) => {
+              const eventCats = (event.categories ?? [event.category]) as string[];
+              const isSelected = eventCats.includes(cat.value as string);
+              return (
+                <label
+                  key={cat.value}
+                  className={cn(
+                    "cursor-pointer rounded-full border px-3 py-1.5 text-xs font-semibold transition-all",
+                    isSelected
+                      ? "border-violet-neon bg-violet-neon/15 text-violet-neon"
+                      : "border-zinc-200 text-zinc-600 hover:border-violet-neon/50 dark:border-white/10 dark:text-zinc-300",
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    name="categories"
+                    value={cat.value}
+                    defaultChecked={isSelected}
+                    className="hidden"
+                    onChange={(e) => {
+                      const label = e.target.closest("label");
+                      if (label) {
+                        if (e.target.checked) {
+                          label.classList.add("border-violet-neon", "bg-violet-neon/15", "text-violet-neon");
+                          label.classList.remove("border-zinc-200", "text-zinc-600", "dark:border-white/10", "dark:text-zinc-300");
+                        } else {
+                          label.classList.remove("border-violet-neon", "bg-violet-neon/15", "text-violet-neon");
+                          label.classList.add("border-zinc-200", "text-zinc-600", "dark:border-white/10", "dark:text-zinc-300");
+                        }
+                      }
+                    }}
+                  />
+                  {cat.label}
+                </label>
+              );
+            })}
+          </div>
+          <input type="hidden" name="category" value={event.category} readOnly />
         </Field>
         <Field label="City">
           <select
