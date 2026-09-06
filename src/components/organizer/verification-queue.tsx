@@ -2,20 +2,60 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 import { approveOrderAction, rejectOrderAction } from "@/actions/orders";
 import { Badge } from "@/components/ui/badge";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Modal } from "@/components/ui/modal";
+import { useRealtime } from "@/lib/hooks/use-realtime";
 import { formatPaise } from "@/lib/format";
 import type { Order } from "@/lib/types";
 
-export function VerificationQueue({ orders }: { orders: Order[] }) {
+export function VerificationQueue({
+  orders,
+  organizerEventIds,
+}: {
+  orders: Order[];
+  organizerEventIds: string[];
+}) {
+  const router = useRouter();
+  const [orderList, setOrderList] = useState<Order[]>(orders);
   const [proofOrder, setProofOrder] = useState<Order | null>(null);
   const [rejectingOrder, setRejectingOrder] = useState<Order | null>(null);
   const [reason, setReason] = useState("");
 
-  if (orders.length === 0) {
+  // Realtime: new pending order arrives
+  useRealtime({
+    channelName: "organizer-orders-insert",
+    table: "orders",
+    event: "INSERT",
+    onPayload: ({ new: row }) => {
+      if (
+        organizerEventIds.includes(row.event_id as string) &&
+        row.status === "PENDING_VERIFICATION"
+      ) {
+        // Refresh to fetch the full order with joined data (event title, tier name, etc.)
+        router.refresh();
+      }
+    },
+  });
+
+  // Realtime: order status changed (approved/rejected) — remove from queue
+  useRealtime({
+    channelName: "organizer-orders-update",
+    table: "orders",
+    event: "UPDATE",
+    onPayload: ({ new: row }) => {
+      if (organizerEventIds.includes(row.event_id as string)) {
+        if (row.status !== "PENDING_VERIFICATION") {
+          setOrderList((prev) => prev.filter((o) => o.id !== row.id));
+        }
+      }
+    },
+  });
+
+  if (orderList.length === 0) {
     return (
       <p className="glass rounded-3xl p-5 text-sm text-muted">
         No payments waiting for verification.
@@ -38,7 +78,7 @@ export function VerificationQueue({ orders }: { orders: Order[] }) {
             </tr>
           </thead>
           <tbody>
-            {orders.map((order) => (
+            {orderList.map((order) => (
               <tr
                 key={order.id}
                 className="border-b border-zinc-100 last:border-0 dark:border-white/5"

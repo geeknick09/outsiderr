@@ -1143,5 +1143,15 @@ alter table public.events add column if not exists categories text[] not null de
 update public.events set categories = array[category::text] where array_length(categories, 1) is null or array_length(categories, 1) = 0;
 
 -- ----------------------------------------------------------------
+-- Supabase Realtime — enable Postgres Changes on key tables
+-- Allows the browser client to subscribe to INSERT/UPDATE/DELETE
+-- events via websockets for live UI updates.
+-- ----------------------------------------------------------------
+alter publication supabase_realtime add table public.event_notifications;
+alter publication supabase_realtime add table public.ticket_tiers;
+alter publication supabase_realtime add table public.orders;
+alter publication supabase_realtime add table public.tickets;
+
+-- ----------------------------------------------------------------
 -- DONE.
 -- ----------------------------------------------------------------

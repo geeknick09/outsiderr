@@ -198,7 +198,6 @@ export async function adminUpdateEventFeesAction(
 
     // Insert audit log entries
     for (const entry of auditEntries) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await supabase.from("admin_change_log").insert({
         admin_id: user.id,
         table_name: "events",
@@ -207,7 +206,7 @@ export async function adminUpdateEventFeesAction(
         old_value: entry.oldVal,
         new_value: entry.newVal,
         reason: reason ?? null,
-      } as any);
+      });
     }
 
     revalidatePath("/admin/events");

@@ -57,6 +57,7 @@ export async function Navbar() {
           <ThemeToggle />
           {user ? (
             <NotificationBell
+              userId={user.id}
               initialNotifications={notifications}
               initialUnreadCount={unreadCount}
             />

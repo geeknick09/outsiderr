@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Bell, Check, CheckCheck } from "lucide-react";
 
 import { markAllNotificationsReadAction, markNotificationReadAction } from "@/actions/notifications";
+import { useRealtime } from "@/lib/hooks/use-realtime";
 import type { UserNotification } from "@/lib/data/notifications";
 import { formatDateTime } from "@/lib/format";
 
@@ -29,9 +30,11 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 export function NotificationBell({
+  userId,
   initialNotifications,
   initialUnreadCount,
 }: {
+  userId: string;
   initialNotifications: UserNotification[];
   initialUnreadCount: number;
 }) {
@@ -39,6 +42,28 @@ export function NotificationBell({
   const [notifications, setNotifications] = useState(initialNotifications);
   const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Realtime: live notification updates without page reload
+  useRealtime({
+    channelName: `notifications:${userId}`,
+    table: "event_notifications",
+    event: "INSERT",
+    filter: `user_id=eq.${userId}`,
+    enabled: !!userId,
+    onPayload: ({ new: row }) => {
+      const newNotif: UserNotification = {
+        id: row.id as string,
+        eventId: row.event_id as string,
+        type: row.type as string,
+        message: row.message as string,
+        read: false,
+        createdAt: row.created_at as string,
+        eventTitle: undefined,
+      };
+      setNotifications((prev) => [newNotif, ...prev].slice(0, 50));
+      setUnreadCount((c) => c + 1);
+    },
+  });
 
   // Close on outside click
   useEffect(() => {

@@ -8,6 +8,16 @@
 
 create extension if not exists "pgcrypto";
 
+-- ---------------------------------------------------------------- Supabase Realtime
+-- Enable Postgres Changes (CDC) on key tables for live UI updates.
+-- The browser client subscribes via websockets to receive INSERT/UPDATE
+-- events. RLS policies are enforced — users only see changes for rows
+-- they are authorized to access.
+alter publication supabase_realtime add table public.event_notifications;
+alter publication supabase_realtime add table public.ticket_tiers;
+alter publication supabase_realtime add table public.orders;
+alter publication supabase_realtime add table public.tickets;
+
 -- ---------------------------------------------------------------- enums
 -- Event status: DRAFT → PUBLISHED → CANCELLATION_REQUESTED → CANCELLED
 --                                     or → POSTPONED

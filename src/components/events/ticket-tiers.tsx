@@ -9,6 +9,7 @@ import { joinWaitlistAction, leaveWaitlistAction } from "@/actions/waitlist";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatPaise } from "@/lib/format";
+import { useRealtime } from "@/lib/hooks/use-realtime";
 import { computePhaseAvailability } from "@/lib/phases";
 import { calculatePrice } from "@/lib/pricing";
 import { isPast } from "@/lib/format";
@@ -34,9 +35,29 @@ export function TicketTiers({
   const eventIsPast = isPast(event.startsAt);
   const [navigating, startNavigation] = useTransition();
 
+  // Local tier state — updated in realtime when tickets are sold
+  const [tiers, setTiers] = useState<TicketTier[]>(event.tiers);
+
+  // Realtime: live tier quantity updates when someone books a ticket
+  useRealtime({
+    channelName: `event-tiers:${event.id}`,
+    table: "ticket_tiers",
+    event: "UPDATE",
+    filter: `event_id=eq.${event.id}`,
+    onPayload: ({ new: row }) => {
+      setTiers((prev) =>
+        prev.map((t) =>
+          t.id === row.id
+            ? { ...t, quantitySold: row.quantity_sold as number }
+            : t,
+        ),
+      );
+    },
+  });
+
   // Split tiers into phases and named tiers
-  const phaseTiers = event.tiers.filter((t) => t.tierType === "FLAT_PHASE");
-  const namedTiers = event.tiers.filter((t) => t.tierType !== "FLAT_PHASE");
+  const phaseTiers = tiers.filter((t) => t.tierType === "FLAT_PHASE");
+  const namedTiers = tiers.filter((t) => t.tierType !== "FLAT_PHASE");
   const phaseAvailability = computePhaseAvailability(phaseTiers);
 
   // Active phase is the one users can currently buy
@@ -52,7 +73,7 @@ export function TicketTiers({
 
   const [selectedId, setSelectedId] = useState(bookableTiers[0]?.id ?? "");
 
-  const isFreeEvent = event.tiers.length > 0 && event.tiers.every((t) => t.pricePaise === 0);
+  const isFreeEvent = tiers.length > 0 && tiers.every((t) => t.pricePaise === 0);
   const selected = bookableTiers.find((tier) => tier.id === selectedId);
   const price = selected
     ? calculatePrice(selected.pricePaise, 1, event.feePayer, undefined, {
@@ -266,7 +287,7 @@ export function TicketTiers({
               All tiers sold out
             </p>
           )}
-          {event.tiers
+          {tiers
             .filter((tier) => {
               // For phased events, only show waitlist for the ACTIVE phase that is sold out
               if (tier.tierType !== "FLAT_PHASE") return tier.quantitySold >= tier.quantity;

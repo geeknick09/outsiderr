@@ -158,7 +158,7 @@ export default async function OrganizerPage({
           </aside>
         </div>
       ) : tab === "verify" ? (
-        <VerificationQueue orders={pending} />
+        <VerificationQueue orders={pending} organizerEventIds={events.map((e) => e.id)} />
       ) : tab === "analytics" ? (
         <div className="space-y-6">
           {/* Aggregated analytics across all events */}
