@@ -20,7 +20,7 @@ export default async function LoginPage({
     <div className="mx-auto max-w-md py-10">
       <h1 className="text-3xl font-black tracking-tight">Log in to Outsiderr</h1>
       <p className="mb-6 mt-1 text-sm text-muted">
-        Book tickets, manage events and check people in at the door.
+        Sign in with Google or your email — no password needed.
       </p>
       <div className="glass rounded-3xl p-6">
         <LoginPanel next={target} />
