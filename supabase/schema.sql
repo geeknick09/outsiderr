@@ -7,6 +7,7 @@
 -- ================================================================
 
 create extension if not exists "pgcrypto";
+create extension if not exists "pg_trgm";
 
 -- ---------------------------------------------------------------- Supabase Realtime
 -- Enable Postgres Changes (CDC) on key tables for live UI updates.
@@ -395,6 +396,15 @@ create table if not exists public.admin_change_log (
 create index if not exists admin_change_log_created_idx on public.admin_change_log(created_at desc);
 create index if not exists admin_change_log_entity_idx on public.admin_change_log(table_name, entity_id);
 
+-- RLS for admin_change_log — only admins can read/insert
+alter table public.admin_change_log enable row level security;
+drop policy if exists "admins read change log" on public.admin_change_log;
+create policy "admins read change log" on public.admin_change_log
+  for select to authenticated using (public.is_current_user_admin());
+drop policy if exists "admins insert change log" on public.admin_change_log;
+create policy "admins insert change log" on public.admin_change_log
+  for insert to authenticated with check (public.is_current_user_admin());
+
 -- ------------------------------------------------------- legal_pages
 -- DB-backed legal/policy pages (Terms, Privacy, Refund, etc.)
 -- Admin can edit content; public routes render the latest version.
@@ -438,7 +448,18 @@ insert into public.platform_settings (key, value, description) values
   ('hero_max_visible_events',         '7',                                           'Maximum Hero events displayed at once'),
   ('tagline_header',                  '"Find what''s happening outside the mainstream."', 'Homepage header tagline (bold line)'),
   ('tagline_subheader',               '"Discover raw events happening today near you."',  'Homepage sub-tagline (muted line)'),
-  ('tagline_footer',                  '"Cyphers, battles, stunts, skates, jams & real communities. Discover raw events happening today near you."', 'Footer brand tagline')
+  ('tagline_footer',                  '"Cyphers, battles, stunts, skates, jams & real communities. Discover raw events happening today near you."', 'Footer brand tagline'),
+  -- Commission tier settings (tiered commission based on ticket price)
+  ('commission_tier1_max_paise',      '50000',  'Tier 1 threshold: tickets below this price use tier 1 rate (paise)'),
+  ('commission_tier2_max_paise',      '300000', 'Tier 2 threshold: tickets up to this price use tier 2 rate (paise)'),
+  ('commission_tier1_bps',            '1000',   'Tier 1 commission rate in bps (1000 = 10%)'),
+  ('commission_tier2_bps',            '700',    'Tier 2 commission rate in bps (700 = 7%)'),
+  ('commission_tier3_bps',            '500',    'Tier 3 commission rate in bps (500 = 5%)'),
+  -- Platform-level defaults
+  ('default_commission_bps',          '1000',   'Default organizer commission in basis points (10%)'),
+  ('default_convenience_fee_bps',     '200',    'Default buyer convenience fee in basis points (2%)'),
+  ('max_popular_per_city',            '4',      'Max popular events shown per city on homepage'),
+  ('max_sponsored_per_city',          '4',      'Max sponsored/featured events shown per city on homepage')
 on conflict (key) do nothing;
 
 -- --------------------------------------------- event_terms_acceptances
@@ -799,6 +820,28 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+-- Auto-promote the first registered user to admin via trigger.
+-- Fires every time a new profile is inserted. If no admin exists yet,
+-- the first user becomes admin automatically. Works after wipe_all.sql.
+create or replace function public.auto_promote_first_admin()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if (select count(*) from public.profiles where is_admin = true) = 0 then
+    update public.profiles set is_admin = true where id = new.id;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_profile_insert on public.profiles;
+create trigger on_profile_insert
+  after insert on public.profiles
+  for each row execute function public.auto_promote_first_admin();
 
 -- ---------------------------------------------------------------- RPCs
 
@@ -1612,6 +1655,50 @@ $$;
 
 -- ---------------------------------------------------------------- RLS
 
+-- ---------------------------------------------------------------- performance indexes
+-- Additional indexes for production query performance.
+-- These complement the indexes created inline above.
+
+-- Events: filter by status (admin dashboard, public listing)
+create index if not exists events_status_idx on public.events (status);
+-- Events: filter by city (public listing)
+create index if not exists events_city_idx on public.events (city);
+-- Events: filter by is_featured (homepage Front Row)
+create index if not exists events_is_featured_idx on public.events (is_featured);
+-- Events: GIN index on categories array for .contains() queries
+create index if not exists events_categories_gin_idx on public.events using gin (categories);
+-- Events: trigram indexes for ilike search on title, venue_name
+create index if not exists events_title_trgm_idx on public.events using gin (title gin_trgm_ops);
+create index if not exists events_venue_name_trgm_idx on public.events using gin (venue_name gin_trgm_ops);
+
+-- Orders: filter by status alone (admin dashboard, pending orders)
+create index if not exists orders_status_idx on public.orders (status);
+-- Orders: filter by status + created_at (analytics, daily charts)
+create index if not exists orders_status_created_at_idx on public.orders (status, created_at);
+-- Orders: lookup by user_id (my orders, user analytics)
+create index if not exists orders_user_id_idx on public.orders (user_id);
+
+-- Profiles: admin lookup
+create index if not exists profiles_is_admin_idx on public.profiles (is_admin);
+-- Profiles: sort by created_at (admin user list, daily signups)
+create index if not exists profiles_created_at_idx on public.profiles (created_at);
+
+-- Hero boosts: lookup by razorpay_order_id (webhook)
+create index if not exists hero_boosts_razorpay_order_id_idx on public.hero_boosts (razorpay_order_id);
+
+-- Webhook events: lookup by processed flag (admin monitoring)
+create index if not exists webhook_events_processed_idx on public.webhook_events (processed);
+
+-- Refunds: lookup by razorpay_refund_id (webhook refund processing)
+create index if not exists refunds_razorpay_refund_id_idx on public.refunds (razorpay_refund_id);
+-- Refunds: lookup by order_id (refund total calculation)
+create index if not exists refunds_order_id_idx on public.refunds (order_id);
+
+-- Payment ledger: lookup by razorpay_payment_id (idempotency check)
+create index if not exists payment_ledger_razorpay_payment_id_idx on public.payment_ledger (razorpay_payment_id);
+
+-- ---------------------------------------------------------------- RLS (continued)
+
 alter table public.profiles          enable row level security;
 alter table public.organizers        enable row level security;
 alter table public.events            enable row level security;
@@ -1660,6 +1747,19 @@ create policy "organizers owner delete" on public.organizers
 drop policy if exists "published events are public" on public.events;
 create policy "published events are public" on public.events
   for select using (status in ('PUBLISHED', 'POSTPONED') or public.is_event_staff(id));
+
+-- Organizers can see ALL their own events (including DRAFT, CANCELLED, POSTPONED)
+drop policy if exists "organizers see own events" on public.events;
+create policy "organizers see own events" on public.events
+  for select using (
+    exists (select 1 from public.organizers o
+      where o.id = events.organizer_id and o.owner_id = auth.uid())
+  );
+
+-- Admins can see ALL events
+drop policy if exists "admins see all events" on public.events;
+create policy "admins see all events" on public.events
+  for select using (public.is_current_user_admin());
 
 drop policy if exists "events are organizer managed" on public.events;
 drop policy if exists "events organizer insert" on public.events;
@@ -1769,6 +1869,10 @@ create policy "boosts organizer update" on public.boosts
 drop policy if exists "boost prices public" on public.boost_slot_prices;
 create policy "boost prices public" on public.boost_slot_prices
   for select using (true);
+
+drop policy if exists "boost prices admin update" on public.boost_slot_prices;
+create policy "boost prices admin update" on public.boost_slot_prices
+  for update using (public.is_current_user_admin());
 
 -- clubs
 drop policy if exists "clubs are publicly readable" on public.clubs;
@@ -1925,6 +2029,11 @@ create policy "admin delete legal pages" on public.legal_pages
 
 -- ----------------------------------------------------- hero_boosts RLS
 alter table public.hero_boosts enable row level security;
+
+-- Active hero boosts are publicly visible (for homepage carousel)
+drop policy if exists "active hero boosts are public" on public.hero_boosts;
+create policy "active hero boosts are public" on public.hero_boosts
+  for select using (status = 'ACTIVE');
 
 -- Organizers can read their own boosts
 drop policy if exists "organizer read own hero boosts" on public.hero_boosts;

@@ -46,6 +46,16 @@ export type OrganizerRow = {
   upi_qr_url: string | null;
   verified: boolean;
   created_at: string;
+  // KYC / payout details
+  pan_number: string | null;
+  pan_name: string | null;
+  gst_number: string | null;
+  gst_business_name: string | null;
+  bank_account_number: string | null;
+  bank_ifsc: string | null;
+  bank_account_name: string | null;
+  bank_account_type: string | null;
+  kyc_submitted: boolean;
 }
 
 export type EventRow = {
