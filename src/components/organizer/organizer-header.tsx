@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Pencil, Rocket } from "lucide-react";
 import Link from "next/link";
 
@@ -59,10 +60,11 @@ export function OrganizerHeader({ organizer }: { organizer: Organizer }) {
       {/* Avatar + name row */}
       <div className="flex items-end gap-4 px-2">
         {organizer.avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={organizer.avatarUrl}
             alt={organizer.name}
+            width={96}
+            height={96}
             className="h-20 w-20 rounded-2xl border-4 border-zinc-50 object-cover shadow-lg dark:border-ink sm:h-24 sm:w-24"
           />
         ) : (

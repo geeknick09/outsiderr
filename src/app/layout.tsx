@@ -51,12 +51,12 @@ export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const user = await getCurrentUser();
-  let isOrganizer = false;
-  if (user) {
-    const org = await getOrganizerProfile(user);
-    isOrganizer = !!org;
-  }
-  const footerTagline = await getTaglineFooter();
+  // Parallelize: fetch footer tagline and organizer profile at the same time
+  const [footerTagline, org] = await Promise.all([
+    getTaglineFooter(),
+    user ? getOrganizerProfile(user) : Promise.resolve(null),
+  ]);
+  const isOrganizer = !!org;
 
   return (
     <html lang="en" suppressHydrationWarning>

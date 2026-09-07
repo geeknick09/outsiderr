@@ -25,10 +25,9 @@ export default async function CheckoutPage({
     MAX_TICKETS_PER_ORDER,
   );
 
-  const user = await getCurrentUser();
+  // Fetch user and event in parallel — saves one sequential DB round-trip
+  const [user, event] = await Promise.all([getCurrentUser(), getEvent(eventId)]);
   const nextUrl = `/checkout?event=${eventId}&tier=${tierId}&qty=${quantity}`;
-
-  const event = await getEvent(eventId);
   const tier = event?.tiers.find((item) => item.id === tierId);
   if (!event || !tier) notFound();
 

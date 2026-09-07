@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 
 import jsPDF from "jspdf";
@@ -36,35 +36,37 @@ export function AnalyticsCharts({
 }) {
   const [exporting, setExporting] = useState(false);
 
-  // Prepare chart data
-  const signupData = userAnalytics.dailySignups.map((d) => ({
-    date: formatDateShort(d.date),
-    signups: d.count,
-  }));
+  // Prepare chart data — memoized to prevent re-creation on every render
+  const signupData = useMemo(
+    () => userAnalytics.dailySignups.map((d) => ({ date: formatDateShort(d.date), signups: d.count })),
+    [userAnalytics.dailySignups],
+  );
 
-  const activeData = userAnalytics.dailyActive.map((d) => ({
-    date: formatDateShort(d.date),
-    active: d.count,
-  }));
+  const activeData = useMemo(
+    () => userAnalytics.dailyActive.map((d) => ({ date: formatDateShort(d.date), active: d.count })),
+    [userAnalytics.dailyActive],
+  );
 
-  const revenueData = paymentAnalytics.dailyRevenue.map((d) => ({
-    date: formatDateShort(d.date),
-    revenue: Math.round(d.revenuePaise / 100), // convert to rupees for display
-    orders: d.orderCount,
-  }));
+  const revenueData = useMemo(
+    () => paymentAnalytics.dailyRevenue.map((d) => ({
+      date: formatDateShort(d.date),
+      revenue: Math.round(d.revenuePaise / 100),
+      orders: d.orderCount,
+    })),
+    [paymentAnalytics.dailyRevenue],
+  );
 
-  const newOrgData = organizerAnalytics.dailyNewOrganizers.map((d) => ({
-    date: formatDateShort(d.date),
-    organizers: d.count,
-  }));
+  const newOrgData = useMemo(
+    () => organizerAnalytics.dailyNewOrganizers.map((d) => ({ date: formatDateShort(d.date), organizers: d.count })),
+    [organizerAnalytics.dailyNewOrganizers],
+  );
 
-  const methodData = paymentAnalytics.paymentMethods.map((m) => ({
-    name: m.method,
-    value: m.count,
-    volume: m.volumePaise,
-  }));
+  const methodData = useMemo(
+    () => paymentAnalytics.paymentMethods.map((m) => ({ name: m.method, value: m.count, volume: m.volumePaise })),
+    [paymentAnalytics.paymentMethods],
+  );
 
-  function handleExport() {
+  const handleExport = useCallback(() => {
     setExporting(true);
     try {
       const doc = new jsPDF();
@@ -195,7 +197,7 @@ export function AnalyticsCharts({
     } finally {
       setExporting(false);
     }
-  }
+  }, [signupData, activeData, revenueData, newOrgData, methodData]);
 
   return (
     <div className="space-y-6">

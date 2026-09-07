@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { CheckCircle2, Clock, XCircle, AlertCircle, RefreshCw } from "lucide-react";
 
+import { useRealtime } from "@/lib/hooks/use-realtime";
 import type { Order } from "@/lib/types";
 
 interface OrderMonitorProps {
@@ -42,74 +43,80 @@ function formatTime(iso: string): string {
 }
 
 /**
- * Order Monitor — replaces the old VerificationQueue.
+ * Order Monitor — shows all orders for the organizer's events with their payment status.
  *
- * Shows all orders for the organizer's events with their payment status.
- * Read-only: no approve/reject actions (Razorpay handles confirmation automatically).
- * Legacy PENDING_VERIFICATION orders still show for historical reference.
+ * Perf fixes:
+ * - Uses useRealtime hook (singleton WebSocket) instead of creating a raw Supabase client
+ * - filteredOrders and counts memoized with useMemo
+ * - filterTabs memoized with useMemo
+ * - Filter buttons use useCallback
  */
 export function OrderMonitor({ orders, organizerEventIds }: OrderMonitorProps) {
   const [orderList, setOrderList] = useState(orders);
   const [filter, setFilter] = useState<string>("ALL");
 
-  // Realtime: listen for order updates
-  useEffect(() => {
-    import("@/lib/supabase/client").then(({ createClient }) => {
-      const supabase = createClient();
-      const channel = supabase
-        .channel("organizer-order-monitor")
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "orders",
-            filter: `event_id=in.(${organizerEventIds.join(",")})`,
-          },
-          (payload) => {
-            if (payload.eventType === "INSERT" && payload.new) {
-              setOrderList((prev) => {
-                if (prev.some((o) => o.id === (payload.new as { id: string }).id)) return prev;
-                return [payload.new as Order, ...prev];
-              });
-            } else if (payload.eventType === "UPDATE" && payload.new) {
-              setOrderList((prev) =>
-                prev.map((o) =>
-                  o.id === (payload.new as { id: string }).id
-                    ? { ...o, ...payload.new }
-                    : o,
-                ),
-              );
-            }
-          },
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    });
-  }, [organizerEventIds]);
-
-  const filteredOrders =
-    filter === "ALL" ? orderList : orderList.filter((o) => o.status === filter);
-
-  const counts = orderList.reduce(
-    (acc, o) => {
-      acc[o.status] = (acc[o.status] ?? 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>,
+  // Realtime via hook — reuses singleton WebSocket, no new connections on each render
+  const realtimeFilter = useMemo(
+    () =>
+      organizerEventIds.length > 0
+        ? `event_id=in.(${organizerEventIds.join(",")})`
+        : undefined,
+    [organizerEventIds],
   );
 
-  const filterTabs = [
-    { key: "ALL", label: `All (${orderList.length})` },
-    { key: "RESERVED", label: `Awaiting (${counts.RESERVED ?? 0})` },
-    { key: "CONFIRMED", label: `Confirmed (${counts.CONFIRMED ?? 0})` },
-    { key: "PENDING_VERIFICATION", label: `Legacy (${counts.PENDING_VERIFICATION ?? 0})` },
-    { key: "FAILED", label: `Failed (${counts.FAILED ?? 0})` },
-    { key: "EXPIRED", label: `Expired (${counts.EXPIRED ?? 0})` },
-  ];
+  useRealtime({
+    channelName: `organizer-order-monitor:${organizerEventIds.join("-")}`,
+    table: "orders",
+    event: "*",
+    filter: realtimeFilter,
+    enabled: organizerEventIds.length > 0,
+    onPayload: ({ eventType, new: row }) => {
+      if (eventType === "INSERT" && row) {
+        setOrderList((prev) => {
+          if (prev.some((o) => o.id === (row as { id: string }).id)) return prev;
+          return [row as unknown as Order, ...prev];
+        });
+      } else if (eventType === "UPDATE" && row) {
+        setOrderList((prev) =>
+          prev.map((o) =>
+            o.id === (row as { id: string }).id ? { ...o, ...row } : o,
+          ),
+        );
+      }
+    },
+  });
+
+  // Memoized derived state — recalculates only when orderList or filter changes
+  const counts = useMemo(
+    () =>
+      orderList.reduce(
+        (acc, o) => {
+          acc[o.status] = (acc[o.status] ?? 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>,
+      ),
+    [orderList],
+  );
+
+  const filteredOrders = useMemo(
+    () => (filter === "ALL" ? orderList : orderList.filter((o) => o.status === filter)),
+    [orderList, filter],
+  );
+
+  const filterTabs = useMemo(
+    () => [
+      { key: "ALL", label: `All (${orderList.length})` },
+      { key: "RESERVED", label: `Awaiting (${counts.RESERVED ?? 0})` },
+      { key: "CONFIRMED", label: `Confirmed (${counts.CONFIRMED ?? 0})` },
+      { key: "PENDING_VERIFICATION", label: `Legacy (${counts.PENDING_VERIFICATION ?? 0})` },
+      { key: "FAILED", label: `Failed (${counts.FAILED ?? 0})` },
+      { key: "EXPIRED", label: `Expired (${counts.EXPIRED ?? 0})` },
+    ],
+    [orderList.length, counts],
+  );
+
+  const handleFilter = useCallback((key: string) => setFilter(key), []);
 
   if (orderList.length === 0) {
     return (
@@ -130,7 +137,7 @@ export function OrderMonitor({ orders, organizerEventIds }: OrderMonitorProps) {
         {filterTabs.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setFilter(tab.key)}
+            onClick={() => handleFilter(tab.key)}
             className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
               filter === tab.key
                 ? "bg-violet-neon text-white"

@@ -46,7 +46,18 @@ export default async function DiscoveryPage({
       : undefined;
   const search = params.q?.trim() || undefined;
 
-  const allEvents = await listEvents({ city, category, search });
+  // Parallelize all data fetching — events + settings + user at the same time
+  const [allEvents, maxPopular, maxSponsored, heroEnabled, heroRotationInterval, heroMaxVisible, taglineHeader, taglineSubheader, currentUser] = await Promise.all([
+    listEvents({ city, category, search }),
+    getMaxPopularPerCity(),
+    getMaxSponsoredPerCity(),
+    getHeroBoostEnabled(),
+    getHeroRotationIntervalMinutes(),
+    getHeroMaxVisibleEvents(),
+    getTaglineHeader(),
+    getTaglineSubheader(),
+    getCurrentUser(),
+  ]);
 
   // Split into upcoming (today + future) and past events
   const upcoming = allEvents.filter((event) => !isPast(event.startsAt));
@@ -58,12 +69,6 @@ export default async function DiscoveryPage({
   const postponed = upcoming.filter((event) => event.status === "POSTPONED");
   const live = upcoming.filter((event) => event.status !== "POSTPONED");
 
-  // Admin-configurable caps for popular + sponsored per city
-  const [maxPopular, maxSponsored] = await Promise.all([
-    getMaxPopularPerCity(),
-    getMaxSponsoredPerCity(),
-  ]);
-
   const featured = live
     .filter((event) => event.isFeatured)
     .slice(0, maxSponsored);
@@ -72,18 +77,12 @@ export default async function DiscoveryPage({
     .sort((a, b) => b.registrationsCount - a.registrationsCount)
     .slice(0, maxPopular);
 
-  // Hero Boost events
-  const heroEnabled = await getHeroBoostEnabled();
-  const heroRotationInterval = await getHeroRotationIntervalMinutes();
-  const heroMaxVisible = await getHeroMaxVisibleEvents();
-  const taglineHeader = await getTaglineHeader();
-  const taglineSubheader = await getTaglineSubheader();
+  // Hero Boost events — only fetch if enabled
   const heroEvents = heroEnabled
     ? await getHeroEvents(heroRotationInterval, heroMaxVisible)
     : [];
 
   // "Your Events Today" — only for logged-in users
-  const currentUser = await getCurrentUser();
   const myEventsToday = currentUser ? await getMyEventsToday(currentUser) : [];
 
   return (

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
+import Image from "next/image";
 
 import { submitPaymentAction } from "@/actions/orders";
 import { Button } from "@/components/ui/button";
@@ -44,27 +45,33 @@ export function CheckoutForm({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    const formData = new FormData(e.currentTarget);
-    formData.set("isFree", isFree ? "1" : "0");
-    startTransition(async () => {
-      const result = await submitPaymentAction({ error: null }, formData);
-      if (result?.error) setError(result.error);
-    });
-  }
+  const handleSubmit = useCallback(
+    (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      setError(null);
+      const formData = new FormData(e.currentTarget);
+      formData.set("isFree", isFree ? "1" : "0");
+      startTransition(async () => {
+        const result = await submitPaymentAction({ error: null }, formData);
+        if (result?.error) setError(result.error);
+      });
+    },
+    [isFree, startTransition],
+  );
 
-  // Build UPI intent link for the "Pay via GPay/PhonePe" button
-  const upiLink =
-    organizerUpiId && totalPaise > 0
-      ? upiIntent({
-          upiId: organizerUpiId,
-          payeeName: organizerName ?? "Organizer",
-          amountPaise: totalPaise,
-          note: `Outsiderr tickets — ${quantity} ticket(s)`,
-        })
-      : null;
+  // Build UPI intent link — memoized so it's not recomputed on every keystroke
+  const upiLink = useMemo(
+    () =>
+      organizerUpiId && totalPaise > 0
+        ? upiIntent({
+            upiId: organizerUpiId,
+            payeeName: organizerName ?? "Organizer",
+            amountPaise: totalPaise,
+            note: `Outsiderr tickets — ${quantity} ticket(s)`,
+          })
+        : null,
+    [organizerUpiId, organizerName, totalPaise, quantity],
+  );
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -155,10 +162,13 @@ export function CheckoutForm({
           {/* QR code image */}
           {organizerUpiQrUrl ? (
             <div className="flex flex-col items-center gap-2">
-              <img
+              <Image
                 src={organizerUpiQrUrl}
                 alt="Organizer UPI QR code"
+                width={160}
+                height={160}
                 className="h-40 w-40 rounded-xl bg-white object-contain"
+                unoptimized
               />
               <p className="text-xs text-muted">Scan this QR with any UPI app to pay</p>
             </div>

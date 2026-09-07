@@ -2,9 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Leaflet map CSS */
-@import "leaflet/dist/leaflet.css";
-
 /* App-like scrolling: smooth, momentum, no overscroll bounce */
 html {
   scroll-behavior: smooth;
@@ -37,7 +34,7 @@ body {
   display: none;
 }
 
-/* Faster tap response on mobile */
+/* Faster tap response on mobile — eliminates 300ms tap delay */
 button, a, [role="button"] {
   touch-action: manipulation;
 }
@@ -46,6 +43,11 @@ button, a, [role="button"] {
 button, [role="button"] {
   -webkit-user-select: none;
   user-select: none;
+}
+
+/* Horizontal scroll containers get momentum scrolling on iOS */
+.snap-x, [class*="overflow-x-auto"] {
+  -webkit-overflow-scrolling: touch;
 }
 
 :root {
@@ -64,13 +66,30 @@ body {
 }
 
 @layer utilities {
-  /* Frosted surface that adapts between the neon dark theme and the clean light theme. */
+  /*
+   * Frosted surface — adapts between light and dark themes.
+   *
+   * Mobile perf fix: changed dark:backdrop-blur-md (12px) → backdrop-blur-sm (4px).
+   * backdrop-blur-md on every card was the #1 cause of scroll jank on low-end phones.
+   * backdrop-blur-sm is barely visible but preserves the frosted aesthetic on OLED/AMOLED.
+   * On devices that don't support backdrop-filter, a solid semi-opaque bg is used.
+   */
   .glass {
-    @apply border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none dark:backdrop-blur-md;
+    @apply border border-zinc-200 bg-white shadow-sm;
+    @apply dark:border-white/10 dark:bg-zinc-900/90 dark:shadow-none;
+  }
+
+  /* Only apply blur on devices that can handle it (and only in dark mode) */
+  @supports (backdrop-filter: blur(4px)) {
+    .dark .glass {
+      background: rgba(18, 18, 24, 0.85);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
   }
 
   .glass-muted {
-    @apply border border-zinc-200 bg-zinc-100/80 dark:border-white/10 dark:bg-white/[0.03];
+    @apply border border-zinc-200 bg-zinc-100/80 dark:border-white/10 dark:bg-zinc-900/60;
   }
 
   .text-muted {
@@ -84,5 +103,14 @@ body {
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  /*
+   * content-visibility: auto — skip paint/layout for off-screen cards.
+   * Apply to long lists of event cards so only visible cards are rendered.
+   */
+  .cv-auto {
+    content-visibility: auto;
+    contain-intrinsic-size: 0 220px;
   }
 }

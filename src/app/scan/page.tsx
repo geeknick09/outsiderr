@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { ScanLine } from "lucide-react";
 
-import { StaffDoorScanner } from "@/components/scan/staff-door-scanner";
+import { StaffDoorScannerLazy } from "@/components/scan/staff-door-scanner-lazy";
 import { getCurrentUser } from "@/lib/auth";
 import { getStaffEvents } from "@/lib/data/event-staff";
 import { getOrganizerProfile } from "@/lib/data/organizer";
@@ -52,7 +52,7 @@ export default async function ScanPage() {
         </p>
       </div>
 
-      <StaffDoorScanner
+      <StaffDoorScannerLazy
         events={staffEvents.map((e) => ({
           id: e.id,
           title: e.title,

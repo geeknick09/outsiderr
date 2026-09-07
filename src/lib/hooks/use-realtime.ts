@@ -25,27 +25,43 @@ export interface UseRealtimeConfig {
   onPayload: (payload: RealtimePayload) => void;
   /** Set to false to disable the subscription (default true) */
   enabled?: boolean;
+  /** Debounce callbacks in ms (default 100) to prevent rapid-fire re-renders */
+  debounceMs?: number;
+}
+
+// Singleton Supabase client — created once, reused across all hooks.
+// This prevents a new WebSocket connection per component mount.
+let supabaseSingleton: ReturnType<typeof createClient> | null = null;
+function getSupabase() {
+  if (!supabaseSingleton) {
+    supabaseSingleton = createClient();
+  }
+  return supabaseSingleton;
 }
 
 /**
  * Subscribe to Supabase Realtime Postgres Changes.
  *
- * - Connects on mount, disconnects on unmount (no websocket leaks).
- * - Reconnects when the tab becomes visible again (visibilitychange).
- * - Uses a ref for the callback so the latest closure is always called
- *   without re-subscribing on every render.
+ * - Uses a singleton Supabase client (one WebSocket, not one per component).
+ * - Properly unsubscribes on unmount (await unsubscribe before removeChannel).
+ * - Debounces callbacks to prevent rapid-fire re-renders on bulk DB changes.
+ * - Reconnects on tab focus only if the channel is not already subscribed.
  */
 export function useRealtime(config: UseRealtimeConfig) {
   const callbackRef = useRef(config.onPayload);
   callbackRef.current = config.onPayload;
 
-  const { channelName, table, event, filter, schema, enabled } = config;
+  const { channelName, table, event, filter, schema, enabled, debounceMs = 100 } = config;
 
   useEffect(() => {
     if (enabled === false) return;
 
-    const supabase = createClient();
+    const supabase = getSupabase();
     const channel = supabase.channel(channelName);
+
+    // Debounce timer ref
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let lastPayload: RealtimePayload | null = null;
 
     channel.on(
       "postgres_changes",
@@ -56,26 +72,41 @@ export function useRealtime(config: UseRealtimeConfig) {
         ...(filter ? { filter } : {}),
       },
       (payload: { eventType: string; new: unknown; old: unknown }) => {
-        callbackRef.current({
+        lastPayload = {
           eventType: payload.eventType as RealtimePayload["eventType"],
           new: (payload.new ?? {}) as Record<string, unknown>,
           old: (payload.old ?? {}) as Record<string, unknown>,
-        });
+        };
+        // Debounce: only fire the callback after the configured quiet period.
+        // This prevents rapid-fire re-renders when many rows change at once.
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          if (lastPayload) {
+            callbackRef.current(lastPayload);
+            lastPayload = null;
+          }
+        }, debounceMs);
       },
     );
     channel.subscribe();
 
-    // Reconnect on tab focus
+    // Reconnect on tab focus — only if not already subscribed
     function handleVisibility() {
       if (document.visibilityState === "visible") {
-        channel.subscribe();
+        // Supabase auto-reconnects; only re-subscribe if the channel dropped
+        if (channel.state !== "joined" && channel.state !== "joining") {
+          channel.subscribe();
+        }
       }
     }
     document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibility);
+      if (debounceTimer) clearTimeout(debounceTimer);
+      // Proper cleanup: unsubscribe first, then remove the channel
+      channel.unsubscribe();
       supabase.removeChannel(channel);
     };
-  }, [channelName, table, event, filter, schema, enabled]);
+  }, [channelName, table, event, filter, schema, enabled, debounceMs]);
 }

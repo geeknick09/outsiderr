@@ -29,6 +29,10 @@ const nextConfig: NextConfig = {
   compress: true,
   // Power by header off (tiny perf win)
   poweredByHeader: false,
+  // Tree-shake barrel imports from lucide-react (only bundle used icons)
+  experimental: {
+    optimizePackageImports: ["lucide-react"],
+  },
 };
 
 export default nextConfig;

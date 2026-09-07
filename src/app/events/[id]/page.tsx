@@ -69,13 +69,16 @@ export default async function EventDetailsPage({
   const soldOutTiers = event.tiers.filter(
     (t) => t.quantity - t.quantitySold - (t.quantityReserved ?? 0) <= 0,
   );
+  // Parallelize entry + count fetches per tier (was sequential before)
   const waitlistData = event.waitlistEnabled
     ? await Promise.all(
-        soldOutTiers.map(async (tier) => ({
-          tierId: tier.id,
-          entry: user ? await getWaitlistEntry(user, tier.id) : null,
-          count: await getWaitlistCount(tier.id),
-        })),
+        soldOutTiers.map(async (tier) => {
+          const [entry, count] = await Promise.all([
+            user ? getWaitlistEntry(user, tier.id) : Promise.resolve(null),
+            getWaitlistCount(tier.id),
+          ]);
+          return { tierId: tier.id, entry, count };
+        }),
       )
     : [];
 

@@ -1,9 +1,8 @@
 "use client";
 
+import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
 import { BellRing, Check, Clock, Loader2, Sparkles, X } from "lucide-react";
-
 
 import { joinWaitlistAction, leaveWaitlistAction } from "@/actions/waitlist";
 import { Badge } from "@/components/ui/badge";
@@ -61,39 +60,81 @@ export function TicketTiers({
     },
   });
 
-  // Split tiers into phases and named tiers
-  const phaseTiers = tiers.filter((t) => t.tierType === "FLAT_PHASE");
-  const namedTiers = tiers.filter((t) => t.tierType !== "FLAT_PHASE");
-  const phaseAvailability = computePhaseAvailability(phaseTiers);
-
-  // Active phase is the one users can currently buy
-  const activePhase = phaseAvailability.find((p) => p.isActive);
+  // All derived state memoized — nothing recalculates on every render
+  const phaseTiers = useMemo(() => tiers.filter((t) => t.tierType === "FLAT_PHASE"), [tiers]);
+  const namedTiers = useMemo(() => tiers.filter((t) => t.tierType !== "FLAT_PHASE"), [tiers]);
+  const phaseAvailability = useMemo(() => computePhaseAvailability(phaseTiers), [phaseTiers]);
+  const activePhase = useMemo(() => phaseAvailability.find((p) => p.isActive), [phaseAvailability]);
   const activePhaseTier = activePhase?.tier ?? null;
 
-  // Bookable tiers: active phase + all named tiers with availability
-  // Account for both sold AND reserved tickets to prevent overbooking
-  const availableNamed = namedTiers.filter(
-    (t) => t.quantity - t.quantitySold - (t.quantityReserved ?? 0) > 0,
+  const availableNamed = useMemo(
+    () => namedTiers.filter((t) => t.quantity - t.quantitySold - (t.quantityReserved ?? 0) > 0),
+    [namedTiers],
   );
-  const bookableTiers: TicketTier[] = [
-    ...(activePhaseTier ? [activePhaseTier] : []),
-    ...availableNamed,
-  ];
+
+  const bookableTiers = useMemo<TicketTier[]>(
+    () => [...(activePhaseTier ? [activePhaseTier] : []), ...availableNamed],
+    [activePhaseTier, availableNamed],
+  );
 
   const [selectedId, setSelectedId] = useState(bookableTiers[0]?.id ?? "");
 
-  const isFreeEvent = tiers.length > 0 && tiers.every((t) => t.pricePaise === 0);
-  const selected = bookableTiers.find((tier) => tier.id === selectedId);
-  const price = selected
-    ? calculatePrice(selected.pricePaise, 1, event.feePayer, undefined, {
-        commissionBps: event.commissionBps,
-        commissionEnabled: event.commissionEnabled,
-        convenienceFeeBps: event.convenienceFeeBps,
-        convenienceFeeEnabled: event.convenienceFeeEnabled,
-      })
-    : null;
+  const isFreeEvent = useMemo(
+    () => tiers.length > 0 && tiers.every((t) => t.pricePaise === 0),
+    [tiers],
+  );
+
+  const selected = useMemo(
+    () => bookableTiers.find((tier) => tier.id === selectedId),
+    [bookableTiers, selectedId],
+  );
+
+  const price = useMemo(
+    () =>
+      selected
+        ? calculatePrice(selected.pricePaise, 1, event.feePayer, undefined, {
+            commissionBps: event.commissionBps,
+            commissionEnabled: event.commissionEnabled,
+            convenienceFeeBps: event.convenienceFeeBps,
+            convenienceFeeEnabled: event.convenienceFeeEnabled,
+          })
+        : null,
+    [selected, event.feePayer, event.commissionBps, event.commissionEnabled, event.convenienceFeeBps, event.convenienceFeeEnabled],
+  );
 
   const hasPhases = phaseTiers.length > 0;
+
+  // Memoized navigation handler
+  const handleBook = useCallback(() => {
+    if (!selected) return;
+    startNavigation(() =>
+      router.push(`/checkout?event=${event.id}&tier=${selected.id}&qty=1`),
+    );
+  }, [selected, event.id, router, startNavigation]);
+
+  // Sold-out phase state — computed once, not in an IIFE inside JSX
+  const soldOutPhaseState = useMemo(() => {
+    if (!hasPhases || bookableTiers.length > 0) return null;
+    const allUpcoming = phaseAvailability.length > 0 && phaseAvailability.every((p) => p.isUpcoming);
+    const allClosedOrSoldOut =
+      phaseAvailability.length > 0 &&
+      phaseAvailability.every((p) => p.isPast || p.status === "SOLD_OUT" || p.status === "CLOSED");
+    const nextUpcoming = phaseAvailability.find((p) => p.isUpcoming);
+    return { allUpcoming, allClosedOrSoldOut, nextUpcoming };
+  }, [hasPhases, bookableTiers.length, phaseAvailability]);
+
+  // Waitlist tiers — memoized
+  const waitlistTiers = useMemo(() => {
+    if (!waitlistEnabled) return [];
+    return tiers.filter((tier) => {
+      if (tier.tierType !== "FLAT_PHASE") {
+        return tier.quantity - tier.quantitySold - (tier.quantityReserved ?? 0) <= 0;
+      }
+      const phase = phaseAvailability.find((p) => p.tier.id === tier.id);
+      if (!phase) return false;
+      return phase.status === "SOLD_OUT";
+    });
+  }, [waitlistEnabled, tiers, phaseAvailability]);
 
   return (
     <section id="tickets" className="glass rounded-3xl p-5">
@@ -160,7 +201,7 @@ export function TicketTiers({
               type="button"
               onClick={() => setSelectedId(tier.id)}
               className={cn(
-                "w-full rounded-2xl border p-4 text-left transition-all",
+                "w-full rounded-2xl border p-4 text-left transition-colors",
                 isSelected
                   ? "border-violet-neon bg-violet-neon/10 shadow-glow-violet"
                   : "border-zinc-200 hover:border-violet-neon/50 dark:border-white/10",
@@ -176,10 +217,7 @@ export function TicketTiers({
                   {tier.perks.length > 0 ? (
                     <ul className="mt-2 space-y-1">
                       {tier.perks.map((perk) => (
-                        <li
-                          key={perk}
-                          className="flex items-center gap-1.5 text-xs text-muted"
-                        >
+                        <li key={perk} className="flex items-center gap-1.5 text-xs text-muted">
                           <Sparkles className="h-3 w-3 text-pink-neon" />
                           {perk}
                         </li>
@@ -213,7 +251,7 @@ export function TicketTiers({
               <Row label="Ticket subtotal" value={formatPaise(price.subtotalPaise)} />
               {price.convenienceFeePaise > 0 ? (
                 <Row
-                  label={`Convenience fee (${Math.round(price.convenienceFeePaise / price.subtotalPaise * 100)}%)`}
+                  label={`Convenience fee (${Math.round((price.convenienceFeePaise / price.subtotalPaise) * 100)}%)`}
                   value={formatPaise(price.convenienceFeePaise)}
                 />
               ) : null}
@@ -235,86 +273,31 @@ export function TicketTiers({
             disabled={navigating}
             loading={navigating}
             loadingText={isFreeEvent ? "Opening RSVP…" : "Opening checkout…"}
-            onClick={() =>
-              startNavigation(() =>
-                router.push(
-                  `/checkout?event=${event.id}&tier=${selected.id}&qty=1`,
-                ),
-              )
-            }
+            onClick={handleBook}
           >
             {isFreeEvent ? "RSVP now" : "Book now"}
           </Button>
         </div>
       ) : bookableTiers.length === 0 ? (
         <div className="mt-5 space-y-3">
-          {hasPhases ? (
-            // Phased event with no active phase — check if all upcoming, all closed, or all sold out
-            (() => {
-              const allUpcoming = phaseAvailability.length > 0 && phaseAvailability.every((p) => p.isUpcoming);
-              const allClosedOrSoldOut = phaseAvailability.length > 0 && phaseAvailability.every((p) => p.isPast || p.status === "SOLD_OUT" || p.status === "CLOSED");
-              const nextUpcoming = phaseAvailability.find((p) => p.isUpcoming);
-
-              if (allUpcoming && nextUpcoming) {
-                return (
-                  <div className="rounded-2xl border border-violet-neon/30 bg-violet-neon/5 p-4 text-center">
-                    <p className="text-sm font-semibold text-violet-neon">
-                      Tickets open soon
-                    </p>
-                    <p className="mt-1 text-xs text-muted">
-                      First phase ({nextUpcoming.tier.name}) opens{" "}
-                      {formatDateTime(nextUpcoming.tier.phaseOpensAt!)}
-                    </p>
-                  </div>
-                );
-              }
-
-              if (allClosedOrSoldOut) {
-                return (
-                  <p className="text-sm font-semibold text-muted">
-                    All phases are closed or sold out
-                  </p>
-                );
-              }
-
-              // Mixed state — some closed, some upcoming, none active
-              return (
-                <p className="text-sm font-semibold text-muted">
-                  {nextUpcoming
-                    ? `Next phase (${nextUpcoming.tier.name}) opens ${formatDateTime(nextUpcoming.tier.phaseOpensAt!)}`
-                    : "All phases sold out"}
-                </p>
-              );
-            })()
+          {hasPhases && soldOutPhaseState ? (
+            <SoldOutPhaseMessage state={soldOutPhaseState} />
           ) : (
-            <p className="text-sm font-semibold text-muted">
-              All tiers sold out
-            </p>
+            <p className="text-sm font-semibold text-muted">All tiers sold out</p>
           )}
-          {waitlistEnabled ? tiers
-            .filter((tier) => {
-              // For phased events, only show waitlist for the ACTIVE phase that is sold out
-              if (tier.tierType !== "FLAT_PHASE") {
-                return tier.quantity - tier.quantitySold - (tier.quantityReserved ?? 0) <= 0;
-              }
-              const phase = phaseAvailability.find((p) => p.tier.id === tier.id);
-              if (!phase) return false;
-              // Only show waitlist for active phases that are sold out, not upcoming ones
-              return phase.status === "SOLD_OUT";
-            })
-            .map((tier) => {
-              const wl = waitlistData.find((w) => w.tierId === tier.id);
-              return (
-                <WaitlistJoinRow
-                  key={tier.id}
-                  tierId={tier.id}
-                  eventId={event.id}
-                  tierName={tier.name}
-                  waitlistEntry={wl?.entry ?? null}
-                  waitlistCount={wl?.count ?? 0}
-                />
-              );
-            }) : null}
+          {waitlistTiers.map((tier) => {
+            const wl = waitlistData.find((w) => w.tierId === tier.id);
+            return (
+              <WaitlistJoinRow
+                key={tier.id}
+                tierId={tier.id}
+                eventId={event.id}
+                tierName={tier.name}
+                waitlistEntry={wl?.entry ?? null}
+                waitlistCount={wl?.count ?? 0}
+              />
+            );
+          })}
         </div>
       ) : null}
     </section>
@@ -327,6 +310,36 @@ function Row({ label, value }: { label: string; value: string }) {
       <dt className="text-muted">{label}</dt>
       <dd className="font-semibold">{value}</dd>
     </div>
+  );
+}
+
+// Extracted from the IIFE — now a proper component that only re-renders when its props change
+function SoldOutPhaseMessage({
+  state,
+}: {
+  state: { allUpcoming: boolean; allClosedOrSoldOut: boolean; nextUpcoming: { tier: { name: string; phaseOpensAt?: string | null } } | undefined };
+}) {
+  const { allUpcoming, allClosedOrSoldOut, nextUpcoming } = state;
+  if (allUpcoming && nextUpcoming) {
+    return (
+      <div className="rounded-2xl border border-violet-neon/30 bg-violet-neon/5 p-4 text-center">
+        <p className="text-sm font-semibold text-violet-neon">Tickets open soon</p>
+        <p className="mt-1 text-xs text-muted">
+          First phase ({nextUpcoming.tier.name}) opens{" "}
+          {formatDateTime(nextUpcoming.tier.phaseOpensAt!)}
+        </p>
+      </div>
+    );
+  }
+  if (allClosedOrSoldOut) {
+    return <p className="text-sm font-semibold text-muted">All phases are closed or sold out</p>;
+  }
+  return (
+    <p className="text-sm font-semibold text-muted">
+      {nextUpcoming
+        ? `Next phase (${nextUpcoming.tier.name}) opens ${formatDateTime(nextUpcoming.tier.phaseOpensAt!)}`
+        : "All phases sold out"}
+    </p>
   );
 }
 
@@ -346,21 +359,20 @@ function WaitlistJoinRow({
   const [pending, startTransition] = useTransition();
   const [entry, setEntry] = useState<WaitlistEntry | null>(waitlistEntry);
 
-  function handleJoin() {
+  const handleJoin = useCallback(() => {
     startTransition(async () => {
       await joinWaitlistAction(eventId, tierId);
-      // Optimistically update — revalidation will bring the real state
       setEntry({ id: "temp", tierId, eventId, createdAt: new Date().toISOString() } as WaitlistEntry);
     });
-  }
+  }, [eventId, tierId]);
 
-  function handleLeave() {
+  const handleLeave = useCallback(() => {
     if (!entry) return;
     startTransition(async () => {
       await leaveWaitlistAction(entry.id, eventId);
       setEntry(null);
     });
-  }
+  }, [entry, eventId]);
 
   return (
     <div className="flex items-center justify-between rounded-2xl border border-zinc-200 px-4 py-3 dark:border-white/10">

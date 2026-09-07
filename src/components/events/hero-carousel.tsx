@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Flame, MapPin } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,20 @@ const AUTO_ROTATE_MS = 6000;
 export function HeroCarousel({ events }: { events: HeroEvent[] }) {
   const [current, setCurrent] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Touch tracking refs — no state, so swipes don't trigger re-renders
+  const touchStartX = useRef<number>(0);
+  const touchStartY = useRef<number>(0);
+
+  const go = useCallback(
+    (direction: 1 | -1) => {
+      setCurrent((prev) => (prev + direction + events.length) % events.length);
+    },
+    [events.length],
+  );
+
+  const goTo = useCallback((index: number) => {
+    setCurrent(index);
+  }, []);
 
   useEffect(() => {
     if (events.length <= 1) return;
@@ -22,19 +36,33 @@ export function HeroCarousel({ events }: { events: HeroEvent[] }) {
       setCurrent((prev) => (prev + 1) % events.length);
     }, AUTO_ROTATE_MS);
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     };
   }, [events.length]);
 
   if (events.length === 0) return null;
 
-  function go(direction: 1 | -1) {
-    setCurrent((prev) => (prev + direction + events.length) % events.length);
-  }
-
   const event = events[current];
   const poster = event.bannerPosterUrl ?? event.cardPosterUrl;
   const cityLabel = CITY_LABELS[event.city as keyof typeof CITY_LABELS] ?? event.city;
+
+  // Swipe handlers — use passive touch events, no state updates during swipe
+  function handleTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current);
+    // Only treat as horizontal swipe if mostly horizontal
+    if (Math.abs(dx) > 40 && Math.abs(dx) > dy) {
+      go(dx < 0 ? 1 : -1);
+    }
+  }
 
   return (
     <section className="mb-10">
@@ -53,15 +81,19 @@ export function HeroCarousel({ events }: { events: HeroEvent[] }) {
         </div>
       </div>
 
-      <div className="relative aspect-[16/9] w-full overflow-hidden rounded-3xl border border-zinc-200 dark:border-white/10 sm:aspect-[21/9]">
+      <div
+        className="relative aspect-[16/9] w-full overflow-hidden rounded-3xl border border-zinc-200 dark:border-white/10 sm:aspect-[21/9]"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         <Link href={`/events/${event.id}?source=HERO_BOOST`} className="group block h-full w-full">
           {poster ? (
             <Image
               src={poster}
               alt={event.title}
               fill
-              sizes="100vw"
-              className="object-cover transition-transform duration-700 group-hover:scale-105"
+              sizes="(max-width: 640px) 100vw, 100vw"
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
               priority
             />
           ) : (
@@ -71,12 +103,10 @@ export function HeroCarousel({ events }: { events: HeroEvent[] }) {
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
 
           <div className="absolute left-4 top-4">
-            <Badge tone="pink">
-              Featured
-            </Badge>
+            <Badge tone="pink">Featured</Badge>
           </div>
 
-          {/* Dots indicator */}
+          {/* Dot indicators */}
           {events.length > 1 ? (
             <div className="absolute right-4 top-4 flex gap-1.5">
               {events.map((_, i) => (
@@ -86,7 +116,7 @@ export function HeroCarousel({ events }: { events: HeroEvent[] }) {
                   aria-label={`Go to slide ${i + 1}`}
                   onClick={(e) => {
                     e.preventDefault();
-                    setCurrent(i);
+                    goTo(i);
                   }}
                   className={`h-2 rounded-full transition-all ${
                     i === current ? "w-6 bg-white" : "w-2 bg-white/40"
@@ -132,7 +162,7 @@ function CarouselButton({
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="glass flex h-9 w-9 items-center justify-center rounded-full transition-all hover:shadow-[0_0_16px_rgba(236,72,153,0.4)]"
+      className="glass flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:shadow-[0_0_16px_rgba(236,72,153,0.4)]"
     >
       {children}
     </button>

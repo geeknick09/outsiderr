@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -35,6 +36,12 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
   REFUND_REQUESTED: "Refund requested",
 };
 
+// Format event dates once, not inside the render loop
+const dateFormatter = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata" });
+function formatEventDate(iso: string) {
+  return dateFormatter.format(new Date(iso));
+}
+
 export function TicketsRealtimeWrapper({
   userId,
   userName,
@@ -54,7 +61,7 @@ export function TicketsRealtimeWrapper({
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [tickets, setTickets] = useState<Ticket[]>(initialTickets);
 
-  // Realtime: order status changes (e.g. PENDING_VERIFICATION → CONFIRMED)
+  // Channel 1: order status changes (e.g. PENDING_VERIFICATION → CONFIRMED)
   useRealtime({
     channelName: `user-orders:${userId}`,
     table: "orders",
@@ -65,54 +72,58 @@ export function TicketsRealtimeWrapper({
       const newStatus = row.status as OrderStatus;
       setOrders((prev) =>
         prev.map((o) =>
-          o.id === row.id ? { ...o, status: newStatus, rejectionReason: (row.rejection_reason as string) ?? null } : o,
+          o.id === row.id
+            ? { ...o, status: newStatus, rejectionReason: (row.rejection_reason as string) ?? null }
+            : o,
         ),
       );
-      // If order just got confirmed, refresh to fetch the newly minted ticket
+      // Refresh to fetch newly minted ticket when order is confirmed
       if (newStatus === "CONFIRMED") {
         router.refresh();
       }
     },
   });
 
-  // Realtime: new ticket minted (on order approval)
+  // Channel 2: ticket changes (INSERT = new ticket minted; UPDATE = scanned/cancelled)
+  // Consolidated from two separate channels into one "*" channel
   useRealtime({
-    channelName: `user-tickets-insert:${userId}`,
+    channelName: `user-tickets:${userId}`,
     table: "tickets",
-    event: "INSERT",
+    event: "*",
     filter: `user_id=eq.${userId}`,
     enabled: !!userId,
-    onPayload: () => {
-      // Refresh to fetch the full ticket with joined data (event title, tier name, etc.)
-      router.refresh();
+    onPayload: ({ eventType, new: row }) => {
+      if (eventType === "INSERT") {
+        // New ticket minted — refresh for full joined data (event title, tier name, etc.)
+        router.refresh();
+      } else if (eventType === "UPDATE") {
+        setTickets((prev) =>
+          prev.map((t) =>
+            t.id === row.id
+              ? { ...t, status: row.status as Ticket["status"], checkedInAt: (row.checked_in_at as string) ?? null }
+              : t,
+          ),
+        );
+      }
     },
   });
 
-  // Realtime: ticket status changes (scanned, cancelled)
-  useRealtime({
-    channelName: `user-tickets-update:${userId}`,
-    table: "tickets",
-    event: "UPDATE",
-    filter: `user_id=eq.${userId}`,
-    enabled: !!userId,
-    onPayload: ({ new: row }) => {
-      setTickets((prev) =>
-        prev.map((t) =>
-          t.id === row.id
-            ? { ...t, status: row.status as Ticket["status"], checkedInAt: (row.checked_in_at as string) ?? null }
-            : t,
-        ),
-      );
-    },
-  });
+  // Memoize formatted dates so they don't recompute on every render
+  const formattedOrderDates = useMemo(
+    () =>
+      new Map(
+        orders
+          .filter((o) => o.eventStartsAt)
+          .map((o) => [o.id, formatEventDate(o.eventStartsAt!)]),
+      ),
+    [orders],
+  );
 
   return (
     <div className="mx-auto max-w-4xl space-y-8 py-6">
       <div>
         <h1 className="text-3xl font-black tracking-tight">My Tickets</h1>
-        <p className="text-sm text-muted">
-          Orders and QR passes for {userName}.
-        </p>
+        <p className="text-sm text-muted">Orders and QR passes for {userName}.</p>
       </div>
 
       {submitted ? (
@@ -128,8 +139,8 @@ export function TicketsRealtimeWrapper({
             >
               +91 {whatsappNumber}
             </a>{" "}
-            on WhatsApp. Your ticket will be shared via email or WhatsApp after the
-            organizer confirms your payment.
+            on WhatsApp. Your ticket will be shared via email or WhatsApp after the organizer
+            confirms your payment.
           </p>
         </div>
       ) : null}
@@ -138,8 +149,7 @@ export function TicketsRealtimeWrapper({
         <h2 className="text-lg font-bold">Passes</h2>
         {tickets.length === 0 ? (
           <p className="glass rounded-3xl p-5 text-sm text-muted">
-            No confirmed passes yet. They appear here once the organizer approves your
-            payment.
+            No confirmed passes yet. They appear here once the organizer approves your payment.
           </p>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
@@ -183,11 +193,13 @@ export function TicketsRealtimeWrapper({
                   ) : null}
                 </div>
                 <Badge tone={STATUS_TONE[order.status]}>{STATUS_LABEL[order.status]}</Badge>
-                {order.eventStatus === "POSTPONED" && order.status === "CONFIRMED" && order.eventStartsAt ? (
+                {order.eventStatus === "POSTPONED" &&
+                order.status === "CONFIRMED" &&
+                order.eventStartsAt ? (
                   <PostponementRefundButton
                     eventId={order.eventId}
                     eventTitle={order.eventTitle}
-                    newDate={new Date(order.eventStartsAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
+                    newDate={formattedOrderDates.get(order.id) ?? order.eventStartsAt}
                   />
                 ) : null}
               </div>

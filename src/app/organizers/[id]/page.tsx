@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import Image from "next/image";
 import { BadgeCheck, CalendarDays, Clock, Globe, Link2, MessageCircle, Play } from "lucide-react";
 import { InstagramIcon } from "@/components/ui/instagram-icon";
 
@@ -43,10 +44,11 @@ export default async function PublicOrganizerPage({
       {/* Avatar + name + bio row — no cover banner, only profile picture */}
       <div className="flex items-end gap-4 px-2">
         {organizer.avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={organizer.avatarUrl}
             alt={organizer.name}
+            width={96}
+            height={96}
             className="h-20 w-20 rounded-2xl border-4 border-zinc-50 object-cover shadow-lg dark:border-ink sm:h-24 sm:w-24"
           />
         ) : (

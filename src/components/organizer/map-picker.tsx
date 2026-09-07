@@ -5,6 +5,9 @@ import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-lea
 import L from "leaflet";
 import { MapPin, Search } from "lucide-react";
 
+// Load Leaflet CSS only when the map component is used (not on every page)
+import "leaflet/dist/leaflet.css";
+
 // Fix default marker icon for Leaflet in webpack
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({

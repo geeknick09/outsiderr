@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { AtSign, BadgeCheck, MapPin, Users } from "lucide-react";
@@ -48,21 +49,25 @@ export default async function ClubDetailPage({
     <div className="mx-auto max-w-3xl space-y-6 py-6">
       {/* Cover photo */}
       {club.coverUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={club.coverUrl}
-          alt={`${club.name} cover`}
-          className="h-40 w-full rounded-3xl object-cover sm:h-56"
-        />
+        <div className="relative h-40 w-full overflow-hidden rounded-3xl sm:h-56">
+          <Image
+            src={club.coverUrl}
+            alt={`${club.name} cover`}
+            fill
+            sizes="(max-width: 768px) 100vw, 768px"
+            className="object-cover"
+          />
+        </div>
       ) : null}
 
       {/* Header */}
       <div className="flex items-start gap-4">
         {club.avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={club.avatarUrl}
             alt={club.name}
+            width={80}
+            height={80}
             className="h-20 w-20 shrink-0 rounded-3xl border-2 border-white object-cover shadow-glow-violet dark:border-zinc-900"
           />
         ) : (

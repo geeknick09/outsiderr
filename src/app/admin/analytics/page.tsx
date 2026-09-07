@@ -1,9 +1,9 @@
-import { AnalyticsCharts } from "@/components/admin/analytics-charts";
 import {
   getUserAnalytics,
   getPaymentAnalytics,
   getOrganizerAnalytics,
 } from "@/lib/data/admin";
+import { AnalyticsChartsLazy } from "@/components/admin/analytics-charts-lazy";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +25,7 @@ export default async function AdminAnalyticsPage() {
         </p>
       </div>
 
-      <AnalyticsCharts
+      <AnalyticsChartsLazy
         userAnalytics={userAnalytics}
         paymentAnalytics={paymentAnalytics}
         organizerAnalytics={organizerAnalytics}

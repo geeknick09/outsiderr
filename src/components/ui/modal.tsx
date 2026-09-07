@@ -27,6 +27,16 @@ export function Modal({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [open, onClose]);
 
+  // Lock body scroll while modal is open — prevents background scroll on mobile
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   if (!open) return null;
 
   return (
@@ -34,7 +44,7 @@ export function Modal({
       role="dialog"
       aria-modal="true"
       aria-label={title}
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-6"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-6"
     >
       <button
         type="button"
@@ -44,7 +54,7 @@ export function Modal({
       />
       <div
         className={cn(
-          "glass relative z-10 max-h-[85vh] w-full overflow-y-auto rounded-t-3xl p-6 sm:max-w-lg sm:rounded-3xl",
+          "glass relative z-10 max-h-[85vh] w-full overflow-y-auto overscroll-contain rounded-t-3xl p-6 sm:max-w-lg sm:rounded-3xl",
           "animate-fade-in",
           className,
         )}

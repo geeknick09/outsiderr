@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
@@ -25,35 +25,44 @@ export function VerificationQueue({
   const [rejectingOrder, setRejectingOrder] = useState<Order | null>(null);
   const [reason, setReason] = useState("");
 
-  // Realtime: new pending order arrives
-  useRealtime({
-    channelName: "organizer-orders-insert",
-    table: "orders",
-    event: "INSERT",
-    onPayload: ({ new: row }) => {
-      if (
-        organizerEventIds.includes(row.event_id as string) &&
-        row.status === "PENDING_VERIFICATION"
-      ) {
-        // Refresh to fetch the full order with joined data (event title, tier name, etc.)
-        router.refresh();
-      }
-    },
-  });
+  // One consolidated channel with event_id filter instead of two unfiltered channels.
+  // This prevents receiving ALL global order changes and filtering client-side.
+  const realtimeFilter = useMemo(
+    () =>
+      organizerEventIds.length > 0
+        ? `event_id=in.(${organizerEventIds.join(",")})`
+        : undefined,
+    [organizerEventIds],
+  );
 
-  // Realtime: order status changed (approved/rejected) — remove from queue
   useRealtime({
-    channelName: "organizer-orders-update",
+    channelName: `vq-orders:${organizerEventIds.join("-")}`,
     table: "orders",
-    event: "UPDATE",
-    onPayload: ({ new: row }) => {
-      if (organizerEventIds.includes(row.event_id as string)) {
+    event: "*",
+    filter: realtimeFilter,
+    enabled: organizerEventIds.length > 0,
+    onPayload: ({ eventType, new: row }) => {
+      if (eventType === "INSERT") {
+        if (row.status === "PENDING_VERIFICATION") {
+          // New pending order — refresh to get full joined data
+          router.refresh();
+        }
+      } else if (eventType === "UPDATE") {
         if (row.status !== "PENDING_VERIFICATION") {
+          // Order approved or rejected — remove from queue
           setOrderList((prev) => prev.filter((o) => o.id !== row.id));
         }
       }
     },
   });
+
+  const handleProofOpen = useCallback((order: Order) => setProofOrder(order), []);
+  const handleProofClose = useCallback(() => setProofOrder(null), []);
+  const handleRejectOpen = useCallback((order: Order) => {
+    setRejectingOrder(order);
+    setReason("");
+  }, []);
+  const handleRejectClose = useCallback(() => setRejectingOrder(null), []);
 
   if (orderList.length === 0) {
     return (
@@ -99,7 +108,7 @@ export function VerificationQueue({
                   {order.paymentProofUrl ? (
                     <button
                       type="button"
-                      onClick={() => setProofOrder(order)}
+                      onClick={() => handleProofOpen(order)}
                       className="text-violet-neon underline"
                     >
                       View
@@ -118,10 +127,7 @@ export function VerificationQueue({
                     </form>
                     <button
                       type="button"
-                      onClick={() => {
-                        setRejectingOrder(order);
-                        setReason("");
-                      }}
+                      onClick={() => handleRejectOpen(order)}
                       className="rounded-xl bg-red-500/10 px-3 py-1.5 text-xs font-bold text-red-500 hover:bg-red-500/20"
                     >
                       Reject
@@ -137,7 +143,7 @@ export function VerificationQueue({
       {/* Rejection reason modal */}
       <Modal
         open={rejectingOrder !== null}
-        onClose={() => setRejectingOrder(null)}
+        onClose={handleRejectClose}
         title={`Reject order — ${rejectingOrder?.buyerName ?? ""}`}
       >
         <form action={rejectOrderAction} className="space-y-4">
@@ -165,7 +171,7 @@ export function VerificationQueue({
             </SubmitButton>
             <button
               type="button"
-              onClick={() => setRejectingOrder(null)}
+              onClick={handleRejectClose}
               className="rounded-xl border border-zinc-200 px-4 py-2.5 text-sm font-semibold text-muted hover:border-violet-neon dark:border-white/10"
             >
               Cancel
@@ -176,17 +182,18 @@ export function VerificationQueue({
 
       <Modal
         open={proofOrder !== null}
-        onClose={() => setProofOrder(null)}
+        onClose={handleProofClose}
         title={`Payment proof — ${proofOrder?.buyerName ?? ""}`}
       >
         {proofOrder?.paymentProofUrl ? (
           <Image
             src={proofOrder.paymentProofUrl}
             alt="Payment screenshot"
-            width={800}
-            height={1000}
+            width={400}
+            height={500}
             unoptimized
             className="w-full rounded-2xl"
+            sizes="(max-width: 640px) 100vw, 512px"
           />
         ) : null}
         <p className="mt-3 font-mono text-xs text-muted">
