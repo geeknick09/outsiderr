@@ -137,7 +137,9 @@ export default async function EventReportPage({
                 <th className="pb-2 pr-4">Buyer</th>
                 <th className="pb-2 pr-4">Tier</th>
                 <th className="pb-2 pr-4">Qty</th>
-                <th className="pb-2 pr-4">Amount</th>
+                <th className="pb-2 pr-4">Subtotal</th>
+                <th className="pb-2 pr-4">Buyer paid</th>
+                <th className="pb-2 pr-4">Payout</th>
                 <th className="pb-2">UTR</th>
               </tr>
             </thead>
@@ -150,7 +152,9 @@ export default async function EventReportPage({
                   <td className="py-2 pr-4">{order.buyerName ?? "—"}</td>
                   <td className="py-2 pr-4">{order.tierName}</td>
                   <td className="py-2 pr-4">{order.quantity}</td>
+                  <td className="py-2 pr-4">{formatPaise(order.subtotalPaise)}</td>
                   <td className="py-2 pr-4">{formatPaise(order.totalPaise)}</td>
+                  <td className="py-2 pr-4 font-semibold">{formatPaise(order.organizerPayoutPaise)}</td>
                   <td className="py-2 font-mono text-xs">{order.utrReference ?? "—"}</td>
                 </tr>
               ))}

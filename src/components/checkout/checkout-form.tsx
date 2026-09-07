@@ -2,11 +2,10 @@
 
 import { useState, useTransition } from "react";
 
-import { createCheckoutAction, submitPaymentAction } from "@/actions/orders";
+import { submitPaymentAction } from "@/actions/orders";
 import { Button } from "@/components/ui/button";
 import { PhoneInput } from "@/components/ui/phone-input";
-import { RazorpayCheckout } from "@/components/checkout/razorpay-checkout";
-import type { CheckoutSession } from "@/lib/types";
+import { upiIntent } from "@/lib/upi";
 
 const INPUT =
   "w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white";
@@ -20,7 +19,12 @@ export function CheckoutForm({
   defaultEmail,
   defaultGender,
   isFree = false,
+  totalPaise = 0,
   totalRupees = "0",
+  organizerUpiId,
+  organizerUpiQrUrl,
+  organizerPhone,
+  organizerName,
 }: {
   eventId: string;
   tierId: string;
@@ -32,54 +36,38 @@ export function CheckoutForm({
   isFree?: boolean;
   totalPaise?: number;
   totalRupees?: string;
+  organizerUpiId?: string | null;
+  organizerUpiQrUrl?: string | null;
+  organizerPhone?: string | null;
+  organizerName?: string | null;
 }) {
-  // Free flow: use the legacy submitPaymentAction (instant RSVP)
-  const [freeError, setFreeError] = useState<string | null>(null);
-  const [freePending, startFreeTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
 
-  // Paid flow: createCheckoutAction → Razorpay Checkout
-  const [paidError, setPaidError] = useState<string | null>(null);
-  const [paidPending, startPaidTransition] = useTransition();
-  const [session, setSession] = useState<CheckoutSession | null>(null);
-
-  function handleFreeSubmit(e: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setFreeError(null);
+    setError(null);
     const formData = new FormData(e.currentTarget);
-    formData.set("isFree", "1");
-    startFreeTransition(async () => {
+    formData.set("isFree", isFree ? "1" : "0");
+    startTransition(async () => {
       const result = await submitPaymentAction({ error: null }, formData);
-      if (result?.error) setFreeError(result.error);
+      if (result?.error) setError(result.error);
     });
   }
 
-  function handlePaidSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setPaidError(null);
-    const formData = new FormData(e.currentTarget);
-    startPaidTransition(async () => {
-      const result = await createCheckoutAction(formData);
-      if (result?.error) {
-        setPaidError(result.error);
-      } else if (result?.session) {
-        setSession(result.session);
-      }
-    });
-  }
-
-  // Razorpay Checkout modal is open — show the checkout component
-  if (session) {
-    return (
-      <RazorpayCheckout
-        session={session}
-        onError={(msg) => setPaidError(msg)}
-        onCancel={() => setSession(null)}
-      />
-    );
-  }
+  // Build UPI intent link for the "Pay via GPay/PhonePe" button
+  const upiLink =
+    organizerUpiId && totalPaise > 0
+      ? upiIntent({
+          upiId: organizerUpiId,
+          payeeName: organizerName ?? "Organizer",
+          amountPaise: totalPaise,
+          note: `Outsiderr tickets — ${quantity} ticket(s)`,
+        })
+      : null;
 
   return (
-    <form onSubmit={isFree ? handleFreeSubmit : handlePaidSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <input type="hidden" name="eventId" value={eventId} />
       <input type="hidden" name="tierId" value={tierId} />
       <input type="hidden" name="quantity" value={quantity} />
@@ -131,34 +119,110 @@ export function CheckoutForm({
         </label>
       </div>
 
-      {/* Paid events: show secure payment notice (Razorpay) */}
+      {/* Paid events: show organizer payment instructions */}
       {!isFree ? (
-        <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-900 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-200">
-          <p className="font-semibold">Secure payment via Razorpay</p>
-          <p className="mt-1 text-xs">
-            You&apos;ll be redirected to Razorpay&apos;s secure checkout to complete your payment.
-            We accept UPI, cards, net banking, and wallets. Your tickets will be confirmed
-            instantly after payment — no manual verification needed.
-          </p>
-          <p className="mt-2 text-xs text-muted">
-            Outsiderr is an intermediary platform connecting event organizers with attendees.
-            A platform commission is deducted from the organizer&apos;s payout.
-          </p>
+        <div className="space-y-4 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm dark:border-violet-500/30 dark:bg-violet-500/10">
+          <div>
+            <p className="font-bold text-violet-900 dark:text-violet-200">
+              Pay ₹{totalRupees} to the organizer
+            </p>
+            <p className="mt-1 text-xs text-violet-800/80 dark:text-violet-300/80">
+              Use any UPI app (GPay, PhonePe, Paytm) to pay the organizer directly.
+              After paying, submit your booking below — the organizer will verify
+              your payment and confirm your ticket.
+            </p>
+          </div>
+
+          {/* UPI ID */}
+          {organizerUpiId ? (
+            <div className="flex items-center justify-between rounded-xl bg-white/60 px-3 py-2 dark:bg-white/5">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">Organizer UPI ID</p>
+                <p className="font-mono text-sm font-bold">{organizerUpiId}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard?.writeText(organizerUpiId).catch(() => {});
+                }}
+                className="rounded-lg bg-violet-neon px-3 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-90"
+              >
+                Copy
+              </button>
+            </div>
+          ) : null}
+
+          {/* QR code image */}
+          {organizerUpiQrUrl ? (
+            <div className="flex flex-col items-center gap-2">
+              <img
+                src={organizerUpiQrUrl}
+                alt="Organizer UPI QR code"
+                className="h-40 w-40 rounded-xl bg-white object-contain"
+              />
+              <p className="text-xs text-muted">Scan this QR with any UPI app to pay</p>
+            </div>
+          ) : null}
+
+          {/* Pay via UPI intent button */}
+          {upiLink ? (
+            <a
+              href={upiLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full rounded-xl bg-violet-neon px-4 py-3 text-center text-sm font-bold text-white transition-opacity hover:opacity-90"
+            >
+              Open in UPI App
+            </a>
+          ) : null}
+
+          {/* Organizer phone for screenshot */}
+          {organizerPhone ? (
+            <div className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
+              <p className="font-semibold">For faster verification</p>
+              <p className="mt-0.5">
+                Send your GPay/PhonePe payment screenshot to{" "}
+                <a
+                  href={`tel:${organizerPhone}`}
+                  className="font-bold underline"
+                >
+                  {organizerPhone}
+                </a>{" "}
+                (organizer). This helps them confirm your ticket quickly.
+              </p>
+            </div>
+          ) : null}
+
+          {/* Optional UTR reference */}
+          <label className="block space-y-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+              UTR / Transaction ID <span className="normal-case text-zinc-400">(optional)</span>
+              <InfoTooltip />
+            </span>
+            <input
+              name="utrReference"
+              className={INPUT}
+              placeholder="e.g. 123456789012 (from your UPI app)"
+            />
+            <span className="block text-xs text-muted">
+              Enter the transaction reference from your UPI app if available.
+              This helps the organizer find your payment faster.
+            </span>
+          </label>
         </div>
       ) : null}
 
-      {isFree && freeError ? <p className="text-sm text-red-500">{freeError}</p> : null}
-      {!isFree && paidError ? <p className="text-sm text-red-500">{paidError}</p> : null}
+      {error ? <p className="text-sm text-red-500">{error}</p> : null}
 
       <Button
         type="submit"
         size="lg"
         className="w-full"
-        disabled={isFree ? freePending : paidPending}
-        loading={isFree ? freePending : paidPending}
-        loadingText={isFree ? "Confirming…" : "Opening payment…"}
+        disabled={pending}
+        loading={pending}
+        loadingText={isFree ? "Confirming…" : "Submitting booking…"}
       >
-        {isFree ? "Confirm RSVP" : `Pay ₹${totalRupees}`}
+        {isFree ? "Confirm RSVP" : `Submit Booking — ₹${totalRupees}`}
       </Button>
       <p className="text-center text-xs text-muted">
         {isFree ? (
@@ -168,11 +232,35 @@ export function CheckoutForm({
           </>
         ) : (
           <>
-            Your tickets are reserved for <strong>15 minutes</strong>. Complete payment before
-            the timer expires. Tickets are issued instantly on successful payment.
+            After submitting, the organizer will verify your payment and confirm your ticket.
+            You&apos;ll receive a notification once confirmed.
           </>
         )}
       </p>
     </form>
+  );
+}
+
+/** Info tooltip explaining what UTR is and where to find it in GPay / PhonePe */
+function InfoTooltip() {
+  return (
+    <span className="relative inline-flex align-middle">
+      <span className="group inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full bg-zinc-300 text-[10px] font-bold text-zinc-700 dark:bg-white/20 dark:text-white/80">
+        i
+        <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-64 -translate-x-1/2 rounded-xl bg-zinc-900 px-3 py-2.5 text-left text-xs font-normal leading-relaxed text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 dark:bg-zinc-800">
+          <strong className="block text-violet-neon">What is UTR?</strong>
+          <span className="mt-1 block">
+            UTR (Unique Transaction Reference) is a 12-digit number that identifies your UPI payment. It helps the organizer find your payment faster.
+          </span>
+          <strong className="mt-2 block">Where to find it:</strong>
+          <span className="mt-0.5 block">
+            <strong>GPay:</strong> Open the payment → tap the transaction → &quot;Transaction ID&quot; or check the receipt. The UTR appears as a 12-digit reference number.
+          </span>
+          <span className="mt-0.5 block">
+            <strong>PhonePe:</strong> Open the payment → tap &quot;View transaction&quot; → look for &quot;Transaction ID&quot; or &quot;UPI Reference ID&quot; (starts with &quot;T&quot; followed by digits).
+          </span>
+        </span>
+      </span>
+    </span>
   );
 }

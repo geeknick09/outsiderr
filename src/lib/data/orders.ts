@@ -13,7 +13,7 @@ export interface CreateOrderInput {
   eventId: string;
   tierId: string;
   quantity: number;
-  utrReference: string;
+  utrReference: string | null;
   paymentProofUrl: string | null;
   buyerName: string;
   buyerPhone: string;

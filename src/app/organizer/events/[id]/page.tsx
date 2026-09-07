@@ -14,6 +14,7 @@ import { EventStaffManager } from "@/components/organizer/event-staff-manager";
 import { HeroBoostPanel } from "@/components/organizer/hero-boost-panel";
 import { PastEventGalleryManager } from "@/components/organizer/past-event-gallery-manager";
 import { ShareButton } from "@/components/events/share-button";
+import { VerificationQueue } from "@/components/organizer/verification-queue";
 import { WaitlistPanel } from "@/components/organizer/waitlist-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -204,6 +205,17 @@ export default async function ManageEventPage({
 
       {analytics.waitlistCount > 0 ? (
         <WaitlistPanel waitlistCount={analytics.waitlistCount} entries={waitlistEntries} />
+      ) : null}
+
+      {/* Payment verification queue — for paid events with manual UPI flow */}
+      {orders.some((o) => o.status === "PENDING_VERIFICATION") ? (
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold">Payment Verification</h2>
+          <VerificationQueue
+            orders={orders.filter((o) => o.status === "PENDING_VERIFICATION")}
+            organizerEventIds={[event.id]}
+          />
+        </section>
       ) : null}
 
       {/* Attendees / Orders list */}

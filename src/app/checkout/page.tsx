@@ -82,6 +82,10 @@ export default async function CheckoutPage({
             isFree={isFree}
             totalPaise={price.totalPaise}
             totalRupees={formatPaise(price.totalPaise)}
+            organizerUpiId={event.organizer.upiId}
+            organizerUpiQrUrl={event.organizer.upiQrUrl}
+            organizerPhone={event.contactPhone ?? null}
+            organizerName={event.organizer.name}
           />
         </div>
 
@@ -106,10 +110,10 @@ export default async function CheckoutPage({
 
           {!isFree ? (
             <div className="glass rounded-3xl p-5 text-center">
-              <p className="text-sm font-bold text-violet-neon">Secure Checkout</p>
+              <p className="text-sm font-bold text-violet-neon">Secure Manual payment</p>
               <p className="mt-1 text-xs text-muted">
-                Payment is processed securely by Razorpay. We accept UPI, cards, net banking,
-                and wallets. Your tickets are confirmed instantly after payment.
+                Pay the organizer directly via UPI (GPay/PhonePe). After paying, submit your
+                booking — the organizer will verify and confirm your ticket.
               </p>
               <p className="mt-2 text-xs text-muted">
                 Outsiderr is an intermediary platform connecting event organizers with attendees.

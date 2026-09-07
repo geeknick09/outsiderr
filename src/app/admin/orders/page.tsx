@@ -54,7 +54,7 @@ export default async function AdminTransactionsPage({
       <div>
         <h1 className="text-2xl font-black">Transactions</h1>
         <p className="text-sm text-muted">
-          Read-only payment history. All payments are processed via Razorpay.
+          Read-only payment history. Paid events use manual UPI with organizer verification.
         </p>
       </div>
 
@@ -108,7 +108,7 @@ export default async function AdminTransactionsPage({
                 {order.razorpayPaymentId
                   ? `Razorpay: ${order.razorpayPaymentId.slice(0, 24)}`
                   : order.utrReference
-                    ? `Legacy UTR: ${order.utrReference}`
+                    ? `UTR: ${order.utrReference}`
                     : "No payment reference"}
                 {order.paymentMethod ? ` · ${order.paymentMethod}` : ""}
                 {order.invoiceNumber ? ` · Invoice: ${order.invoiceNumber}` : ""}

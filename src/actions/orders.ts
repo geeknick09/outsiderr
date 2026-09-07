@@ -26,9 +26,11 @@ export interface CheckoutState {
 }
 
 // ============================================================================
-// LEGACY: submitPaymentAction — kept for free events + historical UPI orders.
-// Free events still use this (instant RSVP, no Razorpay).
-// Paid events now use createCheckoutAction + Razorpay Checkout instead.
+// submitPaymentAction — used for free events (instant RSVP) and paid events
+// (manual UPI payment with organizer verification).
+// Free events: auto-confirmed with tickets.
+// Paid events: creates PENDING_VERIFICATION order, organizer approves/denies.
+// UTR reference is optional — the organizer verifies payment manually.
 // ============================================================================
 
 export async function submitPaymentAction(
@@ -99,12 +101,9 @@ export async function submitPaymentAction(
     redirect("/tickets?submitted=1");
   }
 
-  // Paid events via legacy UTR flow — kept only for backward compatibility.
-  // New paid bookings should use createCheckoutAction (Razorpay).
-  const utrReference = String(formData.get("utrReference") ?? "").trim();
-  if (utrReference.length < 6) {
-    return { error: "Enter the UTR / transaction reference from your UPI app." };
-  }
+  // Paid events via manual UPI flow — organizer verifies payment.
+  // UTR is optional (helps organizer find payment faster but not required).
+  const utrReference = String(formData.get("utrReference") ?? "").trim() || null;
 
   try {
     await createOrder(user, {
@@ -112,7 +111,7 @@ export async function submitPaymentAction(
       tierId,
       quantity,
       utrReference,
-      paymentProofUrl: (String(formData.get("paymentProofUrl") ?? "") || null),
+      paymentProofUrl: null,
       buyerName: String(formData.get("buyerName") ?? "").trim() || user.name,
       buyerPhone: String(formData.get("buyerPhone") ?? "").trim() || (user.phone ?? ""),
       buyerEmail: String(formData.get("buyerEmail") ?? "").trim() || null,

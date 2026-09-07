@@ -108,6 +108,11 @@ export function AggregatedAnalytics({
     { label: "Tickets sold", value: String(agg.ticketsSold), sub: `${fillPct}% of ${agg.totalCapacity} capacity` },
     { label: "Gross revenue", value: formatPaise(agg.grossRevenuePaise) },
     {
+      label: "Convenience fee",
+      value: formatPaise(agg.platformFeePaise - agg.commissionPaise),
+      sub: "Paid by buyers",
+    },
+    {
       label: "Net payout",
       value: formatPaise(agg.netPayoutPaise),
       sub: `Commission −${formatPaise(agg.commissionPaise)}`,

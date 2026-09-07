@@ -27,6 +27,11 @@ export function AnalyticsPanel({
     },
     { label: "Gross revenue", value: formatPaise(analytics.grossRevenuePaise) },
     {
+      label: "Convenience fee",
+      value: formatPaise(analytics.convenienceFeePaise),
+      sub: "Paid by buyer",
+    },
+    {
       label: "Net payout",
       value: formatPaise(analytics.netPayoutPaise),
       sub: `Commission −${formatPaise(analytics.commissionPaise)}`,

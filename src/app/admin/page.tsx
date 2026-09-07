@@ -19,6 +19,7 @@ export default async function AdminPage() {
     { label: "Total events", value: String(stats.totalEvents), sub: `${stats.activeEvents} live` },
     { label: "Confirmed orders", value: String(stats.confirmedOrders), sub: `${stats.pendingOrders} legacy pending` },
     { label: "Gross revenue", value: formatPaise(stats.grossRevenuePaise), sub: `Commission ${formatPaise(stats.totalCommissionPaise)}` },
+    { label: "Buyer paid (GMV)", value: formatPaise(stats.totalRevenuePaise), sub: `Convenience fee ${formatPaise(stats.totalConvenienceFeePaise)}` },
     { label: "Net payouts", value: formatPaise(stats.totalOrganizerPayoutPaise), sub: `Platform earns ${formatPaise(stats.totalPlatformFeePaise)}` },
     {
       label: "Active boosts",
