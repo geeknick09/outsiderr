@@ -75,6 +75,8 @@ export async function createOrganizerAction(
     };
   }
 
+  // Revalidate the root layout so the Navbar switches to "Manage Your Events" immediately.
+  revalidatePath("/", "layout");
   revalidatePath("/organizer");
   redirect("/organizer");
 }

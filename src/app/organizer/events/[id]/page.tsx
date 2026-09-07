@@ -53,6 +53,8 @@ export default async function ManageEventPage({
 
   const { id } = await params;
 
+  // Load all page data in parallel. Log the real error server-side before letting
+  // the route-level error.tsx handle the fallback UI for the user.
   const [event, analytics, cancelChargePct, postponeChargePct, doorStaffOrder, doorStaffPricing, doorStaffAvailable, heroBoost, heroBoostPrice, heroBoostDuration, orders, tickets, waitlistEntries, eventStaff] = await Promise.all([
     getEvent(id),
     getOrganizerEventAnalytics(user, id),
@@ -68,7 +70,10 @@ export default async function ManageEventPage({
     listEventTickets(id),
     listEventWaitlist(id),
     listEventStaff(user, id),
-  ]);
+  ]).catch((err: unknown) => {
+    console.error("[ManageEventPage] Data load error for event", id, err);
+    throw err; // Re-throw so the route error boundary (error.tsx) handles it
+  });
 
   // Expire stale waitlist offers (best-effort, non-blocking)
   try { await expireWaitlistOffers(); } catch { /* ignore */ }

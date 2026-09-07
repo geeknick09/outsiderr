@@ -639,9 +639,10 @@ export async function createOrganizerProfile(
   if (existing) return existing.id;
 
   const supabase = await createClient();
-  /* eslint-disable @typescript-eslint/no-explicit-any */
-  const { data, error } = await supabase
-    .from("organizers")
+  // Single atomic INSERT with all fields — KYC included — so no partial profile is
+  // left behind if the database is missing columns from an unapplied migration.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase.from("organizers") as any)
     .insert({
       owner_id: user.id,
       name: input.name,
@@ -655,31 +656,27 @@ export async function createOrganizerProfile(
       x_url: input.xUrl,
       facebook_url: input.facebookUrl,
       linkedin_url: input.linkedinUrl,
-    } as any)
+      // KYC / payout fields — included here so the insert is atomic.
+      // If any of these columns are missing (unapplied migration), the whole
+      // INSERT fails cleanly and no orphaned partial profile is created.
+      pan_number: input.panNumber || null,
+      pan_name: input.panName || null,
+      gst_number: input.gstNumber || null,
+      gst_business_name: input.gstBusinessName || null,
+      bank_account_number: input.bankAccountNumber || null,
+      bank_ifsc: input.bankIfsc || null,
+      bank_account_name: input.bankAccountName || null,
+      bank_account_type: input.bankAccountType || null,
+      kyc_submitted: !!(input.panNumber && input.bankAccountNumber),
+    })
     .select("id")
     .single();
 
-  // Check insert error IMMEDIATELY — don't proceed to KYC update if insert failed
-  if (error) throw error;
-  if (!data?.id) throw new Error("Failed to create organizer profile — no ID returned.");
-
-  // Update KYC fields separately so the Supabase generated types don't need updating
-  const { error: kycError } = await (supabase.from("organizers") as any).update({
-    pan_number: input.panNumber || null,
-    pan_name: input.panName || null,
-    gst_number: input.gstNumber || null,
-    gst_business_name: input.gstBusinessName || null,
-    bank_account_number: input.bankAccountNumber || null,
-    bank_ifsc: input.bankIfsc || null,
-    bank_account_name: input.bankAccountName || null,
-    bank_account_type: input.bankAccountType || null,
-    kyc_submitted: !!(input.panNumber && input.bankAccountNumber),
-  }).eq("id", data.id);
-  if (kycError) {
-    console.error("KYC update failed:", kycError);
-    throw new Error(`Organizer created but KYC update failed: ${kycError.message}`);
+  if (error) {
+    console.error("createOrganizerProfile insert error:", error);
+    throw error;
   }
-  /* eslint-enable @typescript-eslint/no-explicit-any */
+  if (!data?.id) throw new Error("Failed to create organizer profile — no ID returned.");
 
   // Flip the is_organizer flag on the profile row.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
