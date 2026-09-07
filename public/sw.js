@@ -1,5 +1,5 @@
 // Outsiderr service worker — app-like caching with stale-while-revalidate
-const CACHE_VERSION = "outsiderr-v2";
+const CACHE_VERSION = "outsiderr-v3";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const PAGE_CACHE = `${CACHE_VERSION}-pages`;
 const IMAGE_CACHE = `${CACHE_VERSION}-images`;
@@ -55,6 +55,28 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   const sameOrigin = url.origin === self.location.origin;
+
+  // --- RSC (React Server Component) payloads: NEVER cache ---
+  // Next.js App Router fetches RSC payloads for client-side navigations.
+  // These contain server-rendered data (events, orders, etc.) and must
+  // always be fresh. Caching them causes stale data to appear after
+  // mutations (e.g. newly created events not showing in My Events).
+  // RSC requests are identified by the `RSC: 1` header.
+  if (sameOrigin && request.headers.get("RSC") === "1") {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          // Don't cache RSC payloads at all — always fetch fresh
+          return response;
+        })
+        .catch(async () => {
+          // Only fall back to cache if network fails (offline)
+          const cached = await caches.match(request);
+          return cached || Response.error();
+        }),
+    );
+    return;
+  }
 
   // --- Navigations: network-first, fall back to cache, then to "/" ---
   if (request.mode === "navigate") {
@@ -118,19 +140,24 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // --- Other same-origin GET: stale-while-revalidate ---
+  // --- Other same-origin GET: network-first (NOT stale-while-revalidate) ---
+  // Previously this used stale-while-revalidate, which cached RSC payloads
+  // and caused stale data after mutations. Now we always fetch fresh,
+  // only falling back to cache if the network fails (offline).
   if (sameOrigin) {
     event.respondWith(
-      caches.match(request).then((cached) => {
-        const fetchPromise = fetch(request).then((response) => {
+      fetch(request)
+        .then((response) => {
           if (response.ok) {
             const copy = response.clone();
             caches.open(STATIC_CACHE).then((cache) => cache.put(request, copy));
           }
           return response;
-        });
-        return cached || fetchPromise;
-      }),
+        })
+        .catch(async () => {
+          const cached = await caches.match(request);
+          return cached || Response.error();
+        }),
     );
     return;
   }
