@@ -389,6 +389,7 @@ export async function createEventAction(
 
   revalidatePath("/");
   revalidatePath("/organizer");
+  revalidatePath("/organizer", "layout");
   // Drafts redirect to the organizer events list; published events go to the event page
   if (isDraft) {
     redirect(`/organizer?tab=events`);

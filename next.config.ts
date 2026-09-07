@@ -49,6 +49,16 @@ const nextConfig: NextConfig = {
         "localhost:3001",
       ],
     },
+    // Router Cache: reduce client-side RSC payload cache lifetime.
+    // Default is 30s for dynamic pages, 5min for static. After a Server Action
+    // mutates data (e.g. creating an event), revalidatePath invalidates the
+    // server-side cache but NOT the client-side Router Cache. Users navigating
+    // back to the same page see stale data until the cache expires.
+    // Setting dynamic staleTime to 0 forces a fresh fetch on every navigation.
+    staleTimes: {
+      dynamic: 0,
+      static: 300,
+    },
   },
   // Allow /_next/* internal dev resources from the preview proxy
   allowedDevOrigins: ["127.0.0.1"],

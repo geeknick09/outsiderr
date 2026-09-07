@@ -1,26 +1,16 @@
-// Outsiderr service worker — app-like caching with stale-while-revalidate
-const CACHE_VERSION = "outsiderr-v3";
+// Outsiderr service worker — accuracy-first caching
+// Only caches static assets (_next/static) and images.
+// All pages, RSC payloads, and dynamic data ALWAYS fetch from network.
+// Cache is only used as a fallback when the network fails (offline mode).
+const CACHE_VERSION = "outsiderr-v4";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
-const PAGE_CACHE = `${CACHE_VERSION}-pages`;
 const IMAGE_CACHE = `${CACHE_VERSION}-images`;
-
-// Precache the app shell
-const PRECACHE = [
-  "/",
-  "/manifest.webmanifest",
-  "/lightmode.png",
-];
 
 // Max items in image cache (LRU eviction)
 const IMAGE_CACHE_MAX = 60;
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches
-      .open(STATIC_CACHE)
-      .then((cache) => cache.addAll(PRECACHE))
-      .then(() => self.skipWaiting()),
-  );
+  event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener("activate", (event) => {
@@ -56,48 +46,8 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   const sameOrigin = url.origin === self.location.origin;
 
-  // --- RSC (React Server Component) payloads: NEVER cache ---
-  // Next.js App Router fetches RSC payloads for client-side navigations.
-  // These contain server-rendered data (events, orders, etc.) and must
-  // always be fresh. Caching them causes stale data to appear after
-  // mutations (e.g. newly created events not showing in My Events).
-  // RSC requests are identified by the `RSC: 1` header.
-  if (sameOrigin && request.headers.get("RSC") === "1") {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Don't cache RSC payloads at all — always fetch fresh
-          return response;
-        })
-        .catch(async () => {
-          // Only fall back to cache if network fails (offline)
-          const cached = await caches.match(request);
-          return cached || Response.error();
-        }),
-    );
-    return;
-  }
-
-  // --- Navigations: network-first, fall back to cache, then to "/" ---
-  if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(PAGE_CACHE).then((cache) => cache.put(request, copy));
-          return response;
-        })
-        .catch(async () => {
-          const cached = await caches.match(request);
-          if (cached) return cached;
-          const fallback = await caches.match("/");
-          return fallback || Response.error();
-        }),
-    );
-    return;
-  }
-
-  // --- Same-origin static assets: stale-while-revalidate ---
+  // --- Static assets (_next/static): stale-while-revalidate ---
+  // These are hashed files that never change content — safe to cache.
   if (sameOrigin && url.pathname.startsWith("/_next/static/")) {
     event.respondWith(
       caches.match(request).then((cached) => {
@@ -114,7 +64,9 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // --- Images (same-origin or Supabase Storage): cache-first with background update ---
+  // --- Images: cache-first with background revalidation ---
+  // Images are large and don't change often. Cache-first for speed,
+  // but always revalidate in the background.
   const isImage =
     request.destination === "image" ||
     /\.(?:png|jpg|jpeg|gif|webp|svg|avif)$/i.test(url.pathname);
@@ -140,23 +92,31 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // --- Other same-origin GET: network-first (NOT stale-while-revalidate) ---
-  // Previously this used stale-while-revalidate, which cached RSC payloads
-  // and caused stale data after mutations. Now we always fetch fresh,
-  // only falling back to cache if the network fails (offline).
+  // --- EVERYTHING ELSE: network-first, cache only for offline fallback ---
+  // This covers:
+  //   - HTML page navigations (request.mode === "navigate")
+  //   - RSC payloads (request.headers["RSC"] === "1")
+  //   - Any other same-origin GET request
+  // All dynamic data must come from the database — never from cache.
   if (sameOrigin) {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          if (response.ok) {
-            const copy = response.clone();
-            caches.open(STATIC_CACHE).then((cache) => cache.put(request, copy));
-          }
+          // Don't cache dynamic responses — just return them fresh
           return response;
         })
         .catch(async () => {
+          // Network failed — try cache as last resort (offline mode)
           const cached = await caches.match(request);
-          return cached || Response.error();
+          if (cached) return cached;
+          // For navigations, fall back to a basic page
+          if (request.mode === "navigate") {
+            return new Response(
+              "<html><body><h2>You are offline</h2><p>Please check your internet connection.</p></body></html>",
+              { headers: { "Content-Type": "text/html" } },
+            );
+          }
+          return Response.error();
         }),
     );
     return;
