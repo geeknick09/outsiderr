@@ -14,6 +14,10 @@ import { usePathname, useSearchParams } from "next/navigation";
  * - CSS transition animates from 20% → 80% over 600ms automatically
  * - Sets to 100% when the new page has rendered (one more state update)
  * - Fades out after 300ms
+ *
+ * Also disables browser scroll restoration (which fights with Next.js and causes
+ * the page to "scroll down" after server actions / redirects) and explicitly
+ * scrolls to top on every pathname change.
  */
 export function NavigationProgress() {
   const pathname = usePathname();
@@ -25,6 +29,14 @@ export function NavigationProgress() {
   const fadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevPath = useRef(pathname + searchParams.toString());
+
+  // Disable browser scroll restoration — it fights with Next.js and causes
+  // the page to jump to a stale scroll position after server actions / redirects.
+  useEffect(() => {
+    if ("scrollRestoration" in history) {
+      history.scrollRestoration = "manual";
+    }
+  }, []);
 
   function startProgress() {
     if (completeTimer.current) clearTimeout(completeTimer.current);
@@ -51,8 +63,9 @@ export function NavigationProgress() {
     const currentPath = pathname + searchParams.toString();
     if (currentPath === prevPath.current) return;
     prevPath.current = currentPath;
-    // Navigation completed — finish the bar
+    // Navigation completed — finish the bar + scroll to top
     finishProgress();
+    window.scrollTo(0, 0);
   }, [pathname, searchParams]);
 
   // Detect form submissions (server actions)
