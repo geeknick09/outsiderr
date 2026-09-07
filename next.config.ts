@@ -30,9 +30,28 @@ const nextConfig: NextConfig = {
   // Power by header off (tiny perf win)
   poweredByHeader: false,
   // Tree-shake barrel imports from lucide-react (only bundle used icons)
+  // + serverActions.allowedOrigins for CSRF origin matching.
+  // Without allowedOrigins, Next.js throws "Invalid Server Actions request."
+  // when the origin header doesn't match x-forwarded-host (e.g. Vercel preview
+  // deployments, custom domains, or dev preview proxies).
   experimental: {
     optimizePackageImports: ["lucide-react"],
+    serverActions: {
+      allowedOrigins: [
+        // Production + preview deployments on Vercel
+        "outsiderr.vercel.app",
+        "*.vercel.app",
+        // Custom production domain
+        "outsiderr.in",
+        "*.outsiderr.in",
+        // Local dev server
+        "localhost:3000",
+        "localhost:3001",
+      ],
+    },
   },
+  // Allow /_next/* internal dev resources from the preview proxy
+  allowedDevOrigins: ["127.0.0.1"],
 };
 
 export default nextConfig;
