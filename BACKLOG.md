@@ -293,15 +293,22 @@ This document tracks all product, engineering, infrastructure, payment, organize
 
 - [ ] **Run `supabase/migrations/fix_all.sql`** in Supabase SQL Editor — Must be re-run to apply: strict admin function (no fallback), commission tier settings, phased pricing columns on `ticket_tiers` (`tier_type`, `phase_order`, `phase_opens_at`, `phase_closes_at`), user profile columns on `profiles` (`birth_date`, `interested_tags`, `instagram_url`), cover photo + Instagram URL columns on `organizers` (`cover_url`, `instagram_url`), Instagram URL column on `events` (`instagram_url`), and all prior migrations.
 - [ ] **Run `supabase/migrations/fix_all.sql`** (re-run after QA fixes) — Now includes: secured `approve_order`/`reject_order` RPCs with `is_event_staff` auth check + stock check, new `cancel_event` atomic RPC, new `postpone_event` atomic RPC, unique constraint on `club_members(club_id, user_id)`, **updated `create_paid_order` RPC with fee snapshot parameters** (`p_commission_paise`, `p_convenience_fee_paise`, `p_organizer_payout_paise`), **`check_in_ticket` RPC** (door scanner check-in with `p_event_id` parameter).
+- [ ] **Run `supabase/migrations/fix_all.sql`** (re-run after Razorpay migration) — Now includes: Razorpay notification types (`PAYMENT_SUCCESS`, `PAYMENT_FAILED`, `REFUND_INITIATED`, `REFUND_COMPLETED`, `PAYOUT_COMPLETED`).
+- [ ] **Run `scripts/apply-razorpay-migration.mjs`** — Applies the Razorpay schema migration to the live Supabase database (new order statuses, Razorpay columns on orders/hero_boosts/refunds, `webhook_events`, `payment_ledger`, `payout_records`, `invoice_number_seq`, new RPCs: `create_reserved_order`, `confirm_razorpay_order`, `fail_razorpay_order`, `expire_reserved_orders`, `set_razorpay_order_id`).
+- [ ] **Run `scripts/add-notification-types.mjs`** — Adds the new Razorpay notification types to the `event_notification_type` enum.
 - [ ] **Run `supabase/migrations/wipe_all.sql`** if you want a clean reset — now includes commission tier seeds and auto-promote first admin trigger.
-- [ ] **Set `NEXT_PUBLIC_PLATFORM_UPI_ID`** env var — Required for the UPI QR code displayed in the Hero Boost payment panel.
+- [ ] **Set Razorpay env vars** — `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `NEXT_PUBLIC_RAZORPAY_KEY_ID`, `CRON_SECRET`, `SUPABASE_SERVICE_ROLE_KEY` (see `.env.example`).
+- [ ] **Configure Razorpay webhook** — Set the webhook URL to `https://yourdomain.com/api/razorpay/webhook` in the Razorpay dashboard and subscribe to `payment.captured`, `order.paid`, `payment.failed`, `refund.processed`, `refund.failed` events.
+- [ ] **Configure Vercel Cron** — Add a cron job to call `GET /api/cron/expire-reservations` with `Authorization: Bearer <CRON_SECRET>` every 1 minute to expire stale reservations.
+- [ ] **Run `supabase/migrations/fix_all.sql`** (re-run after UX fixes) — Now includes: `waitlist_enabled` column on `events` (boolean, default true), updated RLS policy to allow `POSTPONED` events to be publicly visible, 15 performance indexes (events status/city/categories GIN/trigram, orders status/date/razorpay_order_id/user_id, profiles is_admin/created_at, hero_boosts razorpay_order_id, webhook_events processed, refunds razorpay_refund_id/order_id, payment_ledger razorpay_payment_id), `pg_trgm` extension, nullable `p_razorpay_signature` parameter on `confirm_razorpay_order`.
+- [ ] **Run `supabase/migrations/fix_all.sql`** (re-run after event lifecycle features) — Now includes: `event_staff` table for door staff access (organizer assigns by email/phone, staff only access `/scan`), `REFUND_REQUESTED` order status, `request_postponement_refund` RPC (user requests refund for postponed event), updated `is_event_staff` to check `event_staff` table, `is_door_staff_any()` and `get_staff_organizer_ids()` functions, `events` table added to realtime publication, `event_staff` RLS policies.
 
 ---
 
 ## 18. Remaining Work (Not Started)
 
 ### High Priority
-- [ ] **Razorpay Integration** — Server-side order creation, Checkout, payment verification, webhook handling, auto-refunds.
+- [x] **Razorpay Integration** — Server-side order creation, Checkout, payment verification, webhook handling, auto-refunds. **IMPLEMENTED** — paid ticket checkout and Hero Boost purchases now use Razorpay Checkout. Free events remain unchanged. Legacy UPI/manual verification kept for historical orders only.
 - [ ] **Custom Domain + Vercel** — DNS, SSL, HTTPS, redirect strategy.
 - [ ] **Phone + OTP Authentication** — Replace email/password with phone OTP.
 - [ ] **Central Notification Infrastructure** — Common `sendNotification(user, type, data)` abstraction.
@@ -316,6 +323,87 @@ This document tracks all product, engineering, infrastructure, payment, organize
 - [ ] **Payment Webhook Infrastructure** — Razorpay webhook endpoint.
 - [ ] **Admin Analytics** — DAU/MAU/trends.
 - [ ] **Audit Log Table** — Track important admin/organizer actions.
+
+### Post-Launch — Refund Fee Bearer Choice + Organizer Settlement Dues
+
+> **Status:** Designed, not yet implemented. Scheduled for after first launch.
+> **Scope:** Cancellation and postponement refund flows.
+
+#### Feature: Organizer chooses who bears the convenience fee
+
+When an organizer cancels or postpones an event (and when a user requests a postponement refund), the organizer should be able to choose who bears the convenience fee (e.g., 3%):
+
+- **Option A — Organizer bears the convenience fee:**
+  - Buyer receives a **full refund** = subtotal + convenience_fee
+  - Organizer's settlement dues increase by: total convenience_fee + cancellation_charge
+  - Platform keeps: commission + cancellation_charge
+  - Razorpay refund amount = order.total_paise (full)
+
+- **Option B — User bears the convenience fee:**
+  - Buyer receives a **partial refund** = subtotal only (convenience_fee is deducted, not refunded)
+  - Platform keeps: commission + convenience_fee + cancellation_charge
+  - Organizer's settlement dues increase by: cancellation_charge only
+  - Razorpay refund amount = order.subtotal_paise (partial)
+  - The user is clearly notified that the convenience fee is non-refundable per the organizer's policy
+
+#### Worked example (5 tickets × ₹200, 3% convenience fee, 5% cancellation charge)
+
+| Item | Amount |
+|---|---|
+| Subtotal (5 × ₹200) | ₹1,000 |
+| Convenience fee (3%) | ₹30 |
+| Total paid by buyers | ₹1,030 |
+| Cancellation charge (5% of subtotal) | ₹50 |
+
+**If organizer bears convenience fee:**
+- Each buyer gets: ₹206 (full refund)
+- Organizer owes platform: ₹30 (convenience) + ₹50 (cancel charge) = ₹80
+- Platform net: keeps commission + ₹80 from organizer
+
+**If user bears convenience fee:**
+- Each buyer gets: ₹200 (subtotal only, ₹6 convenience fee lost)
+- Organizer owes platform: ₹50 (cancel charge only)
+- Platform net: keeps commission + ₹30 (convenience) + ₹50 (cancel charge) = ₹80
+
+#### Feature: Organizer Settlement Dues section
+
+A new section on the organizer dashboard showing the running balance the organizer owes the platform:
+
+- **Total dues** = sum of all unpaid convenience_fee liabilities + cancellation charges + postponement charges
+- **Per-event breakdown** — each cancelled/postponed event with its charge details
+- **Payment status** per event: `PENDING`, `PARTIALLY_PAID`, `SETTLED`
+- **Admin settlement** — admin can mark dues as settled after receiving a bank transfer
+- **Ledger trail** — every adjustment is recorded in `payment_ledger` with type `ADJUSTMENT`
+- **Organizer can see**: total dues, breakdown by event, history of settlements
+- **Admin can see**: all organizers' dues, mark as settled, filter by status
+
+#### Implementation plan (post-launch)
+
+1. **Schema:**
+   - Add `convenience_fee_bearer` column to `events` table (enum: `ORGANIZER`, `USER`, default `ORGANIZER`)
+   - Or make it a per-cancellation choice stored on the event at cancellation time
+   - Add `settlement_dues` table or use `payment_ledger` with `ADJUSTMENT` type (already exists)
+   - Add `settlement_status` to track payment of dues
+
+2. **Cancellation flow:**
+   - Cancel modal shows a toggle: "Who bears the convenience fee? [Organizer / User]"
+   - `cancel_event` RPC accepts `p_convenience_fee_bearer` parameter
+   - If `ORGANIZER`: refund full total_paise, record convenience_fee as organizer liability
+   - If `USER`: refund subtotal_paise only, platform keeps convenience_fee
+
+3. **Postponement refund flow:**
+   - When user requests refund, check the event's `convenience_fee_bearer` setting
+   - If `ORGANIZER`: refund full total_paise
+   - If `USER`: refund subtotal_paise only
+
+4. **Settlement Dues UI:**
+   - Organizer dashboard: new "Settlement Dues" card showing total owed
+   - Click → detailed breakdown page per event
+   - Admin: "Organizer Dues" management page with settle/mark-paid actions
+
+5. **Notifications:**
+   - Notify buyer of refund amount and whether convenience fee was deducted
+   - Notify organizer of updated dues balance after each cancellation/postponement
 
 ### Low Priority
 - [ ] **Branded Loading Animation** — Custom animation replacing skeletons.

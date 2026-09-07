@@ -26,10 +26,12 @@ export function TicketTiers({
   event,
   feeBps,
   waitlistData = [],
+  waitlistEnabled = true,
 }: {
   event: EventDetail;
   feeBps?: number;
   waitlistData?: WaitlistTierData[];
+  waitlistEnabled?: boolean;
 }) {
   const router = useRouter();
   const eventIsPast = isPast(event.startsAt);
@@ -48,7 +50,11 @@ export function TicketTiers({
       setTiers((prev) =>
         prev.map((t) =>
           t.id === row.id
-            ? { ...t, quantitySold: row.quantity_sold as number }
+            ? {
+                ...t,
+                quantitySold: row.quantity_sold as number,
+                quantityReserved: (row.quantity_reserved as number) ?? 0,
+              }
             : t,
         ),
       );
@@ -65,7 +71,10 @@ export function TicketTiers({
   const activePhaseTier = activePhase?.tier ?? null;
 
   // Bookable tiers: active phase + all named tiers with availability
-  const availableNamed = namedTiers.filter((t) => t.quantity > t.quantitySold);
+  // Account for both sold AND reserved tickets to prevent overbooking
+  const availableNamed = namedTiers.filter(
+    (t) => t.quantity - t.quantitySold - (t.quantityReserved ?? 0) > 0,
+  );
   const bookableTiers: TicketTier[] = [
     ...(activePhaseTier ? [activePhaseTier] : []),
     ...availableNamed,
@@ -282,10 +291,12 @@ export function TicketTiers({
               All tiers sold out
             </p>
           )}
-          {tiers
+          {waitlistEnabled ? tiers
             .filter((tier) => {
               // For phased events, only show waitlist for the ACTIVE phase that is sold out
-              if (tier.tierType !== "FLAT_PHASE") return tier.quantitySold >= tier.quantity;
+              if (tier.tierType !== "FLAT_PHASE") {
+                return tier.quantity - tier.quantitySold - (tier.quantityReserved ?? 0) <= 0;
+              }
               const phase = phaseAvailability.find((p) => p.tier.id === tier.id);
               if (!phase) return false;
               // Only show waitlist for active phases that are sold out, not upcoming ones
@@ -303,7 +314,7 @@ export function TicketTiers({
                   waitlistCount={wl?.count ?? 0}
                 />
               );
-            })}
+            }) : null}
         </div>
       ) : null}
     </section>

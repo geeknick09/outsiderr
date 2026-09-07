@@ -19,6 +19,7 @@ export async function Navbar() {
 
   let isAdmin = false;
   let isOrganizer = false;
+  let isDoorStaff = false;
   let notifications: Awaited<ReturnType<typeof listUserNotifications>> = [];
   let unreadCount = 0;
   if (user) {
@@ -36,6 +37,12 @@ export async function Navbar() {
       const organizer = await getOrganizerProfile(user);
       isOrganizer = !!organizer;
     }
+    // Check if user is assigned as door staff for any event
+    const { count: staffCount } = await supabase
+      .from("event_staff")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+    isDoorStaff = (staffCount ?? 0) > 0;
     // Fetch notifications
     [notifications, unreadCount] = await Promise.all([
       listUserNotifications(user),
@@ -62,7 +69,7 @@ export async function Navbar() {
               initialUnreadCount={unreadCount}
             />
           ) : null}
-          <UserMenu name={user?.name ?? null} isAdmin={isAdmin} isOrganizer={isOrganizer} />
+          <UserMenu name={user?.name ?? null} isAdmin={isAdmin} isOrganizer={isOrganizer} isDoorStaff={isDoorStaff} />
         </div>
       </nav>
     </header>

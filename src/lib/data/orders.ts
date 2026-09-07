@@ -4,8 +4,10 @@ import { MAX_TICKETS_PER_ORDER } from "@/lib/constants";
 import { getEvent } from "@/lib/data/events";
 import { calculatePrice } from "@/lib/pricing";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import type { CurrentUser } from "@/lib/auth";
 import type { Order, ScanResult, Ticket } from "@/lib/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export interface CreateOrderInput {
   eventId: string;
@@ -20,6 +22,20 @@ export interface CreateOrderInput {
 }
 
 export interface CreateFreeOrderInput {
+  eventId: string;
+  tierId: string;
+  quantity: number;
+  buyerName: string;
+  buyerPhone: string;
+  buyerEmail: string | null;
+  buyerGender: string | null;
+}
+
+/**
+ * Input for the Razorpay reserved-order flow.
+ * Inventory is reserved (held) for 15 minutes while the buyer completes payment.
+ */
+export interface CreateReservedOrderInput {
   eventId: string;
   tierId: string;
   quantity: number;
@@ -91,11 +107,21 @@ export async function createOrder(
     unitPricePaise: data.unit_price_paise,
     subtotalPaise: data.subtotal_paise,
     platformFeePaise: data.platform_fee_paise,
+    commissionPaise: data.commission_paise ?? 0,
+    convenienceFeePaise: data.convenience_fee_paise ?? 0,
+    organizerPayoutPaise: data.organizer_payout_paise ?? 0,
     totalPaise: data.total_paise,
     feePayer: data.fee_payer,
     status: data.status,
     utrReference: data.utr_reference,
     paymentProofUrl: data.payment_proof_url,
+    razorpayOrderId: data.razorpay_order_id ?? null,
+    razorpayPaymentId: data.razorpay_payment_id ?? null,
+    paymentMethod: data.payment_method ?? null,
+    invoiceNumber: data.invoice_number ?? null,
+    reservedAt: data.reserved_at ?? null,
+    reservationExpiresAt: data.reservation_expires_at ?? null,
+    confirmedAt: data.confirmed_at ?? null,
     buyerName: data.buyer_name,
     buyerPhone: data.buyer_phone,
     buyerEmail: data.buyer_email ?? null,
@@ -133,7 +159,7 @@ export async function createFreeOrder(
       .select("id", { count: "exact", head: true })
       .eq("event_id", event.id)
       .eq("user_id", user.id)
-      .in("status", ["CONFIRMED", "PENDING_VERIFICATION"]);
+      .in("status", ["CONFIRMED", "PENDING_VERIFICATION", "RESERVED"]);
     if (count && count > 0) {
       throw new Error("You have already booked a ticket for this event.");
     }
@@ -162,11 +188,21 @@ export async function createFreeOrder(
     unitPricePaise: data.unit_price_paise,
     subtotalPaise: data.subtotal_paise,
     platformFeePaise: data.platform_fee_paise,
+    commissionPaise: data.commission_paise ?? 0,
+    convenienceFeePaise: data.convenience_fee_paise ?? 0,
+    organizerPayoutPaise: data.organizer_payout_paise ?? 0,
     totalPaise: data.total_paise,
     feePayer: data.fee_payer,
     status: data.status,
     utrReference: data.utr_reference,
     paymentProofUrl: data.payment_proof_url,
+    razorpayOrderId: data.razorpay_order_id ?? null,
+    razorpayPaymentId: data.razorpay_payment_id ?? null,
+    paymentMethod: data.payment_method ?? null,
+    invoiceNumber: data.invoice_number ?? null,
+    reservedAt: data.reserved_at ?? null,
+    reservationExpiresAt: data.reservation_expires_at ?? null,
+    confirmedAt: data.confirmed_at ?? null,
     buyerName: data.buyer_name,
     buyerPhone: data.buyer_phone,
     buyerEmail: data.buyer_email ?? null,
@@ -186,11 +222,21 @@ async function hydrateOrders(
     unit_price_paise: number;
     subtotal_paise: number;
     platform_fee_paise: number;
+    commission_paise?: number | null;
+    convenience_fee_paise?: number | null;
+    organizer_payout_paise?: number | null;
     total_paise: number;
     fee_payer: Order["feePayer"];
     status: Order["status"];
     utr_reference: string | null;
     payment_proof_url: string | null;
+    razorpay_order_id?: string | null;
+    razorpay_payment_id?: string | null;
+    payment_method?: string | null;
+    invoice_number?: string | null;
+    reserved_at?: string | null;
+    reservation_expires_at?: string | null;
+    confirmed_at?: string | null;
     buyer_name: string | null;
     buyer_phone: string | null;
     buyer_email: string | null;
@@ -204,14 +250,18 @@ async function hydrateOrders(
   const tierIds = [...new Set(rows.map((row) => row.tier_id))];
 
   const [{ data: events }, { data: tiers }] = await Promise.all([
-    supabase.from("events").select("id, title").in("id", eventIds),
+    supabase.from("events").select("id, title, status, starts_at").in("id", eventIds),
     supabase.from("ticket_tiers").select("id, name").in("id", tierIds),
   ]);
 
-  return rows.map((row) => ({
+  return rows.map((row) => {
+    const evt = events?.find((event) => event.id === row.event_id);
+    return {
     id: row.id,
     eventId: row.event_id,
-    eventTitle: events?.find((event) => event.id === row.event_id)?.title ?? "Event",
+    eventTitle: evt?.title ?? "Event",
+    eventStatus: evt?.status as string | undefined,
+    eventStartsAt: evt?.starts_at as string | undefined,
     tierId: row.tier_id,
     tierName: tiers?.find((tier) => tier.id === row.tier_id)?.name ?? "Ticket",
     userId: row.user_id,
@@ -219,18 +269,29 @@ async function hydrateOrders(
     unitPricePaise: row.unit_price_paise,
     subtotalPaise: row.subtotal_paise,
     platformFeePaise: row.platform_fee_paise,
+    commissionPaise: row.commission_paise ?? 0,
+    convenienceFeePaise: row.convenience_fee_paise ?? 0,
+    organizerPayoutPaise: row.organizer_payout_paise ?? 0,
     totalPaise: row.total_paise,
     feePayer: row.fee_payer,
     status: row.status,
     utrReference: row.utr_reference,
     paymentProofUrl: row.payment_proof_url,
+    razorpayOrderId: row.razorpay_order_id ?? null,
+    razorpayPaymentId: row.razorpay_payment_id ?? null,
+    paymentMethod: row.payment_method ?? null,
+    invoiceNumber: row.invoice_number ?? null,
+    reservedAt: row.reserved_at ?? null,
+    reservationExpiresAt: row.reservation_expires_at ?? null,
+    confirmedAt: row.confirmed_at ?? null,
     buyerName: row.buyer_name,
     buyerPhone: row.buyer_phone,
     buyerEmail: row.buyer_email ?? null,
     buyerGender: row.buyer_gender ?? null,
     rejectionReason: row.rejection_reason,
     createdAt: row.created_at,
-  }));
+  };
+  });
 }
 
 export async function listMyOrders(user: CurrentUser): Promise<Order[]> {
@@ -241,6 +302,21 @@ export async function listMyOrders(user: CurrentUser): Promise<Order[]> {
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
+  return hydrateOrders(data ?? []);
+}
+
+/**
+ * List all orders for a set of organizer event ids.
+ * Used by the Order Monitor on the organizer dashboard.
+ */
+export async function listOrdersForOrganizerEvents(eventIds: string[]): Promise<Order[]> {
+  if (eventIds.length === 0) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("orders")
+    .select("*")
+    .in("event_id", eventIds)
+    .order("created_at", { ascending: false });
   return hydrateOrders(data ?? []);
 }
 
@@ -432,5 +508,179 @@ export async function checkInTicket(qrHash: string, eventId: string): Promise<Sc
       quantity,
       checkedInAt: row.checked_in_at,
     },
+  };
+}
+
+// ============================================================================
+// Razorpay integration — reserve, confirm, fail, expire
+// ============================================================================
+
+/**
+ * Reserve inventory + create a RESERVED order (Razorpay flow).
+ * Inventory is held for 15 minutes. Does NOT mint tickets.
+ * Returns the internal order row (includes id, reservation_expires_at, etc).
+ */
+export async function createReservedOrder(
+  user: CurrentUser,
+  input: CreateReservedOrderInput,
+): Promise<{
+  id: string;
+  eventId: string;
+  tierId: string;
+  quantity: number;
+  totalPaise: number;
+  reservationExpiresAt: string | null;
+}> {
+  if (input.quantity < 1 || input.quantity > MAX_TICKETS_PER_ORDER) {
+    throw new Error(`Choose between 1 and ${MAX_TICKETS_PER_ORDER} tickets.`);
+  }
+
+  const event = await getEvent(input.eventId);
+  const tier = event?.tiers.find((c) => c.id === input.tierId);
+  if (!event || !tier) throw new Error("This ticket tier is no longer available.");
+  if (tier.pricePaise === 0) throw new Error("Use the free checkout for free tickets.");
+  if (tier.quantity - tier.quantitySold - (tier.quantityReserved ?? 0) < input.quantity) {
+    throw new Error("Not enough tickets left in this tier.");
+  }
+
+  const supabase = await createClient();
+
+  // Prevent double booking — same check as free orders
+  if (MAX_TICKETS_PER_ORDER === 1) {
+    const { count } = await supabase
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", event.id)
+      .eq("user_id", user.id)
+      .in("status", ["CONFIRMED", "PENDING_VERIFICATION", "RESERVED"]);
+    if (count && count > 0) {
+      throw new Error("You have already booked a ticket for this event.");
+    }
+  }
+
+  const price = calculatePrice(tier.pricePaise, input.quantity, event.feePayer, undefined, {
+    commissionBps: event.commissionBps,
+    commissionEnabled: event.commissionEnabled,
+    convenienceFeeBps: event.convenienceFeeBps,
+    convenienceFeeEnabled: event.convenienceFeeEnabled,
+  });
+
+  const { data, error } = await supabase.rpc("create_reserved_order", {
+    p_event_id: event.id,
+    p_tier_id: tier.id,
+    p_quantity: input.quantity,
+    p_unit_price_paise: tier.pricePaise,
+    p_subtotal_paise: price.subtotalPaise,
+    p_platform_fee_paise: price.platformFeePaise,
+    p_commission_paise: price.commissionPaise,
+    p_convenience_fee_paise: price.convenienceFeePaise,
+    p_organizer_payout_paise: price.organizerPayoutPaise,
+    p_total_paise: price.totalPaise,
+    p_fee_payer: event.feePayer,
+    p_buyer_name: input.buyerName || null,
+    p_buyer_phone: input.buyerPhone || null,
+    p_buyer_email: input.buyerEmail || null,
+    p_buyer_gender: input.buyerGender || null,
+  });
+
+  if (error) throw new Error(error.message || "Failed to reserve tickets.");
+  if (!data) throw new Error("Failed to reserve tickets.");
+
+  return {
+    id: data.id,
+    eventId: data.event_id,
+    tierId: data.tier_id,
+    quantity: data.quantity,
+    totalPaise: data.total_paise,
+    reservationExpiresAt: data.reservation_expires_at,
+  };
+}
+
+/**
+ * Set the Razorpay order id on an existing RESERVED order.
+ * Called after razorpay.orders.create() succeeds.
+ */
+export async function setRazorpayOrderId(
+  orderId: string,
+  razorpayOrderId: string,
+  client?: SupabaseClient,
+): Promise<void> {
+  const supabase = client ?? (await createClient());
+  const { error } = await supabase.rpc("set_razorpay_order_id", {
+    p_order_id: orderId,
+    p_razorpay_order_id: razorpayOrderId,
+  });
+  if (error) throw new Error(error.message || "Failed to link Razorpay order.");
+}
+
+/**
+ * Confirm a RESERVED order after payment signature verification.
+ * Converts reserved inventory → sold, mints tickets, generates invoice number.
+ * Idempotent: if already confirmed, returns existing tickets.
+ */
+export async function confirmRazorpayOrder(
+  orderId: string,
+  razorpayPaymentId: string,
+  razorpaySignature: string | null,
+  paymentMethod: string | null,
+  client?: SupabaseClient,
+): Promise<void> {
+  const supabase = client ?? (await createClient());
+  const { error } = await supabase.rpc("confirm_razorpay_order", {
+    p_order_id: orderId,
+    p_razorpay_payment_id: razorpayPaymentId,
+    p_razorpay_signature: razorpaySignature,
+    p_payment_method: paymentMethod,
+  });
+  if (error) throw new Error(error.message || "Failed to confirm order.");
+}
+
+/**
+ * Mark a RESERVED order as FAILED and release reserved inventory.
+ * Idempotent: no-op if order is not RESERVED.
+ */
+export async function failRazorpayOrder(
+  orderId: string,
+  client?: SupabaseClient,
+): Promise<void> {
+  const supabase = client ?? (await createClient());
+  const { error } = await supabase.rpc("fail_razorpay_order", { p_order_id: orderId });
+  if (error) throw new Error(error.message || "Failed to mark order as failed.");
+}
+
+/**
+ * Expire all RESERVED orders whose 15-minute reservation window has passed.
+ * Called by the cron route. Returns the count of expired orders.
+ * Uses the service-role client because cron has no user session.
+ */
+export async function expireReservedOrders(): Promise<number> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase.rpc("expire_reserved_orders", {});
+  if (error) throw new Error(error.message || "Failed to expire reservations.");
+  return (data as number) ?? 0;
+}
+
+/**
+ * Find an order by its Razorpay order id.
+ * Used by the webhook handler to locate the internal order for a Razorpay event.
+ * Accepts an optional client — the webhook passes the service-role client.
+ */
+export async function findOrderByRazorpayOrderId(
+  razorpayOrderId: string,
+  client?: SupabaseClient,
+): Promise<{ id: string; status: string; totalPaise: number; userId: string; eventId: string } | null> {
+  const supabase = client ?? (await createClient());
+  const { data, error } = await supabase
+    .from("orders")
+    .select("id, status, total_paise, user_id, event_id")
+    .eq("razorpay_order_id", razorpayOrderId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return {
+    id: data.id,
+    status: data.status,
+    totalPaise: data.total_paise,
+    userId: data.user_id,
+    eventId: data.event_id,
   };
 }

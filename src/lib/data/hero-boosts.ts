@@ -18,6 +18,8 @@ function toBoost(row: {
   amount_paise: number;
   currency: string;
   utr_reference: string | null;
+  razorpay_order_id?: string | null;
+  razorpay_payment_id?: string | null;
   started_at: string | null;
   expires_at: string | null;
   cancelled_at: string | null;
@@ -32,6 +34,8 @@ function toBoost(row: {
     amountPaise: row.amount_paise,
     currency: row.currency,
     utrReference: row.utr_reference,
+    razorpayOrderId: row.razorpay_order_id ?? null,
+    razorpayPaymentId: row.razorpay_payment_id ?? null,
     startedAt: row.started_at,
     expiresAt: row.expires_at,
     cancelledAt: row.cancelled_at,

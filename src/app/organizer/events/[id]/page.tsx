@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
@@ -9,6 +10,7 @@ import { EditEventForm } from "@/components/organizer/edit-event-form";
 import { CancelPostponeButtons } from "@/components/organizer/cancel-postpone-buttons";
 import { DoorStaffPaymentPanel } from "@/components/organizer/door-staff-payment";
 import { DoorStaffRequest } from "@/components/organizer/door-staff-request";
+import { EventStaffManager } from "@/components/organizer/event-staff-manager";
 import { HeroBoostPanel } from "@/components/organizer/hero-boost-panel";
 import { PastEventGalleryManager } from "@/components/organizer/past-event-gallery-manager";
 import { ShareButton } from "@/components/events/share-button";
@@ -19,6 +21,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { getCurrentUser } from "@/lib/auth";
 import { getEvent } from "@/lib/data/events";
 import { getDoorStaffOrder } from "@/lib/data/door-staff";
+import { listEventStaff } from "@/lib/data/event-staff";
 import { getOrganizerEventAnalytics } from "@/lib/data/organizer";
 import { listEventOrders, listEventTickets } from "@/lib/data/admin";
 import { expireWaitlistOffers, listEventWaitlist } from "@/lib/data/waitlist";
@@ -49,7 +52,7 @@ export default async function ManageEventPage({
 
   const { id } = await params;
 
-  const [event, analytics, cancelChargePct, postponeChargePct, doorStaffOrder, doorStaffPricing, doorStaffAvailable, heroBoost, heroBoostPrice, heroBoostDuration, orders, tickets, waitlistEntries] = await Promise.all([
+  const [event, analytics, cancelChargePct, postponeChargePct, doorStaffOrder, doorStaffPricing, doorStaffAvailable, heroBoost, heroBoostPrice, heroBoostDuration, orders, tickets, waitlistEntries, eventStaff] = await Promise.all([
     getEvent(id),
     getOrganizerEventAnalytics(user, id),
     getCancellationChargePercent(),
@@ -63,6 +66,7 @@ export default async function ManageEventPage({
     listEventOrders(id),
     listEventTickets(id),
     listEventWaitlist(id),
+    listEventStaff(user, id),
   ]);
 
   // Expire stale waitlist offers (best-effort, non-blocking)
@@ -104,6 +108,21 @@ export default async function ManageEventPage({
 
   return (
     <div className="space-y-6 py-6">
+      {/* Event banner image */}
+      {(event.bannerPosterUrl || event.cardPosterUrl) ? (
+        <div className="relative -mx-4 h-[30vh] max-h-[260px] min-h-[160px] overflow-hidden sm:rounded-b-3xl">
+          <Image
+            src={event.bannerPosterUrl ?? event.cardPosterUrl!}
+            alt={event.title}
+            fill
+            sizes="100vw"
+            priority
+            className="object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-zinc-50 via-zinc-50/20 to-transparent dark:from-ink dark:via-ink/30" />
+        </div>
+      ) : null}
+
       <div className="flex items-center gap-3">
         <Link href="/organizer" className="text-muted hover:text-violet-neon">
           <ChevronLeft className="h-5 w-5" />
@@ -151,6 +170,14 @@ export default async function ManageEventPage({
             </Button>
           </Link>
         )}
+        {eventPast ? null : (
+          <Link href="/scan">
+            <Button variant="secondary" size="sm">
+              <ScanLine className="h-4 w-4" />
+              Staff Scanner
+            </Button>
+          </Link>
+        )}
         {event.status === "DRAFT" && !eventPast ? (
           <form>
             <SubmitButton
@@ -171,7 +198,7 @@ export default async function ManageEventPage({
       {event.status !== "DRAFT" ? (
         <section className="space-y-3">
           <h2 className="text-lg font-bold">Analytics</h2>
-          <AnalyticsPanel analytics={analytics} />
+          <AnalyticsPanel analytics={analytics} eventId={event.id} />
         </section>
       ) : null}
 
@@ -251,6 +278,11 @@ export default async function ManageEventPage({
           />
         </section>
       ) : null */}
+
+      {/* Door staff management — disabled for past events */}
+      {!eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
+        <EventStaffManager eventId={event.id} staff={eventStaff} />
+      ) : null}
 
       {/* Cancel / Postpone — disabled for past events */}
       {!eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (

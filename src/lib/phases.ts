@@ -57,7 +57,8 @@ export function computePhaseAvailability(
       : nextOpensAt;
 
     const effectiveQuantity = tier.quantity + carryForward;
-    const effectiveAvailable = effectiveQuantity - tier.quantitySold;
+    // Account for reserved tickets — they are held and not available for new bookings
+    const effectiveAvailable = effectiveQuantity - tier.quantitySold - (tier.quantityReserved ?? 0);
     const isSoldOut = effectiveAvailable <= 0;
     const isTimeOver = closesAt !== null && nowMs >= closesAt;
 
@@ -118,11 +119,11 @@ export function getActivePhase(tiers: TicketTier[], now: Date = new Date()): Tic
  */
 export function getEffectiveAvailable(tier: TicketTier, allTiers: TicketTier[]): number {
   if (tier.tierType !== "FLAT_PHASE") {
-    return Math.max(0, tier.quantity - tier.quantitySold);
+    return Math.max(0, tier.quantity - tier.quantitySold - (tier.quantityReserved ?? 0));
   }
   const phases = computePhaseAvailability(allTiers);
   const phase = phases.find((p) => p.tier.id === tier.id);
-  return phase ? phase.effectiveAvailable : Math.max(0, tier.quantity - tier.quantitySold);
+  return phase ? phase.effectiveAvailable : Math.max(0, tier.quantity - tier.quantitySold - (tier.quantityReserved ?? 0));
 }
 
 /**

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { AtSign, BadgeCheck, CalendarDays, Clock, Globe, Link2, MessageCircle, Play } from "lucide-react";
+import { BadgeCheck, CalendarDays, Clock, Globe, Link2, MessageCircle, Play } from "lucide-react";
+import { InstagramIcon } from "@/components/ui/instagram-icon";
 
 import { EventCard } from "@/components/events/event-card";
 import { Badge } from "@/components/ui/badge";
@@ -39,23 +40,8 @@ export default async function PublicOrganizerPage({
 
   return (
     <div className="space-y-6 py-6">
-      {/* Cover banner — same style as organizer dashboard */}
-      <div className="relative h-40 w-full overflow-hidden rounded-3xl sm:h-52">
-        {organizer.coverUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={organizer.coverUrl}
-            alt={`${organizer.name} cover`}
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="h-full w-full bg-neon-gradient opacity-80" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-      </div>
-
-      {/* Avatar + name + bio row — same layout as OrganizerHeader */}
-      <div className="flex items-end gap-4 -mt-12 px-2">
+      {/* Avatar + name + bio row — no cover banner, only profile picture */}
+      <div className="flex items-end gap-4 px-2">
         {organizer.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -88,7 +74,7 @@ export default async function PublicOrganizerPage({
                 className="text-muted hover:text-violet-neon"
                 aria-label="Instagram"
               >
-                <AtSign className="h-5 w-5" />
+                <InstagramIcon className="h-5 w-5" />
               </a>
             ) : null}
             {organizer.youtubeUrl ? (

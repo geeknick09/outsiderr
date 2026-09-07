@@ -503,6 +503,30 @@ export function EventForm({
         />
       </section>
 
+      {/* Waitlist toggle */}
+      <section className="glass rounded-3xl p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-bold">Enable Waitlist</h3>
+            <p className="mt-1 text-xs text-muted">
+              When tickets sell out, allow users to join a waitlist. If tickets become available
+              (e.g. due to cancellations), waitlisted users will be notified automatically.
+            </p>
+          </div>
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              name="waitlistEnabled"
+              defaultChecked={sv?.waitlistEnabled ?? true}
+              className="h-4 w-4 accent-violet-neon"
+            />
+            <span className="text-xs font-semibold">
+              {(sv?.waitlistEnabled ?? true) ? "Enabled" : "Disabled"}
+            </span>
+          </label>
+        </div>
+      </section>
+
       {/* Gallery + Contact */}
       <section className="glass space-y-4 rounded-3xl p-5">
         <div>

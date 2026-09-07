@@ -6,16 +6,21 @@ import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { TicketCard } from "@/components/tickets/ticket-card";
+import { PostponementRefundButton } from "@/components/tickets/postponement-refund-button";
 import { useRealtime } from "@/lib/hooks/use-realtime";
 import { formatPaise } from "@/lib/format";
 import type { Order, OrderStatus, Ticket } from "@/lib/types";
 
-const STATUS_TONE: Record<OrderStatus, "warning" | "success" | "danger" | "neutral"> = {
+const STATUS_TONE: Record<OrderStatus, "warning" | "success" | "danger" | "neutral" | "violet"> = {
   PENDING_VERIFICATION: "warning",
   CONFIRMED: "success",
   REJECTED: "danger",
   CANCELLED: "neutral",
   REFUNDED: "neutral",
+  RESERVED: "warning",
+  EXPIRED: "neutral",
+  FAILED: "danger",
+  REFUND_REQUESTED: "violet",
 };
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
@@ -24,6 +29,10 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
   REJECTED: "Rejected",
   CANCELLED: "Cancelled",
   REFUNDED: "Refunded",
+  RESERVED: "Awaiting payment",
+  EXPIRED: "Expired",
+  FAILED: "Failed",
+  REFUND_REQUESTED: "Refund requested",
 };
 
 export function TicketsRealtimeWrapper({
@@ -174,6 +183,13 @@ export function TicketsRealtimeWrapper({
                   ) : null}
                 </div>
                 <Badge tone={STATUS_TONE[order.status]}>{STATUS_LABEL[order.status]}</Badge>
+                {order.eventStatus === "POSTPONED" && order.status === "CONFIRMED" && order.eventStartsAt ? (
+                  <PostponementRefundButton
+                    eventId={order.eventId}
+                    eventTitle={order.eventTitle}
+                    newDate={new Date(order.eventStartsAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
+                  />
+                ) : null}
               </div>
             ))}
           </div>

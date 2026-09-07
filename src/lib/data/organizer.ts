@@ -42,6 +42,7 @@ export interface CreateEventInput {
   bannerPosterUrl: string | null;
   feePayer: FeePayer;
   needsDoorStaff: boolean;
+  waitlistEnabled?: boolean;
   terms: string[];
   pricingMode: PricingMode;
   tiers: TicketTierInput[];
@@ -177,6 +178,7 @@ export async function createEvent(
       banner_poster_url: input.bannerPosterUrl,
       fee_payer: input.feePayer,
       needs_door_staff: input.needsDoorStaff,
+      waitlist_enabled: input.waitlistEnabled ?? true,
       terms,
       tags: input.tags ?? [],
       photo_urls: input.photoUrls ?? [],
@@ -397,6 +399,7 @@ export interface UpdateEventInput {
   xUrl?: string | null;
   facebookUrl?: string | null;
   linkedinUrl?: string | null;
+  waitlistEnabled?: boolean;
 }
 
 export async function updateEvent(
@@ -440,6 +443,7 @@ export async function updateEvent(
       ...(input.xUrl !== undefined ? { x_url: input.xUrl } : {}),
       ...(input.facebookUrl !== undefined ? { facebook_url: input.facebookUrl } : {}),
       ...(input.linkedinUrl !== undefined ? { linkedin_url: input.linkedinUrl } : {}),
+      ...(input.waitlistEnabled !== undefined ? { waitlist_enabled: input.waitlistEnabled } : {}),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
     .eq("id", eventId)

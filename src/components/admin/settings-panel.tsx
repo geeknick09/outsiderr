@@ -44,27 +44,6 @@ const SECTIONS: SectionDef[] = [
     ],
   },
   {
-    title: "Boosts & Front Row",
-    icon: "⚡",
-    fields: [
-      { key: "hero_boost_enabled", label: "Front Row enabled", type: "boolean" },
-      { key: "hero_boost_price", label: "Front Row price", type: "number", suffix: "paise" },
-      { key: "hero_boost_duration_days", label: "Front Row duration", type: "number", suffix: "days" },
-      { key: "hero_rotation_interval_minutes", label: "Rotation interval", type: "number", suffix: "min" },
-      { key: "hero_max_visible_events", label: "Max visible Front Row events", type: "number" },
-      { key: "boost_slot_prices", label: "Slot prices (JSON)", type: "json", help: "Per-day slot pricing object" },
-    ],
-  },
-  {
-    title: "Door Staff",
-    icon: "👥",
-    fields: [
-      { key: "door_staff_pricing", label: "Pricing tiers (JSON)", type: "json", help: "Staff count → price mapping" },
-      { key: "door_staff_max", label: "Max staff per event", type: "number" },
-      { key: "door_staff_available", label: "Available staff pool", type: "number" },
-    ],
-  },
-  {
     title: "Charges",
     icon: "₹",
     fields: [

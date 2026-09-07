@@ -1,12 +1,12 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { Upload } from "lucide-react";
+import { useState, useTransition } from "react";
 
-import { submitPaymentAction, type CheckoutState } from "@/actions/orders";
+import { createCheckoutAction, submitPaymentAction } from "@/actions/orders";
 import { Button } from "@/components/ui/button";
 import { PhoneInput } from "@/components/ui/phone-input";
-import { uploadPublicFile } from "@/lib/upload";
+import { RazorpayCheckout } from "@/components/checkout/razorpay-checkout";
+import type { CheckoutSession } from "@/lib/types";
 
 const INPUT =
   "w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white";
@@ -20,6 +20,7 @@ export function CheckoutForm({
   defaultEmail,
   defaultGender,
   isFree = false,
+  totalRupees = "0",
 }: {
   eventId: string;
   tierId: string;
@@ -29,37 +30,60 @@ export function CheckoutForm({
   defaultEmail: string;
   defaultGender: string;
   isFree?: boolean;
+  totalPaise?: number;
+  totalRupees?: string;
 }) {
-  const [state, formAction, pending] = useActionState<CheckoutState, FormData>(
-    submitPaymentAction,
-    { error: null },
-  );
-  const [proofUrl, setProofUrl] = useState("");
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  // Free flow: use the legacy submitPaymentAction (instant RSVP)
+  const [freeError, setFreeError] = useState<string | null>(null);
+  const [freePending, startFreeTransition] = useTransition();
 
-  async function handleFile(file: File | undefined) {
-    if (!file) return;
-    setUploading(true);
-    setUploadError(null);
-    try {
-      const url = await uploadPublicFile(file, "payment-proofs");
-      if (url) setProofUrl(url);
-      else setUploadError("Upload failed. Paste a link instead.");
-    } catch (error) {
-      setUploadError(error instanceof Error ? error.message : "Upload failed.");
-    } finally {
-      setUploading(false);
-    }
+  // Paid flow: createCheckoutAction → Razorpay Checkout
+  const [paidError, setPaidError] = useState<string | null>(null);
+  const [paidPending, startPaidTransition] = useTransition();
+  const [session, setSession] = useState<CheckoutSession | null>(null);
+
+  function handleFreeSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setFreeError(null);
+    const formData = new FormData(e.currentTarget);
+    formData.set("isFree", "1");
+    startFreeTransition(async () => {
+      const result = await submitPaymentAction({ error: null }, formData);
+      if (result?.error) setFreeError(result.error);
+    });
+  }
+
+  function handlePaidSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setPaidError(null);
+    const formData = new FormData(e.currentTarget);
+    startPaidTransition(async () => {
+      const result = await createCheckoutAction(formData);
+      if (result?.error) {
+        setPaidError(result.error);
+      } else if (result?.session) {
+        setSession(result.session);
+      }
+    });
+  }
+
+  // Razorpay Checkout modal is open — show the checkout component
+  if (session) {
+    return (
+      <RazorpayCheckout
+        session={session}
+        onError={(msg) => setPaidError(msg)}
+        onCancel={() => setSession(null)}
+      />
+    );
   }
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form onSubmit={isFree ? handleFreeSubmit : handlePaidSubmit} className="space-y-4">
       <input type="hidden" name="eventId" value={eventId} />
       <input type="hidden" name="tierId" value={tierId} />
       <input type="hidden" name="quantity" value={quantity} />
       <input type="hidden" name="isFree" value={isFree ? "1" : "0"} />
-      <input type="hidden" name="paymentProofUrl" value={proofUrl} />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block space-y-1.5">
@@ -107,53 +131,34 @@ export function CheckoutForm({
         </label>
       </div>
 
-      {/* UTR + screenshot — only for paid events */}
+      {/* Paid events: show secure payment notice (Razorpay) */}
       {!isFree ? (
-        <>
-          <label className="block space-y-1.5">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-              UTR / transaction reference
-            </span>
-            <input
-              name="utrReference"
-              required
-              minLength={6}
-              placeholder="e.g. 428193756201"
-              className={INPUT}
-            />
-          </label>
-
-          <div className="space-y-1.5">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-              Payment screenshot
-            </span>
-            <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-zinc-300 px-4 py-4 text-sm text-muted hover:border-violet-neon dark:border-white/15">
-              <Upload className="h-4 w-4" />
-              {uploading ? "Uploading…" : proofUrl ? "Screenshot attached" : "Upload screenshot"}
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(event) => void handleFile(event.target.files?.[0])}
-              />
-            </label>
-            {uploadError ? (
-              <input
-                value={proofUrl}
-                onChange={(event) => setProofUrl(event.target.value)}
-                placeholder="Paste screenshot URL"
-                className={INPUT}
-              />
-            ) : null}
-            {uploadError ? <p className="text-xs text-amber-500">{uploadError}</p> : null}
-          </div>
-        </>
+        <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-900 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-200">
+          <p className="font-semibold">Secure payment via Razorpay</p>
+          <p className="mt-1 text-xs">
+            You&apos;ll be redirected to Razorpay&apos;s secure checkout to complete your payment.
+            We accept UPI, cards, net banking, and wallets. Your tickets will be confirmed
+            instantly after payment — no manual verification needed.
+          </p>
+          <p className="mt-2 text-xs text-muted">
+            Outsiderr is an intermediary platform connecting event organizers with attendees.
+            A platform commission is deducted from the organizer&apos;s payout.
+          </p>
+        </div>
       ) : null}
 
-      {state.error ? <p className="text-sm text-red-500">{state.error}</p> : null}
+      {isFree && freeError ? <p className="text-sm text-red-500">{freeError}</p> : null}
+      {!isFree && paidError ? <p className="text-sm text-red-500">{paidError}</p> : null}
 
-      <Button type="submit" size="lg" className="w-full" disabled={pending || uploading} loading={pending} loadingText={isFree ? "Confirming…" : "Submitting…"}>
-        {isFree ? "Confirm RSVP" : "I've paid — submit for verification"}
+      <Button
+        type="submit"
+        size="lg"
+        className="w-full"
+        disabled={isFree ? freePending : paidPending}
+        loading={isFree ? freePending : paidPending}
+        loadingText={isFree ? "Confirming…" : "Opening payment…"}
+      >
+        {isFree ? "Confirm RSVP" : `Pay ₹${totalRupees}`}
       </Button>
       <p className="text-center text-xs text-muted">
         {isFree ? (
@@ -163,8 +168,8 @@ export function CheckoutForm({
           </>
         ) : (
           <>
-            Your order stays in <strong>Pending verification</strong> until the organizer
-            confirms the payment.
+            Your tickets are reserved for <strong>15 minutes</strong>. Complete payment before
+            the timer expires. Tickets are issued instantly on successful payment.
           </>
         )}
       </p>

@@ -74,6 +74,7 @@ export type EventRow = {
   status: EventStatus;
   is_featured: boolean;
   needs_door_staff: boolean;
+  waitlist_enabled: boolean;
   terms: string[];
   registrations_count: number;
   tags: string[];
@@ -96,6 +97,7 @@ export type TicketTierRow = {
   price_paise: number;
   quantity: number;
   quantity_sold: number;
+  quantity_reserved: number;
   perks: string[];
   sort_order: number;
   tier_type: string;
@@ -121,6 +123,15 @@ export type OrderRow = {
   status: OrderStatus;
   utr_reference: string | null;
   payment_proof_url: string | null;
+  // Razorpay integration columns
+  razorpay_order_id: string | null;
+  razorpay_payment_id: string | null;
+  razorpay_signature: string | null;
+  payment_method: string | null;
+  reserved_at: string | null;
+  reservation_expires_at: string | null;
+  confirmed_at: string | null;
+  invoice_number: string | null;
   buyer_name: string | null;
   buyer_phone: string | null;
   buyer_email: string | null;
@@ -222,6 +233,8 @@ export type HeroBoostRow = {
   amount_paise: number;
   currency: string;
   utr_reference: string | null;
+  razorpay_order_id: string | null;
+  razorpay_payment_id: string | null;
   started_at: string | null;
   expires_at: string | null;
   cancelled_at: string | null;
@@ -283,6 +296,17 @@ export type DoorStaffOrderRow = {
   updated_at: string;
 }
 
+export type EventStaffRow = {
+  id: string;
+  event_id: string;
+  organizer_id: string;
+  email: string | null;
+  phone: string | null;
+  user_id: string | null;
+  display_name: string;
+  created_at: string;
+}
+
 export type RefundRow = {
   id: string;
   order_id: string;
@@ -294,13 +318,62 @@ export type RefundRow = {
   reason: string;
   initiated_at: string;
   completed_at: string | null;
+  razorpay_refund_id: string | null;
+  razorpay_payment_id: string | null;
+  refund_type: string | null;
+  initiated_by: string | null;
+  gateway_fee_paise: number;
+}
+
+export type WebhookEventRow = {
+  id: string;
+  razorpay_event_id: string;
+  event_type: string;
+  payload: Record<string, unknown>;
+  order_id: string | null;
+  processed: boolean;
+  error_message: string | null;
+  created_at: string;
+  processed_at: string | null;
+}
+
+export type PaymentLedgerRow = {
+  id: string;
+  order_id: string | null;
+  event_id: string | null;
+  organizer_id: string | null;
+  type: "TICKET_SALE" | "BOOST_SALE" | "REFUND" | "PAYOUT" | "ADJUSTMENT";
+  gross_amount_paise: number;
+  commission_paise: number;
+  convenience_fee_paise: number;
+  razorpay_fee_paise: number;
+  refund_amount_paise: number;
+  net_organizer_paise: number;
+  net_platform_paise: number;
+  razorpay_payment_id: string | null;
+  razorpay_refund_id: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export type PayoutRecordRow = {
+  id: string;
+  organizer_id: string;
+  event_id: string | null;
+  amount_paise: number;
+  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+  bank_reference: string | null;
+  notes: string | null;
+  initiated_by: string | null;
+  initiated_at: string;
+  completed_at: string | null;
 }
 
 export type EventNotificationRow = {
   id: string;
   event_id: string;
   user_id: string;
-  type: "CANCELLATION" | "POSTPONEMENT" | "RESCHEDULE" | "WAITLIST_OFFER" | "VENUE_CHANGE" | "CITY_CHANGE" | "TIME_CHANGE";
+  type: "CANCELLATION" | "POSTPONEMENT" | "RESCHEDULE" | "WAITLIST_OFFER" | "VENUE_CHANGE" | "CITY_CHANGE" | "TIME_CHANGE" | "PAYMENT_SUCCESS" | "PAYMENT_FAILED" | "REFUND_INITIATED" | "REFUND_COMPLETED" | "PAYOUT_COMPLETED";
   message: string;
   read: boolean;
   created_at: string;
@@ -339,9 +412,13 @@ export type Database = {
       platform_settings: Table<PlatformSettingRow, "key" | "value">;
       event_terms_acceptances: Table<EventTermsAcceptanceRow, "organizer_id" | "terms_version">;
       door_staff_orders: Table<DoorStaffOrderRow, "event_id" | "organizer_id" | "number_of_staff" | "service_amount_paise">;
+      event_staff: Table<EventStaffRow, "event_id" | "organizer_id" | "email" | "phone">;
       legal_pages: Table<LegalPageRow, "slug" | "title" | "content">;
       hero_boosts: Table<HeroBoostRow, "event_id" | "organizer_id" | "amount_paise">;
       admin_change_log: Table<AdminChangeLogRow, "admin_id" | "table_name" | "field_name">;
+      webhook_events: Table<WebhookEventRow, "razorpay_event_id" | "event_type" | "created_at">;
+      payment_ledger: Table<PaymentLedgerRow, "type" | "created_at" | "organizer_id" | "event_id" | "order_id">;
+      payout_records: Table<PayoutRecordRow, "organizer_id" | "status" | "initiated_at">;
     };
     Views: Record<string, never>;
     Functions: {
@@ -424,6 +501,59 @@ export type Database = {
           p_reason: string;
         };
         Returns: { notified_count: number }[];
+      };
+      request_postponement_refund: {
+        Args: {
+          p_event_id: string;
+          p_user_id: string;
+        };
+        Returns: {
+          order_id: string;
+          total_paise: number;
+          razorpay_payment_id: string | null;
+          refund_created: boolean;
+        }[];
+      };
+      create_reserved_order: {
+        Args: {
+          p_event_id: string;
+          p_tier_id: string;
+          p_quantity: number;
+          p_unit_price_paise: number;
+          p_subtotal_paise: number;
+          p_platform_fee_paise: number;
+          p_commission_paise: number;
+          p_convenience_fee_paise: number;
+          p_organizer_payout_paise: number;
+          p_total_paise: number;
+          p_fee_payer: string;
+          p_buyer_name: string | null;
+          p_buyer_phone: string | null;
+          p_buyer_email: string | null;
+          p_buyer_gender: string | null;
+        };
+        Returns: OrderRow;
+      };
+      confirm_razorpay_order: {
+        Args: {
+          p_order_id: string;
+          p_razorpay_payment_id: string;
+          p_razorpay_signature: string | null;
+          p_payment_method: string | null;
+        };
+        Returns: TicketRow[];
+      };
+      fail_razorpay_order: {
+        Args: { p_order_id: string };
+        Returns: void;
+      };
+      expire_reserved_orders: {
+        Args: Record<string, never>;
+        Returns: number;
+      };
+      set_razorpay_order_id: {
+        Args: { p_order_id: string; p_razorpay_order_id: string };
+        Returns: void;
       };
     };
     Enums: Record<string, never>;

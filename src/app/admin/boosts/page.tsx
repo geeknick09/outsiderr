@@ -1,8 +1,16 @@
+import { BoostSettingsEditor } from "@/components/admin/boost-settings-editor";
 import { HeroBoostAdminActions } from "@/components/admin/hero-boost-admin-actions";
 import { SlotPriceEditor } from "@/components/admin/slot-price-editor";
 import { Badge } from "@/components/ui/badge";
 import { listBoostSlotPrices, listOccupiedSlots, listActiveBoosts } from "@/lib/data/boosts";
 import { listAllHeroBoosts } from "@/lib/data/hero-boosts";
+import {
+  getHeroBoostEnabled,
+  getHeroBoostPrice,
+  getHeroBoostDurationDays,
+  getHeroRotationIntervalMinutes,
+  getHeroMaxVisibleEvents,
+} from "@/lib/data/platform-settings";
 import { formatDateTime, formatPaise } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -11,11 +19,19 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Admin: Boosts — Outsiderr" };
 
 export default async function AdminBoostsPage() {
-  const [activeBoosts, slotPrices, occupied, heroBoosts] = await Promise.all([
+  const [
+    activeBoosts, slotPrices, occupied, heroBoosts,
+    heroEnabled, heroPrice, heroDuration, heroRotation, heroMaxVisible,
+  ] = await Promise.all([
     listActiveBoosts(),
     listBoostSlotPrices(),
     listOccupiedSlots(),
     listAllHeroBoosts(),
+    getHeroBoostEnabled(),
+    getHeroBoostPrice(),
+    getHeroBoostDurationDays(),
+    getHeroRotationIntervalMinutes(),
+    getHeroMaxVisibleEvents(),
   ]);
 
   const heroActive = heroBoosts.filter((b) => b.status === "ACTIVE");
@@ -32,11 +48,31 @@ export default async function AdminBoostsPage() {
         </p>
       </div>
 
+      {/* ============ Front Row Configuration ============ */}
+      <BoostSettingsEditor
+        config={{
+          heroBoostEnabled: heroEnabled,
+          heroBoostPrice: heroPrice,
+          heroBoostDurationDays: heroDuration,
+          heroRotationIntervalMinutes: heroRotation,
+          heroMaxVisibleEvents: heroMaxVisible,
+        }}
+      />
+
       {/* ============ Front Row Section ============ */}
       <section className="space-y-4">
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-bold">Front Row</h2>
           <Badge tone="pink">Featured</Badge>
+          {!heroEnabled ? <Badge tone="neutral">Disabled</Badge> : null}
+        </div>
+
+        {/* Config summary */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <ConfigCard label="Price" value={formatPaise(heroPrice)} />
+          <ConfigCard label="Duration" value={`${heroDuration} days`} />
+          <ConfigCard label="Rotation" value={`${heroRotation} min`} />
+          <ConfigCard label="Max visible" value={String(heroMaxVisible)} />
         </div>
 
         {/* Hero summary cards */}
@@ -63,7 +99,7 @@ export default async function AdminBoostsPage() {
                       {boost.eventTitle}
                     </a>
                     <p className="text-xs text-muted">
-                      by {boost.organizerName} · ₹{Math.round(boost.amountPaise / 100)}
+                      by {boost.organizerName} · {formatPaise(boost.amountPaise)}
                     </p>
                   </div>
                   <Badge tone={heroStatusTone(boost.status)}>{boost.status}</Badge>
@@ -84,9 +120,13 @@ export default async function AdminBoostsPage() {
                   </div>
                 </div>
 
-                {boost.utrReference ? (
+                {boost.razorpayPaymentId ? (
                   <p className="text-xs text-muted">
-                    UTR: <span className="font-mono font-bold">{boost.utrReference}</span>
+                    Razorpay: <span className="font-mono font-bold">{boost.razorpayPaymentId.slice(0, 24)}</span>
+                  </p>
+                ) : boost.utrReference ? (
+                  <p className="text-xs text-muted">
+                    Legacy UTR: <span className="font-mono font-bold">{boost.utrReference}</span>
                   </p>
                 ) : null}
 
@@ -143,7 +183,7 @@ export default async function AdminBoostsPage() {
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold">Slot {boost.slot}</p>
                   <p className="text-xs text-muted">
-                    {formatPaise(boost.amountPaidPaise)} paid · UTR: {boost.utrReference ?? "—"}
+                    {formatPaise(boost.amountPaidPaise)} paid
                   </p>
                   <p className="text-xs text-muted">
                     {formatDateTime(boost.startsAt)} → {formatDateTime(boost.endsAt)}
@@ -174,6 +214,15 @@ function heroStatusTone(status: string): "lime" | "warning" | "neutral" | "dange
     default:
       return "violet";
   }
+}
+
+function ConfigCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="glass rounded-2xl p-4">
+      <p className="text-xs text-muted">{label}</p>
+      <p className="text-lg font-bold">{value}</p>
+    </div>
+  );
 }
 
 function HeroSummaryCard({

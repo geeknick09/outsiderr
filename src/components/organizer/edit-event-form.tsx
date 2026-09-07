@@ -622,6 +622,30 @@ export function EditEventForm({ event }: { event: EventDetail }) {
       {state.error ? <p className="text-sm text-red-500">{state.error}</p> : null}
       {tierError ? <p className="text-sm text-red-500">{tierError}</p> : null}
 
+      {/* Waitlist toggle */}
+      <div className="glass rounded-3xl p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-bold">Enable Waitlist</h3>
+            <p className="mt-1 text-xs text-muted">
+              When tickets sell out, allow users to join a waitlist.
+            </p>
+          </div>
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              name="waitlistEnabled"
+              defaultChecked={event.waitlistEnabled ?? true}
+              onChange={() => setDirty(true)}
+              className="h-4 w-4 accent-violet-neon"
+            />
+            <span className="text-xs font-semibold">
+              {event.waitlistEnabled ? "Enabled" : "Disabled"}
+            </span>
+          </label>
+        </div>
+      </div>
+
       <Button type="submit" disabled={pending || !!dateError || !!phaseError || !!mapsError || !!tierError || !dirty} loading={pending} loadingText="Saving…">
         Save changes
       </Button>

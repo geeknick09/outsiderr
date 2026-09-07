@@ -33,6 +33,7 @@ export interface CreateEventState {
     tiers: { name: string; price: string; quantity: string; perks: string }[];
     feePayer: string;
     needsDoorStaff: boolean;
+    waitlistEnabled: boolean;
     doorStaffTerms: boolean;
     doorStaffCount: string;
     organizerTerms: boolean;
@@ -110,6 +111,7 @@ function extractFormValues(formData: FormData): CreateEventState["values"] {
     })),
     feePayer: String(formData.get("feePayer") ?? "BUYER"),
     needsDoorStaff: formData.get("needsDoorStaff") === "on",
+    waitlistEnabled: formData.get("waitlistEnabled") === "on",
     doorStaffTerms: formData.get("doorStaffTerms") === "on",
     doorStaffCount: String(formData.get("doorStaffCount") ?? "1"),
     organizerTerms: formData.get("organizerTerms") === "on",
@@ -331,6 +333,7 @@ export async function createEventAction(
       bannerPosterUrl: String(formData.get("bannerPosterUrl") ?? "") || null,
       feePayer: String(formData.get("feePayer") ?? "BUYER") as FeePayer,
       needsDoorStaff,
+      waitlistEnabled: formData.get("waitlistEnabled") === "on" || formData.get("waitlistEnabled") === "true",
       terms: lines(formData.get("terms")),
       pricingMode,
       tiers,
@@ -507,6 +510,7 @@ export async function updateEventAction(
       xUrl: String(formData.get("xUrl") ?? "").trim() || null,
       facebookUrl: String(formData.get("facebookUrl") ?? "").trim() || null,
       linkedinUrl: String(formData.get("linkedinUrl") ?? "").trim() || null,
+      waitlistEnabled: formData.get("waitlistEnabled") === "on" || formData.get("waitlistEnabled") === "true",
     });
   } catch (error) {
     return {
@@ -533,12 +537,140 @@ export async function cancelEventAction(formData: FormData): Promise<void> {
   const reason = String(formData.get("cancelReason") ?? "").trim();
   if (!eventId) return;
 
+  console.log(`[cancel] cancelEventAction: eventId=${eventId}, reason="${reason}", byUser=${user.id}`);
+
   const { cancelEvent } = await import("@/lib/data/organizer");
-  await cancelEvent(user, eventId, reason);
+  const result = await cancelEvent(user, eventId, reason);
+
+  console.log(`[cancel] cancelEvent RPC result: refundCount=${result.refundCount}, totalRefundPaise=${result.totalRefundPaise}, totalPlatformFeePaise=${result.totalPlatformFeePaise}, cancellationChargePaise=${result.cancellationChargePaise}, cancellationChargePercent=${result.cancellationChargePercent}, organizerOwesPaise=${result.organizerOwesPaise}`);
 
   // Cancel any active Hero Boosts for this event
   const { cancelHeroBoostsForEvent } = await import("@/lib/data/hero-boosts");
   await cancelHeroBoostsForEvent(eventId);
+  console.log(`[cancel] Hero boosts cancelled for eventId=${eventId}`);
+
+  // Process Razorpay refunds for all cancelled orders
+  // The cancel_event RPC created PENDING refund records; now we trigger the actual Razorpay refunds
+  let refundSuccessCount = 0;
+  let refundFailCount = 0;
+  try {
+    const { createClient } = await import("@/lib/supabase/server");
+    const { getRazorpay, isRazorpayConfigured } = await import("@/lib/razorpay");
+    const supabase = await createClient();
+
+    // Get all refund records for this event that are PENDING
+    const { data: pendingRefunds } = await supabase
+      .from("refunds")
+      .select("id, order_id, amount_paise, status")
+      .eq("event_id", eventId)
+      .eq("status", "PENDING");
+
+    if (isRazorpayConfigured() && pendingRefunds && pendingRefunds.length > 0) {
+      console.log(`[cancel] Processing ${pendingRefunds.length} pending refunds for eventId=${eventId}`);
+      const razorpay = getRazorpay();
+      for (const refund of pendingRefunds) {
+        // Fetch the order's Razorpay payment ID
+        const { data: orderRow } = await supabase
+          .from("orders")
+          .select("razorpay_payment_id, id")
+          .eq("id", refund.order_id)
+          .maybeSingle();
+
+        if (!orderRow?.razorpay_payment_id) {
+          console.warn(`[cancel] Skipping refund ${refund.id}: no razorpay_payment_id on order ${refund.order_id}`);
+          continue;
+        }
+
+        try {
+          const razorpayRefund = await razorpay.payments.refund(orderRow.razorpay_payment_id, {
+            amount: refund.amount_paise,
+            notes: {
+              order_id: orderRow.id,
+              reason: reason || "Event cancelled",
+            },
+          });
+
+          // Update the refund record with the Razorpay refund ID
+          await supabase
+            .from("refunds")
+            .update({
+              razorpay_refund_id: razorpayRefund.id,
+              razorpay_payment_id: orderRow.razorpay_payment_id,
+              status: "INITIATED",
+            })
+            .eq("id", refund.id);
+
+          console.log(`[cancel] Refund initiated: refundId=${refund.id}, orderId=${orderRow.id}, razorpayRefundId=${razorpayRefund.id}, amount=${refund.amount_paise}paise`);
+          refundSuccessCount++;
+
+          // Insert payment_ledger REFUND entry
+          try {
+            await supabase.from("payment_ledger").insert({
+              order_id: orderRow.id,
+              event_id: eventId,
+              organizer_id: null,
+              type: "REFUND",
+              gross_amount_paise: -refund.amount_paise,
+              commission_paise: 0,
+              convenience_fee_paise: 0,
+              razorpay_fee_paise: 0,
+              net_organizer_paise: 0,
+              net_platform_paise: -refund.amount_paise,
+              razorpay_payment_id: `refund_${razorpayRefund.id}`,
+              notes: `Event cancellation refund: ${reason || "Event cancelled"}`,
+              created_at: new Date().toISOString(),
+            });
+          } catch (ledgerErr) {
+            console.error("Cancel refund ledger insert failed:", ledgerErr);
+          }
+        } catch (refundErr) {
+          console.error(`[cancel] Razorpay refund failed for order ${orderRow.id}:`, refundErr);
+          refundFailCount++;
+          // The refund record stays PENDING — admin can process it manually
+        }
+      }
+    }
+
+    // Record organizer liability in payment_ledger
+    // Organizer owes: convenience_fee + cancellation_charge
+    // This is recorded as an ADJUSTMENT so it's visible in payout calculations
+    if (result.organizerOwesPaise > 0) {
+      try {
+        const { data: event } = await supabase
+          .from("events")
+          .select("organizer_id")
+          .eq("id", eventId)
+          .maybeSingle();
+
+        if (event?.organizer_id) {
+          await supabase.from("payment_ledger").insert({
+            order_id: null,
+            event_id: eventId,
+            organizer_id: event.organizer_id,
+            type: "ADJUSTMENT",
+            gross_amount_paise: 0,
+            commission_paise: 0,
+            convenience_fee_paise: 0,
+            razorpay_fee_paise: 0,
+            refund_amount_paise: 0,
+            net_organizer_paise: -result.organizerOwesPaise,
+            net_platform_paise: result.organizerOwesPaise,
+            notes: `Cancellation charge: ${result.cancellationChargePercent}% + platform fees. Refund count: ${result.refundCount}`,
+            created_at: new Date().toISOString(),
+          });
+        }
+      } catch (ledgerErr) {
+        console.error("[cancel] Organizer liability ledger insert failed:", ledgerErr);
+      }
+    } else {
+      console.log(`[cancel] No pending refunds to process for eventId=${eventId}`);
+    }
+  } catch (refundError) {
+    console.error("[cancel] Auto-refund processing failed:", refundError);
+    // Don't fail the cancellation — refunds can be processed manually by admin
+  }
+
+  console.log(`[cancel] cancelEventAction complete: eventId=${eventId}, refundSuccess=${refundSuccessCount}, refundFail=${refundFailCount}, organizerOwes=${result.organizerOwesPaise}paise`);
 
   revalidatePath("/");
   revalidatePath("/organizer");
@@ -553,7 +685,9 @@ export async function cancelEventAction(formData: FormData): Promise<void> {
 export async function publishEventAction(eventId: string): Promise<void> {
   const user = await getCurrentUser();
   if (!user) throw new Error("Not authenticated.");
+  console.log(`[publish] publishEventAction: eventId=${eventId}, userId=${user.id}`);
   await updateEventStatus(user, eventId, "PUBLISHED");
+  console.log(`[publish] Event published: eventId=${eventId}`);
   revalidatePath("/");
   revalidatePath("/organizer");
   revalidatePath(`/events/${eventId}`);
@@ -576,6 +710,8 @@ export async function postponeEventAction(formData: FormData): Promise<void> {
 
   if (!eventId || !newStartsAt) return;
 
+  console.log(`[postpone] postponeEventAction: eventId=${eventId}, newStartsAt=${newStartsAt}, newEndsAt=${newEndsAt || "null"}, reason="${reason}", byUser=${user.id}`);
+
   // Server-side date validation
   const newStart = new Date(newStartsAt);
   const now = new Date();
@@ -590,13 +726,15 @@ export async function postponeEventAction(formData: FormData): Promise<void> {
   }
 
   const { postponeEvent } = await import("@/lib/data/organizer");
-  await postponeEvent(
+  const result = await postponeEvent(
     user,
     eventId,
     istToUTC(newStartsAt),
     newEndsAt ? istToUTC(newEndsAt) : null,
     reason,
   );
+
+  console.log(`[postpone] postponeEventAction complete: eventId=${eventId}, notifiedCount=${result.notifiedCount}`);
 
   // Re-evaluate Hero Boost expiry based on new event date.
   // The boost's expires_at is min(started_at + duration, event.starts_at).

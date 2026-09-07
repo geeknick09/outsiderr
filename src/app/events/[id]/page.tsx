@@ -3,7 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { AtSign, BadgeCheck, CalendarDays, Globe, Info, Link2, Mail, MapPin, MessageCircle, Phone, Play } from "lucide-react";
+import { BadgeCheck, CalendarDays, Globe, Info, Link2, Mail, MapPin, MessageCircle, Phone, Play } from "lucide-react";
+import { InstagramIcon } from "@/components/ui/instagram-icon";
+import { EventRealtimeWrapper } from "@/components/events/event-realtime-wrapper";
 
 import { MapEmbed } from "@/components/events/map-embed";
 import { PhotoGallery } from "@/components/events/photo-gallery";
@@ -62,14 +64,20 @@ export default async function EventDetailsPage({
 
   // Waitlist data for sold-out tiers (passed to TicketTiers so it can show
   // "On waitlist" state and waitlist counts)
-  const soldOutTiers = event.tiers.filter((t) => t.quantitySold >= t.quantity);
-  const waitlistData = await Promise.all(
-    soldOutTiers.map(async (tier) => ({
-      tierId: tier.id,
-      entry: user ? await getWaitlistEntry(user, tier.id) : null,
-      count: await getWaitlistCount(tier.id),
-    })),
+  // Account for reserved tickets too — a tier with only reserved tickets left is effectively sold out
+  // Only fetch waitlist data if the organizer has enabled waitlist for this event
+  const soldOutTiers = event.tiers.filter(
+    (t) => t.quantity - t.quantitySold - (t.quantityReserved ?? 0) <= 0,
   );
+  const waitlistData = event.waitlistEnabled
+    ? await Promise.all(
+        soldOutTiers.map(async (tier) => ({
+          tierId: tier.id,
+          entry: user ? await getWaitlistEntry(user, tier.id) : null,
+          count: await getWaitlistCount(tier.id),
+        })),
+      )
+    : [];
 
   // Build share URL dynamically from request origin, falling back to env
   const hdrs = await headers();
@@ -79,6 +87,7 @@ export default async function EventDetailsPage({
   const eventUrl = `${baseUrl}/events/${event.id}`;
 
   return (
+    <EventRealtimeWrapper eventId={event.id}>
     <div className="-mt-6">
       <div className="relative -mx-4 h-[40vh] max-h-[340px] min-h-[200px] overflow-hidden sm:rounded-b-3xl">
         {banner ? (
@@ -265,7 +274,7 @@ export default async function EventDetailsPage({
                       className="text-muted hover:text-violet-neon"
                       aria-label="Instagram"
                     >
-                      <AtSign className="h-5 w-5" />
+                      <InstagramIcon className="h-5 w-5" />
                     </a>
                   ) : null}
                   {event.youtubeUrl ? (
@@ -337,10 +346,10 @@ export default async function EventDetailsPage({
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-          <TicketTiers event={event} waitlistData={waitlistData} />
+          <TicketTiers event={event} waitlistData={waitlistData} waitlistEnabled={event.waitlistEnabled} />
 
           <p className="px-2 text-center text-xs text-muted">
-            Payments are verified manually by the organizer.{" "}
+            Payments are processed securely via Razorpay.{" "}
             <Link href="/tickets" className="underline hover:text-violet-neon">
               Track your orders
             </Link>
@@ -348,5 +357,6 @@ export default async function EventDetailsPage({
         </aside>
       </div>
     </div>
+    </EventRealtimeWrapper>
   );
 }

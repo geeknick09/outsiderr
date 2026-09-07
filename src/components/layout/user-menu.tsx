@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { LogOut, Info, Mail, Megaphone, ShieldCheck, Ticket, User } from "lucide-react";
+import { LogOut, Info, Mail, Megaphone, ScanLine, ShieldCheck, Ticket, User } from "lucide-react";
 
 import { signOutAction } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
@@ -12,10 +12,12 @@ export function UserMenu({
   name,
   isAdmin,
   isOrganizer,
+  isDoorStaff,
 }: {
   name: string | null;
   isAdmin: boolean;
   isOrganizer: boolean;
+  isDoorStaff: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -78,6 +80,11 @@ export function UserMenu({
             <MenuLink href="/tickets" onSelect={() => setOpen(false)}>
               <Ticket className="h-4 w-4" /> My Tickets
             </MenuLink>
+            {(isOrganizer || isDoorStaff) ? (
+              <MenuLink href="/scan" onSelect={() => setOpen(false)}>
+                <ScanLine className="h-4 w-4" /> Door Scanner
+              </MenuLink>
+            ) : null}
             <MenuLink
               href={isOrganizer ? "/organizer" : "/list-your-event"}
               onSelect={() => setOpen(false)}

@@ -39,7 +39,7 @@ export async function listPublicOrganizerEvents(
     .from("events")
     .select("*")
     .eq("organizer_id", organizerId)
-    .eq("status", "PUBLISHED")
+    .in("status", ["PUBLISHED", "POSTPONED"])
     .order("starts_at", { ascending: false });
 
   if (!events || events.length === 0) return [];

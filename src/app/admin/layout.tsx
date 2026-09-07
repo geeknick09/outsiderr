@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BarChart2, BellRing, CalendarDays, ShieldCheck, UserSquare2, Users, Zap, Settings, UsersRound, FileText, TrendingUp } from "lucide-react";
+import { BarChart2, BellRing, CalendarDays, ShieldCheck, Users, Zap, Settings, FileText, TrendingUp, CreditCard, Wallet, LineChart } from "lucide-react";
 
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -22,12 +22,13 @@ async function checkAdminAccess(): Promise<boolean> {
 const NAV = [
   { href: "/admin", label: "Overview", icon: BarChart2, exact: true },
   { href: "/admin/events", label: "Events", icon: CalendarDays },
-  { href: "/admin/orders", label: "Orders", icon: Zap },
+  { href: "/admin/orders", label: "Transactions", icon: Zap },
   { href: "/admin/revenue", label: "Revenue", icon: TrendingUp },
+  { href: "/admin/payments", label: "Payments", icon: CreditCard },
+  { href: "/admin/payouts", label: "Payouts", icon: Wallet },
   { href: "/admin/boosts", label: "Boosts", icon: BellRing },
-  { href: "/admin/clubs", label: "Clubs", icon: UserSquare2 },
+  { href: "/admin/analytics", label: "Analytics", icon: LineChart },
   { href: "/admin/users", label: "Users", icon: Users },
-  { href: "/admin/door-staff", label: "Door Staff", icon: UsersRound },
   { href: "/admin/settings", label: "Settings", icon: Settings },
   { href: "/admin/legal", label: "Legal Pages", icon: FileText },
 ];

@@ -146,19 +146,35 @@ export function EventDoorScanner({
 
   return (
     <div className="space-y-4">
-      {/* Check-in counter */}
-      <div className="glass flex items-center justify-between rounded-3xl p-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-            Checked in
-          </p>
-          <p className="text-2xl font-black text-lime-neon">{scanCount}</p>
+      {/* Check-in counter and scan stats */}
+      <div className="glass rounded-3xl p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+              Checked in
+            </p>
+            <p className="text-2xl font-black text-lime-neon">{scanCount}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+              Scanning for
+            </p>
+            <p className="text-sm font-bold">{eventTitle}</p>
+          </div>
         </div>
-        <div className="text-right">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-            Scanning for
-          </p>
-          <p className="text-sm font-bold">{eventTitle}</p>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-xl bg-amber-500/10 p-2 text-center">
+            <p className="text-lg font-black text-amber-500">
+              {recentScans.filter((s) => s.outcome === "ALREADY_USED").length}
+            </p>
+            <p className="text-[10px] text-muted">Already checked in</p>
+          </div>
+          <div className="rounded-xl bg-red-500/10 p-2 text-center">
+            <p className="text-lg font-black text-red-500">
+              {recentScans.filter((s) => s.outcome === "INVALID").length}
+            </p>
+            <p className="text-[10px] text-muted">Rejected</p>
+          </div>
         </div>
       </div>
 

@@ -1,16 +1,12 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { CheckoutForm } from "@/components/checkout/checkout-form";
-import { QrCode } from "@/components/ui/qr-code";
 import { MAX_TICKETS_PER_ORDER } from "@/lib/constants";
 import { getEvent } from "@/lib/data/events";
-import { getOrganizerWhatsappNumber } from "@/lib/data/platform-settings";
 import { formatDateTime, formatPaise } from "@/lib/format";
 import { getCurrentUser } from "@/lib/auth";
 import { calculatePrice } from "@/lib/pricing";
-import { upiIntent } from "@/lib/upi";
 
 export const dynamic = "force-dynamic";
 
@@ -44,13 +40,6 @@ export default async function CheckoutPage({
     convenienceFeeBps: event.convenienceFeeBps,
     convenienceFeeEnabled: event.convenienceFeeEnabled,
   });
-  const intent = upiIntent({
-    upiId: event.organizer.upiId ?? "outsiderr@upi",
-    payeeName: event.organizer.name,
-    amountPaise: price.totalPaise,
-    note: `${event.title} - ${tier.name}`,
-  });
-  const whatsappNumber = await getOrganizerWhatsappNumber();
 
   return (
     <div className="mx-auto max-w-4xl py-6">
@@ -61,9 +50,9 @@ export default async function CheckoutPage({
         {isFree ? "Confirm your RSVP" : "Checkout"}
       </h1>
 
-      {/* Login prompt for non-logged-in users */}
+      {/* Login prompt for non-logged-in users — but form is still shown below */}
       {!user ? (
-        <div className="mt-6 glass rounded-3xl p-8 text-center">
+        <div className="mt-6 glass rounded-3xl p-6 text-center">
           <p className="text-base font-bold">Please sign in to continue</p>
           <p className="mt-2 text-sm text-muted">
             You need an account to {isFree ? "RSVP" : "book tickets"}. It&apos;s quick and free.
@@ -77,7 +66,7 @@ export default async function CheckoutPage({
         </div>
       ) : null}
 
-      <div className={`mt-6 grid gap-6 lg:grid-cols-[1fr_360px] ${!user ? "opacity-50 pointer-events-none" : ""}`}>
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="glass rounded-3xl p-6">
           <h2 className="mb-4 text-base font-bold">
             {isFree ? "Your details" : "Confirm your payment"}
@@ -91,6 +80,8 @@ export default async function CheckoutPage({
             defaultEmail={user?.email ?? ""}
             defaultGender={user?.gender ?? ""}
             isFree={isFree}
+            totalPaise={price.totalPaise}
+            totalRupees={formatPaise(price.totalPaise)}
           />
         </div>
 
@@ -113,43 +104,16 @@ export default async function CheckoutPage({
             </dl>
           </div>
 
-          {/* UPI payment card — only for paid events */}
           {!isFree ? (
-            <div className="glass flex flex-col items-center gap-3 rounded-3xl p-5 text-center">
-              <p className="text-sm font-bold">Pay via UPI</p>
-              {event.organizer.upiQrUrl ? (
-                <Image
-                  src={event.organizer.upiQrUrl}
-                  alt={`${event.organizer.name} UPI QR`}
-                  width={200}
-                  height={200}
-                  className="rounded-2xl bg-white p-2"
-                />
-              ) : (
-                <QrCode value={intent} size={200} className="rounded-2xl bg-white p-2" />
-              )}
-              <p className="text-xs text-muted">
-                {event.organizer.upiId ?? "outsiderr@upi"} · {event.organizer.name}
+            <div className="glass rounded-3xl p-5 text-center">
+              <p className="text-sm font-bold text-violet-neon">Secure Checkout</p>
+              <p className="mt-1 text-xs text-muted">
+                Payment is processed securely by Razorpay. We accept UPI, cards, net banking,
+                and wallets. Your tickets are confirmed instantly after payment.
               </p>
-              <p className="text-xs text-muted">
-                Scan with any UPI app, pay {formatPaise(price.totalPaise)}, then submit the UTR.
+              <p className="mt-2 text-xs text-muted">
+                Outsiderr is an intermediary platform connecting event organizers with attendees.
               </p>
-              <div className="mt-2 rounded-xl bg-violet-neon/10 p-3 text-xs text-violet-neon">
-                <p className="font-bold">After payment:</p>
-                <p className="mt-1">
-                  Send your payment screenshot to{" "}
-                  <a
-                    href={`https://wa.me/91${whatsappNumber}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-bold underline"
-                  >
-                    WhatsApp +91 {whatsappNumber}
-                  </a>
-                  . Your ticket will be shared via email or WhatsApp after the organizer
-                  confirms your payment.
-                </p>
-              </div>
             </div>
           ) : (
             <div className="glass rounded-3xl p-5 text-center">

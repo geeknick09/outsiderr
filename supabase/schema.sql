@@ -17,6 +17,7 @@ alter publication supabase_realtime add table public.event_notifications;
 alter publication supabase_realtime add table public.ticket_tiers;
 alter publication supabase_realtime add table public.orders;
 alter publication supabase_realtime add table public.tickets;
+alter publication supabase_realtime add table public.events;
 
 -- ---------------------------------------------------------------- enums
 -- Event status: DRAFT → PUBLISHED → CANCELLATION_REQUESTED → CANCELLED
@@ -32,8 +33,28 @@ exception when duplicate_object then null; end $$;
 
 -- Notification type for event updates
 do $$ begin
-  create type public.event_notification_type as enum ('CANCELLATION','POSTPONEMENT','RESCHEDULE','WAITLIST_OFFER','VENUE_CHANGE','CITY_CHANGE','TIME_CHANGE');
+  create type public.event_notification_type as enum (
+    'CANCELLATION','POSTPONEMENT','RESCHEDULE','WAITLIST_OFFER','VENUE_CHANGE','CITY_CHANGE','TIME_CHANGE',
+    'PAYMENT_SUCCESS','PAYMENT_FAILED','REFUND_INITIATED','REFUND_COMPLETED','PAYOUT_COMPLETED'
+  );
 exception when duplicate_object then null; end $$;
+
+-- Add new notification types if the enum already exists (idempotent)
+do $$ begin
+  alter type public.event_notification_type add value if not exists 'PAYMENT_SUCCESS';
+exception when others then null; end $$;
+do $$ begin
+  alter type public.event_notification_type add value if not exists 'PAYMENT_FAILED';
+exception when others then null; end $$;
+do $$ begin
+  alter type public.event_notification_type add value if not exists 'REFUND_INITIATED';
+exception when others then null; end $$;
+do $$ begin
+  alter type public.event_notification_type add value if not exists 'REFUND_COMPLETED';
+exception when others then null; end $$;
+do $$ begin
+  alter type public.event_notification_type add value if not exists 'PAYOUT_COMPLETED';
+exception when others then null; end $$;
 do $$ begin
   create type event_category as enum (
     'CYPHER_BATTLE','SKATE_STUNT','FITNESS','JAM_GIG','HIP_HOP_PARTY','CAR_BIKE_MEET','WORKSHOP','OTHER'
@@ -79,9 +100,19 @@ exception when duplicate_object then null; end $$;
 
 do $$ begin
   create type order_status as enum (
-    'PENDING_VERIFICATION','CONFIRMED','REJECTED','CANCELLED'
+    'PENDING_VERIFICATION','CONFIRMED','REJECTED','CANCELLED',
+    'REFUNDED','RESERVED','EXPIRED','FAILED'
   );
 exception when duplicate_object then null; end $$;
+
+-- Add new enum values if the type already exists (idempotent)
+do $$ begin
+  alter type order_status add value if not exists 'REFUNDED';
+  alter type order_status add value if not exists 'RESERVED';
+  alter type order_status add value if not exists 'EXPIRED';
+  alter type order_status add value if not exists 'FAILED';
+  alter type order_status add value if not exists 'REFUND_REQUESTED';
+exception when others then null; end $$;
 
 do $$ begin
   create type ticket_status as enum ('VALID','USED','VOID');
@@ -163,6 +194,7 @@ create table if not exists public.events (
   status              event_status    not null default 'PUBLISHED',
   is_featured         boolean         not null default false,
   needs_door_staff    boolean         not null default false,
+  waitlist_enabled    boolean         not null default true,
   terms               text[]          not null default '{}',
   registrations_count integer         not null default 0,
   pricing_mode        text            not null default 'PAID'
@@ -203,6 +235,12 @@ create table if not exists public.ticket_tiers (
 create index if not exists ticket_tiers_event_idx on public.ticket_tiers(event_id);
 create index if not exists ticket_tiers_phase_idx on public.ticket_tiers(event_id, phase_order);
 
+-- Razorpay: track reserved (held but not yet paid) inventory separately.
+-- available = quantity - quantity_sold - quantity_reserved
+alter table public.ticket_tiers add column if not exists quantity_reserved integer not null default 0;
+alter table public.ticket_tiers add constraint if not exists ticket_tiers_not_overreserved
+  check (quantity_sold + quantity_reserved <= quantity);
+
 create table if not exists public.orders (
   id                  uuid         primary key default gen_random_uuid(),
   event_id            uuid         not null references public.events(id) on delete cascade,
@@ -218,8 +256,17 @@ create table if not exists public.orders (
   total_paise         integer      not null,
   fee_payer           fee_payer    not null,
   status              order_status not null default 'PENDING_VERIFICATION',
-  utr_reference       text,
-  payment_proof_url   text,
+  utr_reference       text,                               -- legacy: manual UPI flow
+  payment_proof_url   text,                               -- legacy: manual UPI flow
+  -- Razorpay integration columns
+  razorpay_order_id   text,                               -- rzp_order_xxx
+  razorpay_payment_id text,                               -- rzp_pay_xxx
+  razorpay_signature  text,                               -- verified signature from checkout
+  payment_method      text,                               -- 'upi','card','netbanking','wallet', etc.
+  reserved_at         timestamptz,                        -- when inventory was reserved
+  reservation_expires_at timestamptz,                     -- 15 min after reserved_at
+  confirmed_at        timestamptz,                        -- when payment was confirmed
+  invoice_number      text,                               -- OUT-YYYYMM-XXXXX
   buyer_name          text,
   buyer_phone         text,
   buyer_email         text,
@@ -231,6 +278,14 @@ create table if not exists public.orders (
 );
 create index if not exists orders_user_idx         on public.orders(user_id, created_at desc);
 create index if not exists orders_event_status_idx on public.orders(event_id, status);
+-- Razorpay unique indexes prevent duplicate payment/order binding
+create unique index if not exists orders_razorpay_order_id_idx
+  on public.orders(razorpay_order_id) where razorpay_order_id is not null;
+create unique index if not exists orders_razorpay_payment_id_idx
+  on public.orders(razorpay_payment_id) where razorpay_payment_id is not null;
+-- Index for fast reservation expiry cleanup
+create index if not exists orders_reservation_expires_idx
+  on public.orders(reservation_expires_at) where status = 'RESERVED';
 
 create table if not exists public.tickets (
   id            uuid          primary key default gen_random_uuid(),
@@ -286,7 +341,13 @@ create table if not exists public.refunds (
   status              refund_status not null default 'PENDING',
   reason              text          not null default '',
   initiated_at        timestamptz   not null default now(),
-  completed_at        timestamptz
+  completed_at        timestamptz,
+  -- Razorpay integration columns
+  razorpay_refund_id  text,
+  razorpay_payment_id text,
+  refund_type         text          default 'FULL' check (refund_type in ('FULL','PARTIAL')),
+  initiated_by        uuid          references auth.users(id),
+  gateway_fee_paise   integer       not null default 0   -- non-refundable Razorpay fee (deducted from organizer payout)
 );
 create index if not exists refunds_event_idx  on public.refunds(event_id);
 create index if not exists refunds_user_idx   on public.refunds(user_id);
@@ -413,6 +474,28 @@ create table if not exists public.door_staff_orders (
 create index if not exists door_staff_event_idx  on public.door_staff_orders(event_id);
 create index if not exists door_staff_org_idx    on public.door_staff_orders(organizer_id);
 
+-- --------------------------------------------------- event_staff
+-- Door staff assigned by the organizer to scan tickets at the door.
+-- Staff users can ONLY access the /scan endpoint — no organizer dashboard or analytics.
+-- The organizer adds staff by email and/or phone; the user_id is resolved
+-- when that person logs in with a matching email/phone.
+create table if not exists public.event_staff (
+  id             uuid        primary key default gen_random_uuid(),
+  event_id       uuid        not null references public.events(id) on delete cascade,
+  organizer_id   uuid        not null references public.organizers(id) on delete cascade,
+  email          text,
+  phone          text,
+  user_id        uuid        references auth.users(id) on delete set null,  -- resolved on login
+  display_name   text        not null default '',
+  created_at     timestamptz not null default now(),
+  check (email is not null or phone is not null)
+);
+create index if not exists event_staff_event_idx     on public.event_staff(event_id);
+create index if not exists event_staff_org_idx       on public.event_staff(organizer_id);
+create index if not exists event_staff_user_idx      on public.event_staff(user_id);
+create index if not exists event_staff_email_idx     on public.event_staff(email);
+create index if not exists event_staff_phone_idx     on public.event_staff(phone);
+
 create table if not exists public.boosts (
   id                uuid        primary key default gen_random_uuid(),
   event_id          uuid        not null references public.events(id) on delete cascade,
@@ -449,7 +532,10 @@ create table if not exists public.hero_boosts (
                   check (status in ('PENDING','ACTIVE','EXPIRED','CANCELLED','REFUNDED','FAILED')),
   amount_paise    integer     not null check (amount_paise > 0),
   currency        text        not null default 'INR',
-  utr_reference   text,
+  utr_reference   text,                                   -- legacy: manual UPI flow
+  -- Razorpay integration columns
+  razorpay_order_id   text,
+  razorpay_payment_id text,
   started_at      timestamptz,   -- set when boost becomes ACTIVE
   expires_at      timestamptz,   -- min(started_at + 7 days, event.starts_at)
   cancelled_at    timestamptz,
@@ -466,10 +552,81 @@ create index if not exists hero_boosts_started_idx   on public.hero_boosts(start
 create unique index if not exists hero_boosts_one_active_per_event
   on public.hero_boosts(event_id)
   where status = 'ACTIVE';
+-- Razorpay unique index for hero boosts
+create unique index if not exists hero_boosts_razorpay_order_idx
+  on public.hero_boosts(razorpay_order_id) where razorpay_order_id is not null;
 insert into public.boost_slot_prices (slot, price_paise) values
   (1,500000),(2,400000),(3,300000),(4,250000),(5,200000),
   (6,175000),(7,150000),(8,125000),(9,100000),(10,75000)
 on conflict do nothing;
+
+-- ------------------------------------------------------- Razorpay tables
+-- Webhook events table — idempotency for Razorpay webhooks.
+-- Each Razorpay event has a unique event_id; we store the full payload
+-- and track whether it has been processed.
+create table if not exists public.webhook_events (
+  id                  uuid        primary key default gen_random_uuid(),
+  razorpay_event_id   text        not null unique,
+  event_type          text        not null,                -- 'payment.captured','refund.processed', etc.
+  payload             jsonb       not null,
+  order_id            uuid        references public.orders(id),
+  processed           boolean     not null default false,
+  error_message       text,
+  created_at          timestamptz not null default now(),
+  processed_at        timestamptz
+);
+create index if not exists webhook_events_razorpay_event_idx on public.webhook_events(razorpay_event_id);
+create index if not exists webhook_events_order_idx          on public.webhook_events(order_id);
+create index if not exists webhook_events_unprocessed_idx    on public.webhook_events(processed) where not processed;
+
+-- Payment ledger — immutable record of every financial movement.
+-- One row per: ticket sale, boost sale, refund, payout, manual adjustment.
+create table if not exists public.payment_ledger (
+  id                      uuid        primary key default gen_random_uuid(),
+  order_id                uuid        references public.orders(id),
+  event_id                uuid        references public.events(id),
+  organizer_id            uuid        references public.organizers(id),
+  type                    text        not null check (type in (
+    'TICKET_SALE','BOOST_SALE','REFUND','PAYOUT','ADJUSTMENT'
+  )),
+  gross_amount_paise      integer     not null,
+  commission_paise        integer     not null default 0,
+  convenience_fee_paise   integer     not null default 0,
+  razorpay_fee_paise      integer     not null default 0,   -- informational: Razorpay's processing fee
+  refund_amount_paise     integer     not null default 0,
+  net_organizer_paise     integer     not null default 0,
+  net_platform_paise      integer     not null default 0,
+  razorpay_payment_id     text,
+  razorpay_refund_id      text,
+  notes                   text,
+  created_at              timestamptz not null default now()
+);
+create index if not exists ledger_event_idx      on public.payment_ledger(event_id);
+create index if not exists ledger_organizer_idx  on public.payment_ledger(organizer_id);
+create index if not exists ledger_order_idx      on public.payment_ledger(order_id);
+create index if not exists ledger_type_idx       on public.payment_ledger(type);
+
+-- Payout records — tracks manual bank transfers to organizers.
+-- Outsiderr admin initiates these after events conclude.
+create table if not exists public.payout_records (
+  id                uuid        primary key default gen_random_uuid(),
+  organizer_id      uuid        not null references public.organizers(id) on delete cascade,
+  event_id          uuid        references public.events(id),             -- null = cross-event payout
+  amount_paise      integer     not null check (amount_paise > 0),
+  status            text        not null default 'PENDING'
+                    check (status in ('PENDING','PROCESSING','COMPLETED','FAILED')),
+  bank_reference    text,                                                 -- NEFT/IMPS reference
+  notes             text,
+  initiated_by      uuid        references auth.users(id),
+  initiated_at      timestamptz not null default now(),
+  completed_at      timestamptz
+);
+create index if not exists payout_organizer_idx on public.payout_records(organizer_id);
+create index if not exists payout_event_idx     on public.payout_records(event_id);
+create index if not exists payout_status_idx    on public.payout_records(status);
+
+-- Invoice number sequence — format: OUT-YYYYMM-XXXXX
+create sequence if not exists invoice_number_seq start with 10001;
 
 create table if not exists public.clubs (
   id                  uuid        primary key default gen_random_uuid(),
@@ -577,7 +734,46 @@ as $$
     from public.events e
     join public.organizers o on o.id = e.organizer_id
     where e.id = p_event_id and o.owner_id = auth.uid()
+  )
+  or exists (
+    select 1
+    from public.event_staff es
+    where es.event_id = p_event_id and es.user_id = auth.uid()
+  )
+  or public.is_current_user_admin();
+$$;
+
+-- Check if the current user is door staff for any organizer (for /scan access)
+create or replace function public.is_door_staff_any()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.event_staff es
+    where es.user_id = auth.uid()
   ) or public.is_current_user_admin();
+$$;
+
+-- Get the organizer IDs that the current user is door staff for
+create or replace function public.get_staff_organizer_ids()
+returns table (organizer_id uuid)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select distinct es.organizer_id
+    from public.event_staff es
+   where es.user_id = auth.uid()
+   union
+  select o.id
+    from public.organizers o
+   where o.owner_id = auth.uid()
+  ;
 $$;
 
 create or replace function public.handle_new_user()
@@ -1021,6 +1217,18 @@ begin
   update public.events set status = 'CANCELLATION_REQUESTED'
    where id = p_event_id and organizer_id = v_organizer_id;
 
+  -- Release reserved inventory for RESERVED orders (Razorpay flow: payment not yet completed)
+  for v_order in
+    select id, tier_id, quantity
+      from public.orders
+     where event_id = p_event_id and status = 'RESERVED'
+  loop
+    update public.orders set status = 'CANCELLED' where id = v_order.id;
+    update public.ticket_tiers
+       set quantity_reserved = greatest(quantity_reserved - v_order.quantity, 0)
+     where id = v_order.tier_id;
+  end loop;
+
   for v_order in
     select id, user_id, total_paise, platform_fee_paise
       from public.orders
@@ -1099,6 +1307,309 @@ begin
 end;
 $$;
 
+-- ---------------------------------------------------------------------------
+-- Postponement refund: a user requests a refund for a postponed event.
+-- The user's ticket is cancelled and a refund record is created.
+-- The order is marked REFUND_REQUESTED so the admin can process the Razorpay refund.
+-- Returns the refund details for the calling code to trigger Razorpay.
+-- ---------------------------------------------------------------------------
+create or replace function public.request_postponement_refund(
+  p_event_id uuid,
+  p_user_id uuid
+)
+returns table (
+  order_id uuid,
+  total_paise integer,
+  razorpay_payment_id text,
+  refund_created boolean
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order record;
+  v_refund_id uuid;
+begin
+  -- Verify the event is postponed
+  if not exists (select 1 from public.events where id = p_event_id and status = 'POSTPONED') then
+    raise exception 'Event is not postponed';
+  end if;
+
+  -- Find the user's confirmed order for this event
+  select id, total_paise, platform_fee_paise
+    into v_order
+    from public.orders
+   where event_id = p_event_id and user_id = p_user_id and status = 'CONFIRMED'
+   limit 1;
+
+  if not found then
+    raise exception 'No confirmed order found for this event';
+  end if;
+
+  -- Mark order as REFUND_REQUESTED
+  update public.orders set status = 'REFUND_REQUESTED' where id = v_order.id;
+
+  -- Cancel the user's tickets
+  update public.tickets set status = 'CANCELLED' where order_id = v_order.id;
+
+  -- Create a refund record
+  insert into public.refunds (order_id, event_id, user_id, amount_paise, platform_fee_paise, status, reason, initiated_at, initiated_by)
+  values (v_order.id, p_event_id, p_user_id, v_order.total_paise, v_order.platform_fee_paise, 'PENDING', 'Postponement refund requested by user', now(), p_user_id)
+  returning id into v_refund_id;
+
+  -- Notify the user
+  insert into public.event_notifications (event_id, user_id, type, message)
+  values (p_event_id, p_user_id, 'REFUND_INITIATED', 'Your refund request for the postponed event has been submitted. You will receive your refund shortly.');
+
+  -- Get the Razorpay payment ID for the calling code to process the refund
+  return query
+    select
+      v_order.id,
+      v_order.total_paise,
+      o.razorpay_payment_id,
+      true;
+  return;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Razorpay: Reserve inventory + create RESERVED order (replaces create_paid_order for new flow).
+-- Inventory is held (quantity_reserved += qty) but NOT sold until payment is confirmed.
+-- Reservation expires after 15 minutes via expire_reserved_orders() cron.
+-- ---------------------------------------------------------------------------
+create or replace function public.create_reserved_order(
+  p_event_id              uuid,
+  p_tier_id               uuid,
+  p_quantity              integer,
+  p_unit_price_paise      integer,
+  p_subtotal_paise        integer,
+  p_platform_fee_paise    integer,
+  p_commission_paise      integer,
+  p_convenience_fee_paise integer,
+  p_organizer_payout_paise integer,
+  p_total_paise           integer,
+  p_fee_payer             text,
+  p_buyer_name            text default null,
+  p_buyer_phone           text default null,
+  p_buyer_email           text default null,
+  p_buyer_gender          text default null
+)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order   public.orders;
+  v_tier    public.ticket_tiers;
+  v_event   public.events;
+  v_existing_count integer;
+begin
+  -- Lock the tier row to prevent concurrent overbooking
+  select * into v_tier from public.ticket_tiers where id = p_tier_id for update;
+  if not found then
+    raise exception 'Ticket tier not found';
+  end if;
+  if v_tier.price_paise = 0 then
+    raise exception 'Use the free order flow for free tickets';
+  end if;
+
+  -- Check available inventory (sold + reserved)
+  if v_tier.quantity - v_tier.quantity_sold - v_tier.quantity_reserved < p_quantity then
+    raise exception 'Not enough tickets available';
+  end if;
+
+  select * into v_event from public.events where id = p_event_id;
+  if not found then
+    raise exception 'Event not found';
+  end if;
+
+  -- Prevent double booking: check for existing active/reserved orders by this user for this event
+  select count(*) into v_existing_count
+  from public.orders
+  where event_id = p_event_id
+    and user_id = auth.uid()
+    and status in ('CONFIRMED', 'RESERVED', 'PENDING_VERIFICATION');
+  if v_existing_count > 0 then
+    raise exception 'You already have an active booking for this event';
+  end if;
+
+  -- Reserve inventory
+  update public.ticket_tiers
+     set quantity_reserved = quantity_reserved + p_quantity
+   where id = p_tier_id;
+
+  -- Insert order as RESERVED with 15-minute reservation window
+  insert into public.orders (
+    event_id, tier_id, user_id, quantity,
+    unit_price_paise, subtotal_paise, platform_fee_paise,
+    commission_paise, convenience_fee_paise, organizer_payout_paise,
+    total_paise, fee_payer, status,
+    buyer_name, buyer_phone, buyer_email, buyer_gender,
+    reserved_at, reservation_expires_at
+  ) values (
+    p_event_id, p_tier_id, auth.uid(), p_quantity,
+    p_unit_price_paise, p_subtotal_paise, p_platform_fee_paise,
+    p_commission_paise, p_convenience_fee_paise, p_organizer_payout_paise,
+    p_total_paise, p_fee_payer::fee_payer, 'RESERVED',
+    p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender,
+    now(), now() + interval '15 minutes'
+  )
+  returning * into v_order;
+
+  return v_order;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Razorpay: Confirm a RESERVED order after payment signature verification.
+-- Idempotent: if already CONFIRMED, returns existing tickets without re-minting.
+-- Converts reserved inventory → sold, mints tickets, generates invoice number.
+-- ---------------------------------------------------------------------------
+create or replace function public.confirm_razorpay_order(
+  p_order_id            uuid,
+  p_razorpay_payment_id text,
+  p_razorpay_signature  text default null,
+  p_payment_method      text default null
+)
+returns setof public.tickets
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order    public.orders;
+  v_tier     public.ticket_tiers;
+  v_invoice  text;
+begin
+  -- Lock the order row to prevent race between callback and webhook
+  select * into v_order from public.orders where id = p_order_id for update;
+  if not found then
+    raise exception 'Order not found';
+  end if;
+
+  -- Idempotency: if already confirmed, return existing tickets
+  if v_order.status = 'CONFIRMED' then
+    return query select * from public.tickets where order_id = p_order_id;
+    return;
+  end if;
+
+  if v_order.status <> 'RESERVED' then
+    raise exception 'Order is %, cannot confirm', v_order.status;
+  end if;
+
+  -- Lock tier and convert reservation to sold
+  select * into v_tier from public.ticket_tiers where id = v_order.tier_id for update;
+  update public.ticket_tiers
+     set quantity_reserved = greatest(quantity_reserved - v_order.quantity, 0),
+         quantity_sold = quantity_sold + v_order.quantity
+   where id = v_order.tier_id;
+
+  -- Generate invoice number: OUT-YYYYMM-XXXXX
+  v_invoice := 'OUT-' || to_char(now(), 'YYYYMM') || '-' || nextval('invoice_number_seq');
+
+  -- Update order to CONFIRMED with payment details
+  update public.orders
+     set status = 'CONFIRMED',
+         razorpay_payment_id = p_razorpay_payment_id,
+         razorpay_signature = p_razorpay_signature,
+         payment_method = p_payment_method,
+         confirmed_at = now(),
+         invoice_number = v_invoice
+   where id = p_order_id;
+
+  -- Update event registration count
+  update public.events
+     set registrations_count = registrations_count + v_order.quantity
+   where id = v_order.event_id;
+
+  -- Mint tickets with unique SHA-256 QR hashes
+  return query
+    insert into public.tickets (order_id, event_id, tier_id, user_id, qr_hash)
+    select
+      v_order.id, v_order.event_id, v_order.tier_id, v_order.user_id,
+      encode(sha256((v_order.id::text || ':' || g::text || ':' || gen_random_uuid()::text)::bytea), 'hex')
+    from generate_series(1, v_order.quantity) g
+    returning *;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Razorpay: Mark a RESERVED order as FAILED and release reserved inventory.
+-- Idempotent: no-op if order is not RESERVED.
+-- ---------------------------------------------------------------------------
+create or replace function public.fail_razorpay_order(p_order_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order public.orders;
+begin
+  select * into v_order from public.orders where id = p_order_id for update;
+  if not found then return; end if;
+  if v_order.status <> 'RESERVED' then return; end if;
+
+  update public.orders set status = 'FAILED' where id = p_order_id;
+  update public.ticket_tiers
+     set quantity_reserved = greatest(quantity_reserved - v_order.quantity, 0)
+   where id = v_order.tier_id;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Razorpay: Expire all RESERVED orders whose reservation window has passed.
+-- Releases reserved inventory. Called by pg_cron or Vercel Cron every minute.
+-- Uses SKIP LOCKED to avoid blocking on long-running transactions.
+-- ---------------------------------------------------------------------------
+create or replace function public.expire_reserved_orders()
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_count integer := 0;
+  v_order record;
+begin
+  for v_order in
+    select id, tier_id, quantity
+      from public.orders
+     where status = 'RESERVED' and reservation_expires_at < now()
+     for update skip locked
+  loop
+    update public.orders set status = 'EXPIRED' where id = v_order.id;
+    update public.ticket_tiers
+       set quantity_reserved = greatest(quantity_reserved - v_order.quantity, 0)
+     where id = v_order.tier_id;
+    v_count := v_count + 1;
+  end loop;
+  return v_count;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Razorpay: Update order with Razorpay order ID after creating Razorpay order.
+-- Called by the server action after razorpay.orders.create() succeeds.
+-- ---------------------------------------------------------------------------
+create or replace function public.set_razorpay_order_id(
+  p_order_id          uuid,
+  p_razorpay_order_id text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.orders
+     set razorpay_order_id = p_razorpay_order_id
+   where id = p_order_id and status = 'RESERVED';
+end;
+$$;
+
 -- ---------------------------------------------------------------- RLS
 
 alter table public.profiles          enable row level security;
@@ -1113,6 +1624,10 @@ alter table public.boosts            enable row level security;
 alter table public.boost_slot_prices enable row level security;
 alter table public.clubs             enable row level security;
 alter table public.club_members      enable row level security;
+-- Razorpay tables
+alter table public.webhook_events    enable row level security;
+alter table public.payment_ledger    enable row level security;
+alter table public.payout_records    enable row level security;
 
 -- profiles
 drop policy if exists "profiles are self readable" on public.profiles;
@@ -1144,7 +1659,7 @@ create policy "organizers owner delete" on public.organizers
 -- events
 drop policy if exists "published events are public" on public.events;
 create policy "published events are public" on public.events
-  for select using (status = 'PUBLISHED' or public.is_event_staff(id));
+  for select using (status in ('PUBLISHED', 'POSTPONED') or public.is_event_staff(id));
 
 drop policy if exists "events are organizer managed" on public.events;
 drop policy if exists "events organizer insert" on public.events;
@@ -1503,6 +2018,95 @@ create policy "admin read all door staff orders" on public.door_staff_orders
 drop policy if exists "admin update door staff orders" on public.door_staff_orders;
 create policy "admin update door staff orders" on public.door_staff_orders
   for update using (public.is_current_user_admin());
+
+-- --------------------------------------------------- event_staff RLS
+alter table public.event_staff enable row level security;
+
+-- Organizers can read staff for their events
+drop policy if exists "organizers read own event staff" on public.event_staff;
+create policy "organizers read own event staff" on public.event_staff
+  for select using (
+    exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
+  );
+
+-- Organizers can add staff to their events
+drop policy if exists "organizers insert event staff" on public.event_staff;
+create policy "organizers insert event staff" on public.event_staff
+  for insert with check (
+    exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
+  );
+
+-- Organizers can remove staff from their events
+drop policy if exists "organizers delete own event staff" on public.event_staff;
+create policy "organizers delete own event staff" on public.event_staff
+  for delete using (
+    exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
+  );
+
+-- Staff users can read their own staff assignments (to know which events they can scan for)
+drop policy if exists "staff read own assignments" on public.event_staff;
+create policy "staff read own assignments" on public.event_staff
+  for select using (user_id = auth.uid());
+
+-- Staff users can update their own user_id resolution (auto-resolve on login)
+drop policy if exists "staff update own user_id" on public.event_staff;
+create policy "staff update own user_id" on public.event_staff
+  for update using (user_id = auth.uid() or user_id is null);
+
+-- Admins can read all event staff
+drop policy if exists "admin read all event staff" on public.event_staff;
+create policy "admin read all event staff" on public.event_staff
+  for select using (public.is_current_user_admin());
+
+-- Admins can delete event staff
+drop policy if exists "admin delete event staff" on public.event_staff;
+create policy "admin delete event staff" on public.event_staff
+  for delete using (public.is_current_user_admin());
+
+-- --------------------------------------------- webhook_events RLS
+-- Only admins can read webhook events; inserts happen via service role (webhook route)
+drop policy if exists "admin read webhook events" on public.webhook_events;
+create policy "admin read webhook events" on public.webhook_events
+  for select using (public.is_current_user_admin());
+
+drop policy if exists "admin update webhook events" on public.webhook_events;
+create policy "admin update webhook events" on public.webhook_events
+  for update using (public.is_current_user_admin());
+
+-- --------------------------------------------- payment_ledger RLS
+-- Admins can read all ledger entries; organizers can read their own
+drop policy if exists "admin read all ledger" on public.payment_ledger;
+create policy "admin read all ledger" on public.payment_ledger
+  for select using (public.is_current_user_admin());
+
+drop policy if exists "organizer read own ledger" on public.payment_ledger;
+create policy "organizer read own ledger" on public.payment_ledger
+  for select using (
+    organizer_id is not null
+    and exists (select 1 from public.organizers o
+                where o.id = payment_ledger.organizer_id and o.owner_id = auth.uid())
+  );
+
+-- --------------------------------------------- payout_records RLS
+-- Admins can read/update all payouts; organizers can read their own
+drop policy if exists "admin read all payouts" on public.payout_records;
+create policy "admin read all payouts" on public.payout_records
+  for select using (public.is_current_user_admin());
+
+drop policy if exists "admin insert payouts" on public.payout_records;
+create policy "admin insert payouts" on public.payout_records
+  for insert with check (public.is_current_user_admin());
+
+drop policy if exists "admin update payouts" on public.payout_records;
+create policy "admin update payouts" on public.payout_records
+  for update using (public.is_current_user_admin());
+
+drop policy if exists "organizer read own payouts" on public.payout_records;
+create policy "organizer read own payouts" on public.payout_records
+  for select using (
+    exists (select 1 from public.organizers o
+            where o.id = payout_records.organizer_id and o.owner_id = auth.uid())
+  );
 
 -- ================================================================
 -- Storage: event-media bucket + RLS policies

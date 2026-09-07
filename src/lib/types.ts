@@ -39,11 +39,15 @@ export interface RefundRecord {
 }
 
 export type OrderStatus =
-  | "PENDING_VERIFICATION"
+  | "PENDING_VERIFICATION" // legacy manual UPI flow (kept for historical orders)
   | "CONFIRMED"
   | "REJECTED"
   | "CANCELLED"
-  | "REFUNDED";
+  | "REFUNDED"
+  | "RESERVED"   // Razorpay: inventory held, awaiting payment
+  | "EXPIRED"    // Razorpay: reservation timed out
+  | "FAILED"     // Razorpay: payment failed
+  | "REFUND_REQUESTED"; // User requested refund for postponed event
 
 export type TicketStatus = "VALID" | "USED" | "VOID" | "CANCELLED";
 
@@ -123,6 +127,7 @@ export interface TicketTier {
   pricePaise: number;
   quantity: number;
   quantitySold: number;
+  quantityReserved?: number;
   perks: string[];
   sortOrder: number;
   tierType?: TierType;
@@ -167,6 +172,7 @@ export interface EventDetail extends EventSummary {
   convenienceFeeEnabled: boolean;
   status: EventStatus;
   needsDoorStaff: boolean;
+  waitlistEnabled: boolean;
   terms: string[];
   organizer: Organizer;
   tiers: TicketTier[];
@@ -191,17 +197,30 @@ export interface Order {
   unitPricePaise: number;
   subtotalPaise: number;
   platformFeePaise: number;
+  commissionPaise: number;
+  convenienceFeePaise: number;
+  organizerPayoutPaise: number;
   totalPaise: number;
   feePayer: FeePayer;
   status: OrderStatus;
   utrReference: string | null;
   paymentProofUrl: string | null;
+  // Razorpay integration fields
+  razorpayOrderId: string | null;
+  razorpayPaymentId: string | null;
+  paymentMethod: string | null;
+  invoiceNumber: string | null;
+  reservedAt: string | null;
+  reservationExpiresAt: string | null;
+  confirmedAt: string | null;
   buyerName: string | null;
   buyerPhone: string | null;
   buyerEmail: string | null;
   buyerGender: string | null;
   rejectionReason: string | null;
   createdAt: string;
+  eventStatus?: string;
+  eventStartsAt?: string;
 }
 
 export interface Ticket {
@@ -296,6 +315,7 @@ export interface AdminStats {
   totalEvents: number;
   activeEvents: number;
   totalOrders: number;
+  confirmedOrders: number;
   pendingOrders: number;
   totalRevenuePaise: number;       // total_paise (what buyers paid)
   grossRevenuePaise: number;       // subtotal_paise (ticket sales before fees)
@@ -399,6 +419,8 @@ export interface HeroBoost {
   amountPaise: number;
   currency: string;
   utrReference: string | null;
+  razorpayOrderId: string | null;
+  razorpayPaymentId: string | null;
   startedAt: string | null;
   expiresAt: string | null;
   cancelledAt: string | null;
@@ -417,4 +439,70 @@ export interface HeroEvent extends EventSummary {
   heroBoostId: string;
   heroStartedAt: string;
   heroExpiresAt: string;
+}
+
+// ── Razorpay: Payment ledger, payouts, webhook events ─────────────────
+
+export type LedgerType = "TICKET_SALE" | "BOOST_SALE" | "REFUND" | "PAYOUT" | "ADJUSTMENT";
+
+export interface PaymentLedgerEntry {
+  id: string;
+  orderId: string | null;
+  eventId: string | null;
+  organizerId: string | null;
+  type: LedgerType;
+  grossAmountPaise: number;
+  commissionPaise: number;
+  convenienceFeePaise: number;
+  razorpayFeePaise: number;
+  refundAmountPaise: number;
+  netOrganizerPaise: number;
+  netPlatformPaise: number;
+  razorpayPaymentId: string | null;
+  razorpayRefundId: string | null;
+  notes: string | null;
+  createdAt: string;
+}
+
+export type PayoutStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+
+export interface PayoutRecord {
+  id: string;
+  organizerId: string;
+  eventId: string | null;
+  amountPaise: number;
+  status: PayoutStatus;
+  bankReference: string | null;
+  notes: string | null;
+  initiatedBy: string | null;
+  initiatedAt: string;
+  completedAt: string | null;
+}
+
+export interface WebhookEvent {
+  id: string;
+  razorpayEventId: string;
+  eventType: string;
+  payload: Record<string, unknown>;
+  orderId: string | null;
+  processed: boolean;
+  errorMessage: string | null;
+  createdAt: string;
+  processedAt: string | null;
+}
+
+// ── Razorpay: Checkout session returned by createCheckoutAction ───────
+
+export interface CheckoutSession {
+  orderId: string;
+  razorpayOrderId: string;
+  amountPaise: number;
+  currency: string;
+  keyId: string;
+  eventTitle: string;
+  tierName: string;
+  quantity: number;
+  buyerName: string | null;
+  buyerEmail: string | null;
+  buyerPhone: string | null;
 }

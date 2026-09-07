@@ -10,7 +10,7 @@ import { ClubForm } from "@/components/organizer/club-form";
 import { ClubMembersPanel } from "@/components/organizer/club-members-panel";
 import { OrganizerEventsList } from "@/components/organizer/organizer-events-list";
 import { OrganizerHeader } from "@/components/organizer/organizer-header";
-import { VerificationQueue } from "@/components/organizer/verification-queue";
+import { OrderMonitor } from "@/components/organizer/order-monitor";
 import { getCurrentUser } from "@/lib/auth";
 import {
   getOrganizerEventAnalytics,
@@ -18,7 +18,7 @@ import {
   listOrganizerEvents,
 } from "@/lib/data/organizer";
 import { listClubMembers, listMyClubs } from "@/lib/data/clubs";
-import { listPendingOrders } from "@/lib/data/orders";
+import { listPendingOrders, listOrdersForOrganizerEvents } from "@/lib/data/orders";
 import { getTermsVersion, getDoorStaffPricing, getDoorStaffMax, getDoorStaffAvailable } from "@/lib/data/platform-settings";
 
 // Lazy load EventForm — it pulls in Leaflet (~140kB) via MapPicker
@@ -35,7 +35,7 @@ type Tab = "events" | "create" | "verify" | "analytics" | "clubs";
 const TABS: { value: Tab; label: string }[] = [
   { value: "events", label: "My Events" },
   { value: "create", label: "Create Event" },
-  { value: "verify", label: "Verification" },
+  { value: "verify", label: "Orders" },
   { value: "analytics", label: "Analytics" },
   // Clubs & Crews disabled for this release — kept in admin only
   // { value: "clubs", label: "Clubs & Crews" },
@@ -71,6 +71,12 @@ export default async function OrganizerPage({
     getDoorStaffMax(),
     getDoorStaffAvailable(),
   ]);
+
+  // Fetch all orders for the organizer's events (for the Order Monitor)
+  const organizerEventIds = events.map((e) => e.id);
+  const allOrders = organizerEventIds.length > 0
+    ? await listOrdersForOrganizerEvents(organizerEventIds)
+    : [];
 
   // Analytics tab: fetch per-event analytics
   // Also fetch for events tab so sorting by waitlist/revenue works
@@ -132,7 +138,7 @@ export default async function OrganizerPage({
           />
         </Suspense>
       ) : tab === "verify" ? (
-        <VerificationQueue orders={pending} organizerEventIds={events.map((e) => e.id)} />
+        <OrderMonitor orders={allOrders} organizerEventIds={organizerEventIds} />
       ) : tab === "analytics" ? (
         <div className="space-y-6">
           {/* Aggregated analytics across all events (exclude drafts) */}

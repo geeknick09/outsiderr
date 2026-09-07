@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { formatPaise } from "@/lib/format";
 import type { EventAnalytics } from "@/lib/types";
 
@@ -5,17 +7,19 @@ export function AnalyticsPanel({
   analytics,
   capacity,
   ticketsSold,
+  eventId,
 }: {
   analytics: EventAnalytics;
   capacity?: number;
   ticketsSold?: number;
+  eventId?: string;
 }) {
   const sold = ticketsSold ?? analytics.confirmedOrders;
   const cap = capacity ?? 0;
   const pct = cap > 0 ? Math.min(100, Math.round((sold / cap) * 100)) : 0;
 
-  const stats: { label: string; value: string; sub?: string }[] = [
-    { label: "Total orders", value: String(analytics.totalOrders) },
+  const stats: { label: string; value: string; sub?: string; href?: string }[] = [
+    { label: "Total orders", value: String(analytics.totalOrders), href: eventId ? `/organizer/events/${eventId}/orders` : undefined },
     {
       label: "Confirmed",
       value: String(analytics.confirmedOrders),
@@ -32,20 +36,41 @@ export function AnalyticsPanel({
       value: String(sold),
       sub: cap > 0 ? `${pct}% of ${cap} capacity` : undefined,
     },
-    { label: "Check-ins", value: String(analytics.checkIns) },
+    { label: "Check-ins", value: String(analytics.checkIns), href: eventId ? `/organizer/events/${eventId}/checkins` : undefined },
     { label: "Waitlist", value: String(analytics.waitlistCount) },
   ];
 
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {stats.map((stat) => (
-          <div key={stat.label} className="glass rounded-2xl p-4">
-            <p className="mb-1 text-xs text-muted">{stat.label}</p>
-            <p className="text-2xl font-black">{stat.value}</p>
-            {stat.sub ? <p className="mt-1 text-[11px] text-muted">{stat.sub}</p> : null}
-          </div>
-        ))}
+        {stats.map((stat) => {
+          const content = (
+            <>
+              <p className="mb-1 text-xs text-muted">{stat.label}</p>
+              <p className="text-2xl font-black">{stat.value}</p>
+              {stat.sub ? <p className="mt-1 text-[11px] text-muted">{stat.sub}</p> : null}
+            </>
+          );
+
+          if (stat.href) {
+            return (
+              <Link
+                key={stat.label}
+                href={stat.href}
+                className="glass rounded-2xl p-4 transition-all hover:-translate-y-0.5 hover:border-violet-neon/50 hover:shadow-[0_0_20px_rgba(139,92,246,0.25)] cursor-pointer"
+              >
+                {content}
+                <p className="mt-1 text-[10px] font-semibold text-violet-neon">View details →</p>
+              </Link>
+            );
+          }
+
+          return (
+            <div key={stat.label} className="glass rounded-2xl p-4">
+              {content}
+            </div>
+          );
+        })}
       </div>
       {/* Capacity progress bar */}
       {cap > 0 ? (
