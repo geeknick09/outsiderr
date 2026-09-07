@@ -2,9 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
-/* App-like scrolling: smooth, momentum, no overscroll bounce */
+/* App-like scrolling: momentum, no overscroll bounce.
+   NOTE: scroll-behavior: smooth is intentionally NOT set globally because it
+   interferes with Next.js App Router navigation — after a route change or server
+   action, Next scrolls to top/restore position instantly, but smooth makes it a
+   visible "scroll down" animation. Apply smooth only where needed via inline style. */
 html {
-  scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: none;
 }
