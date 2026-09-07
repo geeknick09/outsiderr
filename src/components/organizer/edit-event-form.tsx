@@ -317,6 +317,7 @@ export function EditEventForm({ event }: { event: EventDetail }) {
       </Field>
 
       <Field label="Venue name">
+        <input type="hidden" name="venueMode" value="NOW" />
         <input
           name="venueName"
           required
@@ -336,7 +337,7 @@ export function EditEventForm({ event }: { event: EventDetail }) {
         />
       </Field>
 
-      <Field label="Google Maps link">
+      <Field label="Google Maps link *">
         <input
           name="googleMapsLink"
           value={mapsLink}
@@ -349,6 +350,7 @@ export function EditEventForm({ event }: { event: EventDetail }) {
             }
             updateField();
           }}
+          required
           placeholder="https://maps.app.goo.gl/… or https://maps.google.com/…"
           className={`${INPUT} ${mapsError ? "border-red-500" : ""}`}
         />

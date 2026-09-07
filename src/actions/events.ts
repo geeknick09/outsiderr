@@ -299,7 +299,13 @@ export async function createEventAction(
   const googleMapsLink = String(formData.get("googleMapsLink") ?? "").trim() || null;
 
   // Validate Google Maps link if venue mode is NOW
-  if (venueMode === "NOW" && googleMapsLink) {
+  if (venueMode === "NOW") {
+    if (!googleMapsLink) {
+      return {
+        error: "Google Maps link is required when venue is not TBA. Paste a maps.google.com or maps.app.goo.gl link.",
+        values: extractFormValues(formData),
+      };
+    }
     const { isGoogleMapsLink } = await import("@/lib/upi");
     if (!isGoogleMapsLink(googleMapsLink)) {
       return {
@@ -424,7 +430,19 @@ export async function updateEventAction(
   const latitude = String(formData.get("latitude") ?? "").trim();
   const longitude = String(formData.get("longitude") ?? "").trim();
   const googleMapsLink = String(formData.get("googleMapsLink") ?? "").trim() || null;
+  const venueMode = String(formData.get("venueMode") ?? "NOW");
   const endsAt = String(formData.get("endsAt") ?? "").trim();
+
+  // Validate Google Maps link if venue mode is NOW
+  if (venueMode === "NOW") {
+    if (!googleMapsLink) {
+      return { error: "Google Maps link is required when venue is not TBA. Paste a maps.google.com or maps.app.goo.gl link." };
+    }
+    const { isGoogleMapsLink } = await import("@/lib/upi");
+    if (!isGoogleMapsLink(googleMapsLink)) {
+      return { error: "Google Maps link must be a valid maps.google.com or maps.app.goo.gl URL." };
+    }
+  }
 
   // Validate end date is required and after start date
   if (!endsAt) {

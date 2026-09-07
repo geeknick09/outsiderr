@@ -6,6 +6,7 @@ import Image from "next/image";
 import { submitPaymentAction } from "@/actions/orders";
 import { Button } from "@/components/ui/button";
 import { PhoneInput } from "@/components/ui/phone-input";
+import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
 import { upiIntent } from "@/lib/upi";
 
 const INPUT =
@@ -131,7 +132,7 @@ export function CheckoutForm({
         <div className="space-y-4 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm dark:border-violet-500/30 dark:bg-violet-500/10">
           <div>
             <p className="font-bold text-violet-900 dark:text-violet-200">
-              Pay ₹{totalRupees} to the organizer
+              Pay {totalRupees} to the organizer
             </p>
             <p className="mt-1 text-xs text-violet-800/80 dark:text-violet-300/80">
               Use any UPI app (GPay, PhonePe, Paytm) to pay the organizer directly.
@@ -186,20 +187,52 @@ export function CheckoutForm({
             </a>
           ) : null}
 
+          {/* Pay directly to organizer's mobile number (fallback if UPI ID/QR fails) */}
+          {organizerPhone ? (
+            <div className="rounded-xl bg-white/60 px-3 py-3 dark:bg-white/5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                Pay to mobile number
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                If the UPI ID or QR doesn&apos;t work, pay directly to the organizer&apos;s number via GPay / PhonePe / Paytm.
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <a
+                  href={`tel:${organizerPhone}`}
+                  className="font-mono text-sm font-bold text-violet-neon underline"
+                >
+                  {organizerPhone}
+                </a>
+                <a
+                  href={`upi://pay?pa=${encodeURIComponent(organizerPhone)}&pn=${encodeURIComponent(organizerName ?? "Organizer")}&am=${(totalPaise / 100).toFixed(2)}&cu=INR&tn=${encodeURIComponent(`Outsiderr tickets — ${quantity} ticket(s)`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg border border-violet-neon/40 px-3 py-1.5 text-xs font-bold text-violet-neon transition-colors hover:bg-violet-neon/10"
+                >
+                  Pay via UPI to number
+                </a>
+              </div>
+            </div>
+          ) : null}
+
           {/* Organizer phone for screenshot */}
           {organizerPhone ? (
             <div className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
               <p className="font-semibold">For faster verification</p>
               <p className="mt-0.5">
-                Send your GPay/PhonePe payment screenshot to{" "}
-                <a
-                  href={`tel:${organizerPhone}`}
-                  className="font-bold underline"
-                >
-                  {organizerPhone}
-                </a>{" "}
-                (organizer). This helps them confirm your ticket quickly.
+                Send your GPay/PhonePe payment screenshot to the organizer on WhatsApp. This helps them confirm your ticket quickly.
               </p>
+              <a
+                href={`https://wa.me/${organizerPhone.replace(/[^\d]/g, "")}?text=${encodeURIComponent(
+                  `Hi ${organizerName ?? "Organizer"}, I just paid for ${quantity} ticket(s) on Outsiderr. Here is my payment screenshot for verification.`,
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-[#25D366] px-3 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-90"
+              >
+                <WhatsAppIcon className="h-3.5 w-3.5" />
+                Chat on WhatsApp · {organizerPhone}
+              </a>
             </div>
           ) : null}
 
@@ -232,7 +265,7 @@ export function CheckoutForm({
         loading={pending}
         loadingText={isFree ? "Confirming…" : "Submitting booking…"}
       >
-        {isFree ? "Confirm RSVP" : `Submit Booking — ₹${totalRupees}`}
+        {isFree ? "Confirm RSVP" : `Submit Booking — ${totalRupees}`}
       </Button>
       <p className="text-center text-xs text-muted">
         {isFree ? (

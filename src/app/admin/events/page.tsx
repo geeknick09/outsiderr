@@ -214,9 +214,9 @@ export default async function AdminEventsPage({
               <form action={async (formData: FormData) => {
                 "use server";
                 await adminUpdateEventFeesAction(event.id, {
-                  commissionBps: Number(formData.get("commissionBps") ?? 1000),
+                  commissionBps: Math.round(Number(formData.get("commissionBps") ?? 0) * 100),
                   commissionEnabled: formData.get("commissionEnabled") === "on",
-                  convenienceFeeBps: Number(formData.get("convenienceFeeBps") ?? 200),
+                  convenienceFeeBps: Math.round(Number(formData.get("convenienceFeeBps") ?? 0) * 100),
                   convenienceFeeEnabled: formData.get("convenienceFeeEnabled") === "on",
                 }, String(formData.get("reason") ?? "").trim() || undefined);
               }} className="flex flex-wrap items-end gap-3 rounded-2xl bg-black/5 p-3 text-xs dark:bg-white/5">
@@ -226,9 +226,9 @@ export default async function AdminEventsPage({
                     name="commissionBps"
                     type="number"
                     min={0}
-                    max={10000}
-                    step={100}
-                    defaultValue={event.commissionBps / 100}
+                    max={100}
+                    step={0.01}
+                    defaultValue={(event.commissionBps / 100).toFixed(2)}
                     className="w-20 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5 dark:text-white"
                   />
                 </label>
@@ -247,9 +247,9 @@ export default async function AdminEventsPage({
                     name="convenienceFeeBps"
                     type="number"
                     min={0}
-                    max={10000}
-                    step={100}
-                    defaultValue={event.convenienceFeeBps / 100}
+                    max={100}
+                    step={0.01}
+                    defaultValue={(event.convenienceFeeBps / 100).toFixed(2)}
                     className="w-20 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs dark:border-white/10 dark:bg-white/5 dark:text-white"
                   />
                 </label>

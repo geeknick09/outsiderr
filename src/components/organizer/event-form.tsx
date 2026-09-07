@@ -389,7 +389,7 @@ export function EventForm({
             />
           </Field>
 
-          <Field label="Google Maps link (preferred)">
+          <Field label="Google Maps link *">
             <input
               name="googleMapsLink"
               value={mapsLink}
@@ -401,6 +401,7 @@ export function EventForm({
                   setMapsError(null);
                 }
               }}
+              required
               placeholder="https://maps.app.goo.gl/… or https://maps.google.com/…"
               className={`${INPUT} ${mapsError ? "border-red-500" : ""}`}
             />
@@ -408,7 +409,7 @@ export function EventForm({
               <span className="block text-xs text-red-500">{mapsError}</span>
             ) : (
               <span className="block text-xs text-muted">
-                Paste a Google Maps link, or skip and use the map picker below.
+                Required. Paste a Google Maps link so attendees can find the venue.
               </span>
             )}
           </Field>

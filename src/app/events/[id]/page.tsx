@@ -91,7 +91,7 @@ export default async function EventDetailsPage({
 
   return (
     <EventRealtimeWrapper eventId={event.id}>
-    <div className="-mt-6">
+    <div className="-mt-6 overflow-x-hidden">
       <div className="relative -mx-4 h-[40vh] max-h-[340px] min-h-[200px] overflow-hidden sm:rounded-b-3xl">
         {banner ? (
           <Image
@@ -110,10 +110,12 @@ export default async function EventDetailsPage({
       </div>
 
       <div className="grid gap-6 pt-6 lg:grid-cols-[1fr_380px]">
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge tone="violet">{CATEGORY_LABELS[event.category]}</Badge>
+              {event.categories.map((cat) => (
+                <Badge key={cat} tone="violet">{CATEGORY_LABELS[cat]}</Badge>
+              ))}
               <Badge tone="neutral">{CITY_LABELS[event.city]}</Badge>
               {event.isFeatured ? <Badge tone="lime">Sponsored</Badge> : null}
             </div>
@@ -121,7 +123,7 @@ export default async function EventDetailsPage({
             <TagPills tags={event.tags} />
 
             <div className="flex items-start justify-between gap-3">
-              <h1 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl">
+              <h1 className="break-words text-3xl font-black leading-tight tracking-tight sm:text-4xl">
                 {event.title}
               </h1>
               <ShareEventButton title={event.title} url={eventUrl} />
@@ -142,7 +144,7 @@ export default async function EventDetailsPage({
                 <CalendarDays className="h-4 w-4 text-violet-neon" />
                 {formatDateRange(event.startsAt, event.endsAt)}
               </span>
-              {event.venueName === "TBA" || !event.latitude || !event.longitude ? (
+              {event.venueName === "TBA" || (!event.venueName && !event.venueAddress) ? (
                 <div className="flex items-start gap-2">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-pink-neon" />
                   <span>
@@ -155,11 +157,15 @@ export default async function EventDetailsPage({
                   href={
                     event.googleMapsLink
                       ? event.googleMapsLink
-                      : mapsLink(
-                          event.latitude,
-                          event.longitude,
-                          `${event.venueName}, ${event.venueAddress}`,
-                        )
+                      : event.latitude && event.longitude
+                        ? mapsLink(
+                            event.latitude,
+                            event.longitude,
+                            `${event.venueName}, ${event.venueAddress}`,
+                          )
+                        : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                            `${event.venueName}, ${event.venueAddress}`,
+                          )}`
                   }
                   target="_blank"
                   rel="noreferrer"
@@ -168,7 +174,9 @@ export default async function EventDetailsPage({
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-pink-neon" />
                   <span>
                     {event.venueName}
-                    <span className="block text-xs text-muted">{event.venueAddress}</span>
+                    {event.venueAddress ? (
+                      <span className="block text-xs text-muted">{event.venueAddress}</span>
+                    ) : null}
                   </span>
                 </a>
               )}

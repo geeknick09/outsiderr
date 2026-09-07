@@ -31,6 +31,31 @@ export default async function CheckoutPage({
   const tier = event?.tiers.find((item) => item.id === tierId);
   if (!event || !tier) notFound();
 
+  // Not logged in → show only the sign-in prompt, not the checkout form
+  if (!user) {
+    return (
+      <div className="mx-auto max-w-md py-16">
+        <div className="glass rounded-3xl p-8 text-center">
+          <h1 className="text-2xl font-black tracking-tight">Please sign in to continue</h1>
+          <p className="mt-3 text-sm text-muted">
+            You need an account to {tier.pricePaise === 0 ? "RSVP" : "book tickets"}. It&apos;s quick and free.
+          </p>
+          <Link
+            href={`/login?next=${encodeURIComponent(nextUrl)}`}
+            className="mt-6 inline-block rounded-2xl bg-violet-neon px-6 py-3 text-sm font-bold text-white transition-opacity hover:opacity-90"
+          >
+            Sign in / Sign up
+          </Link>
+          <div className="mt-4">
+            <Link href={`/events/${event.id}`} className="text-xs text-muted hover:text-violet-neon">
+              ← Back to event
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const isFree = tier.pricePaise === 0;
   // Use per-event commission + convenience fee config
   const price = calculatePrice(tier.pricePaise, quantity, event.feePayer, undefined, {
@@ -48,22 +73,6 @@ export default async function CheckoutPage({
       <h1 className="mt-2 text-3xl font-black tracking-tight">
         {isFree ? "Confirm your RSVP" : "Checkout"}
       </h1>
-
-      {/* Login prompt for non-logged-in users — but form is still shown below */}
-      {!user ? (
-        <div className="mt-6 glass rounded-3xl p-6 text-center">
-          <p className="text-base font-bold">Please sign in to continue</p>
-          <p className="mt-2 text-sm text-muted">
-            You need an account to {isFree ? "RSVP" : "book tickets"}. It&apos;s quick and free.
-          </p>
-          <Link
-            href={`/login?next=${encodeURIComponent(nextUrl)}`}
-            className="mt-4 inline-block rounded-2xl bg-violet-neon px-6 py-3 text-sm font-bold text-white transition-opacity hover:opacity-90"
-          >
-            Sign in / Sign up
-          </Link>
-        </div>
-      ) : null}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="glass rounded-3xl p-6">

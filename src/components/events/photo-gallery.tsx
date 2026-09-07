@@ -18,13 +18,13 @@ export function PhotoGallery({
   return (
     <section>
       <h2 className="mb-3 text-base font-bold">Photos</h2>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
         {photos.map((src, index) => (
           <button
             key={src}
             type="button"
             onClick={() => setSelected(src)}
-            className="group relative aspect-square overflow-hidden rounded-2xl"
+            className="group relative aspect-square w-full min-w-0 overflow-hidden rounded-2xl"
           >
             <Image
               src={src}
