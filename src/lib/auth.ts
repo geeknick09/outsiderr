@@ -22,7 +22,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, phone, birth_date, gender, interested_tags")
+    .select("full_name, email, phone, birth_date, gender, interested_tags")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -30,7 +30,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     id: user.id,
     name: profile?.full_name ?? user.user_metadata?.full_name ?? "Outsider",
     phone: profile?.phone ?? user.phone ?? null,
-    email: user.email ?? null,
+    email: (profile as { email?: string | null })?.email ?? user.email ?? null,
     isDemo: false,
     birthDate: profile?.birth_date ?? null,
     gender: (profile as { gender?: string | null })?.gender ?? null,

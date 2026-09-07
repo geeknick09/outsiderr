@@ -13,6 +13,7 @@ import type {
 export type ProfileRow = {
   id: string;
   full_name: string | null;
+  email: string | null;
   phone: string | null;
   avatar_url: string | null;
   birth_date: string | null;

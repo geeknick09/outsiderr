@@ -124,6 +124,7 @@ exception when duplicate_object then null; end $$;
 create table if not exists public.profiles (
   id               uuid        primary key references auth.users(id) on delete cascade,
   full_name        text,
+  email            text,
   phone            text,
   avatar_url       text,
   birth_date       date,
@@ -140,6 +141,8 @@ create table if not exists public.profiles (
   is_admin         boolean     not null default false,
   created_at       timestamptz not null default now()
 );
+-- Ensure email column exists on older DBs
+alter table public.profiles add column if not exists email text;
 
 create table if not exists public.organizers (
   id                  uuid        primary key default gen_random_uuid(),
@@ -804,14 +807,16 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, full_name, phone, avatar_url)
+  insert into public.profiles (id, full_name, email, phone, avatar_url)
   values (
     new.id,
     coalesce(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'name'),
+    new.email,
     new.phone,
     new.raw_user_meta_data ->> 'avatar_url'
   )
-  on conflict (id) do nothing;
+  on conflict (id) do update set
+    email = excluded.email;
   return new;
 end;
 $$;

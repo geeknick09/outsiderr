@@ -127,9 +127,13 @@ export function TicketsRealtimeWrapper({
       </div>
 
       {submitted ? (
-        <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-5 text-sm text-emerald-700 dark:text-emerald-300">
-          <p className="text-base font-black">✓ Booking done!</p>
+        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5 text-sm text-amber-700 dark:text-amber-300">
+          <p className="text-base font-black">Booking submitted — pending verification</p>
           <p className="mt-1">
+            Your booking is done and is pending payment verification by the organizer.
+            Once verified, your tickets will be visible here.
+          </p>
+          <p className="mt-2 text-xs">
             Send your payment screenshot to{" "}
             <a
               href={`https://wa.me/91${whatsappNumber}`}
@@ -139,8 +143,7 @@ export function TicketsRealtimeWrapper({
             >
               +91 {whatsappNumber}
             </a>{" "}
-            on WhatsApp. Your ticket will be shared via email or WhatsApp after the organizer
-            confirms your payment.
+            on WhatsApp for faster verification.
           </p>
         </div>
       ) : null}

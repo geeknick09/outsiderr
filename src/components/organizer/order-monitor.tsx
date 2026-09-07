@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import { CheckCircle2, Clock, XCircle, AlertCircle, RefreshCw } from "lucide-react";
+import { useCallback, useMemo, useState, useTransition } from "react";
+import { CheckCircle2, Clock, XCircle, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
 
+import { approveOrderAction, rejectOrderAction } from "@/actions/orders";
 import { useRealtime } from "@/lib/hooks/use-realtime";
 import type { Order } from "@/lib/types";
 
@@ -53,7 +54,8 @@ function formatTime(iso: string): string {
  */
 export function OrderMonitor({ orders, organizerEventIds }: OrderMonitorProps) {
   const [orderList, setOrderList] = useState(orders);
-  const [filter, setFilter] = useState<string>("ALL");
+  const [filter, setFilter] = useState<string>("PENDING_VERIFICATION");
+  const [pendingAction, startTransition] = useTransition();
 
   // Realtime via hook — reuses singleton WebSocket, no new connections on each render
   const realtimeFilter = useMemo(
@@ -107,9 +109,10 @@ export function OrderMonitor({ orders, organizerEventIds }: OrderMonitorProps) {
   const filterTabs = useMemo(
     () => [
       { key: "ALL", label: `All (${orderList.length})` },
-      { key: "RESERVED", label: `Awaiting (${counts.RESERVED ?? 0})` },
+      { key: "PENDING_VERIFICATION", label: `Pending (${counts.PENDING_VERIFICATION ?? 0})` },
       { key: "CONFIRMED", label: `Confirmed (${counts.CONFIRMED ?? 0})` },
-      { key: "PENDING_VERIFICATION", label: `Legacy (${counts.PENDING_VERIFICATION ?? 0})` },
+      { key: "RESERVED", label: `Reserved (${counts.RESERVED ?? 0})` },
+      { key: "REJECTED", label: `Rejected (${counts.REJECTED ?? 0})` },
       { key: "FAILED", label: `Failed (${counts.FAILED ?? 0})` },
       { key: "EXPIRED", label: `Expired (${counts.EXPIRED ?? 0})` },
     ],
@@ -125,10 +128,15 @@ export function OrderMonitor({ orders, organizerEventIds }: OrderMonitorProps) {
         <p className="mt-2 text-sm font-semibold">No orders yet</p>
         <p className="mt-1 text-xs text-muted">
           Orders will appear here automatically when attendees book your events.
+          Pending UTR/UPI payments will show up here for you to verify.
         </p>
       </div>
     );
   }
+
+  const filteredHasPending = filteredOrders.some(
+    (o) => o.status === "PENDING_VERIFICATION",
+  );
 
   return (
     <div className="space-y-4">
@@ -149,6 +157,17 @@ export function OrderMonitor({ orders, organizerEventIds }: OrderMonitorProps) {
         ))}
       </div>
 
+      {filteredHasPending ? (
+        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-800 dark:text-amber-200">
+          <p className="font-bold">Pending payment verifications</p>
+          <p className="mt-1 text-xs">
+            These attendees have paid via UPI and submitted their booking. Verify their
+            payment in your UPI app (match the UTR/amount), then approve to mint their tickets.
+            Reject if the payment doesn&apos;t match.
+          </p>
+        </div>
+      ) : null}
+
       {/* Orders table */}
       <div className="glass overflow-hidden rounded-3xl">
         <div className="overflow-x-auto">
@@ -162,6 +181,7 @@ export function OrderMonitor({ orders, organizerEventIds }: OrderMonitorProps) {
                 <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted">Payment</th>
                 <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted">Status</th>
                 <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted">Date</th>
+                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-muted">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-white/5">
@@ -172,11 +192,15 @@ export function OrderMonitor({ orders, organizerEventIds }: OrderMonitorProps) {
                   tone: "text-zinc-500",
                 };
                 const Icon = cfg.icon;
+                const isPending = order.status === "PENDING_VERIFICATION";
                 return (
                   <tr key={order.id} className="hover:bg-zinc-50 dark:hover:bg-white/5">
                     <td className="p-4">
                       <div className="font-semibold">{order.buyerName ?? "—"}</div>
                       <div className="text-xs text-muted">{order.buyerPhone ?? ""}</div>
+                      {order.buyerEmail ? (
+                        <div className="text-xs text-muted">{order.buyerEmail}</div>
+                      ) : null}
                     </td>
                     <td className="p-4 text-muted">{order.tierName}</td>
                     <td className="p-4 font-semibold">{order.quantity}</td>
@@ -185,7 +209,7 @@ export function OrderMonitor({ orders, organizerEventIds }: OrderMonitorProps) {
                       {order.paymentMethod ? (
                         <span className="capitalize">{order.paymentMethod}</span>
                       ) : order.utrReference ? (
-                        <span>UPI: {order.utrReference.slice(0, 8)}…</span>
+                        <span className="font-mono">UTR: {order.utrReference}</span>
                       ) : (
                         <span>—</span>
                       )}
@@ -200,6 +224,59 @@ export function OrderMonitor({ orders, organizerEventIds }: OrderMonitorProps) {
                       </span>
                     </td>
                     <td className="p-4 text-xs text-muted">{formatTime(order.createdAt)}</td>
+                    <td className="p-4">
+                      {isPending ? (
+                        <div className="flex items-center gap-2">
+                          <form
+                            action={(formData) => {
+                              startTransition(async () => {
+                                await approveOrderAction(formData);
+                                setOrderList((prev) =>
+                                  prev.map((o) =>
+                                    o.id === order.id ? { ...o, status: "CONFIRMED" } : o,
+                                  ),
+                                );
+                              });
+                            }}
+                          >
+                            <input type="hidden" name="orderId" value={order.id} />
+                            <button
+                              type="submit"
+                              disabled={pendingAction}
+                              className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                            >
+                              {pendingAction ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+                              Approve
+                            </button>
+                          </form>
+                          <form
+                            action={(formData) => {
+                              startTransition(async () => {
+                                await rejectOrderAction(formData);
+                                setOrderList((prev) =>
+                                  prev.map((o) =>
+                                    o.id === order.id ? { ...o, status: "REJECTED" } : o,
+                                  ),
+                                );
+                              });
+                            }}
+                          >
+                            <input type="hidden" name="orderId" value={order.id} />
+                            <input type="hidden" name="reason" value="Payment not verified" />
+                            <button
+                              type="submit"
+                              disabled={pendingAction}
+                              className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                            >
+                              {pendingAction ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
+                              Reject
+                            </button>
+                          </form>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-zinc-400">—</span>
+                      )}
+                    </td>
                   </tr>
                 );
               })}

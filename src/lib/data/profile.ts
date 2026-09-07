@@ -10,7 +10,7 @@ export async function getUserProfile(
   const supabase = await createClient();
   const { data } = await supabase
     .from("profiles")
-    .select("id, full_name, phone, avatar_url, birth_date, gender, interested_tags, instagram_url, youtube_url, x_url, facebook_url, linkedin_url")
+    .select("id, full_name, email, phone, avatar_url, birth_date, gender, interested_tags, instagram_url, youtube_url, x_url, facebook_url, linkedin_url")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -18,8 +18,8 @@ export async function getUserProfile(
   return {
     id: data.id,
     fullName: data.full_name,
+    email: (data as { email?: string | null }).email ?? user.email,
     phone: data.phone,
-    email: user.email,
     avatarUrl: data.avatar_url,
     birthDate: data.birth_date,
     gender: (data as { gender?: string | null }).gender ?? null,

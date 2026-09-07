@@ -35,7 +35,7 @@ type Tab = "events" | "create" | "verify" | "analytics" | "clubs";
 const TABS: { value: Tab; label: string }[] = [
   { value: "events", label: "My Events" },
   { value: "create", label: "Create Event" },
-  { value: "verify", label: "Orders" },
+  { value: "verify", label: "Verification" },
   { value: "analytics", label: "Analytics" },
   // Clubs & Crews disabled for this release — kept in admin only
   // { value: "clubs", label: "Clubs & Crews" },

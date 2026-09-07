@@ -102,15 +102,16 @@ export function CheckoutForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block space-y-1.5">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-            Email
+            Email <span className="normal-case text-zinc-400">(read-only)</span>
           </span>
           <input
             name="buyerEmail"
             type="email"
             defaultValue={defaultEmail}
             required
+            readOnly
             placeholder="you@example.com"
-            className={INPUT}
+            className={`${INPUT} cursor-not-allowed opacity-60`}
           />
         </label>
         <label className="block space-y-1.5">

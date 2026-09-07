@@ -12,6 +12,36 @@
 --   6. Admin can't manage legal pages / door staff
 -- ================================================================
 
+-- Add email column to profiles + update trigger to save it
+alter table public.profiles add column if not exists email text;
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.profiles (id, full_name, email, phone, avatar_url)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'name'),
+    new.email,
+    new.phone,
+    new.raw_user_meta_data ->> 'avatar_url'
+  )
+  on conflict (id) do update set
+    email = excluded.email;
+  return new;
+end;
+$$;
+
+-- Backfill email for existing profiles from auth.users
+update public.profiles p
+  set email = au.email
+  from auth.users au
+  where p.id = au.id and p.email is null;
+
 -- ----------------------------------------------------------------
 -- STEP 1: Helper functions (security definer = no RLS recursion)
 -- ----------------------------------------------------------------
