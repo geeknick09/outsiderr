@@ -1752,6 +1752,17 @@ create index if not exists events_is_featured_idx on public.events (is_featured)
 -- Events: GIN index on categories array for .contains() queries
 create index if not exists events_categories_gin_idx on public.events using gin (categories);
 
+-- ----------------------------------------------------------------
+-- STEP 11: Clean orphaned auth identities
+-- ----------------------------------------------------------------
+-- Test scripts that delete from auth.users can leave orphaned rows in
+-- auth.identities (user_id with no matching auth.users row). These cause
+-- "Multiple accounts with the same email address in the same linking
+-- domain detected" errors during Google OAuth / magic-link sign-in.
+-- Run this after any test-data cleanup to keep auth healthy.
+delete from auth.identities
+where user_id not in (select id from auth.users);
+
 -- Events: trigram indexes for ilike search on title, venue_name
 create extension if not exists pg_trgm;
 create index if not exists events_title_trgm_idx on public.events using gin (title gin_trgm_ops);

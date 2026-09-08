@@ -31,7 +31,7 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  const response = NextResponse.next({
+  let response = NextResponse.next({
     request: { headers: requestHeaders },
   });
 
@@ -41,6 +41,12 @@ export async function updateSession(request: NextRequest) {
         return request.cookies.getAll();
       },
       setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value }) =>
+          request.cookies.set(name, value),
+        );
+        response = NextResponse.next({
+          request: { headers: requestHeaders },
+        });
         cookiesToSet.forEach(({ name, value, options }) =>
           response.cookies.set(name, value, options),
         );

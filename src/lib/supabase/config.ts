@@ -17,8 +17,10 @@ export const APP_URL = rawAppUrl;
  * browser origin on the client so redirects always go to the current domain.
  */
 export function getAuthRedirectBase(): string {
+  if (typeof window !== "undefined" && window.location.origin) {
+    return window.location.origin;
+  }
   if (APP_URL) return APP_URL.replace(/\/$/, "");
-  if (typeof window !== "undefined") return window.location.origin;
   return "";
 }
 

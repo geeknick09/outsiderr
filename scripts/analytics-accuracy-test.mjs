@@ -345,6 +345,7 @@ async function main() {
       await db(`DELETE FROM organizers WHERE id = $1`, [testOrganizerId]);
       for (const uid of [testUserId1, testUserId2, testUserId3]) {
         await db(`DELETE FROM profiles WHERE id = $1`, [uid]);
+        await db(`DELETE FROM auth.identities WHERE user_id = $1`, [uid]);
         await db(`DELETE FROM auth.users WHERE id = $1`, [uid]);
       }
       log("Test data cleaned up", true, `event=${testEventId.slice(0, 8)}…`);

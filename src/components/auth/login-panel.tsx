@@ -22,9 +22,9 @@ function GoogleIcon({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
-export function LoginPanel({ next }: { next: string }) {
+export function LoginPanel({ next, initialError }: { next: string; initialError?: string }) {
   const [email, setEmail] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError ?? null);
   const [pending, setPending] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
 
@@ -119,6 +119,12 @@ export function LoginPanel({ next }: { next: string }) {
   // ── Default state: email input + Google button ──────────────────────
   return (
     <div className="space-y-4">
+      {error ? (
+        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-500 dark:text-red-400">
+          {error}
+        </div>
+      ) : null}
+
       {/* Google OAuth — primary CTA */}
       <Button
         variant="secondary"

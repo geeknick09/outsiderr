@@ -8,9 +8,9 @@ export const dynamic = "force-dynamic";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; error?: string }>;
 }) {
-  const { next } = await searchParams;
+  const { next, error } = await searchParams;
   // Prevent open redirect: only allow paths starting with "/" but not "//" (protocol-relative)
   const target = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
 
@@ -23,7 +23,7 @@ export default async function LoginPage({
         Sign in with Google or your email — no password needed.
       </p>
       <div className="glass rounded-3xl p-6">
-        <LoginPanel next={target} />
+        <LoginPanel next={target} initialError={error} />
       </div>
     </div>
   );
