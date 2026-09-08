@@ -16,18 +16,23 @@ export function ImageCropper({
   onCropComplete,
   onCancel,
   title = "Adjust image",
+  maxFileSizeBytes,
+  onSizeError,
 }: {
   file: File;
   aspect?: number;
   onCropComplete: (croppedFile: File) => void;
   onCancel: () => void;
   title?: string;
+  maxFileSizeBytes?: number;
+  onSizeError?: (message: string) => void;
 }) {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [processing, setProcessing] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const url = URL.createObjectURL(file);
@@ -42,8 +47,15 @@ export function ImageCropper({
   async function handleApply() {
     if (!croppedAreaPixels) return;
     setProcessing(true);
+    setError(null);
     try {
       const cropped = await cropImage(file, croppedAreaPixels);
+      if (maxFileSizeBytes && cropped.size > maxFileSizeBytes) {
+        const msg = `Cropped image is too large (${(cropped.size / 1024 / 1024).toFixed(1)} MB). Please choose a smaller image or crop a smaller area.`;
+        if (onSizeError) onSizeError(msg);
+        else setError(msg);
+        return;
+      }
       onCropComplete(cropped);
     } finally {
       setProcessing(false);
@@ -58,6 +70,10 @@ export function ImageCropper({
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
       <div className="w-full max-w-md space-y-4 rounded-3xl bg-white p-6 dark:bg-zinc-900">
         <h3 className="text-sm font-bold">{title}</h3>
+
+        {error ? (
+          <p className="rounded-xl bg-red-500/10 p-3 text-xs text-red-500">{error}</p>
+        ) : null}
 
         <div className="relative h-64 w-full overflow-hidden rounded-2xl bg-zinc-900">
           {imageUrl ? (
@@ -163,18 +179,29 @@ export function ImageUploadWithCrop({
   label = "Upload image",
   className = "",
   accept = "image/*",
+  maxFileSizeBytes,
+  onSizeError,
 }: {
   onCropped: (file: File) => void;
   aspect?: number;
   label?: React.ReactNode;
   className?: string;
   accept?: string;
+  maxFileSizeBytes?: number;
+  onSizeError?: (message: string) => void;
 }) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) setSelectedFile(file);
+    if (file) {
+      if (maxFileSizeBytes && file.size > maxFileSizeBytes) {
+        const msg = `Image too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Please choose a file under ${(maxFileSizeBytes / 1024 / 1024).toFixed(0)} MB.`;
+        if (onSizeError) onSizeError(msg);
+      } else {
+        setSelectedFile(file);
+      }
+    }
     // Reset input so same file can be re-selected
     e.target.value = "";
   }
@@ -194,6 +221,8 @@ export function ImageUploadWithCrop({
         <ImageCropper
           file={selectedFile}
           aspect={aspect}
+          maxFileSizeBytes={maxFileSizeBytes}
+          onSizeError={onSizeError}
           onCropComplete={(cropped) => {
             onCropped(cropped);
             setSelectedFile(null);

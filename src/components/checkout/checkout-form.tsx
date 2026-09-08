@@ -1,13 +1,12 @@
 "use client";
 
-import { useCallback, useMemo, useState, useTransition } from "react";
-import Image from "next/image";
+import { useCallback, useState, useTransition } from "react";
+import { Info } from "lucide-react";
 
 import { submitPaymentAction } from "@/actions/orders";
 import { Button } from "@/components/ui/button";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { WhatsAppIcon } from "@/components/ui/whatsapp-icon";
-import { upiIntent } from "@/lib/upi";
 
 const INPUT =
   "w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white";
@@ -21,10 +20,8 @@ export function CheckoutForm({
   defaultEmail,
   defaultGender,
   isFree = false,
-  totalPaise = 0,
   totalRupees = "0",
   organizerUpiId,
-  organizerUpiQrUrl,
   organizerPhone,
   organizerName,
 }: {
@@ -36,15 +33,20 @@ export function CheckoutForm({
   defaultEmail: string;
   defaultGender: string;
   isFree?: boolean;
-  totalPaise?: number;
   totalRupees?: string;
   organizerUpiId?: string | null;
-  organizerUpiQrUrl?: string | null;
   organizerPhone?: string | null;
   organizerName?: string | null;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  function handleCopy(value: string, field: string) {
+    navigator.clipboard?.writeText(value).catch(() => {});
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 1000);
+  }
 
   const handleSubmit = useCallback(
     (e: React.FormEvent<HTMLFormElement>) => {
@@ -58,20 +60,6 @@ export function CheckoutForm({
       });
     },
     [isFree, startTransition],
-  );
-
-  // Build UPI intent link — memoized so it's not recomputed on every keystroke
-  const upiLink = useMemo(
-    () =>
-      organizerUpiId && totalPaise > 0
-        ? upiIntent({
-            upiId: organizerUpiId,
-            payeeName: organizerName ?? "Organizer",
-            amountPaise: totalPaise,
-            note: `Outsiderr tickets — ${quantity} ticket(s)`,
-          })
-        : null,
-    [organizerUpiId, organizerName, totalPaise, quantity],
   );
 
   return (
@@ -151,42 +139,21 @@ export function CheckoutForm({
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  navigator.clipboard?.writeText(organizerUpiId).catch(() => {});
-                }}
-                className="rounded-lg bg-violet-neon px-3 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-90"
+                onClick={() => handleCopy(organizerUpiId, "upi")}
+                className="relative rounded-lg bg-violet-neon px-3 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-90"
               >
                 Copy
+                {copiedField === "upi" ? (
+                  <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 rounded-md bg-emerald-500 px-2 py-1 text-[10px] font-bold text-white shadow-lg">
+                    Copied!
+                  </span>
+                ) : null}
               </button>
             </div>
           ) : null}
 
-          {/* QR code image */}
-          {organizerUpiQrUrl ? (
-            <div className="flex flex-col items-center gap-2">
-              <Image
-                src={organizerUpiQrUrl}
-                alt="Organizer UPI QR code"
-                width={160}
-                height={160}
-                className="h-40 w-40 rounded-xl bg-white object-contain"
-                unoptimized
-              />
-              <p className="text-xs text-muted">Scan this QR with any UPI app to pay</p>
-            </div>
-          ) : null}
+          {/* QR code is now shown in the right sidebar on the checkout page */}
 
-          {/* Pay via UPI intent button */}
-          {upiLink ? (
-            <a
-              href={upiLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block w-full rounded-xl bg-violet-neon px-4 py-3 text-center text-sm font-bold text-white transition-opacity hover:opacity-90"
-            >
-              Open in UPI App
-            </a>
-          ) : null}
 
           {/* Pay directly to organizer's mobile number (fallback if UPI ID/QR fails) */}
           {organizerPhone ? (
@@ -198,20 +165,19 @@ export function CheckoutForm({
                 If the UPI ID or QR doesn&apos;t work, pay directly to the organizer&apos;s number via GPay / PhonePe / Paytm.
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <a
-                  href={`tel:${organizerPhone}`}
-                  className="font-mono text-sm font-bold text-violet-neon underline"
+                <p className="font-mono text-sm font-bold">{organizerPhone}</p>
+                <button
+                  type="button"
+                  onClick={() => handleCopy(organizerPhone, "phone")}
+                  className="relative rounded-lg bg-violet-neon px-3 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-90"
                 >
-                  {organizerPhone}
-                </a>
-                <a
-                  href={`upi://pay?pa=${encodeURIComponent(organizerPhone)}&pn=${encodeURIComponent(organizerName ?? "Organizer")}&am=${(totalPaise / 100).toFixed(2)}&cu=INR&tn=${encodeURIComponent(`Outsiderr tickets — ${quantity} ticket(s)`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-lg border border-violet-neon/40 px-3 py-1.5 text-xs font-bold text-violet-neon transition-colors hover:bg-violet-neon/10"
-                >
-                  Pay via UPI to number
-                </a>
+                  Copy
+                  {copiedField === "phone" ? (
+                    <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 rounded-md bg-emerald-500 px-2 py-1 text-[10px] font-bold text-white shadow-lg">
+                      Copied!
+                    </span>
+                  ) : null}
+                </button>
               </div>
             </div>
           ) : null}
@@ -289,8 +255,8 @@ export function CheckoutForm({
 function InfoTooltip() {
   return (
     <span className="relative inline-flex align-middle">
-      <span className="group inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full bg-zinc-300 text-[10px] font-bold text-zinc-700 dark:bg-white/20 dark:text-white/80">
-        i
+      <span className="group inline-flex h-4 w-4 cursor-help items-center justify-center text-zinc-500 dark:text-zinc-400">
+        <Info className="h-4 w-4" />
         <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-64 -translate-x-1/2 rounded-xl bg-zinc-900 px-3 py-2.5 text-left text-xs font-normal leading-relaxed text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 dark:bg-zinc-800">
           <strong className="block text-violet-neon">What is UTR?</strong>
           <span className="mt-1 block">

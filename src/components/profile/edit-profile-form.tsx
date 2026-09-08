@@ -138,6 +138,8 @@ export function EditProfileForm({
             <ImageUploadWithCrop
               onCropped={handleAvatarUpload}
               aspect={1}
+              maxFileSizeBytes={1 * 1024 * 1024}
+              onSizeError={(msg) => setUploadError(msg)}
               label={
                 <span className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-2.5 text-sm text-muted hover:border-violet-neon dark:border-white/15">
                   <Upload className="h-4 w-4" />
