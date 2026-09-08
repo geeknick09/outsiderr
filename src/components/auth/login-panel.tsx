@@ -173,14 +173,13 @@ export function LoginPanel({ next, initialError }: { next: string; initialError?
           loadingText="Sending link…"
         >
           <Mail className="h-4 w-4" />
-          Send magic link
+          Verify email
           <ArrowRight className="h-4 w-4" />
         </Button>
       </form>
 
       <p className="text-center text-xs text-muted">
-        No password needed. We&apos;ll email you a secure link to sign in.
-        New here? A magic link creates your account automatically.
+        No password needed. We will email you a secure link to sign in.
       </p>
     </div>
   );

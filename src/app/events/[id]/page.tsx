@@ -360,7 +360,7 @@ export default async function EventDetailsPage({
           <TicketTiers event={event} waitlistData={waitlistData} waitlistEnabled={event.waitlistEnabled} />
 
           <p className="px-2 text-center text-xs text-muted">
-            Payments are processed securely via Razorpay.{" "}
+            Payments are processed securely.{" "}
             <Link href="/tickets" className="underline hover:text-violet-neon">
               Track your orders
             </Link>
