@@ -14,11 +14,9 @@ create extension if not exists "pg_trgm";
 -- The browser client subscribes via websockets to receive INSERT/UPDATE
 -- events. RLS policies are enforced — users only see changes for rows
 -- they are authorized to access.
-alter publication supabase_realtime add table public.event_notifications;
-alter publication supabase_realtime add table public.ticket_tiers;
-alter publication supabase_realtime add table public.orders;
-alter publication supabase_realtime add table public.tickets;
-alter publication supabase_realtime add table public.events;
+-- NOTE: The actual ALTER PUBLICATION statements are at the bottom of this
+-- file, after all tables exist. Running them here would fail because the
+-- tables haven't been created yet.
 
 -- ---------------------------------------------------------------- enums
 -- Event status: DRAFT → PUBLISHED → CANCELLATION_REQUESTED → CANCELLED
@@ -202,7 +200,7 @@ create table if not exists public.events (
   terms               text[]          not null default '{}',
   registrations_count integer         not null default 0,
   pricing_mode        text            not null default 'PAID'
-                      check (pricing_mode in ('FREE','FLAT','PAID','PHASED')),
+                      constraint events_pricing_mode_check check (pricing_mode in ('FREE','FLAT','PAID','PHASED')),
   commission_bps          integer     not null default 1000,  -- 10% organizer commission
   commission_enabled      boolean     not null default true,
   convenience_fee_bps     integer     not null default 200,   -- 2% buyer convenience fee
@@ -1412,12 +1410,8 @@ begin
 
   -- Get the Razorpay payment ID for the calling code to process the refund
   return query
-    select
-      v_order.id,
-      v_order.total_paise,
-      o.razorpay_payment_id,
-      true;
-  return;
+    select v_order.id, v_order.total_paise, o.razorpay_payment_id, true
+    from public.orders o where o.id = v_order.id;
 end;
 $$;
 
@@ -2045,8 +2039,7 @@ drop policy if exists "organizer read own hero boosts" on public.hero_boosts;
 create policy "organizer read own hero boosts" on public.hero_boosts
   for select using (
     exists (select 1 from public.organizers o
-            join public.profiles p on p.id = o.owner_id
-            where o.id = hero_boosts.organizer_id and p.id = auth.uid())
+      where o.id = hero_boosts.organizer_id and o.owner_id = auth.uid())
   );
 
 -- Organizers can insert boosts (pending only)
@@ -2054,20 +2047,14 @@ drop policy if exists "organizer insert hero boosts" on public.hero_boosts;
 create policy "organizer insert hero boosts" on public.hero_boosts
   for insert with check (
     exists (select 1 from public.organizers o
-            join public.profiles p on p.id = o.owner_id
-            where o.id = hero_boosts.organizer_id and p.id = auth.uid())
+      where o.id = hero_boosts.organizer_id and o.owner_id = auth.uid())
     and status = 'PENDING'
   );
 
--- Admins can read/update/delete all boosts (with fallback for first user)
+-- Admins can read all boosts
 drop policy if exists "admin read hero boosts" on public.hero_boosts;
 create policy "admin read hero boosts" on public.hero_boosts
-  for select using (
-    public.is_current_user_admin()
-    or exists (select 1 from public.organizers o
-            join public.profiles p on p.id = o.owner_id
-            where o.id = hero_boosts.organizer_id and p.id = auth.uid())
-  );
+  for select using (public.is_current_user_admin());
 
 drop policy if exists "admin update hero boosts" on public.hero_boosts;
 create policy "admin update hero boosts" on public.hero_boosts
@@ -2263,3 +2250,34 @@ create policy "authenticated delete on event-media"
     bucket_id = 'event-media'
     and auth.role() = 'authenticated'
   );
+
+-- ================================================================
+-- Realtime publication
+-- ================================================================
+-- Add tables to the supabase_realtime publication so the browser client
+-- can subscribe via websockets. Must run AFTER all tables exist.
+-- Wrapped in DO blocks with exception handling for idempotency.
+
+do $$ begin
+  alter publication supabase_realtime add table public.event_notifications;
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  alter publication supabase_realtime add table public.ticket_tiers;
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  alter publication supabase_realtime add table public.orders;
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  alter publication supabase_realtime add table public.tickets;
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  alter publication supabase_realtime add table public.events;
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  alter publication supabase_realtime add table public.event_staff;
+exception when duplicate_object then null; end $$;

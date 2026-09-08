@@ -11,6 +11,7 @@ set session_replication_role = 'replica';
 -- Wipe auth tables (deletes all users, sessions, etc.)
 -- Note: can't use "restart identity" on auth tables — Supabase restricts sequence ownership
 delete from auth.sessions;
+delete from auth.identities;
 delete from auth.users;
 
 -- Wipe in reverse dependency order (children first, parents last)
