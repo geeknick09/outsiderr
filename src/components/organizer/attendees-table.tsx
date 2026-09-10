@@ -107,6 +107,7 @@ export function AttendeesTable({
             <tbody>
               {filtered.map((order) => {
                 const isCheckedIn = checkedInOrderIds.has(order.id);
+                const isManual = order.orderSource != null && order.orderSource !== "ONLINE";
                 return (
                   <tr key={order.id} className="border-b border-zinc-100 dark:border-white/5">
                     <td className="px-3 py-2">
@@ -131,6 +132,11 @@ export function AttendeesTable({
                       ) : (
                         <Badge tone="violet">Pending</Badge>
                       )}
+                      {isManual ? (
+                        <span className="ml-1 inline-block rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-300">
+                          Manual
+                        </span>
+                      ) : null}
                     </td>
                     <td className="hidden px-3 py-2 font-mono text-[10px] text-muted md:table-cell">
                       {order.utrReference || "—"}

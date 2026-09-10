@@ -221,6 +221,7 @@ export interface Order {
   createdAt: string;
   eventStatus?: string;
   eventStartsAt?: string;
+  orderSource?: string | null;
 }
 
 export interface Ticket {
@@ -309,6 +310,19 @@ export interface EventAnalytics {
   netPayoutPaise: number;          // what organizer receives = subtotal - commission
   checkIns: number;
   waitlistCount: number;
+  tierBreakdown: TierAnalytics[];
+}
+
+export interface TierAnalytics {
+  tierId: string;
+  tierName: string;
+  tierType: string;
+  pricePaise: number;
+  quantity: number;
+  quantitySold: number;
+  quantityLeft: number;
+  phaseOpensAt?: string | null;
+  phaseClosesAt?: string | null;
 }
 
 export interface AdminStats {

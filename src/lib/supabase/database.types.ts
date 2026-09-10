@@ -150,6 +150,7 @@ export type OrderRow = {
   rejection_reason: string | null;
   reviewed_by: string | null;
   reviewed_at: string | null;
+  order_source: string | null;
   created_at: string;
 }
 
@@ -564,6 +565,28 @@ export type Database = {
       };
       set_razorpay_order_id: {
         Args: { p_order_id: string; p_razorpay_order_id: string };
+        Returns: void;
+      };
+      create_walkin_order: {
+        Args: {
+          p_event_id: string;
+          p_buyer_name: string;
+          p_buyer_phone: string;
+          p_tier_id: string | null;
+          p_buyer_email: string | null;
+          p_amount_paise: number;
+          p_mode: string;
+        };
+        Returns: Record<string, unknown>;
+      };
+      update_walkin_order: {
+        Args: {
+          p_order_id: string;
+          p_buyer_name: string | null;
+          p_buyer_phone: string | null;
+          p_buyer_email: string | null;
+          p_amount_paise: number | null;
+        };
         Returns: void;
       };
     };

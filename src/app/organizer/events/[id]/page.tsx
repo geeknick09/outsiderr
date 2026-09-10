@@ -16,6 +16,7 @@ import { PastEventGalleryManager } from "@/components/organizer/past-event-galle
 import { ShareButton } from "@/components/events/share-button";
 import { VerificationQueue } from "@/components/organizer/verification-queue";
 import { WaitlistPanel } from "@/components/organizer/waitlist-panel";
+import { WalkinCheckinForm } from "@/components/organizer/walkin-checkin-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -223,6 +224,16 @@ export default async function ManageEventPage({
         </section>
       ) : null}
 
+      {/* Walk-in / manual check-in — available before and during the event */}
+      {event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast ? (
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold">
+            {isHappeningNow ? "Walk-in Check-in" : "Manual Walk-in Registration"}
+          </h2>
+          <WalkinCheckinForm event={event} isHappeningNow={isHappeningNow} />
+        </section>
+      ) : null}
+
       {/* Attendees / Orders list */}
       <section className="space-y-3">
         <h2 className="text-lg font-bold">Attendees ({orders.length})</h2>
@@ -242,7 +253,7 @@ export default async function ManageEventPage({
         <div className="glass rounded-3xl p-5">
           <h2 className="mb-2 text-base font-bold">Edit Event</h2>
           <p className="text-sm text-muted">
-            Editing is locked within 2 hours of the event start time. The event details are now final.
+            Editing is locked within 2 hours of the event start time. If you need to make changes, please contact Outsiderr support.
           </p>
         </div>
       ) : null}

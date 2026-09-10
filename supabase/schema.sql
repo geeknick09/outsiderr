@@ -276,6 +276,8 @@ create table if not exists public.orders (
   rejection_reason    text,
   reviewed_by         uuid         references public.profiles(id),
   reviewed_at         timestamptz,
+  order_source        text         not null default 'ONLINE'
+                       check (order_source in ('ONLINE','WALKIN_PREEVENT','WALKIN_QR','WALKIN_INSTANT')),
   created_at          timestamptz  not null default now()
 );
 create index if not exists orders_user_idx         on public.orders(user_id, created_at desc);
@@ -1505,7 +1507,151 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
--- Razorpay: Confirm a RESERVED order after payment signature verification.
+-- Walk-in / manual check-in: organizer registers a walk-in attendee.
+-- Creates a CONFIRMED order with convenience_fee = 0 (they didn't use the
+-- platform to register). Commission is still deducted from the organizer payout.
+-- p_mode: 'WALKIN_PREEVENT' (before event, mints VALID ticket)
+--         'WALKIN_QR'       (during event, mints VALID ticket for scanning)
+--         'WALKIN_INSTANT'  (during event, auto check-in, ticket = USED)
+-- If p_tier_id is null, uses p_amount_paise as the subtotal and the first
+-- tier of the event as a placeholder for the FK constraint.
+-- ---------------------------------------------------------------------------
+create or replace function public.create_walkin_order(
+  p_event_id    uuid,
+  p_buyer_name  text,
+  p_buyer_phone text,
+  p_tier_id     uuid    default null,
+  p_buyer_email text    default null,
+  p_amount_paise integer default 0,
+  p_mode        text    default 'WALKIN_PREEVENT'
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_event         public.events;
+  v_tier          public.ticket_tiers;
+  v_subtotal      integer;
+  v_commission    integer;
+  v_payout        integer;
+  v_order_id      uuid;
+  v_ticket_id     uuid;
+  v_tier_id       uuid;
+  v_ticket_status text;
+begin
+  select * into v_event from public.events where id = p_event_id;
+  if not found then raise exception 'Event not found'; end if;
+
+  -- Determine tier and amount
+  if p_tier_id is not null then
+    select * into v_tier from public.ticket_tiers where id = p_tier_id and event_id = p_event_id;
+    if not found then raise exception 'Tier not found'; end if;
+    v_subtotal := v_tier.price_paise;
+    v_tier_id  := p_tier_id;
+  else
+    v_subtotal := p_amount_paise;
+    select id into v_tier_id from public.ticket_tiers where event_id = p_event_id limit 1;
+    if v_tier_id is null then raise exception 'No tiers exist for this event'; end if;
+  end if;
+
+  -- Commission (no convenience fee for walk-ins)
+  v_commission := case when v_event.commission_enabled
+    then round(v_subtotal * v_event.commission_bps / 10000.0)
+    else 0 end;
+  v_payout := v_subtotal - v_commission;
+
+  -- Ticket status: USED for instant check-in, VALID otherwise
+  v_ticket_status := case when p_mode = 'WALKIN_INSTANT' then 'USED' else 'VALID' end;
+
+  -- Create confirmed order
+  insert into public.orders (
+    event_id, tier_id, user_id, quantity, unit_price_paise,
+    subtotal_paise, platform_fee_paise, commission_paise,
+    convenience_fee_paise, organizer_payout_paise, total_paise,
+    fee_payer, status, confirmed_at, buyer_name, buyer_phone, buyer_email,
+    order_source
+  ) values (
+    p_event_id, v_tier_id, auth.uid(), 1, v_subtotal,
+    v_subtotal, v_commission, v_commission,
+    0, v_payout, v_subtotal,
+    v_event.fee_payer, 'CONFIRMED', now(), p_buyer_name, p_buyer_phone, p_buyer_email,
+    p_mode
+  ) returning id into v_order_id;
+
+  -- Mint ticket (VALID for pre-event/QR, USED for instant)
+  insert into public.tickets (
+    order_id, event_id, tier_id, user_id, status, qr_hash,
+    checked_in_at
+  ) values (
+    v_order_id, p_event_id, v_tier_id, auth.uid(), v_ticket_status::ticket_status, gen_random_uuid()::text,
+    case when p_mode = 'WALKIN_INSTANT' then now() else null end
+  ) returning id into v_ticket_id;
+
+  -- Increment tier quantity_sold
+  update public.ticket_tiers set quantity_sold = quantity_sold + 1
+    where id = v_tier_id;
+
+  return jsonb_build_object(
+    'orderId', v_order_id,
+    'ticketId', v_ticket_id,
+    'subtotalPaise', v_subtotal,
+    'commissionPaise', v_commission,
+    'payoutPaise', v_payout,
+    'ticketStatus', v_ticket_status
+  );
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Walk-in order update: organizer edits an existing walk-in record
+-- (name, phone, email, amount). Recalculates commission/payout if amount
+-- changes. Only allowed for walk-in orders (not online orders).
+-- ---------------------------------------------------------------------------
+create or replace function public.update_walkin_order(
+  p_order_id     uuid,
+  p_buyer_name   text    default null,
+  p_buyer_phone  text    default null,
+  p_buyer_email  text    default null,
+  p_amount_paise integer default null
+) returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_event      public.events;
+  v_order      public.orders;
+  v_subtotal   integer;
+  v_commission integer;
+  v_payout     integer;
+begin
+  select * into v_order from public.orders where id = p_order_id;
+  if not found then raise exception 'Order not found'; end if;
+  if v_order.order_source not in ('WALKIN_PREEVENT', 'WALKIN_QR', 'WALKIN_INSTANT') then
+    raise exception 'Not a walk-in order';
+  end if;
+
+  select * into v_event from public.events where id = v_order.event_id;
+  v_subtotal := coalesce(p_amount_paise, v_order.subtotal_paise);
+  v_commission := case when v_event.commission_enabled
+    then round(v_subtotal * v_event.commission_bps / 10000.0)
+    else 0 end;
+  v_payout := v_subtotal - v_commission;
+
+  update public.orders set
+    buyer_name = coalesce(p_buyer_name, buyer_name),
+    buyer_phone = coalesce(p_buyer_phone, buyer_phone),
+    buyer_email = coalesce(p_buyer_email, buyer_email),
+    subtotal_paise = v_subtotal,
+    unit_price_paise = v_subtotal,
+    commission_paise = v_commission,
+    platform_fee_paise = v_commission,
+    organizer_payout_paise = v_payout,
+    total_paise = v_subtotal
+  where id = p_order_id;
+end;
+$$;
 -- Idempotent: if already CONFIRMED, returns existing tickets without re-minting.
 -- Converts reserved inventory → sold, mints tickets, generates invoice number.
 -- ---------------------------------------------------------------------------

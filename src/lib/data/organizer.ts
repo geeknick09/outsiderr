@@ -400,6 +400,10 @@ export interface UpdateEventInput {
   facebookUrl?: string | null;
   linkedinUrl?: string | null;
   waitlistEnabled?: boolean;
+  thingsToKnow?: string[];
+  terms?: string[];
+  cardPosterUrl?: string | null;
+  bannerPosterUrl?: string | null;
 }
 
 export async function updateEvent(
@@ -418,6 +422,15 @@ export async function updateEvent(
     .select("venue_name, city, starts_at, ends_at")
     .eq("id", eventId)
     .maybeSingle();
+
+  // Server-side 2-hour edit lock — prevents forged requests from bypassing the UI
+  if (currentEvent?.starts_at) {
+    const startMs = new Date(currentEvent.starts_at).getTime();
+    const nowMs = Date.now();
+    if (startMs - nowMs <= 2 * 60 * 60 * 1000) {
+      throw new Error("Editing is locked within 2 hours of the event start time. Please contact Outsiderr support.");
+    }
+  }
 
   const { error } = await supabase
     .from("events")
@@ -444,6 +457,10 @@ export async function updateEvent(
       ...(input.facebookUrl !== undefined ? { facebook_url: input.facebookUrl } : {}),
       ...(input.linkedinUrl !== undefined ? { linkedin_url: input.linkedinUrl } : {}),
       ...(input.waitlistEnabled !== undefined ? { waitlist_enabled: input.waitlistEnabled } : {}),
+      ...(input.thingsToKnow !== undefined ? { things_to_know: input.thingsToKnow } : {}),
+      ...(input.terms !== undefined ? { terms: input.terms } : {}),
+      ...(input.cardPosterUrl !== undefined ? { card_poster_url: input.cardPosterUrl } : {}),
+      ...(input.bannerPosterUrl !== undefined ? { banner_poster_url: input.bannerPosterUrl } : {}),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
     .eq("id", eventId)

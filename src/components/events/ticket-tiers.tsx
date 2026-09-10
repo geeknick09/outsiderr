@@ -11,7 +11,6 @@ import { formatDateTime, formatPaise } from "@/lib/format";
 import { useRealtime } from "@/lib/hooks/use-realtime";
 import { computePhaseAvailability } from "@/lib/phases";
 import { calculatePrice } from "@/lib/pricing";
-import { isPast } from "@/lib/format";
 import type { EventDetail, TicketTier, WaitlistEntry } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -33,7 +32,7 @@ export function TicketTiers({
   waitlistEnabled?: boolean;
 }) {
   const router = useRouter();
-  const eventIsPast = isPast(event.startsAt);
+  const eventStarted = new Date(event.startsAt).getTime() <= Date.now();
   const [navigating, startNavigation] = useTransition();
 
   // Local tier state — updated in realtime when tickets are sold
@@ -236,10 +235,10 @@ export function TicketTiers({
         })}
       </div>
 
-      {eventIsPast ? (
+      {eventStarted ? (
         <div className="mt-5 space-y-3 border-t border-zinc-200 pt-5 dark:border-white/10">
           <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-center text-sm font-semibold text-amber-600 dark:text-amber-300">
-            This event has ended. Tickets are no longer available.
+            This event has started. Tickets are no longer available online. Please buy tickets on spot at the venue.
           </div>
         </div>
       ) : selected && price ? (

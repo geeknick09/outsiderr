@@ -92,6 +92,32 @@ export function AnalyticsPanel({
           </div>
         </div>
       ) : null}
+
+      {/* Per-tier breakdown */}
+      {analytics.tierBreakdown.length > 0 ? (
+        <div className="glass rounded-2xl p-4">
+          <h3 className="mb-3 text-sm font-bold">Tickets by tier</h3>
+          <div className="space-y-2">
+            {analytics.tierBreakdown.map((tier) => (
+              <div key={tier.tierId} className="flex items-center justify-between text-sm">
+                <div className="min-w-0">
+                  <span className="font-semibold">{tier.tierName}</span>
+                  <span className="ml-2 text-xs text-muted">
+                    {tier.pricePaise === 0 ? "Free" : formatPaise(tier.pricePaise)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 text-xs">
+                  <span className="font-bold">{tier.quantitySold}</span>
+                  <span className="text-muted">sold</span>
+                  <span className="text-muted">·</span>
+                  <span className="font-bold">{tier.quantityLeft}</span>
+                  <span className="text-muted">left</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

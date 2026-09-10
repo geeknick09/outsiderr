@@ -18,7 +18,7 @@ import { CATEGORY_LABELS, CITY_LABELS } from "@/lib/constants";
 import { getCurrentUser } from "@/lib/auth";
 import { getEvent } from "@/lib/data/events";
 import { getWaitlistEntry, getWaitlistCount } from "@/lib/data/waitlist";
-import { formatDateRange, isPast, mapsLink } from "@/lib/format";
+import { formatDateRange, mapsLink } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -339,11 +339,11 @@ export default async function EventDetailsPage({
 
           <TermsAccordion terms={event.terms} />
 
-          {isPast(event.startsAt) ? (
+          {new Date(event.startsAt).getTime() <= Date.now() ? (
             <section className="glass rounded-3xl p-5 text-center">
-              <p className="text-sm font-bold">This event has ended</p>
+              <p className="text-sm font-bold">This event has started</p>
               <p className="mt-1 text-xs text-muted">
-                Check out more events in this category.
+                Tickets are no longer available online. Please buy tickets on spot at the venue.
               </p>
               <Link
                 href={`/?category=${event.category}`}

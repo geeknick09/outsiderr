@@ -481,14 +481,16 @@ export async function adminToggleUserAdmin(
 export async function getEventAnalytics(eventId: string): Promise<EventAnalytics> {
   // No admin guard here — called from getOrganizerEventAnalytics which checks ownership
   const supabase = await createClient();
-  const [eventRes, ordersRes, ticketsRes, waitlistRes] = await Promise.all([
+  const [eventRes, ordersRes, ticketsRes, waitlistRes, tiersRes] = await Promise.all([
     supabase.from("events").select("title").eq("id", eventId).single(),
     supabase.from("orders").select("status, subtotal_paise, commission_paise, convenience_fee_paise, platform_fee_paise, organizer_payout_paise").eq("event_id", eventId),
     supabase.from("tickets").select("status").eq("event_id", eventId),
     supabase.from("waitlist").select("id", { count: "exact", head: true }).eq("event_id", eventId).eq("status", "WAITING"),
+    supabase.from("ticket_tiers").select("id, name, tier_type, price_paise, quantity, quantity_sold, phase_opens_at, phase_closes_at").eq("event_id", eventId).order("sort_order"),
   ]);
   const orders = ordersRes.data ?? [];
   const tickets = ticketsRes.data ?? [];
+  const tiers = tiersRes.data ?? [];
   const confirmed = orders.filter((o) => o.status === "CONFIRMED");
   const gross = confirmed.reduce((s, o) => s + (o.subtotal_paise ?? 0), 0);
   const commission = confirmed.reduce((s, o) => s + (o.commission_paise ?? 0), 0);
@@ -508,6 +510,17 @@ export async function getEventAnalytics(eventId: string): Promise<EventAnalytics
     netPayoutPaise: payout,
     checkIns: tickets.filter((t) => t.status === "USED").length,
     waitlistCount: waitlistRes.count ?? 0,
+    tierBreakdown: tiers.map((t) => ({
+      tierId: t.id,
+      tierName: t.name,
+      tierType: t.tier_type ?? "NAMED",
+      pricePaise: t.price_paise,
+      quantity: t.quantity,
+      quantitySold: t.quantity_sold,
+      quantityLeft: t.quantity - t.quantity_sold,
+      phaseOpensAt: t.phase_opens_at,
+      phaseClosesAt: t.phase_closes_at,
+    })),
   };
 }
 
@@ -563,6 +576,7 @@ export async function listAllAdminOrders(): Promise<Order[]> {
     buyerGender: row.buyer_gender ?? null,
     rejectionReason: row.rejection_reason,
     createdAt: row.created_at,
+    orderSource: row.order_source ?? null,
   }));
 }
 
@@ -611,6 +625,7 @@ export async function listEventOrders(eventId: string): Promise<Order[]> {
     buyerGender: row.buyer_gender ?? null,
     rejectionReason: row.rejection_reason,
     createdAt: row.created_at,
+    orderSource: row.order_source ?? null,
   }));
 }
 

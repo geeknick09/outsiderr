@@ -1,0 +1,42 @@
+=================================================
+LIVE DB BACKUP — Taken before walk-in testing
+Date: 2026-09-10
+=================================================
+
+Event:
+  ID: 16cd3cbe-622a-4bb1-950b-a0a9d1333f9c
+  Title: The Block Cypher vol 1 - powered by Genzbuzz Events
+  Organizer ID: b6ccd2b4-e4ec-4b98-91d0-25cc35a132ab
+  Starts: 2026-09-12 10:30:00 UTC
+  Commission: 10% (enabled)
+  Convenience fee: 2% (NOT enabled)
+  Fee payer: BUYER
+
+Organizer:
+  ID: b6ccd2b4-e4ec-4b98-91d0-25cc35a132ab
+  Owner ID: 9542e392-4ae9-4891-9ef6-479d1b822725
+  Name: The Cypher Club
+  Email: official.cypherclub@gmail.com
+
+Tier:
+  ID: 6d589d53-a650-42b3-bfa4-7b4f99ccdedc
+  Name: Early Bird
+  Price: ₹199 (19900 paise)
+  Quantity: 100
+  Quantity sold: 13
+  Quantity reserved: 0
+
+Counts BEFORE testing:
+  Total events: 1
+  Total orders: 14
+  Total tickets: 13
+  Total tiers: 1
+
+order_source column: DOES NOT EXIST (will be added by migration)
+Walk-in RPCs: DO NOT EXIST (will be created by migration)
+
+Notes:
+  - Existing orders have subtotal=19900, total=19900 (no convenience fee since convenience_fee_enabled=false)
+  - All 14 orders are for the same event
+  - All 13 tickets are for the same event
+  - Tier has 87 tickets remaining (100 - 13)

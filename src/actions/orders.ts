@@ -613,3 +613,124 @@ export async function requestPostponementRefundAction(
     };
   }
 }
+
+// ============================================================================
+// WALK-IN / MANUAL CHECK-IN — organizer adds a walk-in attendee.
+// p_mode: 'WALKIN_PREEVENT' (before event, mints VALID ticket + PDF)
+//         'WALKIN_QR'       (during event, mints VALID ticket for scanning)
+//         'WALKIN_INSTANT'  (during event, auto check-in, ticket = USED)
+// Convenience fee is always 0 for walk-ins. Commission is still deducted.
+// ============================================================================
+
+export interface WalkinResult {
+  error: string | null;
+  success: boolean;
+  ticketId?: string;
+  orderId?: string;
+}
+
+export async function createWalkinOrderAction(formData: FormData): Promise<WalkinResult> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Please sign in to continue.", success: false };
+
+  const eventId = String(formData.get("eventId") ?? "");
+  const tierId = String(formData.get("tierId") ?? "") || null;
+  const buyerName = String(formData.get("buyerName") ?? "").trim();
+  const buyerPhone = String(formData.get("buyerPhone") ?? "").trim();
+  const buyerEmail = String(formData.get("buyerEmail") ?? "").trim() || null;
+  const amountRupees = Number(formData.get("amount") ?? 0);
+  const amountPaise = Math.round(amountRupees * 100);
+  const mode = String(formData.get("mode") ?? "WALKIN_PREEVENT");
+
+  if (!eventId) return { error: "Missing event ID.", success: false };
+  if (!buyerName) return { error: "Name is required.", success: false };
+  if (!buyerPhone) return { error: "Phone is required.", success: false };
+
+  // Validate mode
+  if (!["WALKIN_PREEVENT", "WALKIN_QR", "WALKIN_INSTANT"].includes(mode)) {
+    return { error: "Invalid check-in mode.", success: false };
+  }
+
+  // Verify organizer owns this event
+  const { getOrganizerProfile } = await import("@/lib/data/organizer");
+  const organizer = await getOrganizerProfile(user);
+  if (!organizer) return { error: "No organizer profile.", success: false };
+
+  const { createClient } = await import("@/lib/supabase/server");
+  const supabase = await createClient();
+  const { data: eventRow } = await supabase
+    .from("events")
+    .select("id")
+    .eq("id", eventId)
+    .eq("organizer_id", organizer.id)
+    .maybeSingle();
+  if (!eventRow) return { error: "Event not found or not owned by you.", success: false };
+
+  const { data: result, error } = await supabase.rpc("create_walkin_order", {
+    p_event_id: eventId,
+    p_buyer_name: buyerName,
+    p_buyer_phone: buyerPhone,
+    p_tier_id: tierId,
+    p_buyer_email: buyerEmail,
+    p_amount_paise: amountPaise,
+    p_mode: mode,
+  });
+  if (error) return { error: error.message, success: false };
+
+  const walkinResult = (result ?? {}) as { ticketId?: string; orderId?: string };
+  revalidatePath(`/organizer/events/${eventId}`);
+  return {
+    error: null,
+    success: true,
+    ticketId: walkinResult.ticketId,
+    orderId: walkinResult.orderId,
+  };
+}
+
+export async function updateWalkinOrderAction(formData: FormData): Promise<{ error: string | null; success: boolean }> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Please sign in to continue.", success: false };
+
+  const orderId = String(formData.get("orderId") ?? "");
+  const buyerName = String(formData.get("buyerName") ?? "").trim() || null;
+  const buyerPhone = String(formData.get("buyerPhone") ?? "").trim() || null;
+  const buyerEmail = String(formData.get("buyerEmail") ?? "").trim() || null;
+  const amountRupees = Number(formData.get("amount") ?? 0);
+  const amountPaise = amountRupees > 0 ? Math.round(amountRupees * 100) : null;
+
+  if (!orderId) return { error: "Missing order ID.", success: false };
+
+  // Verify organizer owns the event this order belongs to
+  const { getOrganizerProfile } = await import("@/lib/data/organizer");
+  const organizer = await getOrganizerProfile(user);
+  if (!organizer) return { error: "No organizer profile.", success: false };
+
+  const { createClient } = await import("@/lib/supabase/server");
+  const supabase = await createClient();
+  const { data: orderRow } = await supabase
+    .from("orders")
+    .select("event_id")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (!orderRow) return { error: "Order not found.", success: false };
+
+  const { data: eventRow } = await supabase
+    .from("events")
+    .select("id")
+    .eq("id", orderRow.event_id)
+    .eq("organizer_id", organizer.id)
+    .maybeSingle();
+  if (!eventRow) return { error: "Not authorized to edit this order.", success: false };
+
+  const { error } = await supabase.rpc("update_walkin_order", {
+    p_order_id: orderId,
+    p_buyer_name: buyerName,
+    p_buyer_phone: buyerPhone,
+    p_buyer_email: buyerEmail,
+    p_amount_paise: amountPaise,
+  });
+  if (error) return { error: error.message, success: false };
+
+  revalidatePath(`/organizer/events/${orderRow.event_id}`);
+  return { error: null, success: true };
+}

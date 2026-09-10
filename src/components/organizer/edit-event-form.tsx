@@ -7,7 +7,7 @@ import { MapPin, Plus, Trash2 } from "lucide-react";
 
 import { updateEventAction, type UpdateEventState } from "@/actions/events";
 import { GalleryUploader } from "@/components/organizer/gallery-uploader";
-import { TagPicker } from "@/components/organizer/event-form";
+import { PosterField, TagPicker } from "@/components/organizer/event-form";
 import { Button } from "@/components/ui/button";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { CATEGORIES, CITIES } from "@/lib/constants";
@@ -445,6 +445,50 @@ export function EditEventForm({ event }: { event: EventDetail }) {
           eventTitle={event.title}
         />
       </div>
+
+      {/* Posters */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <PosterField
+          name="cardPosterUrl"
+          label="Card poster (4:5)"
+          organizerName={event.organizer.name}
+          eventTitle={event.title}
+          subFolder="card-posters"
+          initialValue={event.cardPosterUrl ?? ""}
+        />
+        <PosterField
+          name="bannerPosterUrl"
+          label="Banner poster (16:9)"
+          organizerName={event.organizer.name}
+          eventTitle={event.title}
+          subFolder="banner-posters"
+          initialValue={event.bannerPosterUrl ?? ""}
+        />
+      </div>
+
+      {/* Things to know */}
+      <Field label="Things to know (one per line)">
+        <textarea
+          name="thingsToKnow"
+          rows={4}
+          defaultValue={event.thingsToKnow.join("\n")}
+          onChange={() => updateField()}
+          placeholder={"Bring valid ID\nNo outside food"}
+          className={INPUT}
+        />
+      </Field>
+
+      {/* Terms & conditions */}
+      <Field label="Terms & conditions (one per line, defaults applied when empty)">
+        <textarea
+          name="terms"
+          rows={4}
+          defaultValue={event.terms.join("\n")}
+          onChange={() => updateField()}
+          placeholder={"No refunds after purchase\nEntry closes 30 min before start"}
+          className={INPUT}
+        />
+      </Field>
 
       {/* Contact details */}
       <div className="grid gap-4 sm:grid-cols-2">

@@ -530,6 +530,10 @@ export async function updateEventAction(
       facebookUrl: String(formData.get("facebookUrl") ?? "").trim() || null,
       linkedinUrl: String(formData.get("linkedinUrl") ?? "").trim() || null,
       waitlistEnabled: formData.get("waitlistEnabled") === "on" || formData.get("waitlistEnabled") === "true",
+      thingsToKnow: String(formData.get("thingsToKnow") ?? "").split("\n").map((s) => s.trim()).filter(Boolean),
+      terms: String(formData.get("terms") ?? "").split("\n").map((s) => s.trim()).filter(Boolean),
+      cardPosterUrl: String(formData.get("cardPosterUrl") ?? "") || null,
+      bannerPosterUrl: String(formData.get("bannerPosterUrl") ?? "") || null,
     });
   } catch (error) {
     return {

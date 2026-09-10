@@ -1294,7 +1294,7 @@ function FeeOption({
   );
 }
 
-function PosterField({
+export function PosterField({
   name,
   label,
   organizerName,

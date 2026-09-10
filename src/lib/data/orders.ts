@@ -60,6 +60,11 @@ export async function createOrder(
     throw new Error("Not enough tickets left in this tier.");
   }
 
+  // Server-side booking lock: reject orders after the event has started
+  if (new Date(event.startsAt).getTime() <= Date.now()) {
+    throw new Error("This event has started. Online booking is closed. Please buy tickets on spot at the venue.");
+  }
+
   const supabase = await createClient();
 
   // Use per-event commission + convenience fee config
@@ -128,6 +133,7 @@ export async function createOrder(
     buyerGender: data.buyer_gender ?? null,
     rejectionReason: data.rejection_reason,
     createdAt: data.created_at,
+    orderSource: data.order_source ?? null,
   };
 }
 
@@ -149,6 +155,11 @@ export async function createFreeOrder(
   if (tier.pricePaise !== 0) throw new Error("This tier is not free.");
   if (tier.quantity - tier.quantitySold < input.quantity) {
     throw new Error("Not enough tickets left.");
+  }
+
+  // Server-side booking lock: reject orders after the event has started
+  if (new Date(event.startsAt).getTime() <= Date.now()) {
+    throw new Error("This event has started. Online booking is closed. Please buy tickets on spot at the venue.");
   }
 
   // Prevent double booking — 1 ticket per user per event (unless MAX_TICKETS_PER_ORDER > 1)
@@ -209,6 +220,7 @@ export async function createFreeOrder(
     buyerGender: data.buyer_gender ?? null,
     rejectionReason: data.rejection_reason,
     createdAt: data.created_at,
+    orderSource: data.order_source ?? null,
   };
 }
 
@@ -243,6 +255,7 @@ async function hydrateOrders(
     buyer_gender: string | null;
     rejection_reason: string | null;
     created_at: string;
+    order_source?: string | null;
   }[],
 ): Promise<Order[]> {
   const supabase = await createClient();
@@ -290,6 +303,7 @@ async function hydrateOrders(
     buyerGender: row.buyer_gender ?? null,
     rejectionReason: row.rejection_reason,
     createdAt: row.created_at,
+    orderSource: row.order_source ?? null,
   };
   });
 }
@@ -541,6 +555,11 @@ export async function createReservedOrder(
   if (tier.pricePaise === 0) throw new Error("Use the free checkout for free tickets.");
   if (tier.quantity - tier.quantitySold - (tier.quantityReserved ?? 0) < input.quantity) {
     throw new Error("Not enough tickets left in this tier.");
+  }
+
+  // Server-side booking lock: reject orders after the event has started
+  if (new Date(event.startsAt).getTime() <= Date.now()) {
+    throw new Error("This event has started. Online booking is closed. Please buy tickets on spot at the venue.");
   }
 
   const supabase = await createClient();
