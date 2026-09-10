@@ -692,6 +692,32 @@ export function EditEventForm({ event }: { event: EventDetail }) {
         </div>
       </div>
 
+      {/* Allow booking during event toggle */}
+      <div className="glass rounded-3xl p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-bold">Allow Booking During Event</h3>
+            <p className="mt-1 text-xs text-muted">
+              By default, online booking closes when the event starts (users see &lsquo;buy on spot&rsquo;).
+              Enable this to let users book online until the event ends. Useful for multi-day or
+              all-day events where late entry is normal.
+            </p>
+          </div>
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              name="allowBookingDuringEvent"
+              defaultChecked={event.allowBookingDuringEvent ?? false}
+              onChange={() => setDirty(true)}
+              className="h-4 w-4 accent-violet-neon"
+            />
+            <span className="text-xs font-semibold">
+              {event.allowBookingDuringEvent ? "Enabled" : "Disabled"}
+            </span>
+          </label>
+        </div>
+      </div>
+
       <Button type="submit" disabled={pending || !!dateError || !!phaseError || !!mapsError || !!tierError || !dirty} loading={pending} loadingText="Saving…">
         Save changes
       </Button>

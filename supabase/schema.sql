@@ -197,6 +197,7 @@ create table if not exists public.events (
   is_featured         boolean         not null default false,
   needs_door_staff    boolean         not null default false,
   waitlist_enabled    boolean         not null default true,
+  allow_booking_during_event boolean not null default false,
   terms               text[]          not null default '{}',
   registrations_count integer         not null default 0,
   pricing_mode        text            not null default 'PAID'

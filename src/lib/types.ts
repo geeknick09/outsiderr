@@ -173,6 +173,7 @@ export interface EventDetail extends EventSummary {
   status: EventStatus;
   needsDoorStaff: boolean;
   waitlistEnabled: boolean;
+  allowBookingDuringEvent: boolean;
   terms: string[];
   organizer: Organizer;
   tiers: TicketTier[];

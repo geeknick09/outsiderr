@@ -86,6 +86,7 @@ export type EventRow = {
   is_featured: boolean;
   needs_door_staff: boolean;
   waitlist_enabled: boolean;
+  allow_booking_during_event: boolean;
   terms: string[];
   registrations_count: number;
   tags: string[];

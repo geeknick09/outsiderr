@@ -1776,6 +1776,9 @@ where user_id not in (select id from auth.users);
 alter table public.orders add column if not exists order_source text not null default 'ONLINE'
   check (order_source in ('ONLINE','WALKIN_PREEVENT','WALKIN_QR','WALKIN_INSTANT'));
 
+-- Add allow_booking_during_event toggle (default false — booking closes at event start)
+alter table public.events add column if not exists allow_booking_during_event boolean not null default false;
+
 create or replace function public.create_walkin_order(
   p_event_id    uuid,
   p_buyer_name  text,

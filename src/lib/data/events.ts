@@ -109,6 +109,7 @@ function toDetail(
     status: row.status,
     needsDoorStaff: row.needs_door_staff,
     waitlistEnabled: (row as { waitlist_enabled?: boolean }).waitlist_enabled ?? true,
+    allowBookingDuringEvent: (row as { allow_booking_during_event?: boolean }).allow_booking_during_event ?? false,
     terms: row.terms ?? [],
     organizer,
     tiers: tiers.sort((a, b) => a.sortOrder - b.sortOrder),

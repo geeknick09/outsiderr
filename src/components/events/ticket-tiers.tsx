@@ -32,7 +32,13 @@ export function TicketTiers({
   waitlistEnabled?: boolean;
 }) {
   const router = useRouter();
-  const eventStarted = new Date(event.startsAt).getTime() <= Date.now();
+  const nowMs = Date.now();
+  const startMs = new Date(event.startsAt).getTime();
+  const endMs = event.endsAt ? new Date(event.endsAt).getTime() : startMs;
+  const eventStarted = startMs <= nowMs;
+  const eventEnded = endMs <= nowMs;
+  // Booking closes at start by default; at end if organizer allows booking during event
+  const bookingClosed = event.allowBookingDuringEvent ? eventEnded : eventStarted;
   const [navigating, startNavigation] = useTransition();
 
   // Local tier state — updated in realtime when tickets are sold
@@ -235,10 +241,12 @@ export function TicketTiers({
         })}
       </div>
 
-      {eventStarted ? (
+      {bookingClosed ? (
         <div className="mt-5 space-y-3 border-t border-zinc-200 pt-5 dark:border-white/10">
           <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-center text-sm font-semibold text-amber-600 dark:text-amber-300">
-            This event has started. Tickets are no longer available online. Please buy tickets on spot at the venue.
+            {eventEnded
+              ? "This event has ended. Tickets are no longer available."
+              : "This event has started. Online booking is closed. Please buy tickets on spot at the venue."}
           </div>
         </div>
       ) : selected && price ? (

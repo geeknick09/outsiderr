@@ -400,6 +400,7 @@ export interface UpdateEventInput {
   facebookUrl?: string | null;
   linkedinUrl?: string | null;
   waitlistEnabled?: boolean;
+  allowBookingDuringEvent?: boolean;
   thingsToKnow?: string[];
   terms?: string[];
   cardPosterUrl?: string | null;
@@ -457,6 +458,7 @@ export async function updateEvent(
       ...(input.facebookUrl !== undefined ? { facebook_url: input.facebookUrl } : {}),
       ...(input.linkedinUrl !== undefined ? { linkedin_url: input.linkedinUrl } : {}),
       ...(input.waitlistEnabled !== undefined ? { waitlist_enabled: input.waitlistEnabled } : {}),
+      ...(input.allowBookingDuringEvent !== undefined ? { allow_booking_during_event: input.allowBookingDuringEvent } : {}),
       ...(input.thingsToKnow !== undefined ? { things_to_know: input.thingsToKnow } : {}),
       ...(input.terms !== undefined ? { terms: input.terms } : {}),
       ...(input.cardPosterUrl !== undefined ? { card_poster_url: input.cardPosterUrl } : {}),

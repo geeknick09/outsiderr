@@ -60,8 +60,12 @@ export async function createOrder(
     throw new Error("Not enough tickets left in this tier.");
   }
 
-  // Server-side booking lock: reject orders after the event has started
-  if (new Date(event.startsAt).getTime() <= Date.now()) {
+  // Server-side booking lock: reject orders after booking closes
+  // Closes at event start by default, or at event end if organizer allows booking during event
+  const bookingCutoffMs = event.allowBookingDuringEvent
+    ? (event.endsAt ? new Date(event.endsAt).getTime() : new Date(event.startsAt).getTime())
+    : new Date(event.startsAt).getTime();
+  if (bookingCutoffMs <= Date.now()) {
     throw new Error("This event has started. Online booking is closed. Please buy tickets on spot at the venue.");
   }
 
@@ -157,8 +161,12 @@ export async function createFreeOrder(
     throw new Error("Not enough tickets left.");
   }
 
-  // Server-side booking lock: reject orders after the event has started
-  if (new Date(event.startsAt).getTime() <= Date.now()) {
+  // Server-side booking lock: reject orders after booking closes
+  // Closes at event start by default, or at event end if organizer allows booking during event
+  const bookingCutoffMs = event.allowBookingDuringEvent
+    ? (event.endsAt ? new Date(event.endsAt).getTime() : new Date(event.startsAt).getTime())
+    : new Date(event.startsAt).getTime();
+  if (bookingCutoffMs <= Date.now()) {
     throw new Error("This event has started. Online booking is closed. Please buy tickets on spot at the venue.");
   }
 
@@ -557,8 +565,12 @@ export async function createReservedOrder(
     throw new Error("Not enough tickets left in this tier.");
   }
 
-  // Server-side booking lock: reject orders after the event has started
-  if (new Date(event.startsAt).getTime() <= Date.now()) {
+  // Server-side booking lock: reject orders after booking closes
+  // Closes at event start by default, or at event end if organizer allows booking during event
+  const bookingCutoffMs = event.allowBookingDuringEvent
+    ? (event.endsAt ? new Date(event.endsAt).getTime() : new Date(event.startsAt).getTime())
+    : new Date(event.startsAt).getTime();
+  if (bookingCutoffMs <= Date.now()) {
     throw new Error("This event has started. Online booking is closed. Please buy tickets on spot at the venue.");
   }
 
