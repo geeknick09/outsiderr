@@ -1,9 +1,14 @@
 /**
  * Organizer profile loading skeleton.
  */
+import { BrandedLoader } from "@/components/ui/branded-loader";
+
 export default function OrganizerProfileLoading() {
   return (
     <div className="space-y-6 py-6">
+      <div className="flex justify-center py-4">
+        <BrandedLoader size="md" label="Loading organizer" />
+      </div>
       <div className="flex items-end gap-4 px-2">
         <div className="h-20 w-20 animate-pulse rounded-2xl bg-zinc-200 dark:bg-white/10 sm:h-24 sm:w-24" />
         <div className="flex-1 space-y-2">

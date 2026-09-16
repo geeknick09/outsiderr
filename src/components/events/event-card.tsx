@@ -28,7 +28,7 @@ export function EventCard({
         className,
       )}
     >
-      <div className="relative aspect-[4/5] w-full overflow-hidden bg-zinc-200 dark:bg-white/5">
+      <div className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-200 dark:bg-white/5">
         {event.cardPosterUrl ? (
           <Image
             src={event.cardPosterUrl}

@@ -15,6 +15,8 @@ import {
 import { checkInTicketAction } from "@/actions/orders";
 import { useRealtime } from "@/lib/hooks/use-realtime";
 import { formatDateRange } from "@/lib/format";
+import { ScannerSyncManager, type SyncStatus } from "@/lib/offline/sync-manager";
+import { OfflineStatus } from "@/components/scan/offline-status";
 import type { ScanResult } from "@/lib/types";
 
 interface StaffEvent {
@@ -36,9 +38,13 @@ interface ScanHistoryEntry {
 export function StaffDoorScanner({
   events,
   initialCheckInCount = 0,
+  staffName,
+  pin,
 }: {
   events: StaffEvent[];
   initialCheckInCount?: number;
+  staffName?: string;
+  pin?: string;
 }) {
   const router = useRouter();
   const [selectedEventId, setSelectedEventId] = useState<string>(
@@ -50,8 +56,15 @@ export function StaffDoorScanner({
   const [checkInCount, setCheckInCount] = useState(initialCheckInCount);
   const [scanHistory, setScanHistory] = useState<ScanHistoryEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>({
+    online: true,
+    syncing: false,
+    queuedCount: 0,
+    lastSyncAt: null,
+  });
   const scannerRef = useRef<{ start: () => void; stop: () => void } | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const syncManagerRef = useRef<ScannerSyncManager | null>(null);
 
   const selectedEvent = events.find((e) => e.id === selectedEventId);
 
@@ -68,6 +81,28 @@ export function StaffDoorScanner({
       }
     },
   });
+
+  // Offline sync manager — initialize when PIN is provided
+  useEffect(() => {
+    if (!pin || !selectedEventId) return;
+
+    const manager = new ScannerSyncManager(selectedEventId, pin);
+    syncManagerRef.current = manager;
+
+    const unsubscribe = manager.subscribe(setSyncStatus);
+    manager.start();
+
+    // Download valid tickets for offline cache
+    if (navigator.onLine) {
+      manager.downloadTickets();
+    }
+
+    return () => {
+      unsubscribe();
+      manager.stop();
+      syncManagerRef.current = null;
+    };
+  }, [pin, selectedEventId]);
 
   // Play audio feedback
   const playSound = useCallback((type: "success" | "error") => {
@@ -130,10 +165,55 @@ export function StaffDoorScanner({
     async (hash: string) => {
       if (!hash.trim() || !selectedEventId) return;
       setError(null);
-      const result = await checkInTicketAction(hash.trim(), selectedEventId);
+
+      // If offline and sync manager is available, check locally and queue
+      const manager = syncManagerRef.current;
+      if (manager && !navigator.onLine) {
+        const localResult = await manager.checkLocal(hash.trim());
+        if (localResult.outcome === "VALID") {
+          // Queue the scan for later syncing
+          await manager.queueScan(hash.trim());
+          const queuedResult: ScanResult = {
+            outcome: "VALID",
+            message: "Checked in (offline — will sync when online).",
+            ticket: {
+              eventTitle: selectedEvent?.title ?? "Event",
+              tierName: localResult.tierName ?? "Ticket",
+              holderName: localResult.holderName,
+              holderEmail: null,
+              holderPhone: null,
+              quantity: 1,
+              checkedInAt: new Date().toISOString(),
+            },
+          };
+          handleScanResult(queuedResult, hash.trim());
+          setCheckInCount((c) => c + 1);
+        } else {
+          const offlineResult: ScanResult = {
+            outcome: localResult.outcome === "ALREADY_USED" ? "ALREADY_USED" : "INVALID",
+            message: localResult.outcome === "ALREADY_USED"
+              ? "Already checked in (offline cache)."
+              : "Ticket not found in offline cache.",
+            ticket: localResult.holderName ? {
+              eventTitle: selectedEvent?.title ?? "Event",
+              tierName: localResult.tierName ?? "Ticket",
+              holderName: localResult.holderName,
+              holderEmail: null,
+              holderPhone: null,
+              quantity: 1,
+              checkedInAt: null,
+            } : undefined,
+          };
+          handleScanResult(offlineResult, hash.trim());
+        }
+        return;
+      }
+
+      // Online — process directly via server action
+      const result = await checkInTicketAction(hash.trim(), selectedEventId, pin);
       handleScanResult(result, hash.trim());
     },
-    [selectedEventId, handleScanResult],
+    [selectedEventId, handleScanResult, pin, selectedEvent],
   );
 
   // Initialize camera scanner
@@ -223,6 +303,28 @@ export function StaffDoorScanner({
 
   return (
     <div className="space-y-4">
+      {/* Staff info + logout */}
+      {staffName ? (
+        <div className="glass flex items-center justify-between rounded-2xl p-3">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-neon/10">
+              <span className="text-sm font-bold text-violet-neon">{staffName.charAt(0).toUpperCase()}</span>
+            </div>
+            <div>
+              <p className="text-sm font-semibold">{staffName}</p>
+              <p className="text-[10px] text-muted">Door scanner</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="text-xs font-semibold text-muted hover:text-red-500"
+          >
+            Exit
+          </button>
+        </div>
+      ) : null}
+
       {/* Event selector */}
       <div className="glass rounded-2xl p-4 space-y-3">
         <label className="block space-y-1.5">
@@ -250,6 +352,9 @@ export function StaffDoorScanner({
           </div>
         ) : null}
       </div>
+
+      {/* Offline status indicator */}
+      {pin ? <OfflineStatus status={syncStatus} /> : null}
 
       {/* Check-in counter */}
       <div className="grid grid-cols-3 gap-3">

@@ -1,9 +1,14 @@
 /**
  * Club detail loading skeleton.
  */
+import { BrandedLoader } from "@/components/ui/branded-loader";
+
 export default function ClubDetailLoading() {
   return (
     <div className="mx-auto max-w-3xl space-y-6 py-6">
+      <div className="flex justify-center py-4">
+        <BrandedLoader size="md" label="Loading club" />
+      </div>
       <div className="h-40 w-full animate-pulse rounded-3xl bg-zinc-200 dark:bg-white/10 sm:h-56" />
       <div className="flex items-start gap-4">
         <div className="h-20 w-20 animate-pulse rounded-3xl bg-zinc-200 dark:bg-white/10" />

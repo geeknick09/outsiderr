@@ -1,8 +1,12 @@
+import { BrandedLoader } from "@/components/ui/branded-loader";
 import { SkeletonGrid } from "@/components/ui/skeleton";
 
 export default function Loading() {
   return (
     <div className="space-y-6 py-6">
+      <div className="flex justify-center py-4">
+        <BrandedLoader size="lg" label="Loading events" />
+      </div>
       {/* Featured carousel skeleton */}
       <div className="glass animate-pulse h-48 rounded-3xl bg-zinc-200 dark:bg-white/10" />
       {/* Category chips skeleton */}

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 let supabaseHost = "supabase.co";
@@ -64,4 +65,12 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  // Only relevant when Sentry is configured (DSN set).
+  // Silently no-ops if SENTRY_DSN / NEXT_PUBLIC_SENTRY_DSN are absent.
+  silent: true,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  // Upload source maps in production builds
+  sourcemaps: { disable: process.env.NODE_ENV !== "production" },
+});

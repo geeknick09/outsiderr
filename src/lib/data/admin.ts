@@ -577,6 +577,7 @@ export async function listAllAdminOrders(): Promise<Order[]> {
     rejectionReason: row.rejection_reason,
     createdAt: row.created_at,
     orderSource: row.order_source ?? null,
+    isBoxOffice: (row as { is_box_office?: boolean }).is_box_office ?? false,
   }));
 }
 
@@ -626,6 +627,7 @@ export async function listEventOrders(eventId: string): Promise<Order[]> {
     rejectionReason: row.rejection_reason,
     createdAt: row.created_at,
     orderSource: row.order_source ?? null,
+    isBoxOffice: (row as { is_box_office?: boolean }).is_box_office ?? false,
   }));
 }
 

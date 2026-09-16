@@ -51,7 +51,7 @@ This document tracks all product, engineering, infrastructure, payment, organize
 - [x] **P53. Organizer Profile Redesign** — Facebook-style cover banner + round/square DP on `/organizers/[id]`. Cover photo upload in become-organizer form and edit-profile form. Split upcoming/past events sections. Past events show "Completed" badge.
 - [x] **P54. Past Event Booking Guard** — TicketTiers component disables booking for past events, shows "Event ended" message instead of "Book now" button.
 - [ ] **P55. Follow/Unfollow Organizers** — Users can follow organizers. Follower count on profile. Feed of followed organizers' events. (Deferred)
-- [ ] **P56. Organizer Rating** — Users can rate organizers (1-5 stars). Average rating displayed on organizer profile. (Deferred)
+- [x] **P56. Organizer Rating & Reviews** — Checked-in attendees (USED ticket) can leave 1-5 star + text reviews. Reviews aggregate on organizer profile with average rating + distribution. Reviews also show on completed event pages. RLS: public read, checked-in insert, author delete + admin delete. Organizers cannot delete reviews. Server actions: `submitReview`, `deleteReview` (own), `adminDeleteReview` (admin only).
 
 ---
 
@@ -132,7 +132,7 @@ This document tracks all product, engineering, infrastructure, payment, organize
 ## 11. Branding & UI
 
 - [x] **P21. Outsiderr Logo** — Dark and light mode logos (`darkmode.png`, `lightmode.png`) with theme-aware switching via `ThemeLogo` component. Used in navbar, favicon, PWA manifest, and service worker.
-- [~] **P22. Loading / Buffering Animation** — Loading skeletons added. Branded animation deferred.
+- [x] **P22. Loading / Buffering Animation** — Branded neon-gradient spinner (`BrandedLoader`) added to all 13 `loading.tsx` route fallbacks. Skeletons retained for content structure, spinner provides instant branded feedback.
 - [x] **P34. Profile Dropdown UX** — Auto-close on navigation and outside click. Fixed z-index overlay (z-40 overlay, z-50 menu). Dark-mode mobile styling fixed.
 - [x] **P35. Post-Payment Success UI** — Green confirmation message + WhatsApp instructions for UTR submission on checkout and tickets pages.
 - [x] **P37. Leaflet SSR Fix** — MapPicker changed from `React.lazy()` to `next/dynamic` with `ssr: false` in both event-form and edit-event-form. Fixes `window is not defined` error on `/organizer/events/[id]`.
@@ -168,7 +168,7 @@ This document tracks all product, engineering, infrastructure, payment, organize
 ## 14. Analytics
 
 - [ ] **P26. Event Analytics** — Views, unique visitors, conversion rate, sales over time, cancellation/refund rate.
-- [~] **P27. Organizer Analytics** — Per-event analytics (orders, revenue, payout, check-ins, waitlist). Aggregate dashboard + views/conversion deferred.
+- [x] **P27. Organizer Analytics** — Per-event analytics (orders, revenue, payout, check-ins, waitlist) + aggregate dashboard with overview stats, capacity bar, attendance/order charts, revenue-by-event top 5, and 30-day revenue trend chart.
 - [x] **P36. Hero Boost Analytics Prep** — Hero carousel links include `?source=HERO_BOOST` query param for tracking traffic/bookings from Hero section. Extensible for future analytics integration.
 
 ---
@@ -303,6 +303,11 @@ This document tracks all product, engineering, infrastructure, payment, organize
 - [ ] **Run `supabase/migrations/fix_all.sql`** (re-run after UX fixes) — Now includes: `waitlist_enabled` column on `events` (boolean, default true), updated RLS policy to allow `POSTPONED` events to be publicly visible, 15 performance indexes (events status/city/categories GIN/trigram, orders status/date/razorpay_order_id/user_id, profiles is_admin/created_at, hero_boosts razorpay_order_id, webhook_events processed, refunds razorpay_refund_id/order_id, payment_ledger razorpay_payment_id), `pg_trgm` extension, nullable `p_razorpay_signature` parameter on `confirm_razorpay_order`.
 - [ ] **Run `supabase/migrations/fix_all.sql`** (re-run after event lifecycle features) — Now includes: `event_staff` table for door staff access (organizer assigns by email/phone, staff only access `/scan`), `REFUND_REQUESTED` order status, `request_postponement_refund` RPC (user requests refund for postponed event), updated `is_event_staff` to check `event_staff` table, `is_door_staff_any()` and `get_staff_organizer_ids()` functions, `events` table added to realtime publication, `event_staff` RLS policies.
 - [ ] **Run `supabase/migrations/fix_all.sql`** (re-run after walk-in/manual check-in features) — Now includes: `order_source` column on `orders` (discriminates online vs walk-in orders), `create_walkin_order` RPC (organizer registers a walk-in attendee with QR ticket or instant check-in), `update_walkin_order` RPC (organizer edits an existing walk-in record). Walk-ins have `convenience_fee = 0` but commission is still deducted. Modes: `WALKIN_PREEVENT` (before event, VALID ticket), `WALKIN_QR` (during event, VALID ticket for scanning), `WALKIN_INSTANT` (during event, auto check-in, USED ticket). Also adds `allow_booking_during_event` column on `events` (boolean, default false) — when true, online booking stays open until the event ends instead of closing at the start time.
+- [ ] **Run `supabase/migrations/fix_all.sql`** (re-run after scanner/box office PIN features) — Now includes: `is_box_office` column on `orders` (boolean, default false), `scanner_pins` table (PIN-based door scanner auth, no Supabase login needed), `box_office_pins` table (PIN-based box office auth, organizer + admin roles), `verify_scanner_pin` RPC, `generate_scanner_pins` RPC (bulk generate), `revoke_scanner_pin` RPC, `verify_box_office_pin` RPC, `generate_box_office_pins` RPC (bulk generate), `revoke_box_office_pin` RPC, RLS policies for both PIN tables, both tables added to realtime publication. Also updates `create_walkin_order` to set `user_id = NULL` and `is_box_office = true` (walk-in orders no longer appear in My Tickets), and updates `check_in_ticket` to return `buyer_name` from the order as `holder_name` (scanner shows attendee name, not organizer name).
+- [ ] **Run `supabase/migrations/fix_all.sql`** (re-run after hardening features) — Now includes: `idempotency_key` column on `orders` with unique partial index (prevents duplicate box-office orders), `pin_hash` column on `scanner_pins` and `box_office_pins` with SHA-256 hash + unique index (PINs are hashed, not stored as plaintext for verification), updated `create_walkin_order` RPC with `p_idempotency_key` parameter (returns existing order if key matches), updated all 4 PIN RPCs to verify via `pin_hash` instead of `pin_code`. Migrations have been applied to the live DB via `scripts/_apply_idempotency.mjs` and `scripts/_apply_pin_hashing.mjs`.
+- [ ] **Run `scripts/_apply_backup_bucket.mjs`** — Creates the private `backups` Supabase Storage bucket for automated database backups. Then run `supabase/migrations/fix_all.sql` (re-run after backup feature) to add RLS policies for the backups bucket (service-role only). Configure Vercel Cron for `/api/cron/backup?type=daily` (2 AM) and `/api/cron/backup?type=weekly` (3 AM Sundays) — see `vercel.json`.
+- [ ] **Run `supabase/migrations/fix_all.sql`** (re-run after reviews feature) — Now includes: `event_reviews` table (id, event_id, organizer_id, user_id, rating 1-5, review_text, created_at) with unique(event_id, user_id) constraint, 3 indexes, RLS (public read, checked-in users can insert, users delete own), and realtime publication. Reviews appear on organizer public profile page.
+- [ ] **Run `supabase/migrations/fix_all.sql`** (re-run after linked events feature) — Now includes: `events.linked_past_event_ids` column (uuid[], default '{}'). Organizers can link their own past events as "previous editions" when creating/editing an event. Linked events show on the event page with aggregate rating.
 
 ---
 
@@ -407,7 +412,7 @@ A new section on the organizer dashboard showing the running balance the organiz
    - Notify organizer of updated dues balance after each cancellation/postponement
 
 ### Low Priority
-- [ ] **Branded Loading Animation** — Custom animation replacing skeletons.
+- [x] **Branded Loading Animation** — Neon-gradient spinner (`BrandedLoader`) on all route loading states.
 - [ ] **3-Month Data Retention / Archival** — Archive old data, preserve financial/legal records.
 - [ ] **Media Cleanup** — Reference-aware cleanup of orphaned files.
 - [ ] **RBAC** — Role-based access control beyond current admin/organizer/user.
@@ -522,3 +527,88 @@ A new section on the organizer dashboard showing the running balance the organiz
 34. [ ] Push notifications
 35. [ ] Recommendation/personalization
 36. [ ] Advanced reporting
+
+---
+
+## 22. Engineering Hardening & Reliability
+
+> Added after architecture review. These items make the app robust, consistent, reliable, and highly available. Ordered by impact.
+
+### Error Tracking & Observability
+- [x] **E1. Sentry Integration** — `@sentry/nextjs` added. Client, server, and edge configs created. Error boundaries report to Sentry. Source map upload on build. Silently no-ops if `SENTRY_DSN` is not set. Env vars added to `.env.example`.
+- [x] **E2. Structured Logging** — `src/lib/logger.ts` with pino. JSON to stdout in production, pino-pretty in dev. Auto-redacts secrets (passwords, tokens, signatures, auth headers). `logError()` helper also reports to Sentry. Applied to Razorpay webhook, cron expire-reservations, and admin actions (refund, payout, event status, order approve/reject). Remaining `console.*` calls in non-critical paths can be migrated incrementally.
+
+### Input Validation
+- [x] **E3. Zod Input Validation** — `src/lib/validation.ts` with schemas for PINs, box-office orders, check-in, event, tiers, profiles. Applied to all box-office, scanner, check-in, and walk-in server actions. 35 validation tests passing.
+
+### Idempotency & Data Consistency
+- [x] **E4. Idempotency for Box-Office Orders** — `orders.idempotency_key` column added with unique index. `create_walkin_order` RPC accepts `p_idempotency_key` and returns existing order if key matches. Server actions generate `crypto.randomUUID()` per order. Migration applied to live DB.
+- [x] **E5. Idempotency for Check-In** — `check_in_ticket_with_pin` and `check_in_ticket` return `ALREADY_USED` for duplicate scans — this is naturally idempotent. The offline sync manager (`src/lib/offline/sync-manager.ts`) treats `ALREADY_USED` as a successful sync, records it in history, and removes the scan from the queue. Documented in code comments.
+
+### Security
+- [x] **E6. Hash PINs** — `pin_hash` column added to `scanner_pins` and `box_office_pins`. SHA-256 of `event_id:pin_code` stored. Verify RPCs hash input and compare. Generate RPCs store hash alongside plaintext (for organizer display). Unique index moved to `pin_hash`. Migration applied to live DB.
+- [x] **E7. Rate Limiting** — `src/lib/rate-limit.ts` with in-memory sliding window. Applied to PIN verification (20/min), box-office orders (10/min), check-in (60/min). Per-IP via `x-forwarded-for`. Presets for login and API routes.
+
+
+### Testing
+- [x] **E8. Automated Test Suite** — Vitest installed. 64 tests across 3 suites: validation (35), rate limiting (10), financial calculations (19). `npm test` runs all. Financial tests verify the canonical 10×₹450 example and invariants (organizer payout + commission = subtotal, buyer total = subtotal + convenience fee).
+- [x] **E9. Test Fixtures & Seed Data** — `tests/fixtures.ts` with deterministic UUIDs and in-memory data for 3 users, 1 organizer, 3 events (free/paid/sold-out), 4 tiers, 2 orders (online + box-office), 2 tickets (VALID + USED), 2 PINs. `scripts/seed-test-data.mjs` inserts fixtures into a test DB with hashed PINs. 38 fixture integrity tests verify data relationships, financial accuracy, inventory state, ticket state, PIN state, and event lifecycle. Total: 102 tests across 4 suites.
+
+### UX Safety Nets
+- [x] **E10. 404 Page** — `src/app/not-found.tsx` added with branded 404 matching the glass-card style.
+
+### Environment & Deployment
+- [ ] **E11. Staging Environment** — Separate Supabase project + Vercel preview deployment for testing before production. See "Staging Setup Steps" below.
+- [x] **E12. Database Backup Automation** — Code-based backup via `src/lib/backup.ts`. Exports 23 critical tables as JSON, gzip-compresses, uploads to private `backups` Supabase Storage bucket. Cron routes at `/api/cron/backup?type=daily` (2 AM daily, keep 7) and `?type=weekly` (3 AM Sundays, keep 4). Rolling retention auto-deletes old backups. Restore via `scripts/_restore_backup.mjs`. Bucket creation script: `scripts/_apply_backup_bucket.mjs`. No Supabase Pro required — uses Storage free tier. Schema updated in `supabase/schema.sql` + `supabase/migrations/fix_all.sql`.
+
+### Performance
+- [x] **E13. Cache Public Pages** — Home page uses `revalidate = 60` (ISR). Event detail pages remain dynamic with `revalidate = 0`. Event mutations call `revalidateTag("events")` alongside `revalidatePath("/")` for immediate cache busting. Booking still checks authoritative inventory in the RPC — cached listings never determine booking eligibility.
+
+---
+
+## 23. Staging Setup Steps
+
+> These steps require manual actions in the Supabase and Vercel dashboards. They cannot be fully automated.
+
+### Step 1 — Create a Staging Supabase Project
+1. Go to https://supabase.com/dashboard → New Project
+2. Name it `outsiderr-staging` (or similar)
+3. Choose the same region as production (ap-southeast-1)
+4. Set a strong database password
+5. Wait for provisioning (~2 minutes)
+
+### Step 2 — Apply Schema to Staging
+1. Open the SQL Editor in the staging project
+2. Run `supabase/schema.sql` (the full canonical schema)
+3. Run `supabase/migrations/fix_all.sql` (incremental fixes)
+4. Verify all tables and RPCs exist
+
+### Step 3 — Seed Staging Data
+1. Run `scripts/reseed.mjs` against the staging database (update the connection string)
+2. Or manually create a test event, tier, organizer, and a few orders
+
+### Step 4 — Create Vercel Preview Deployment
+1. In Vercel, your project already has preview deployments for every PR
+2. Go to Project Settings → Environment Variables
+3. Add a "Preview" environment for all Supabase + Razorpay keys, pointing to the staging Supabase project
+4. Use test-mode Razorpay keys for staging (Razorpay provides test key IDs starting with `rzp_test_`)
+
+### Step 5 — Configure Razorpay Test Webhook
+1. In the Razorpay dashboard, create a test webhook
+2. URL: your Vercel preview URL + `/api/razorpay/webhook`
+3. Subscribe to the same events as production
+4. Use the test webhook secret in your staging env vars
+
+### Step 6 — Configure Cron for Staging
+1. In Vercel, add a cron job for the preview deployment calling `/api/cron/expire-reservations`
+2. Use a separate `CRON_SECRET` for staging
+
+### Step 7 — Verify
+1. Open the preview deployment URL
+2. Create a test event, book a ticket, scan it, create a box-office order
+3. Verify all flows work against the staging database
+4. Verify Razorpay test payment works end-to-end
+
+### Step 8 — Document
+1. Add staging env vars to `.env.example` with `_STAGING` suffix
+2. Document the promote-to-production process: merge PR → main → Vercel auto-deploys to production → run any new migrations on production Supabase

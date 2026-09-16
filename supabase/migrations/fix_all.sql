@@ -838,10 +838,11 @@ begin
         case when v_ticket.status = 'USED' then 'ALREADY_USED' else 'INVALID' end,
         e.title,
         t.name,
-        p.full_name,
+        coalesce(o.buyer_name, p.full_name),
         v_ticket.checked_in_at
       from public.events       e
       join public.ticket_tiers t on t.id = v_ticket.tier_id
+      left join public.orders   o on o.id = v_ticket.order_id
       left join public.profiles p on p.id = v_ticket.user_id
       where e.id = v_ticket.event_id;
     return;
@@ -859,10 +860,95 @@ begin
       'VALID'::text,
       e.title,
       t.name,
-      p.full_name,
+      coalesce(o.buyer_name, p.full_name),
       v_ticket.checked_in_at
     from public.events       e
     join public.ticket_tiers t on t.id = v_ticket.tier_id
+    left join public.orders   o on o.id = v_ticket.order_id
+    left join public.profiles p on p.id = v_ticket.user_id
+    where e.id = v_ticket.event_id;
+end;
+$$;
+
+-- PIN-based ticket check-in (for door scanner with PIN auth, no Supabase login)
+create or replace function public.check_in_ticket_with_pin(
+  p_qr_hash  text,
+  p_event_id uuid,
+  p_pin      text
+)
+returns table (
+  outcome       text,
+  event_title   text,
+  tier_name     text,
+  holder_name   text,
+  checked_in_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_ticket public.tickets;
+  v_pin    public.scanner_pins;
+begin
+  select * into v_pin from public.scanner_pins sp
+   where sp.event_id = p_event_id and sp.pin_code = p_pin and sp.is_active = true
+   for update;
+  if not found then
+    raise exception 'Invalid or inactive scanner PIN';
+  end if;
+  update public.scanner_pins set last_used_at = now() where id = v_pin.id;
+
+  select * into v_ticket
+    from public.tickets
+   where qr_hash = p_qr_hash
+     for update;
+
+  if not found then
+    return query
+      select 'INVALID'::text, null::text, null::text, null::text, null::timestamptz;
+    return;
+  end if;
+
+  if v_ticket.event_id <> p_event_id then
+    return query
+      select 'INVALID'::text, null::text, null::text, null::text, null::timestamptz;
+    return;
+  end if;
+
+  if v_ticket.status <> 'VALID' then
+    return query
+      select
+        case when v_ticket.status = 'USED' then 'ALREADY_USED' else 'INVALID' end,
+        e.title,
+        t.name,
+        coalesce(o.buyer_name, p.full_name),
+        v_ticket.checked_in_at
+      from public.events       e
+      join public.ticket_tiers t on t.id = v_ticket.tier_id
+      left join public.orders   o on o.id = v_ticket.order_id
+      left join public.profiles p on p.id = v_ticket.user_id
+      where e.id = v_ticket.event_id;
+    return;
+  end if;
+
+  update public.tickets
+     set status        = 'USED',
+         checked_in_at = now(),
+         checked_in_by = null
+   where id = v_ticket.id
+  returning * into v_ticket;
+
+  return query
+    select
+      'VALID'::text,
+      e.title,
+      t.name,
+      coalesce(o.buyer_name, p.full_name),
+      v_ticket.checked_in_at
+    from public.events       e
+    join public.ticket_tiers t on t.id = v_ticket.tier_id
+    left join public.orders   o on o.id = v_ticket.order_id
     left join public.profiles p on p.id = v_ticket.user_id
     where e.id = v_ticket.event_id;
 end;
@@ -1278,6 +1364,7 @@ on conflict (key) do nothing;
 -- ----------------------------------------------------------------
 alter type event_category add value if not exists 'HIP_HOP_PARTY';
 alter type event_category add value if not exists 'CAR_BIKE_MEET';
+alter type event_category add value if not exists 'GAMING';
 alter table public.events add column if not exists categories text[] not null default '{}';
 
 -- Backfill: set categories = [category] for existing events
@@ -1779,6 +1866,13 @@ alter table public.orders add column if not exists order_source text not null de
 -- Add allow_booking_during_event toggle (default false — booking closes at event start)
 alter table public.events add column if not exists allow_booking_during_event boolean not null default false;
 
+-- Add is_box_office column to orders (walk-in/box office orders are hidden from My Tickets)
+alter table public.orders add column if not exists is_box_office boolean not null default false;
+
+-- Add idempotency_key column to orders (prevents duplicate box-office orders from double-clicks/retries)
+alter table public.orders add column if not exists idempotency_key text;
+create unique index if not exists orders_idempotency_idx on public.orders(idempotency_key) where idempotency_key is not null;
+
 create or replace function public.create_walkin_order(
   p_event_id    uuid,
   p_buyer_name  text,
@@ -1786,7 +1880,8 @@ create or replace function public.create_walkin_order(
   p_tier_id     uuid    default null,
   p_buyer_email text    default null,
   p_amount_paise integer default 0,
-  p_mode        text    default 'WALKIN_PREEVENT'
+  p_mode        text    default 'WALKIN_PREEVENT',
+  p_idempotency_key text default null
 ) returns jsonb
 language plpgsql
 security definer
@@ -1802,7 +1897,25 @@ declare
   v_ticket_id     uuid;
   v_tier_id       uuid;
   v_ticket_status text;
+  v_existing      public.orders;
 begin
+  -- Idempotency: if an order with this key already exists, return it
+  if p_idempotency_key is not null then
+    select * into v_existing from public.orders
+      where idempotency_key = p_idempotency_key limit 1;
+    if v_existing.id is not null then
+      select id into v_ticket_id from public.tickets where order_id = v_existing.id limit 1;
+      return jsonb_build_object(
+        'orderId', v_existing.id,
+        'ticketId', v_ticket_id,
+        'subtotalPaise', v_existing.subtotal_paise,
+        'commissionPaise', v_existing.commission_paise,
+        'payoutPaise', v_existing.organizer_payout_paise,
+        'ticketStatus', case when v_existing.order_source = 'WALKIN_INSTANT' then 'USED' else 'VALID' end
+      );
+    end if;
+  end if;
+
   select * into v_event from public.events where id = p_event_id;
   if not found then raise exception 'Event not found'; end if;
 
@@ -1829,20 +1942,20 @@ begin
     subtotal_paise, platform_fee_paise, commission_paise,
     convenience_fee_paise, organizer_payout_paise, total_paise,
     fee_payer, status, confirmed_at, buyer_name, buyer_phone, buyer_email,
-    order_source
+    order_source, is_box_office, idempotency_key
   ) values (
-    p_event_id, v_tier_id, auth.uid(), 1, v_subtotal,
+    p_event_id, v_tier_id, null, 1, v_subtotal,
     v_subtotal, v_commission, v_commission,
     0, v_payout, v_subtotal,
     v_event.fee_payer, 'CONFIRMED', now(), p_buyer_name, p_buyer_phone, p_buyer_email,
-    p_mode
+    p_mode, true, p_idempotency_key
   ) returning id into v_order_id;
 
   insert into public.tickets (
     order_id, event_id, tier_id, user_id, status, qr_hash,
     checked_in_at
   ) values (
-    v_order_id, p_event_id, v_tier_id, auth.uid(), v_ticket_status::ticket_status, gen_random_uuid()::text,
+    v_order_id, p_event_id, v_tier_id, null, v_ticket_status::ticket_status, gen_random_uuid()::text,
     case when p_mode = 'WALKIN_INSTANT' then now() else null end
   ) returning id into v_ticket_id;
 
@@ -2118,5 +2231,602 @@ $$;
 -- Add event_staff to realtime publication
 do $$ begin
   alter publication supabase_realtime add table public.event_staff;
+exception when duplicate_object then null; when duplicate_table then null;
+end $$;
+
+-- ----------------------------------------------------------------
+-- STEP 17: Scanner PINs + Box Office PINs (door scanner auth)
+-- ----------------------------------------------------------------
+
+-- Scanner PINs table
+create table if not exists public.scanner_pins (
+  id           uuid        primary key default gen_random_uuid(),
+  event_id     uuid        not null references public.events(id) on delete cascade,
+  organizer_id uuid        not null references public.organizers(id) on delete cascade,
+  pin_code     text        not null,
+  pin_hash     text,
+  staff_name   text        not null,
+  is_active    boolean     not null default true,
+  created_at   timestamptz not null default now(),
+  last_used_at timestamptz,
+  unique(event_id, pin_code)
+);
+create index if not exists scanner_pins_event_idx on public.scanner_pins(event_id);
+create index if not exists scanner_pins_org_idx   on public.scanner_pins(organizer_id);
+
+-- Box Office PINs table
+create table if not exists public.box_office_pins (
+  id           uuid        primary key default gen_random_uuid(),
+  event_id     uuid        not null references public.events(id) on delete cascade,
+  organizer_id uuid        references public.organizers(id) on delete cascade,
+  pin_code     text        not null,
+  pin_hash     text,
+  staff_name   text        not null,
+  role         text        not null default 'ORGANIZER' check (role in ('ORGANIZER','ADMIN')),
+  is_active    boolean     not null default true,
+  created_at   timestamptz not null default now(),
+  last_used_at timestamptz,
+  unique(event_id, pin_code)
+);
+create index if not exists box_office_pins_event_idx on public.box_office_pins(event_id);
+create index if not exists box_office_pins_org_idx   on public.box_office_pins(organizer_id);
+
+-- Add pin_hash columns (idempotent) and backfill hashes for existing PINs
+alter table public.scanner_pins add column if not exists pin_hash text;
+alter table public.box_office_pins add column if not exists pin_hash text;
+-- Backfill pin_hash for existing rows using SHA-256 of (event_id || ':' || pin_code)
+update public.scanner_pins set pin_hash = encode(digest(event_id::text || ':' || pin_code, 'sha256'), 'hex') where pin_hash is null;
+update public.box_office_pins set pin_hash = encode(digest(event_id::text || ':' || pin_code, 'sha256'), 'hex') where pin_hash is null;
+-- Make pin_hash NOT NULL after backfill (only if all rows have hashes)
+do $$
+begin
+  if not exists (select 1 from public.scanner_pins where pin_hash is null) then
+    alter table public.scanner_pins alter column pin_hash set not null;
+  end if;
+  if not exists (select 1 from public.box_office_pins where pin_hash is null) then
+    alter table public.box_office_pins alter column pin_hash set not null;
+  end if;
+end;
+$$;
+-- Replace unique(event_id, pin_code) with unique(event_id, pin_hash)
+do $$
+begin
+  if exists (select 1 from pg_constraint where conname = 'scanner_pins_event_id_pin_code_key') then
+    alter table public.scanner_pins drop constraint scanner_pins_event_id_pin_code_key;
+  end if;
+  if exists (select 1 from pg_constraint where conname = 'box_office_pins_event_id_pin_code_key') then
+    alter table public.box_office_pins drop constraint box_office_pins_event_id_pin_code_key;
+  end if;
+end;
+$$;
+create unique index if not exists scanner_pins_event_pin_hash_idx on public.scanner_pins(event_id, pin_hash);
+create unique index if not exists box_office_pins_event_pin_hash_idx on public.box_office_pins(event_id, pin_hash);
+
+-- RLS for scanner_pins
+alter table public.scanner_pins enable row level security;
+drop policy if exists "organizers read own scanner pins" on public.scanner_pins;
+create policy "organizers read own scanner pins" on public.scanner_pins
+  for select using (
+    exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
+  );
+drop policy if exists "organizers insert scanner pins" on public.scanner_pins;
+create policy "organizers insert scanner pins" on public.scanner_pins
+  for insert with check (
+    exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
+  );
+drop policy if exists "organizers update scanner pins" on public.scanner_pins;
+create policy "organizers update scanner pins" on public.scanner_pins
+  for update using (
+    exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
+  );
+drop policy if exists "organizers delete scanner pins" on public.scanner_pins;
+create policy "organizers delete scanner pins" on public.scanner_pins
+  for delete using (
+    exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
+  );
+drop policy if exists "admin read all scanner pins" on public.scanner_pins;
+create policy "admin read all scanner pins" on public.scanner_pins
+  for select using (public.is_current_user_admin());
+drop policy if exists "admin delete scanner pins" on public.scanner_pins;
+create policy "admin delete scanner pins" on public.scanner_pins
+  for delete using (public.is_current_user_admin());
+
+-- RLS for box_office_pins
+alter table public.box_office_pins enable row level security;
+drop policy if exists "organizers read own box office pins" on public.box_office_pins;
+create policy "organizers read own box office pins" on public.box_office_pins
+  for select using (
+    organizer_id is not null and exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
+  );
+drop policy if exists "organizers insert box office pins" on public.box_office_pins;
+create policy "organizers insert box office pins" on public.box_office_pins
+  for insert with check (
+    organizer_id is not null and exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
+  );
+drop policy if exists "organizers update box office pins" on public.box_office_pins;
+create policy "organizers update box office pins" on public.box_office_pins
+  for update using (
+    organizer_id is not null and exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
+  );
+drop policy if exists "organizers delete box office pins" on public.box_office_pins;
+create policy "organizers delete box office pins" on public.box_office_pins
+  for delete using (
+    organizer_id is not null and exists (select 1 from public.organizers o where o.id = organizer_id and o.owner_id = auth.uid())
+  );
+drop policy if exists "admin read all box office pins" on public.box_office_pins;
+create policy "admin read all box office pins" on public.box_office_pins
+  for select using (public.is_current_user_admin());
+drop policy if exists "admin insert box office pins" on public.box_office_pins;
+create policy "admin insert box office pins" on public.box_office_pins
+  for insert with check (public.is_current_user_admin());
+drop policy if exists "admin delete box office pins" on public.box_office_pins;
+create policy "admin delete box office pins" on public.box_office_pins
+  for delete using (public.is_current_user_admin());
+
+-- Scanner PIN verification RPC (no Supabase auth required)
+create or replace function public.verify_scanner_pin(p_event_id uuid, p_pin text)
+returns table (
+  event_id        uuid,
+  event_title     text,
+  starts_at       timestamptz,
+  ends_at         timestamptz,
+  status          text,
+  organizer_name  text,
+  valid_count     bigint,
+  checked_in_count bigint,
+  staff_name      text
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_pin public.scanner_pins;
+  v_hash text;
+begin
+  v_hash := encode(digest(p_event_id::text || ':' || p_pin, 'sha256'), 'hex');
+  select * into v_pin from public.scanner_pins sp
+   where sp.event_id = p_event_id and sp.pin_hash = v_hash and sp.is_active = true
+   for update;
+  if not found then
+    return query select null::uuid, null::text, null::timestamptz, null::timestamptz, null::text, null::text, null::bigint, null::bigint, null::text;
+    return;
+  end if;
+  update public.scanner_pins set last_used_at = now() where id = v_pin.id;
+  return query
+    select
+      e.id, e.title, e.starts_at, e.ends_at, e.status::text,
+      o.name,
+      (select count(*) from public.tickets t where t.event_id = e.id and t.status = 'VALID'),
+      (select count(*) from public.tickets t where t.event_id = e.id and t.status = 'USED'),
+      v_pin.staff_name
+    from public.events e
+    join public.organizers o on o.id = e.organizer_id
+    where e.id = p_event_id;
+end;
+$$;
+
+-- Bulk generate scanner PINs
+create or replace function public.generate_scanner_pins(
+  p_event_id    uuid,
+  p_staff_names text[]
+)
+returns table (pin_code text, staff_name text)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_organizer_id uuid;
+  v_name text;
+  v_pin text;
+  v_hash text;
+begin
+  select organizer_id into v_organizer_id from public.events where id = p_event_id;
+  if not found then raise exception 'Event not found'; end if;
+  if not public.is_current_user_admin() and not exists (
+    select 1 from public.organizers where id = v_organizer_id and owner_id = auth.uid()
+  ) then
+    raise exception 'Not authorised to manage scanner PINs for this event';
+  end if;
+  foreach v_name in array p_staff_names loop
+    loop
+      v_pin := lpad((floor(random() * 1000000))::text, 6, '0');
+      v_hash := encode(digest(p_event_id::text || ':' || v_pin, 'sha256'), 'hex');
+      exit when not exists (
+        select 1 from public.scanner_pins sp where sp.event_id = p_event_id and sp.pin_hash = v_hash
+      );
+    end loop;
+    insert into public.scanner_pins (event_id, organizer_id, pin_code, pin_hash, staff_name)
+    values (p_event_id, v_organizer_id, v_pin, v_hash, v_name);
+    return query select v_pin, v_name;
+  end loop;
+end;
+$$;
+
+-- Revoke a scanner PIN
+create or replace function public.revoke_scanner_pin(p_pin_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_pin public.scanner_pins;
+begin
+  select * into v_pin from public.scanner_pins where id = p_pin_id;
+  if not found then return false; end if;
+  if not public.is_current_user_admin() and not exists (
+    select 1 from public.organizers o where o.id = v_pin.organizer_id and o.owner_id = auth.uid()
+  ) then
+    raise exception 'Not authorised to revoke this PIN';
+  end if;
+  update public.scanner_pins set is_active = false where id = p_pin_id;
+  return true;
+end;
+$$;
+
+-- Box Office PIN verification RPC
+create or replace function public.verify_box_office_pin(p_event_id uuid, p_pin text)
+returns table (
+  event_id        uuid,
+  event_title     text,
+  starts_at       timestamptz,
+  ends_at         timestamptz,
+  status          text,
+  organizer_name  text,
+  staff_name      text,
+  role            text
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_pin public.box_office_pins;
+  v_hash text;
+begin
+  v_hash := encode(digest(p_event_id::text || ':' || p_pin, 'sha256'), 'hex');
+  select * into v_pin from public.box_office_pins bp
+   where bp.event_id = p_event_id and bp.pin_hash = v_hash and bp.is_active = true
+   for update;
+  if not found then
+    return query select null::uuid, null::text, null::timestamptz, null::timestamptz, null::text, null::text, null::text, null::text;
+    return;
+  end if;
+  update public.box_office_pins set last_used_at = now() where id = v_pin.id;
+  return query
+    select
+      e.id, e.title, e.starts_at, e.ends_at, e.status::text,
+      o.name,
+      v_pin.staff_name,
+      v_pin.role
+    from public.events e
+    left join public.organizers o on o.id = e.organizer_id
+    where e.id = p_event_id;
+end;
+$$;
+
+-- Bulk generate box office PINs
+create or replace function public.generate_box_office_pins(
+  p_event_id    uuid,
+  p_staff_names text[],
+  p_role        text default 'ORGANIZER'
+)
+returns table (pin_code text, staff_name text)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_organizer_id uuid;
+  v_name text;
+  v_pin text;
+  v_hash text;
+begin
+  select organizer_id into v_organizer_id from public.events where id = p_event_id;
+  if not found then raise exception 'Event not found'; end if;
+  if p_role = 'ADMIN' then
+    if not public.is_current_user_admin() then
+      raise exception 'Not authorised to create admin box office PINs';
+    end if;
+  else
+    if not public.is_current_user_admin() and not exists (
+      select 1 from public.organizers where id = v_organizer_id and owner_id = auth.uid()
+    ) then
+      raise exception 'Not authorised to manage box office PINs for this event';
+    end if;
+  end if;
+  foreach v_name in array p_staff_names loop
+    loop
+      v_pin := lpad((floor(random() * 1000000))::text, 6, '0');
+      v_hash := encode(digest(p_event_id::text || ':' || v_pin, 'sha256'), 'hex');
+      exit when not exists (
+        select 1 from public.box_office_pins bp where bp.event_id = p_event_id and bp.pin_hash = v_hash
+      );
+    end loop;
+    insert into public.box_office_pins (event_id, organizer_id, pin_code, pin_hash, staff_name, role)
+    values (p_event_id, v_organizer_id, v_pin, v_hash, v_name, p_role);
+    return query select v_pin, v_name;
+  end loop;
+end;
+$$;
+
+-- Revoke a box office PIN
+create or replace function public.revoke_box_office_pin(p_pin_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_pin public.box_office_pins;
+begin
+  select * into v_pin from public.box_office_pins where id = p_pin_id;
+  if not found then return false; end if;
+  if not public.is_current_user_admin() and not exists (
+    select 1 from public.organizers o where o.id = v_pin.organizer_id and o.owner_id = auth.uid()
+  ) then
+    raise exception 'Not authorised to revoke this PIN';
+  end if;
+  update public.box_office_pins set is_active = false where id = p_pin_id;
+  return true;
+end;
+$$;
+
+-- Add new tables to realtime publication
+do $$ begin
+  alter publication supabase_realtime add table public.scanner_pins;
+exception when duplicate_object then null; when duplicate_table then null;
+end $$;
+
+do $$ begin
+  alter publication supabase_realtime add table public.box_office_pins;
+exception when duplicate_object then null; when duplicate_table then null;
+end $$;
+
+-- ================================================================
+-- Backups bucket (private � only service-role can access)
+-- ================================================================
+-- Stores automated database backups (gzip JSON) from the backup cron.
+insert into storage.buckets (id, name, public)
+values ('backups', 'backups', false)
+on conflict (id) do nothing;
+
+drop policy if exists "service read on backups" on storage.objects;
+create policy "service read on backups"
+  on storage.objects for select
+  using (bucket_id = 'backups' and auth.role() = 'service_role');
+
+drop policy if exists "service write on backups" on storage.objects;
+create policy "service write on backups"
+  on storage.objects for insert
+  with check (bucket_id = 'backups' and auth.role() = 'service_role');
+
+drop policy if exists "service delete on backups" on storage.objects;
+create policy "service delete on backups"
+  on storage.objects for delete
+  using (bucket_id = 'backups' and auth.role() = 'service_role');
+
+-- ================================================================
+-- Event Reviews (checked-in attendees only)
+-- ================================================================
+create table if not exists public.event_reviews (
+  id            uuid        primary key default gen_random_uuid(),
+  event_id      uuid        not null references public.events(id) on delete cascade,
+  organizer_id  uuid        not null references public.organizers(id) on delete cascade,
+  user_id       uuid        not null references public.profiles(id) on delete cascade,
+  rating        smallint    not null check (rating between 1 and 5),
+  review_text   text,
+  created_at    timestamptz not null default now(),
+  unique(event_id, user_id)
+);
+create index if not exists event_reviews_organizer_idx on public.event_reviews(organizer_id);
+create index if not exists event_reviews_event_idx on public.event_reviews(event_id);
+create index if not exists event_reviews_user_idx on public.event_reviews(user_id);
+
+alter table public.event_reviews enable row level security;
+
+drop policy if exists "public read on event_reviews" on public.event_reviews;
+create policy "public read on event_reviews"
+  on public.event_reviews for select
+  using (true);
+
+drop policy if exists "checked_in users can review" on public.event_reviews;
+create policy "checked_in users can review"
+  on public.event_reviews for insert
+  with check (
+    exists (
+      select 1 from public.tickets t
+      join public.orders o on o.id = t.order_id
+      where t.event_id = event_reviews.event_id
+        and o.user_id = auth.uid()
+        and t.status = 'USED'
+    )
+    and not exists (
+      select 1 from public.event_reviews er
+      where er.event_id = event_reviews.event_id
+        and er.user_id = auth.uid()
+    )
+  );
+
+drop policy if exists "users delete own reviews" on public.event_reviews;
+create policy "users delete own reviews"
+  on public.event_reviews for delete
+  using (user_id = auth.uid());
+
+do $$ begin
+  alter publication supabase_realtime add table public.event_reviews;
+exception when duplicate_object then null; when duplicate_table then null;
+end $$;
+
+-- ================================================================
+-- Linked Past Events (organizer links their own past events as previous editions)
+-- ================================================================
+alter table public.events add column if not exists linked_past_event_ids uuid[] not null default '{}';
+
+-- Admins can delete any review (moderation)
+drop policy if exists "admins delete any review" on public.event_reviews;
+create policy "admins delete any review"
+  on public.event_reviews for delete
+  using (public.is_current_user_admin());
+
+-- ================================================================
+-- New notification types
+-- ================================================================
+do $$ begin
+  alter type public.event_notification_type add value if not exists 'EVENT_UPDATE';
+exception when others then null; end $$;
+do $$ begin
+  alter type public.event_notification_type add value if not exists 'EVENT_REMINDER';
+exception when others then null; end $$;
+do $$ begin
+  alter type public.event_notification_type add value if not exists 'TICKETS_AVAILABLE';
+exception when others then null; end $$;
+do $$ begin
+  alter type public.event_notification_type add value if not exists 'COLLAB_INVITE';
+exception when others then null; end $$;
+do $$ begin
+  alter type public.event_notification_type add value if not exists 'COLLAB_ACCEPTED';
+exception when others then null; end $$;
+
+-- ================================================================
+-- Event Subscriptions ("Update Me" per-event)
+-- ================================================================
+create table if not exists public.event_subscriptions (
+  id          uuid        primary key default gen_random_uuid(),
+  event_id    uuid        not null references public.events(id) on delete cascade,
+  user_id     uuid        not null references auth.users(id) on delete cascade,
+  created_at  timestamptz not null default now(),
+  unique (event_id, user_id)
+);
+create index if not exists event_sub_user_idx  on public.event_subscriptions(user_id);
+create index if not exists event_sub_event_idx on public.event_subscriptions(event_id);
+
+alter table public.event_subscriptions enable row level security;
+
+drop policy if exists "users read own subscriptions" on public.event_subscriptions;
+create policy "users read own subscriptions" on public.event_subscriptions
+  for select using (user_id = auth.uid());
+
+drop policy if exists "users can subscribe" on public.event_subscriptions;
+create policy "users can subscribe" on public.event_subscriptions
+  for insert with check (user_id = auth.uid());
+
+drop policy if exists "users can unsubscribe" on public.event_subscriptions;
+create policy "users can unsubscribe" on public.event_subscriptions
+  for delete using (user_id = auth.uid());
+
+drop policy if exists "organizers read event subscriptions" on public.event_subscriptions;
+create policy "organizers read event subscriptions" on public.event_subscriptions
+  for select using (
+    exists (
+      select 1 from public.events e
+      join public.organizers o on o.id = e.organizer_id
+      where e.id = event_subscriptions.event_id and o.owner_id = auth.uid()
+    )
+  );
+
+do $$ begin
+  alter publication supabase_realtime add table public.event_subscriptions;
+exception when duplicate_object then null; when duplicate_table then null;
+end $$;
+
+-- ================================================================
+-- Organizer Follows (follow/unfollow, public follower count)
+-- ================================================================
+create table if not exists public.organizer_follows (
+  id            uuid        primary key default gen_random_uuid(),
+  organizer_id  uuid        not null references public.organizers(id) on delete cascade,
+  follower_id   uuid        not null references auth.users(id) on delete cascade,
+  created_at    timestamptz not null default now(),
+  unique (organizer_id, follower_id)
+);
+create index if not exists org_follow_organizer_idx on public.organizer_follows(organizer_id);
+create index if not exists org_follow_follower_idx  on public.organizer_follows(follower_id);
+
+alter table public.organizer_follows enable row level security;
+
+drop policy if exists "public read follows" on public.organizer_follows;
+create policy "public read follows" on public.organizer_follows
+  for select using (true);
+
+drop policy if exists "users can follow" on public.organizer_follows;
+create policy "users can follow" on public.organizer_follows
+  for insert with check (follower_id = auth.uid());
+
+drop policy if exists "users can unfollow" on public.organizer_follows;
+create policy "users can unfollow" on public.organizer_follows
+  for delete using (follower_id = auth.uid());
+
+do $$ begin
+  alter publication supabase_realtime add table public.organizer_follows;
+exception when duplicate_object then null; when duplicate_table then null;
+end $$;
+
+-- ================================================================
+-- Event Collaborators (co-hosting)
+-- ================================================================
+create table if not exists public.event_collaborators (
+  id              uuid        primary key default gen_random_uuid(),
+  event_id        uuid        not null references public.events(id) on delete cascade,
+  organizer_id    uuid        not null references public.organizers(id) on delete cascade,
+  invited_by      uuid        not null references public.organizers(id) on delete cascade,
+  status          text        not null default 'PENDING',
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now(),
+  unique (event_id, organizer_id)
+);
+create index if not exists event_collab_event_idx    on public.event_collaborators(event_id);
+create index if not exists event_collab_org_idx      on public.event_collaborators(organizer_id);
+create index if not exists event_collab_invited_idx  on public.event_collaborators(invited_by);
+
+alter table public.event_collaborators enable row level security;
+
+drop policy if exists "public read accepted collaborators" on public.event_collaborators;
+create policy "public read accepted collaborators" on public.event_collaborators
+  for select using (status = 'ACCEPTED');
+
+drop policy if exists "organizers read own collaborations" on public.event_collaborators;
+create policy "organizers read own collaborations" on public.event_collaborators
+  for select using (
+    exists (select 1 from public.organizers o
+            where (o.id = event_collaborators.organizer_id or o.id = event_collaborators.invited_by)
+            and o.owner_id = auth.uid())
+  );
+
+drop policy if exists "organizers can invite collaborators" on public.event_collaborators;
+create policy "organizers can invite collaborators" on public.event_collaborators
+  for insert with check (
+    exists (
+      select 1 from public.events e
+      join public.organizers o on o.id = e.organizer_id
+      where e.id = event_collaborators.event_id
+        and o.owner_id = auth.uid()
+        and event_collaborators.invited_by = e.organizer_id
+    )
+  );
+
+drop policy if exists "organizers update own collaboration" on public.event_collaborators;
+create policy "organizers update own collaboration" on public.event_collaborators
+  for update using (
+    exists (select 1 from public.organizers o
+            where o.id = event_collaborators.organizer_id and o.owner_id = auth.uid())
+  );
+
+drop policy if exists "organizers delete collaborations" on public.event_collaborators;
+create policy "organizers delete collaborations" on public.event_collaborators
+  for delete using (
+    exists (
+      select 1 from public.events e
+      join public.organizers o on o.id = e.organizer_id
+      where e.id = event_collaborators.event_id and o.owner_id = auth.uid()
+    )
+    or exists (select 1 from public.organizers o
+               where o.id = event_collaborators.organizer_id and o.owner_id = auth.uid())
+  );
+
+do $$ begin
+  alter publication supabase_realtime add table public.event_collaborators;
 exception when duplicate_object then null; when duplicate_table then null;
 end $$;

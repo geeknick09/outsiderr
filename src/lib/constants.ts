@@ -4,10 +4,11 @@ export const CATEGORIES: { value: EventCategory | "ALL"; label: string }[] = [
   { value: "ALL", label: "All" },
   { value: "CYPHER_BATTLE", label: "Cyphers & Battles" },
   { value: "SKATE_STUNT", label: "Skate & Stunts" },
-  { value: "FITNESS", label: "Fitness" },
+  { value: "FITNESS", label: "Alternate Sports & Fitness" },
   { value: "JAM_GIG", label: "Jams & Gigs" },
   { value: "HIP_HOP_PARTY", label: "Hip Hop/Rap Party" },
   { value: "CAR_BIKE_MEET", label: "Car & Bike Meetups" },
+  { value: "GAMING", label: "Gaming" },
   { value: "WORKSHOP", label: "Workshops" },
   { value: "OTHER", label: "Others" },
 ];
@@ -48,10 +49,11 @@ export const CITY_LABELS: Record<City, string> = CITIES.reduce(
 export const CATEGORY_LABELS: Record<EventCategory, string> = {
   CYPHER_BATTLE: "Cyphers & Battles",
   SKATE_STUNT: "Skate & Stunts",
-  FITNESS: "Fitness",
+  FITNESS: "Alternate Sports & Fitness",
   JAM_GIG: "Jams & Gigs",
   HIP_HOP_PARTY: "Hip Hop/Rap Party",
   CAR_BIKE_MEET: "Car & Bike Meetups",
+  GAMING: "Gaming",
   WORKSHOP: "Workshops",
   OTHER: "Others",
 };
@@ -74,6 +76,9 @@ export const PREDEFINED_EVENT_TAGS: string[] = [
   "Hip Hop Party", "Hip Hop", "Rap Party", "Trap Night", "Boom Bap Night",
   // Car & Bike Meet
   "Car Meet", "Bike Meet", "Motorcycle Meet", "JDM Meet", "Superbike Meet", "Riders Meet", "Cars & Coffee",
+  // Gaming
+  "Esports", "LAN Tournament", "FIFA Tournament", "BGMI", "Valorant", "Free Fire", "Call of Duty",
+  "Fight Night", "Smash Bros", "Console Night", "Retro Gaming", "Arcade", "Speedrun",
   // Workshop
   "Workshop", "Masterclass",
 ];

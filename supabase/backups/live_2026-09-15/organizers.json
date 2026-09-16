@@ -1,0 +1,29 @@
+[
+  {
+    "id": "b6ccd2b4-e4ec-4b98-91d0-25cc35a132ab",
+    "owner_id": "9542e392-4ae9-4891-9ef6-479d1b822725",
+    "name": "The Cypher Club",
+    "bio": "A home for Hip-Hop & street culture. 🖤\r\nCyphers • Battles • Events • Community\r\nBringing the culture to the block.\r\n📍Kolkata, India",
+    "avatar_url": "https://nlhwnoqgrnbyprksthfi.supabase.co/storage/v1/object/public/event-media/the-cypher-club/profile/776c2b13-f641-4a5b-9ca4-95da517c2816.jpg",
+    "upi_id": "nishantkumarshaw9@okaxis",
+    "upi_qr_url": null,
+    "verified": false,
+    "created_at": "2026-09-08T12:44:25.311Z",
+    "pan_number": "FROPS9330B",
+    "pan_name": "NISHANT KUMAR SHAW",
+    "gst_number": null,
+    "gst_business_name": null,
+    "bank_account_number": "123456789",
+    "bank_ifsc": "SBIN0123456",
+    "bank_account_name": "NKS",
+    "bank_account_type": "SAVINGS",
+    "kyc_submitted": true,
+    "cover_url": null,
+    "instagram_url": "https://www.instagram.com/the_cypher.club?stkn=MXBsbmFhdmh2cGp5Mg%3D%3D&utm_source=qr",
+    "youtube_url": null,
+    "x_url": null,
+    "facebook_url": null,
+    "linkedin_url": null,
+    "description": "The Cypher Club is a home for Hip-Hop and street culture. From breakers, wackers, poppers, lockers and krumpers to DJs, artists and music lovers - we bring people together through cyphers, battles, showcases, block parties and unforgettable experiences. No boundaries, no fake hype - just raw talent, music, movement and culture. Built for the community, by the community."
+  }
+]

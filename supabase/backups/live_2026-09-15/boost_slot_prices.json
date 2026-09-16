@@ -1,0 +1,42 @@
+[
+  {
+    "slot": 1,
+    "price_paise": 500000
+  },
+  {
+    "slot": 2,
+    "price_paise": 400000
+  },
+  {
+    "slot": 3,
+    "price_paise": 300000
+  },
+  {
+    "slot": 4,
+    "price_paise": 250000
+  },
+  {
+    "slot": 5,
+    "price_paise": 200000
+  },
+  {
+    "slot": 6,
+    "price_paise": 175000
+  },
+  {
+    "slot": 7,
+    "price_paise": 150000
+  },
+  {
+    "slot": 8,
+    "price_paise": 125000
+  },
+  {
+    "slot": 9,
+    "price_paise": 100000
+  },
+  {
+    "slot": 10,
+    "price_paise": 75000
+  }
+]

@@ -54,6 +54,7 @@ export interface CreateEventInput {
   xUrl: string | null;
   facebookUrl: string | null;
   linkedinUrl: string | null;
+  linkedPastEventIds?: string[];
   status?: import("@/lib/types").EventStatus;
 }
 
@@ -189,6 +190,7 @@ export async function createEvent(
       x_url: input.xUrl ?? null,
       facebook_url: input.facebookUrl ?? null,
       linkedin_url: input.linkedinUrl ?? null,
+      linked_past_event_ids: input.linkedPastEventIds ?? [],
       pricing_mode: input.pricingMode,
       status: input.status ?? "PUBLISHED",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -239,6 +241,65 @@ export async function getOrganizerEventAnalytics(
     .maybeSingle();
   if (!data) return null;
   return getEventAnalytics(eventId);
+}
+
+/**
+ * Get daily revenue for the last 30 days across all of the organizer's events.
+ * Used by the aggregate analytics dashboard for the revenue trend chart.
+ */
+export async function getOrganizerDailyRevenue(
+  user: CurrentUser,
+): Promise<{ date: string; revenuePaise: number; orderCount: number }[]> {
+  const organizer = await getOrganizerProfile(user);
+  if (!organizer) return [];
+
+  const supabase = await createClient();
+
+  // Get organizer's event IDs
+  const { data: events } = await supabase
+    .from("events")
+    .select("id")
+    .eq("organizer_id", organizer.id);
+
+  const eventIds = (events ?? []).map((e) => e.id);
+  if (eventIds.length === 0) return [];
+
+  // Fetch confirmed orders for those events
+  const { data: orders } = await supabase
+    .from("orders")
+    .select("total_paise, created_at")
+    .in("event_id", eventIds)
+    .eq("status", "CONFIRMED")
+    .order("created_at", { ascending: false });
+
+  const ords = orders ?? [];
+
+  // Group by day
+  const revenueMap = new Map<string, { revenuePaise: number; orderCount: number }>();
+  for (const o of ords) {
+    const day = (o.created_at ?? "").slice(0, 10);
+    if (!day) continue;
+    const existing = revenueMap.get(day) ?? { revenuePaise: 0, orderCount: 0 };
+    existing.revenuePaise += o.total_paise ?? 0;
+    existing.orderCount += 1;
+    revenueMap.set(day, existing);
+  }
+
+  // Build last 30 days array
+  const now = new Date();
+  const dailyRevenue: { date: string; revenuePaise: number; orderCount: number }[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+    const day = d.toISOString().slice(0, 10);
+    const entry = revenueMap.get(day);
+    dailyRevenue.push({
+      date: day,
+      revenuePaise: entry?.revenuePaise ?? 0,
+      orderCount: entry?.orderCount ?? 0,
+    });
+  }
+
+  return dailyRevenue;
 }
 
 export async function updateEventStatus(
@@ -405,6 +466,7 @@ export interface UpdateEventInput {
   terms?: string[];
   cardPosterUrl?: string | null;
   bannerPosterUrl?: string | null;
+  linkedPastEventIds?: string[];
 }
 
 export async function updateEvent(
@@ -463,6 +525,7 @@ export async function updateEvent(
       ...(input.terms !== undefined ? { terms: input.terms } : {}),
       ...(input.cardPosterUrl !== undefined ? { card_poster_url: input.cardPosterUrl } : {}),
       ...(input.bannerPosterUrl !== undefined ? { banner_poster_url: input.bannerPosterUrl } : {}),
+      ...(input.linkedPastEventIds !== undefined ? { linked_past_event_ids: input.linkedPastEventIds } : {}),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
     .eq("id", eventId)
@@ -485,7 +548,11 @@ export async function updateEvent(
         message: `City changed from ${currentEvent.city} to ${input.city}.`,
       });
     }
-    if (currentEvent.starts_at !== input.startsAt) {
+    // Compare timestamps, not raw strings — DB returns "2026-09-16 14:00:00+00:00"
+    // but istToUTC returns "2026-09-16T14:00:00.000Z". Same time, different format.
+    const oldStart = currentEvent.starts_at ? new Date(currentEvent.starts_at).getTime() : null;
+    const newStart = input.startsAt ? new Date(input.startsAt).getTime() : null;
+    if (oldStart !== null && newStart !== null && oldStart !== newStart) {
       changes.push({
         type: "TIME_CHANGE",
         message: `Event time has been updated. Please check the new schedule.`,
@@ -500,7 +567,17 @@ export async function updateEvent(
         .eq("event_id", eventId)
         .in("status", ["VALID", "USED"]);
 
-      const userIds = [...new Set((tickets ?? []).map((t) => t.user_id).filter(Boolean))];
+      // Get all "Update Me" subscribers for this event
+      const { data: subs } = await supabase
+        .from("event_subscriptions")
+        .select("user_id")
+        .eq("event_id", eventId);
+
+      const ticketHolderIds = (tickets ?? []).map((t) => t.user_id).filter(Boolean);
+      const subscriberIds = (subs ?? []).map((s) => s.user_id).filter(Boolean);
+      // Merge and deduplicate — ticket holders + subscribers both get notified
+      const userIds = [...new Set([...ticketHolderIds, ...subscriberIds])];
+
       if (userIds.length > 0) {
         const notifications = userIds.flatMap((userId) =>
           changes.map((change) => ({

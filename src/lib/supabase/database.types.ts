@@ -99,6 +99,7 @@ export type EventRow = {
   x_url: string | null;
   facebook_url: string | null;
   linkedin_url: string | null;
+  linked_past_event_ids: string[];
   created_at: string;
 }
 
@@ -152,6 +153,8 @@ export type OrderRow = {
   reviewed_by: string | null;
   reviewed_at: string | null;
   order_source: string | null;
+  is_box_office: boolean;
+  idempotency_key: string | null;
   created_at: string;
 }
 
@@ -278,6 +281,16 @@ export type ClubMemberRow = {
   created_at: string;
 }
 
+export type EventReviewRow = {
+  id: string;
+  event_id: string;
+  organizer_id: string;
+  user_id: string;
+  rating: number;
+  review_text: string | null;
+  created_at: string;
+}
+
 export type PlatformSettingRow = {
   key: string;
   value: string | number | boolean | Record<string, number>;
@@ -318,6 +331,31 @@ export type EventStaffRow = {
   user_id: string | null;
   display_name: string;
   created_at: string;
+}
+
+export type ScannerPinRow = {
+  id: string;
+  event_id: string;
+  organizer_id: string;
+  pin_code: string;
+  pin_hash: string;
+  staff_name: string;
+  is_active: boolean;
+  created_at: string;
+  last_used_at: string | null;
+}
+
+export type BoxOfficePinRow = {
+  id: string;
+  event_id: string;
+  organizer_id: string | null;
+  pin_code: string;
+  pin_hash: string;
+  staff_name: string;
+  role: string;
+  is_active: boolean;
+  created_at: string;
+  last_used_at: string | null;
 }
 
 export type RefundRow = {
@@ -386,10 +424,34 @@ export type EventNotificationRow = {
   id: string;
   event_id: string;
   user_id: string;
-  type: "CANCELLATION" | "POSTPONEMENT" | "RESCHEDULE" | "WAITLIST_OFFER" | "VENUE_CHANGE" | "CITY_CHANGE" | "TIME_CHANGE" | "PAYMENT_SUCCESS" | "PAYMENT_FAILED" | "REFUND_INITIATED" | "REFUND_COMPLETED" | "PAYOUT_COMPLETED";
+  type: "CANCELLATION" | "POSTPONEMENT" | "RESCHEDULE" | "WAITLIST_OFFER" | "VENUE_CHANGE" | "CITY_CHANGE" | "TIME_CHANGE" | "PAYMENT_SUCCESS" | "PAYMENT_FAILED" | "REFUND_INITIATED" | "REFUND_COMPLETED" | "PAYOUT_COMPLETED" | "EVENT_UPDATE" | "EVENT_REMINDER" | "TICKETS_AVAILABLE" | "COLLAB_INVITE" | "COLLAB_ACCEPTED";
   message: string;
   read: boolean;
   created_at: string;
+}
+
+export type EventSubscriptionRow = {
+  id: string;
+  event_id: string;
+  user_id: string;
+  created_at: string;
+}
+
+export type OrganizerFollowRow = {
+  id: string;
+  organizer_id: string;
+  follower_id: string;
+  created_at: string;
+}
+
+export type EventCollaboratorRow = {
+  id: string;
+  event_id: string;
+  organizer_id: string;
+  invited_by: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
 }
 
 type Table<Row, Required extends keyof Row = never> = {
@@ -426,12 +488,18 @@ export type Database = {
       event_terms_acceptances: Table<EventTermsAcceptanceRow, "organizer_id" | "terms_version">;
       door_staff_orders: Table<DoorStaffOrderRow, "event_id" | "organizer_id" | "number_of_staff" | "service_amount_paise">;
       event_staff: Table<EventStaffRow, "event_id" | "organizer_id" | "email" | "phone">;
+      scanner_pins: Table<ScannerPinRow, "event_id" | "organizer_id" | "pin_hash">;
+      box_office_pins: Table<BoxOfficePinRow, "event_id" | "organizer_id" | "pin_hash" | "role">;
       legal_pages: Table<LegalPageRow, "slug" | "title" | "content">;
       hero_boosts: Table<HeroBoostRow, "event_id" | "organizer_id" | "amount_paise">;
       admin_change_log: Table<AdminChangeLogRow, "admin_id" | "table_name" | "field_name">;
       webhook_events: Table<WebhookEventRow, "razorpay_event_id" | "event_type" | "created_at">;
       payment_ledger: Table<PaymentLedgerRow, "type" | "created_at" | "organizer_id" | "event_id" | "order_id">;
       payout_records: Table<PayoutRecordRow, "organizer_id" | "status" | "initiated_at">;
+      event_reviews: Table<EventReviewRow, "event_id" | "organizer_id" | "user_id" | "rating">;
+      event_subscriptions: Table<EventSubscriptionRow, "event_id" | "user_id">;
+      organizer_follows: Table<OrganizerFollowRow, "organizer_id" | "follower_id">;
+      event_collaborators: Table<EventCollaboratorRow, "event_id" | "organizer_id" | "invited_by">;
     };
     Views: Record<string, never>;
     Functions: {
@@ -476,6 +544,16 @@ export type Database = {
       };
       check_in_ticket: {
         Args: { p_qr_hash: string; p_event_id: string };
+        Returns: {
+          outcome: "VALID" | "ALREADY_USED" | "INVALID";
+          event_title: string | null;
+          tier_name: string | null;
+          holder_name: string | null;
+          checked_in_at: string | null;
+        }[];
+      };
+      check_in_ticket_with_pin: {
+        Args: { p_qr_hash: string; p_event_id: string; p_pin: string };
         Returns: {
           outcome: "VALID" | "ALREADY_USED" | "INVALID";
           event_title: string | null;
@@ -577,6 +655,7 @@ export type Database = {
           p_buyer_email: string | null;
           p_amount_paise: number;
           p_mode: string;
+          p_idempotency_key: string | null;
         };
         Returns: Record<string, unknown>;
       };
@@ -589,6 +668,49 @@ export type Database = {
           p_amount_paise: number | null;
         };
         Returns: void;
+      };
+      verify_scanner_pin: {
+        Args: { p_event_id: string; p_pin: string };
+        Returns: {
+          event_id: string | null;
+          event_title: string | null;
+          starts_at: string | null;
+          ends_at: string | null;
+          status: string | null;
+          organizer_name: string | null;
+          valid_count: number | null;
+          checked_in_count: number | null;
+          staff_name: string | null;
+        }[];
+      };
+      generate_scanner_pins: {
+        Args: { p_event_id: string; p_staff_names: string[] };
+        Returns: { pin_code: string; staff_name: string }[];
+      };
+      revoke_scanner_pin: {
+        Args: { p_pin_id: string };
+        Returns: boolean;
+      };
+      verify_box_office_pin: {
+        Args: { p_event_id: string; p_pin: string };
+        Returns: {
+          event_id: string | null;
+          event_title: string | null;
+          starts_at: string | null;
+          ends_at: string | null;
+          status: string | null;
+          organizer_name: string | null;
+          staff_name: string | null;
+          role: string | null;
+        }[];
+      };
+      generate_box_office_pins: {
+        Args: { p_event_id: string; p_staff_names: string[]; p_role: string };
+        Returns: { pin_code: string; staff_name: string }[];
+      };
+      revoke_box_office_pin: {
+        Args: { p_pin_id: string };
+        Returns: boolean;
       };
     };
     Enums: Record<string, never>;

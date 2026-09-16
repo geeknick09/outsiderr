@@ -1,8 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 import { getCurrentUser } from "@/lib/auth";
+import { auditEventAction, auditFinancialAction, auditLog } from "@/lib/audit";
+import { logger } from "@/lib/logger";
 import {
   adminDeleteEvent,
   adminUpdateEvent,
@@ -34,18 +36,20 @@ async function requireAdmin() {
 }
 
 export async function adminDeleteEventAction(eventId: string): Promise<void> {
-  await requireAdmin();
+  const user = await requireAdmin();
   await adminDeleteEvent(eventId);
+  await auditEventAction(user.id, "DELETE_EVENT", eventId);
   revalidatePath("/admin/events");
   revalidatePath("/admin");
   revalidatePath("/");
+  revalidateTag("events");
 }
 
 export async function adminUpdateEventStatusAction(
   eventId: string,
   status: EventStatus,
 ): Promise<void> {
-  await requireAdmin();
+  const user = await requireAdmin();
   // If admin is cancelling an event, use the atomic cancel_event RPC
   // which processes refunds, cancels tickets, and sends notifications.
   if (status === "CANCELLED") {
@@ -61,15 +65,18 @@ export async function adminUpdateEventStatusAction(
   } else {
     await adminUpdateEventStatus(eventId, status);
   }
+  await auditEventAction(user.id, `STATUS_${status}`, eventId);
   revalidatePath("/admin/events");
   revalidatePath("/admin");
   revalidatePath(`/events/${eventId}`);
   revalidatePath("/");
+  revalidateTag("events");
 }
 
 export async function adminApproveOrderAction(orderId: string): Promise<void> {
-  await requireAdmin();
+  const user = await requireAdmin();
   await approveOrder(orderId);
+  await auditFinancialAction(user.id, "APPROVE_ORDER", orderId);
   revalidatePath("/admin/orders");
   revalidatePath("/admin");
   revalidatePath("/tickets");
@@ -77,8 +84,9 @@ export async function adminApproveOrderAction(orderId: string): Promise<void> {
 }
 
 export async function adminRejectOrderAction(orderId: string, reason: string): Promise<void> {
-  await requireAdmin();
+  const user = await requireAdmin();
   await rejectOrder(orderId, reason);
+  await auditFinancialAction(user.id, "REJECT_ORDER", orderId, { reason });
   revalidatePath("/admin/orders");
   revalidatePath("/admin");
   revalidatePath("/tickets");
@@ -126,12 +134,14 @@ export async function adminUpdateEventAction(
   },
 ): Promise<{ error: string | null }> {
   try {
-    await requireAdmin();
+    const user = await requireAdmin();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await adminUpdateEvent(eventId, data as any);
+    await auditEventAction(user.id, "ADMIN_UPDATE_EVENT", eventId, data);
     revalidatePath("/admin/events");
     revalidatePath(`/events/${eventId}`);
     revalidatePath("/");
+    revalidateTag("events");
     return { error: null };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to update event." };
@@ -244,15 +254,15 @@ export async function adminInitiateRefundAction(
   amountPaise?: number,
   reason?: string,
 ): Promise<{ success: boolean; error?: string }> {
-  await requireAdmin();
+  const user = await requireAdmin();
 
-  console.log(`[admin-refund] adminInitiateRefundAction: orderId=${orderId}, amountPaise=${amountPaise ?? "full"}, reason="${reason ?? "null"}"`);
+  logger.info({ orderId, amountPaise, reason }, "admin refund initiated");
 
   const { createClient } = await import("@/lib/supabase/server");
   const { getRazorpay, isRazorpayConfigured } = await import("@/lib/razorpay");
 
   if (!isRazorpayConfigured()) {
-    console.warn("[admin-refund] Razorpay not configured");
+    logger.warn("admin refund: Razorpay not configured");
     return { success: false, error: "Razorpay is not configured." };
   }
 
@@ -264,28 +274,27 @@ export async function adminInitiateRefundAction(
     .maybeSingle();
 
   if (!order) {
-    console.warn(`[admin-refund] Order not found: orderId=${orderId}`);
+    logger.warn({ orderId }, "admin refund: order not found");
     return { success: false, error: "Order not found." };
   }
   if (order.status !== "CONFIRMED") {
-    console.warn(`[admin-refund] Order not confirmed: orderId=${orderId}, status=${order.status}`);
+    logger.warn({ orderId, status: order.status }, "admin refund: order not confirmed");
     return { success: false, error: "Only confirmed orders can be refunded." };
   }
   if (!order.razorpay_payment_id) {
-    console.warn(`[admin-refund] No Razorpay payment ID: orderId=${orderId}`);
+    logger.warn({ orderId }, "admin refund: no razorpay payment id");
     return { success: false, error: "No Razorpay payment id on this order." };
   }
 
   const refundAmount = amountPaise ?? order.total_paise;
-  console.log(`[admin-refund] Refund amount: ${refundAmount}paise, order total: ${order.total_paise}paise`);
 
   // Guard: refund amount cannot exceed order total
   if (refundAmount > order.total_paise) {
-    console.warn(`[admin-refund] Refund exceeds total: orderId=${orderId}, refundAmount=${refundAmount}, total=${order.total_paise}`);
+    logger.warn({ orderId, refundAmount, total: order.total_paise }, "admin refund: exceeds total");
     return { success: false, error: "Refund amount cannot exceed the order total." };
   }
   if (refundAmount <= 0) {
-    console.warn(`[admin-refund] Refund amount not positive: orderId=${orderId}, refundAmount=${refundAmount}`);
+    logger.warn({ orderId, refundAmount }, "admin refund: amount not positive");
     return { success: false, error: "Refund amount must be positive." };
   }
 
@@ -298,7 +307,7 @@ export async function adminInitiateRefundAction(
 
   const alreadyRefunded = (existingRefunds ?? []).reduce((s, r) => s + (r.amount_paise ?? 0), 0);
   if (alreadyRefunded + refundAmount > order.total_paise) {
-    console.warn(`[admin-refund] Over-refund guard: orderId=${orderId}, alreadyRefunded=${alreadyRefunded}, requested=${refundAmount}, total=${order.total_paise}`);
+    logger.warn({ orderId, alreadyRefunded, requested: refundAmount, total: order.total_paise }, "admin refund: over-refund guard");
     return {
       success: false,
       error: `Cannot refund ₹${(refundAmount / 100).toFixed(2)}. Already refunded ₹${(alreadyRefunded / 100).toFixed(2)} of ₹${(order.total_paise / 100).toFixed(2)}.`,
@@ -309,7 +318,7 @@ export async function adminInitiateRefundAction(
 
   let razorpayRefundId: string;
   try {
-    console.log(`[admin-refund] Calling Razorpay refund API: paymentId=${order.razorpay_payment_id}, amount=${refundAmount}paise`);
+    logger.info({ paymentId: order.razorpay_payment_id, amount: refundAmount }, "calling Razorpay refund API");
     const refund = await razorpay.payments.refund(order.razorpay_payment_id, {
       amount: refundAmount,
       notes: {
@@ -318,9 +327,9 @@ export async function adminInitiateRefundAction(
       },
     });
     razorpayRefundId = refund.id;
-    console.log(`[admin-refund] Razorpay refund created: refundId=${razorpayRefundId}`);
+    logger.info({ refundId: razorpayRefundId }, "Razorpay refund created");
   } catch (err) {
-    console.error(`[admin-refund] Razorpay refund failed: orderId=${orderId}, error=`, err);
+    logger.error({ orderId, error: err instanceof Error ? err.message : String(err) }, "Razorpay refund failed");
     return {
       success: false,
       error: err instanceof Error ? err.message : "Razorpay refund failed.",
@@ -353,9 +362,9 @@ export async function adminInitiateRefundAction(
       .from("tickets")
       .update({ status: "CANCELLED" })
       .eq("order_id", orderId);
-    console.log(`[admin-refund] Full refund: order marked REFUNDED, tickets CANCELLED, orderId=${orderId}`);
+    logger.info({ orderId }, "full refund: order REFUNDED, tickets CANCELLED");
   } else {
-    console.log(`[admin-refund] Partial refund: order stays CONFIRMED, orderId=${orderId}`);
+    logger.info({ orderId }, "partial refund: order stays CONFIRMED");
   }
 
   // Insert payment_ledger REFUND entry
@@ -376,8 +385,14 @@ export async function adminInitiateRefundAction(
       created_at: new Date().toISOString(),
     });
   } catch (ledgerErr) {
-    console.error(`[admin-refund] Ledger insert failed: orderId=${orderId}, error=`, ledgerErr);
+    logger.error({ orderId, error: ledgerErr instanceof Error ? ledgerErr.message : String(ledgerErr) }, "refund ledger insert failed");
   }
+
+  await auditFinancialAction(user.id, "INITIATE_REFUND", orderId, {
+    amountPaise: refundAmount,
+    razorpayRefundId,
+    reason,
+  });
 
   revalidatePath("/admin/orders");
   revalidatePath("/admin/payments");
@@ -396,10 +411,7 @@ export async function adminRecordPayoutAction(
   eventId?: string,
   notes?: string,
 ): Promise<{ success: boolean; error?: string }> {
-  await requireAdmin();
-
-  const user = await getCurrentUser();
-  if (!user) return { success: false, error: "Not authenticated." };
+  const user = await requireAdmin();
 
   const { createClient } = await import("@/lib/supabase/server");
   const supabase = await createClient();
@@ -435,6 +447,12 @@ export async function adminRecordPayoutAction(
     created_at: new Date().toISOString(),
   });
 
+  await auditFinancialAction(user.id, "RECORD_PAYOUT", organizerId, {
+    amountPaise,
+    bankReference,
+    eventId,
+  });
+
   revalidatePath("/admin/payouts");
   revalidatePath("/organizer");
   return { success: true };
@@ -457,7 +475,17 @@ export async function updatePlatformSettingAction(
     }
 
     const { updateSetting } = await import("@/lib/data/platform-settings");
+    const { data: existing } = await (await import("@/lib/supabase/server")).createClient()
+      .then((s) => s.from("platform_settings").select("value").eq("key", key).maybeSingle());
     await updateSetting(user.id, key, parsedValue);
+    await auditLog({
+      adminId: user.id,
+      tableName: "platform_settings",
+      entityId: key,
+      fieldName: key,
+      oldValue: existing?.value != null ? JSON.stringify(existing.value) : null,
+      newValue: value,
+    });
     revalidatePath("/admin/settings");
     revalidatePath("/");
     revalidatePath("/organizer/boost");

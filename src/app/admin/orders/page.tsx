@@ -120,7 +120,7 @@ export default async function AdminTransactionsPage({
             </div>
             <div className="flex items-center gap-2">
               {order.orderSource && order.orderSource !== "ONLINE" ? (
-                <Badge tone="warning">Manual</Badge>
+                <Badge tone="warning">{order.isBoxOffice ? "Box Office" : "Manual"}</Badge>
               ) : null}
               <Badge tone={TONE[order.status]}>{order.status.replace("_", " ").toLowerCase()}</Badge>
             </div>

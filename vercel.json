@@ -1,0 +1,1 @@
+{"crons":[{"path":"/api/cron/expire-reservations","schedule":"* * * * *"},{"path":"/api/cron/backup?type=daily","schedule":"0 2 * * *"},{"path":"/api/cron/backup?type=weekly","schedule":"0 3 * * 0"}]}

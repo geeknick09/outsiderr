@@ -138,6 +138,7 @@ export async function createOrder(
     rejectionReason: data.rejection_reason,
     createdAt: data.created_at,
     orderSource: data.order_source ?? null,
+    isBoxOffice: (data as { is_box_office?: boolean }).is_box_office ?? false,
   };
 }
 
@@ -229,6 +230,7 @@ export async function createFreeOrder(
     rejectionReason: data.rejection_reason,
     createdAt: data.created_at,
     orderSource: data.order_source ?? null,
+    isBoxOffice: (data as { is_box_office?: boolean }).is_box_office ?? false,
   };
 }
 
@@ -264,6 +266,7 @@ async function hydrateOrders(
     rejection_reason: string | null;
     created_at: string;
     order_source?: string | null;
+    is_box_office?: boolean | null;
   }[],
 ): Promise<Order[]> {
   const supabase = await createClient();
@@ -312,6 +315,7 @@ async function hydrateOrders(
     rejectionReason: row.rejection_reason,
     createdAt: row.created_at,
     orderSource: row.order_source ?? null,
+    isBoxOffice: row.is_box_office ?? false,
   };
   });
 }
@@ -322,6 +326,7 @@ export async function listMyOrders(user: CurrentUser): Promise<Order[]> {
     .from("orders")
     .select("*")
     .eq("user_id", user.id)
+    .or("is_box_office.is.false,is_box_office.is.null")
     .order("created_at", { ascending: false });
 
   return hydrateOrders(data ?? []);
@@ -487,6 +492,65 @@ export async function checkInTicket(qrHash: string, eventId: string): Promise<Sc
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("check_in_ticket", { p_qr_hash: hash, p_event_id: eventId });
+  if (error) throw new Error(error.message || "Check-in failed.");
+
+  const row = data?.[0];
+  if (!row || row.outcome === "INVALID") {
+    return { outcome: "INVALID", message: "Ticket not recognised." };
+  }
+
+  // Fetch additional ticket + order details for scanner display
+  const { data: ticketRow } = await supabase
+    .from("tickets")
+    .select("order_id")
+    .eq("qr_hash", hash)
+    .maybeSingle();
+
+  let holderEmail: string | null = null;
+  let holderPhone: string | null = null;
+  let quantity = 1;
+
+  if (ticketRow?.order_id) {
+    const { data: orderRow } = await supabase
+      .from("orders")
+      .select("buyer_email, buyer_phone, quantity")
+      .eq("id", ticketRow.order_id)
+      .maybeSingle();
+    if (orderRow) {
+      holderEmail = orderRow.buyer_email;
+      holderPhone = orderRow.buyer_phone;
+      quantity = orderRow.quantity ?? 1;
+    }
+  }
+
+  return {
+    outcome: row.outcome,
+    message: row.outcome === "VALID" ? "Checked in." : "This ticket has already been checked in.",
+    ticket: {
+      eventTitle: row.event_title ?? "Event",
+      tierName: row.tier_name ?? "Ticket",
+      holderName: row.holder_name,
+      holderEmail,
+      holderPhone,
+      quantity,
+      checkedInAt: row.checked_in_at,
+    },
+  };
+}
+
+/**
+ * Check in a ticket using a scanner PIN (no Supabase auth required).
+ * Used by the PIN-based door scanner at /scan.
+ */
+export async function checkInTicketWithPin(qrHash: string, eventId: string, pin: string): Promise<ScanResult> {
+  const hash = qrHash.trim();
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("check_in_ticket_with_pin", {
+    p_qr_hash: hash,
+    p_event_id: eventId,
+    p_pin: pin,
+  });
   if (error) throw new Error(error.message || "Check-in failed.");
 
   const row = data?.[0];

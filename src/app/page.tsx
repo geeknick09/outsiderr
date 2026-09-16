@@ -28,7 +28,10 @@ import { getCurrentUser } from "@/lib/auth";
 import { formatDateTime, isPast, isToday } from "@/lib/format";
 import type { City, EventCategory } from "@/lib/types";
 
-export const dynamic = "force-dynamic";
+// Revalidate the home page every 60 seconds.
+// Event mutations (create/edit/publish/cancel) call revalidatePath("/")
+// for immediate invalidation, so listings stay fresh while benefiting from cache.
+export const revalidate = 60;
 
 export default async function DiscoveryPage({
   searchParams,

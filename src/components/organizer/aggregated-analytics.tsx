@@ -1,6 +1,12 @@
 import { formatPaise } from "@/lib/format";
 import type { EventAnalytics, EventSummary } from "@/lib/types";
 
+export interface DailyRevenuePoint {
+  date: string;
+  revenuePaise: number;
+  orderCount: number;
+}
+
 interface AggregatedData {
   totalOrders: number;
   confirmedOrders: number;
@@ -79,12 +85,66 @@ function RevenueByEventChart({ events }: { events: { title: string; revenue: num
   );
 }
 
+function RevenueTrendChart({ data }: { data: DailyRevenuePoint[] }) {
+  if (data.length === 0) return null;
+
+  const maxRevenue = Math.max(...data.map((d) => d.revenuePaise), 1);
+  const hasData = data.some((d) => d.revenuePaise > 0);
+
+  if (!hasData) {
+    return (
+      <div className="glass rounded-2xl p-4">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
+          Revenue trend (last 30 days)
+        </p>
+        <p className="py-8 text-center text-xs text-muted">No revenue yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="glass rounded-2xl p-4">
+      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
+        Revenue trend (last 30 days)
+      </p>
+      <div className="flex items-end gap-0.5" style={{ height: 100 }}>
+        {data.map((d) => {
+          const heightPct = (d.revenuePaise / maxRevenue) * 100;
+          return (
+            <div
+              key={d.date}
+              className="group relative flex-1"
+              style={{ height: "100%" }}
+            >
+              <div
+                className="absolute bottom-0 w-full rounded-t bg-neon-gradient opacity-70 transition-opacity group-hover:opacity-100"
+                style={{ height: `${Math.max(1, heightPct)}%` }}
+              />
+              {/* Tooltip on hover */}
+              <div className="pointer-events-none absolute -top-8 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-lg bg-zinc-900 px-2 py-1 text-[10px] font-bold text-white opacity-0 transition-opacity group-hover:opacity-100 dark:bg-zinc-800">
+                {formatPaise(d.revenuePaise)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-2 flex justify-between text-[9px] text-muted">
+        <span>{data[0]?.date.slice(5)}</span>
+        <span>{data[Math.floor(data.length / 2)]?.date.slice(5)}</span>
+        <span>{data[data.length - 1]?.date.slice(5)}</span>
+      </div>
+    </div>
+  );
+}
+
 export function AggregatedAnalytics({
   events,
   analyticsData,
+  dailyRevenue,
 }: {
   events: EventSummary[];
   analyticsData: EventAnalytics[];
+  dailyRevenue?: DailyRevenuePoint[];
 }) {
   if (events.length === 0) {
     return (
@@ -169,6 +229,9 @@ export function AggregatedAnalytics({
           </div>
         </div>
       ) : null}
+
+      {/* Revenue trend over time */}
+      {dailyRevenue && dailyRevenue.length > 0 ? <RevenueTrendChart data={dailyRevenue} /> : null}
 
       {/* Charts */}
       <div className="grid gap-4 sm:grid-cols-2">

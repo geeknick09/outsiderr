@@ -1,9 +1,14 @@
 /**
  * Checkout loading skeleton — shown while the checkout page loads event/tier data.
  */
+import { BrandedLoader } from "@/components/ui/branded-loader";
+
 export default function CheckoutLoading() {
   return (
     <div className="mx-auto max-w-2xl space-y-4">
+      <div className="flex justify-center py-4">
+        <BrandedLoader size="md" label="Loading checkout" />
+      </div>
       <div className="glass h-8 w-48 animate-pulse rounded-xl" />
       <div className="grid gap-4 sm:grid-cols-[1fr_280px]">
         <div className="glass space-y-3 rounded-3xl p-6">

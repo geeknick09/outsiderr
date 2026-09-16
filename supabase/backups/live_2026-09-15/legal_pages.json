@@ -1,0 +1,38 @@
+[
+  {
+    "slug": "cancellation",
+    "title": "Cancellation & Refund Policy",
+    "content": "# Cancellation & Refund Policy\r\n\r\nRefunds are handled manually by the organizer.",
+    "version": 1,
+    "is_published": true,
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  },
+  {
+    "slug": "organizer",
+    "title": "Organizer Agreement",
+    "content": "# Organizer Agreement\r\n\r\nBy creating events on Outsiderr, you agree to these terms.",
+    "version": 1,
+    "is_published": true,
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  },
+  {
+    "slug": "privacy",
+    "title": "Privacy Policy",
+    "content": "# Privacy Policy\r\n\r\nWe respect your privacy.",
+    "version": 1,
+    "is_published": true,
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  },
+  {
+    "slug": "terms",
+    "title": "Terms of Service",
+    "content": "# Terms of Service\r\n\r\nBy using Outsiderr, you agree to these terms.",
+    "version": 1,
+    "is_published": true,
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  }
+]

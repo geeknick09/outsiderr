@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/lib/auth";
@@ -47,6 +47,7 @@ export interface CreateEventState {
     xUrl: string;
     facebookUrl: string;
     linkedinUrl: string;
+    linkedPastEventIds: string[];
   };
 }
 
@@ -125,6 +126,7 @@ function extractFormValues(formData: FormData): CreateEventState["values"] {
     xUrl: String(formData.get("xUrl") ?? ""),
     facebookUrl: String(formData.get("facebookUrl") ?? ""),
     linkedinUrl: String(formData.get("linkedinUrl") ?? ""),
+    linkedPastEventIds: formData.getAll("linkedPastEventIds").map(String).filter(Boolean),
   };
 }
 
@@ -351,6 +353,7 @@ export async function createEventAction(
       xUrl: String(formData.get("xUrl") ?? "").trim() || null,
       facebookUrl: String(formData.get("facebookUrl") ?? "").trim() || null,
       linkedinUrl: String(formData.get("linkedinUrl") ?? "").trim() || null,
+      linkedPastEventIds: formData.getAll("linkedPastEventIds").map(String).filter(Boolean),
       status: isDraft ? "DRAFT" : "PUBLISHED",
     });
 
@@ -394,6 +397,7 @@ export async function createEventAction(
   }
 
   revalidatePath("/");
+  revalidateTag("events");
   revalidatePath("/organizer");
   revalidatePath("/organizer", "layout");
   // Drafts redirect to the organizer events list; published events go to the event page
@@ -535,6 +539,7 @@ export async function updateEventAction(
       terms: String(formData.get("terms") ?? "").split("\n").map((s) => s.trim()).filter(Boolean),
       cardPosterUrl: String(formData.get("cardPosterUrl") ?? "") || null,
       bannerPosterUrl: String(formData.get("bannerPosterUrl") ?? "") || null,
+      linkedPastEventIds: formData.getAll("linkedPastEventIds").map(String).filter(Boolean),
     });
   } catch (error) {
     return {
@@ -543,6 +548,7 @@ export async function updateEventAction(
   }
 
   revalidatePath("/");
+  revalidateTag("events");
   revalidatePath("/organizer");
   revalidatePath(`/events/${eventId}`);
   redirect(`/organizer/events/${eventId}`);
@@ -697,6 +703,7 @@ export async function cancelEventAction(formData: FormData): Promise<void> {
   console.log(`[cancel] cancelEventAction complete: eventId=${eventId}, refundSuccess=${refundSuccessCount}, refundFail=${refundFailCount}, organizerOwes=${result.organizerOwesPaise}paise`);
 
   revalidatePath("/");
+  revalidateTag("events");
   revalidatePath("/organizer");
   revalidatePath(`/events/${eventId}`);
   redirect(`/organizer/events/${eventId}`);
@@ -713,6 +720,7 @@ export async function publishEventAction(eventId: string): Promise<void> {
   await updateEventStatus(user, eventId, "PUBLISHED");
   console.log(`[publish] Event published: eventId=${eventId}`);
   revalidatePath("/");
+  revalidateTag("events");
   revalidatePath("/organizer");
   revalidatePath(`/events/${eventId}`);
   revalidatePath(`/organizer/events/${eventId}`);
@@ -768,6 +776,7 @@ export async function postponeEventAction(formData: FormData): Promise<void> {
   // No additional action needed — the query enforces eligibility by timestamp.
 
   revalidatePath("/");
+  revalidateTag("events");
   revalidatePath("/organizer");
   revalidatePath(`/events/${eventId}`);
   redirect(`/organizer/events/${eventId}`);

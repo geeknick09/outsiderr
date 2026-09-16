@@ -6,7 +6,12 @@ import { InstagramIcon } from "@/components/ui/instagram-icon";
 
 import { EventCard } from "@/components/events/event-card";
 import { Badge } from "@/components/ui/badge";
+import { FollowOrganizerButton } from "@/components/organizer/follow-button";
+import { ReviewsSection } from "@/components/reviews/reviews-section";
 import { getPublicOrganizer, listPublicOrganizerEvents } from "@/lib/data/organizers";
+import { getOrganizerReviews, getOrganizerRating } from "@/lib/data/reviews";
+import { getOrganizerFollowerCount, isFollowingOrganizer } from "@/lib/data/engagement";
+import { getCurrentUser } from "@/lib/auth";
 import { isPast } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -29,12 +34,22 @@ export default async function PublicOrganizerPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [organizer, events] = await Promise.all([
+  const [organizer, events, reviews, rating, user] = await Promise.all([
     getPublicOrganizer(id),
     listPublicOrganizerEvents(id),
+    getOrganizerReviews(id),
+    getOrganizerRating(id),
+    getCurrentUser(),
   ]);
 
   if (!organizer) notFound();
+
+  const [followerCount, isFollowing] = await Promise.all([
+    getOrganizerFollowerCount(id),
+    isFollowingOrganizer(user, id),
+  ]);
+
+  const isOwnProfile = user && organizer.ownerId === user.id;
 
   const upcoming = events.filter((e) => !isPast(e.startsAt));
   const past = events.filter((e) => isPast(e.startsAt));
@@ -66,6 +81,11 @@ export default async function PublicOrganizerPage({
           {organizer.bio ? (
             <p className="text-sm text-muted line-clamp-2">{organizer.bio}</p>
           ) : null}
+          {/* Follower count */}
+          <p className="mt-1 text-xs text-muted">
+            <span className="font-bold text-zinc-700 dark:text-zinc-300">{followerCount}</span>{" "}
+            {followerCount === 1 ? "follower" : "followers"}
+          </p>
           {/* Social icons */}
           <div className="mt-1 flex items-center gap-3">
             {organizer.instagramUrl ? (
@@ -124,6 +144,12 @@ export default async function PublicOrganizerPage({
               </a>
             ) : null}
           </div>
+          {/* Follow button — only for logged-in users who don't own this profile */}
+          {user && !isOwnProfile ? (
+            <div className="mt-3">
+              <FollowOrganizerButton organizerId={organizer.id} isFollowing={isFollowing} />
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -186,6 +212,9 @@ export default async function PublicOrganizerPage({
             </div>
           </section>
         ) : null}
+
+        {/* Reviews */}
+        <ReviewsSection reviews={reviews} rating={rating} />
       </div>
     </div>
   );

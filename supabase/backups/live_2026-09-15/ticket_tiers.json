@@ -1,0 +1,17 @@
+[
+  {
+    "id": "6d589d53-a650-42b3-bfa4-7b4f99ccdedc",
+    "event_id": "16cd3cbe-622a-4bb1-950b-a0a9d1333f9c",
+    "name": "General",
+    "price_paise": 29900,
+    "quantity": 150,
+    "quantity_sold": 39,
+    "perks": [],
+    "sort_order": 0,
+    "tier_type": "NAMED",
+    "phase_order": null,
+    "phase_opens_at": null,
+    "phase_closes_at": null,
+    "quantity_reserved": 0
+  }
+]

@@ -6,6 +6,7 @@ export type EventCategory =
   | "WORKSHOP"
   | "HIP_HOP_PARTY"
   | "CAR_BIKE_MEET"
+  | "GAMING"
   | "OTHER";
 
 export type City = "KOLKATA" | "MUMBAI" | "DELHI" | "BENGALURU";
@@ -185,6 +186,7 @@ export interface EventDetail extends EventSummary {
   xUrl: string | null;
   facebookUrl: string | null;
   linkedinUrl: string | null;
+  linkedPastEventIds: string[];
 }
 
 export interface Order {
@@ -223,6 +225,7 @@ export interface Order {
   eventStatus?: string;
   eventStartsAt?: string;
   orderSource?: string | null;
+  isBoxOffice?: boolean;
 }
 
 export interface Ticket {
@@ -257,6 +260,26 @@ export interface ScanResult {
 
 export type BoostStatus = "PENDING" | "ACTIVE" | "EXPIRED" | "REJECTED";
 export type WaitlistStatus = "WAITING" | "OFFERED" | "EXPIRED";
+
+export interface EventReview {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  organizerId: string;
+  userId: string;
+  userName: string | null;
+  userAvatarUrl: string | null;
+  rating: number; // 1-5
+  reviewText: string | null;
+  createdAt: string;
+}
+
+export interface OrganizerRating {
+  averageRating: number; // 0 if no reviews
+  totalReviews: number;
+  // Distribution: index 0 = 1 star, index 4 = 5 stars
+  distribution: number[];
+}
 
 export interface Boost {
   id: string;

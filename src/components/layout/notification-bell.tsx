@@ -128,9 +128,8 @@ export function NotificationBell({
             role="menu"
             className="glass absolute right-0 z-50 mt-2 max-h-96 w-80 overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-2 dark:border-white/10 dark:bg-zinc-900"
           >
-            <div className="flex items-center justify-between border-b border-zinc-200 px-2 py-2 dark:border-white/10">
-              <span className="text-sm font-bold">Notifications</span>
-              {unreadCount > 0 ? (
+            {unreadCount > 0 ? (
+              <div className="flex justify-end border-b border-zinc-200 px-2 py-2 dark:border-white/10">
                 <button
                   type="button"
                   onClick={() => void handleMarkAllRead()}
@@ -139,8 +138,8 @@ export function NotificationBell({
                   <CheckCheck className="h-3 w-3" />
                   Mark all read
                 </button>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
 
             {notifications.length === 0 ? (
               <p className="px-3 py-8 text-center text-sm text-muted">

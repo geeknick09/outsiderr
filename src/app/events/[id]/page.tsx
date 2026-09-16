@@ -7,20 +7,28 @@ import { BadgeCheck, CalendarDays, Globe, Info, Link2, Mail, MapPin, MessageCirc
 import { InstagramIcon } from "@/components/ui/instagram-icon";
 import { EventRealtimeWrapper } from "@/components/events/event-realtime-wrapper";
 
+import { EventReviews } from "@/components/events/event-reviews";
 import { MapEmbed } from "@/components/events/map-embed";
 import { PhotoGallery } from "@/components/events/photo-gallery";
+import { PreviousEditions } from "@/components/events/previous-editions";
 import { ShareEventButton } from "@/components/events/share-event-button";
 import { TagPills } from "@/components/events/tag-pills";
 import { TermsAccordion } from "@/components/events/terms-accordion";
 import { TicketTiers } from "@/components/events/ticket-tiers";
+import { UpdateMeButton } from "@/components/events/update-me-button";
 import { Badge } from "@/components/ui/badge";
 import { CATEGORY_LABELS, CITY_LABELS } from "@/lib/constants";
 import { getCurrentUser } from "@/lib/auth";
-import { getEvent } from "@/lib/data/events";
+import { getEvent, getLinkedPastEvents } from "@/lib/data/events";
+import { getEventReviews } from "@/lib/data/reviews";
+import { isSubscribedToEvent, getEventCollaborators } from "@/lib/data/engagement";
 import { getWaitlistEntry, getWaitlistCount } from "@/lib/data/waitlist";
 import { formatDateRange, mapsLink } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
+// Event detail pages are dynamic (user-specific waitlist, ticket availability),
+// but we tag the page so mutations can invalidate it via revalidateTag.
+export const revalidate = 0;
 
 export async function generateMetadata({
   params,
@@ -81,6 +89,21 @@ export default async function EventDetailsPage({
         }),
       )
     : [];
+
+  // Fetch linked past events + reviews (only for completed events)
+  const nowMs = Date.now();
+  const startMs = new Date(event.startsAt).getTime();
+  const endMs = event.endsAt ? new Date(event.endsAt).getTime() : startMs;
+  const eventEnded = endMs <= nowMs;
+
+  const [linkedPastEvents, eventReviews, isSubscribed, collaborators] = await Promise.all([
+    event.linkedPastEventIds.length > 0
+      ? getLinkedPastEvents(event.linkedPastEventIds)
+      : Promise.resolve([]),
+    eventEnded ? getEventReviews(event.id) : Promise.resolve([]),
+    user ? isSubscribedToEvent(user, event.id) : Promise.resolve(false),
+    getEventCollaborators(event.id),
+  ]);
 
   // Build share URL dynamically from request origin, falling back to env
   const hdrs = await headers();
@@ -253,6 +276,39 @@ export default async function EventDetailsPage({
             </Link>
           </section>
 
+          {/* Co-organizers / Collaborators */}
+          {collaborators.length > 0 ? (
+            <section className="glass rounded-3xl p-5">
+              <h2 className="mb-3 text-base font-bold">Co-Organizers</h2>
+              <div className="space-y-3">
+                {collaborators.map((collab) => (
+                  <Link
+                    key={collab.id}
+                    href={`/organizers/${collab.organizerId}`}
+                    className="flex items-center gap-3 hover:opacity-80"
+                  >
+                    {collab.organizerPhotoUrl ? (
+                      <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl">
+                        <Image
+                          src={collab.organizerPhotoUrl}
+                          alt={collab.organizerName}
+                          fill
+                          sizes="40px"
+                          className="object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-neon-gradient text-sm font-bold text-white">
+                        {collab.organizerName.slice(0, 1).toUpperCase()}
+                      </div>
+                    )}
+                    <span className="truncate text-sm font-semibold">{collab.organizerName}</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
           {/* Contact details */}
           {event.contactEmail || event.contactPhone || event.instagramUrl || event.youtubeUrl || event.xUrl || event.facebookUrl || event.linkedinUrl ? (
             <section className="glass rounded-3xl p-5">
@@ -339,6 +395,16 @@ export default async function EventDetailsPage({
 
           <TermsAccordion terms={event.terms} />
 
+          {/* Previous editions (linked past events) */}
+          {linkedPastEvents.length > 0 && (
+            <PreviousEditions events={linkedPastEvents} />
+          )}
+
+          {/* Attendee reviews (only for completed events) */}
+          {eventEnded && eventReviews.length > 0 && (
+            <EventReviews reviews={eventReviews} organizerId={event.organizer.id} />
+          )}
+
           {(() => {
             const nowMs = Date.now();
             const startMs = new Date(event.startsAt).getTime();
@@ -371,6 +437,9 @@ export default async function EventDetailsPage({
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
           <TicketTiers event={event} waitlistData={waitlistData} waitlistEnabled={event.waitlistEnabled} />
+
+          {/* Update Me button — only for logged-in non-ticket-holders */}
+          {user && !eventEnded ? <UpdateMeButton eventId={event.id} isSubscribed={isSubscribed} /> : null}
 
           <p className="px-2 text-center text-xs text-muted">
             Payments are processed securely.{" "}

@@ -1,68 +1,40 @@
-import { notFound, redirect } from "next/navigation";
-import { ScanLine } from "lucide-react";
-
-import { StaffDoorScannerLazy } from "@/components/scan/staff-door-scanner-lazy";
-import { getCurrentUser } from "@/lib/auth";
-import { getStaffEvents } from "@/lib/data/event-staff";
-import { getOrganizerProfile } from "@/lib/data/organizer";
+import { ScanPageClient } from "@/components/scan/scan-page-client";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Door Scanner — Outsiderr" };
 
 export default async function ScanPage() {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login?next=%2Fscan");
+  // Fetch all published events for the event selector.
+  // No Supabase auth required — PIN is the credential.
+  const supabase = await createClient();
+  const { data: events } = await supabase
+    .from("events")
+    .select("id, title, starts_at, ends_at, status, organizer_id")
+    .in("status", ["PUBLISHED", "POSTPONED"])
+    .order("starts_at", { ascending: true });
 
-  // Check if the user is either:
-  // 1. An organizer (can scan their own events)
-  // 2. Assigned as door staff for any event
-  const [organizer, staffEvents] = await Promise.all([
-    getOrganizerProfile(user),
-    getStaffEvents(user),
-  ]);
+  // Get organizer names
+  const organizerIds = [...new Set((events ?? []).map((e) => e.organizer_id))];
+  const { data: organizers } = await supabase
+    .from("organizers")
+    .select("id, name")
+    .in("id", organizerIds);
+  const orgMap = Object.fromEntries((organizers ?? []).map((o) => [o.id, o.name]));
 
-  // If no events and no organizer profile, they don't have access
-  if (!organizer && staffEvents.length === 0) {
-    notFound();
-  }
-
-  // Get initial check-in count for the first event
-  let initialCheckInCount = 0;
-  if (staffEvents.length > 0) {
-    const { createClient } = await import("@/lib/supabase/server");
-    const supabase = await createClient();
-    const { count } = await supabase
-      .from("tickets")
-      .select("id", { count: "exact", head: true })
-      .eq("event_id", staffEvents[0].id)
-      .eq("status", "USED");
-    initialCheckInCount = count ?? 0;
-  }
+  const eventOptions = (events ?? []).map((e) => ({
+    id: e.id,
+    title: e.title,
+    organizerName: orgMap[e.organizer_id] ?? "Organizer",
+    startsAt: e.starts_at,
+    endsAt: e.ends_at,
+    status: e.status,
+  }));
 
   return (
     <div className="mx-auto max-w-lg space-y-4 py-6">
-      <div>
-        <div className="flex items-center gap-2">
-          <ScanLine className="h-6 w-6 text-violet-neon" />
-          <h1 className="text-2xl font-black tracking-tight">Door Scanner</h1>
-        </div>
-        <p className="mt-1 text-sm text-muted">
-          Scan QR codes to check in attendees. Select an event to begin.
-        </p>
-      </div>
-
-      <StaffDoorScannerLazy
-        events={staffEvents.map((e) => ({
-          id: e.id,
-          title: e.title,
-          startsAt: e.startsAt,
-          endsAt: e.endsAt,
-          status: e.status,
-          organizerName: e.organizerName,
-        }))}
-        initialCheckInCount={initialCheckInCount}
-      />
+      <ScanPageClient events={eventOptions} />
     </div>
   );
 }

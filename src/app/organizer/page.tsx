@@ -8,15 +8,19 @@ import { AggregatedAnalytics } from "@/components/organizer/aggregated-analytics
 import { BecomeOrganizerForm } from "@/components/organizer/become-organizer-form";
 import { ClubForm } from "@/components/organizer/club-form";
 import { ClubMembersPanel } from "@/components/organizer/club-members-panel";
+import { CollaborationInvites } from "@/components/organizer/collaboration-invites";
 import { OrganizerEventsList } from "@/components/organizer/organizer-events-list";
 import { OrganizerHeader } from "@/components/organizer/organizer-header";
 import { OrderMonitor } from "@/components/organizer/order-monitor";
 import { getCurrentUser } from "@/lib/auth";
+import { getPendingCollaborationInvites } from "@/lib/data/engagement";
 import {
   getOrganizerEventAnalytics,
   getOrganizerProfile,
+  getOrganizerDailyRevenue,
   listOrganizerEvents,
 } from "@/lib/data/organizer";
+import { getOrganizerPastEventsForLinking } from "@/lib/data/events";
 import { listClubMembers, listMyClubs } from "@/lib/data/clubs";
 import { listPendingOrders, listOrdersForOrganizerEvents } from "@/lib/data/orders";
 import { getTermsVersion, getDoorStaffPricing, getDoorStaffMax, getDoorStaffAvailable } from "@/lib/data/platform-settings";
@@ -63,13 +67,15 @@ export default async function OrganizerPage({
   const rawTab = (await searchParams).tab as Tab | undefined;
   const tab: Tab = TABS.some((t) => t.value === rawTab) ? (rawTab as Tab) : "events";
 
-  const [events, pending, termsVersion, doorStaffPricing, doorStaffMax, doorStaffAvailable] = await Promise.all([
+  const [events, pending, termsVersion, doorStaffPricing, doorStaffMax, doorStaffAvailable, pastEventsForLinking, collabInvites] = await Promise.all([
     listOrganizerEvents(user),
     listPendingOrders(),
     getTermsVersion(),
     getDoorStaffPricing(),
     getDoorStaffMax(),
     getDoorStaffAvailable(),
+    getOrganizerPastEventsForLinking(organizerProfile.id),
+    getPendingCollaborationInvites(user),
   ]);
 
   // Fetch all orders for the organizer's events (for the Order Monitor)
@@ -81,10 +87,12 @@ export default async function OrganizerPage({
   // Analytics tab: fetch per-event analytics
   // Also fetch for events tab so sorting by waitlist/revenue works
   let analyticsData: Awaited<ReturnType<typeof getOrganizerEventAnalytics>>[] = [];
+  let dailyRevenue: Awaited<ReturnType<typeof getOrganizerDailyRevenue>> = [];
   if (tab === "analytics" || tab === "events") {
-    analyticsData = await Promise.all(
-      events.map((event) => getOrganizerEventAnalytics(user, event.id)),
-    );
+    [analyticsData, dailyRevenue] = await Promise.all([
+      Promise.all(events.map((event) => getOrganizerEventAnalytics(user, event.id))),
+      tab === "analytics" ? getOrganizerDailyRevenue(user) : Promise.resolve([]),
+    ]);
   }
   const analyticsMap: Record<string, NonNullable<(typeof analyticsData)[number]>> = {};
   for (const a of analyticsData) {
@@ -120,6 +128,9 @@ export default async function OrganizerPage({
         ))}
       </div>
 
+      {/* Collaboration invites — shown at top of dashboard if any pending */}
+      {collabInvites.length > 0 ? <CollaborationInvites invites={collabInvites} /> : null}
+
       {tab === "events" ? (
         <OrganizerEventsList events={events} analyticsMap={analyticsMap} />
       ) : tab === "create" ? (
@@ -135,6 +146,7 @@ export default async function OrganizerPage({
             termsVersion={termsVersion}
             doorStaffPricing={doorStaffPricing}
             doorStaffMax={Math.min(doorStaffMax, doorStaffAvailable)}
+            pastEvents={pastEventsForLinking}
           />
         </Suspense>
       ) : tab === "verify" ? (
@@ -149,7 +161,7 @@ export default async function OrganizerPage({
               <>
                 <div>
                   <h2 className="mb-3 text-lg font-bold">Overview — All Events</h2>
-                  <AggregatedAnalytics events={nonDraftEvents} analyticsData={nonDraftAnalytics} />
+                  <AggregatedAnalytics events={nonDraftEvents} analyticsData={nonDraftAnalytics} dailyRevenue={dailyRevenue} />
                 </div>
 
                 {/* Per-event breakdown */}

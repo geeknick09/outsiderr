@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/lib/auth";
 import {
   approveOrder,
   checkInTicket,
+  checkInTicketWithPin,
   confirmRazorpayOrder,
   createFreeOrder,
   createOrder,
@@ -19,6 +20,8 @@ import { getEvent } from "@/lib/data/events";
 import { addInterestedTags, updateUserProfile } from "@/lib/data/profile";
 import { getRazorpay, getPublicKeyId, isRazorpayConfigured } from "@/lib/razorpay";
 import { verifyRazorpayPaymentSignature } from "@/lib/razorpay-verify";
+import { validate, checkInWithPinSchema, boxOfficeOrderSchema } from "@/lib/validation";
+import { rateLimit, getRateLimitIdentifier, RATE_LIMITS } from "@/lib/rate-limit";
 import type { CheckoutSession, ScanResult } from "@/lib/types";
 
 export interface CheckoutState {
@@ -490,14 +493,28 @@ export async function rejectOrderAction(formData: FormData): Promise<void> {
   revalidatePath("/tickets");
 }
 
-export async function checkInTicketAction(qrHash: string, eventId: string): Promise<ScanResult> {
-  console.log(`[check-in] checkInTicketAction: eventId=${eventId}, qrHash=${qrHash.slice(0, 16)}...`);
+export async function checkInTicketAction(qrHash: string, eventId: string, pin?: string): Promise<ScanResult> {
+  const v = validate(checkInWithPinSchema, { qrHash, eventId, pin: pin ?? "" });
+  if (!v.success) {
+    return { outcome: "INVALID", message: v.error };
+  }
+  // Rate limit check-in to prevent abuse (legitimate scanning is high-volume)
+  const { headers } = await import("next/headers");
+  const h = await headers();
+  const identifier = `check-in:${getRateLimitIdentifier(h)}`;
+  const rl = rateLimit(identifier, RATE_LIMITS.CHECK_IN);
+  if (rl.limited) {
+    return { outcome: "INVALID", message: "Too many scans. Please slow down." };
+  }
+  console.log(`[check-in] checkInTicketAction: eventId=${v.data.eventId}, qrHash=${v.data.qrHash.slice(0, 16)}..., pin=${pin ? "yes" : "no"}`);
   try {
-    const result = await checkInTicket(qrHash, eventId);
+    const result = pin
+      ? await checkInTicketWithPin(v.data.qrHash, v.data.eventId, v.data.pin)
+      : await checkInTicket(v.data.qrHash, v.data.eventId);
     console.log(`[check-in] Result: outcome=${result.outcome}, message="${result.message}", holder=${result.ticket?.holderName ?? "null"}, tier=${result.ticket?.tierName ?? "null"}`);
     return result;
   } catch (error) {
-    console.error(`[check-in] checkInTicketAction error: eventId=${eventId}, qrHash=${qrHash.slice(0, 16)}..., error=`, error);
+    console.error(`[check-in] checkInTicketAction error: eventId=${v.data.eventId}, qrHash=${v.data.qrHash.slice(0, 16)}..., error=`, error);
     return {
       outcome: "INVALID",
       message: error instanceof Error ? error.message : "Scan failed.",
@@ -642,14 +659,18 @@ export async function createWalkinOrderAction(formData: FormData): Promise<Walki
   const amountPaise = Math.round(amountRupees * 100);
   const mode = String(formData.get("mode") ?? "WALKIN_PREEVENT");
 
-  if (!eventId) return { error: "Missing event ID.", success: false };
-  if (!buyerName) return { error: "Name is required.", success: false };
-  if (!buyerPhone) return { error: "Phone is required.", success: false };
-
-  // Validate mode
-  if (!["WALKIN_PREEVENT", "WALKIN_QR", "WALKIN_INSTANT"].includes(mode)) {
-    return { error: "Invalid check-in mode.", success: false };
-  }
+  const v = validate(boxOfficeOrderSchema, {
+    eventId,
+    pin: "000000", // walkin action doesn't use PIN, but schema requires it
+    tierId,
+    buyerName,
+    buyerPhone,
+    buyerEmail,
+    amountPaise,
+    mode,
+  });
+  if (!v.success) return { error: v.error, success: false };
+  const { eventId: validEventId, tierId: validTierId, buyerName: validName, buyerPhone: validPhone, buyerEmail: validEmail, amountPaise: validAmount, mode: validMode } = v.data;
 
   // Verify organizer owns this event
   const { getOrganizerProfile } = await import("@/lib/data/organizer");
@@ -661,24 +682,25 @@ export async function createWalkinOrderAction(formData: FormData): Promise<Walki
   const { data: eventRow } = await supabase
     .from("events")
     .select("id")
-    .eq("id", eventId)
+    .eq("id", validEventId)
     .eq("organizer_id", organizer.id)
     .maybeSingle();
   if (!eventRow) return { error: "Event not found or not owned by you.", success: false };
 
   const { data: result, error } = await supabase.rpc("create_walkin_order", {
-    p_event_id: eventId,
-    p_buyer_name: buyerName,
-    p_buyer_phone: buyerPhone,
-    p_tier_id: tierId,
-    p_buyer_email: buyerEmail,
-    p_amount_paise: amountPaise,
-    p_mode: mode,
+    p_event_id: validEventId,
+    p_buyer_name: validName,
+    p_buyer_phone: validPhone,
+    p_tier_id: validTierId,
+    p_buyer_email: validEmail,
+    p_amount_paise: validAmount,
+    p_mode: validMode,
+    p_idempotency_key: crypto.randomUUID(),
   });
   if (error) return { error: error.message, success: false };
 
   const walkinResult = (result ?? {}) as { ticketId?: string; orderId?: string };
-  revalidatePath(`/organizer/events/${eventId}`);
+  revalidatePath(`/organizer/events/${validEventId}`);
   return {
     error: null,
     success: true,

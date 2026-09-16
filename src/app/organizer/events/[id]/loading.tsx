@@ -1,9 +1,14 @@
 /**
  * Organizer event detail loading skeleton.
  */
+import { BrandedLoader } from "@/components/ui/branded-loader";
+
 export default function OrganizerEventLoading() {
   return (
     <div className="space-y-6">
+      <div className="flex justify-center py-4">
+        <BrandedLoader size="lg" label="Loading event" />
+      </div>
       <div className="h-8 w-64 animate-pulse rounded-xl bg-zinc-200 dark:bg-white/10" />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => (

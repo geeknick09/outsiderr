@@ -2,10 +2,12 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import * as Sentry from "@sentry/nextjs";
 
 /**
  * Root error boundary — catches any unhandled error in a route segment.
  * Renders a user-friendly error page with a retry button.
+ * Reports the error to Sentry if configured.
  */
 export default function Error({
   error,
@@ -16,6 +18,7 @@ export default function Error({
 }) {
   useEffect(() => {
     console.error("[error-boundary]", error);
+    Sentry.captureException(error);
   }, [error]);
 
   return (

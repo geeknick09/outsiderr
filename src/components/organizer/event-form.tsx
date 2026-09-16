@@ -8,6 +8,7 @@ import { createEventAction, type CreateEventState } from "@/actions/events";
 import { Button } from "@/components/ui/button";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { GalleryUploader } from "@/components/organizer/gallery-uploader";
+import { PosterGuidelines } from "@/components/organizer/poster-guidelines";
 import { CATEGORIES, CITIES, PREDEFINED_EVENT_TAGS } from "@/lib/constants";
 import { nowISTInput } from "@/lib/datetime";
 import { uploadPublicFile } from "@/lib/upload";
@@ -113,11 +114,13 @@ export function EventForm({
   termsVersion = "organizer-v1.0",
   doorStaffPricing = { "1": 1500, "2": 2500, "3": 3500, "4": 5000, "5": 6500 },
   doorStaffMax = 5,
+  pastEvents = [],
 }: {
   organizerName?: string;
   termsVersion?: string;
   doorStaffPricing?: Record<string, number>;
   doorStaffMax?: number;
+  pastEvents?: Array<{ id: string; title: string; startsAt: string }>;
 }) {
   const [state, formAction, pending] = useActionState<CreateEventState, FormData>(
     createEventAction,
@@ -485,10 +488,13 @@ export function EventForm({
         </Field>
       </section>
 
+      {/* Poster & description guidelines */}
+      <PosterGuidelines />
+
       <section className="glass grid gap-4 rounded-3xl p-5 sm:grid-cols-2">
         <PosterField
           name="cardPosterUrl"
-          label="Card poster (4:5)"
+          label="Card poster (3:4)"
           organizerName={organizerName}
           eventTitle={eventTitle}
           subFolder="card-posters"
@@ -1023,6 +1029,35 @@ export function EventForm({
           Door staff is also disabled for this release. */}
       <input type="hidden" name="feePayer" value={sv?.feePayer ?? "BUYER"} />
 
+      {/* Link past events as previous editions */}
+      {pastEvents.length > 0 && (
+        <div className="rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
+          <p className="text-sm font-bold">Link Previous Editions</p>
+          <p className="mt-1 text-xs text-muted">
+            Select your past events that are previous editions of this one. Their ratings will show on this event page.
+          </p>
+          <div className="mt-3 max-h-48 space-y-2 overflow-y-auto">
+            {pastEvents.map((pe) => (
+              <label
+                key={pe.id}
+                className="flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-100 p-2 hover:bg-violet-neon/5 dark:border-white/5"
+              >
+                <input
+                  type="checkbox"
+                  name="linkedPastEventIds"
+                  value={pe.id}
+                  className="h-4 w-4 accent-violet-neon"
+                />
+                <span className="min-w-0 flex-1 truncate text-sm">{pe.title}</span>
+                <span className="shrink-0 text-xs text-muted">
+                  {new Date(pe.startsAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* General T&C for the whole form */}
       <label className="flex cursor-pointer items-start gap-2 rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
         <input
@@ -1312,6 +1347,7 @@ export function PosterField({
   const [url, setUrl] = useState(initialValue ?? "");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(false);
+  const [sizeError, setSizeError] = useState(false);
 
   // Build path: organizer-name/event-title/subFolder/filename
   // Sanitize: lowercase, replace spaces/special chars with hyphens
@@ -1319,8 +1355,15 @@ export function PosterField({
   const safeTitle = eventTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "untitled-event";
   const folder = `${safeOrg}/${safeTitle}/${subFolder}`;
 
+  const MAX_FILE_BYTES = 1.5 * 1024 * 1024; // 1.5 MB
+
   async function handleFile(file: File | undefined) {
     if (!file) return;
+    setSizeError(false);
+    if (file.size > MAX_FILE_BYTES) {
+      setSizeError(true);
+      return;
+    }
     setUploading(true);
     try {
       const uploaded = await uploadPublicFile(file, folder);
@@ -1340,14 +1383,19 @@ export function PosterField({
       </span>
       <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-zinc-300 px-4 py-4 text-sm text-muted hover:border-violet-neon dark:border-white/15">
         <Upload className="h-4 w-4" />
-        {uploading ? "Uploading…" : url ? "Uploaded" : "Choose image"}
+        {uploading ? "Uploading…" : url ? "Uploaded" : "Choose image (max 1.5 MB)"}
         <input
           type="file"
-          accept="image/*"
+          accept="image/png,image/jpeg"
           className="hidden"
           onChange={(event) => void handleFile(event.target.files?.[0])}
         />
       </label>
+      {sizeError ? (
+        <p className="text-xs font-semibold text-red-500">
+          File too large. Maximum size is 1.5 MB.
+        </p>
+      ) : null}
       <input
         name={name}
         value={url}

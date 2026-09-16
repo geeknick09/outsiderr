@@ -121,6 +121,7 @@ function toDetail(
     xUrl: (row as { x_url?: string | null }).x_url ?? null,
     facebookUrl: (row as { facebook_url?: string | null }).facebook_url ?? null,
     linkedinUrl: (row as { linkedin_url?: string | null }).linkedin_url ?? null,
+    linkedPastEventIds: (row as { linked_past_event_ids?: string[] }).linked_past_event_ids ?? [],
   };
 }
 
@@ -192,4 +193,88 @@ export async function getEvent(id: string): Promise<EventDetail | null> {
   if (!organizer) return null;
 
   return toDetail(event, toOrganizer(organizer), (tiers ?? []).map(toTier));
+}
+
+/**
+ * Get an organizer's past events (completed, not cancelled) for linking as previous editions.
+ * Returns minimal info: id, title, startsAt. Only for the event form's multi-select.
+ */
+export async function getOrganizerPastEventsForLinking(
+  organizerId: string,
+  excludeEventId?: string,
+): Promise<Array<{ id: string; title: string; startsAt: string }>> {
+  const supabase = await createClient();
+  const now = new Date().toISOString();
+
+  let query = supabase
+    .from("events")
+    .select("id, title, starts_at")
+    .eq("organizer_id", organizerId)
+    .lt("starts_at", now)
+    .neq("status", "CANCELLED")
+    .order("starts_at", { ascending: false });
+
+  if (excludeEventId) {
+    query = query.neq("id", excludeEventId);
+  }
+
+  const { data: events } = await query;
+  if (!events) return [];
+
+  return events.map((e) => ({
+    id: e.id,
+    title: e.title,
+    startsAt: e.starts_at,
+  }));
+}
+
+/**
+ * Get details for linked past events (for display on the event page).
+ * Returns: id, title, startsAt, cardPosterUrl, and aggregate rating.
+ */
+export async function getLinkedPastEvents(
+  eventIds: string[],
+): Promise<Array<{ id: string; title: string; startsAt: string; cardPosterUrl: string | null; rating: number; reviewCount: number }>> {
+  if (!eventIds.length) return [];
+
+  const supabase = await createClient();
+
+  const { data: events } = await supabase
+    .from("events")
+    .select("id, title, starts_at, card_poster_url")
+    .in("id", eventIds)
+    .order("starts_at", { ascending: false });
+
+  if (!events || events.length === 0) return [];
+
+  // Get reviews for these events
+  const { data: reviews } = await supabase
+    .from("event_reviews")
+    .select("event_id, rating")
+    .in("event_id", eventIds);
+
+  const ratingByEvent: Record<string, { sum: number; count: number }> = {};
+  for (const r of reviews ?? []) {
+    const eid = (r as { event_id: string }).event_id;
+    if (!ratingByEvent[eid]) ratingByEvent[eid] = { sum: 0, count: 0 };
+    ratingByEvent[eid].sum += (r as { rating: number }).rating;
+    ratingByEvent[eid].count++;
+  }
+
+  // Preserve the order of eventIds (which is the order the organizer chose)
+  return eventIds
+    .map((id) => {
+      const event = events.find((e) => e.id === id);
+      if (!event) return null;
+      const ratingInfo = ratingByEvent[id];
+      return {
+        id: event.id,
+        title: event.title,
+        startsAt: event.starts_at,
+        cardPosterUrl: (event as { card_poster_url?: string | null }).card_poster_url ?? null,
+        rating: ratingInfo && ratingInfo.count > 0 ? Math.round((ratingInfo.sum / ratingInfo.count) * 10) / 10 : 0,
+        reviewCount: ratingInfo?.count ?? 0,
+      };
+    })
+    .filter((e): e is NonNullable<typeof e> => e !== null);
 }

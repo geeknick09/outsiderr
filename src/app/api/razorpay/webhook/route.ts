@@ -7,6 +7,7 @@ import {
 } from "@/lib/data/orders";
 import { verifyRazorpayWebhookSignature } from "@/lib/razorpay-verify";
 import { createServiceClient } from "@/lib/supabase/service";
+import { logger } from "@/lib/logger";
 
 // Must run on Node.js (not Edge) — needs crypto for HMAC verification
 export const runtime = "nodejs";
@@ -32,7 +33,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request) {
   const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
   if (!webhookSecret) {
-    console.error("[webhook] RAZORPAY_WEBHOOK_SECRET not configured");
+    logger.error("RAZORPAY_WEBHOOK_SECRET not configured");
     return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
   }
 
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
   // 2. Verify signature
   const isValid = verifyRazorpayWebhookSignature(rawBody, signature, webhookSecret);
   if (!isValid) {
-    console.error("[webhook] Signature verification failed");
+    logger.error({ signature: signature.slice(0, 16) }, "webhook signature verification failed");
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
   try {
     payload = JSON.parse(rawBody);
   } catch {
-    console.error("[webhook] Invalid JSON payload");
+    logger.error("invalid JSON in webhook payload");
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
@@ -60,11 +61,11 @@ export async function POST(request: Request) {
   const eventType = payload.event?.entity ?? "";
 
   if (!eventId) {
-    console.error("[webhook] Missing event id");
+    logger.error("webhook missing event id");
     return NextResponse.json({ error: "Missing event id" }, { status: 400 });
   }
 
-  console.log(`[webhook] Received: type=${eventType}, eventId=${eventId}`);
+  logger.info({ eventType, eventId }, "webhook received");
 
   // 4. Use the service-role client for ALL database operations.
   // Webhooks have no user session, so the anon/cookie client would fail under RLS.
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (existing?.processed) {
-    console.log(`[webhook] Already processed: eventId=${eventId}, type=${eventType}`);
+    logger.info({ eventId, eventType }, "webhook already processed");
     return NextResponse.json({ status: "already_processed" });
   }
 
@@ -111,7 +112,7 @@ export async function POST(request: Request) {
     { onConflict: "razorpay_event_id" },
   );
   if (logError) {
-    console.error(`[webhook] Failed to log webhook event: eventId=${eventId}, error=`, logError);
+    logger.error({ eventId, error: logError.message }, "failed to log webhook event");
   }
 
   // 5. Process the event
@@ -124,10 +125,10 @@ export async function POST(request: Request) {
       case "order.paid": {
         if (!internalOrderId || !paymentEntity) {
           errorMessage = "Missing order id or payment entity";
-          console.warn(`[webhook] ${eventType}: missing order/payment, eventId=${eventId}`);
+          logger.warn({ eventId, eventType }, "missing order/payment for payment.captured");
           break;
         }
-        console.log(`[webhook] ${eventType}: confirming orderId=${internalOrderId}, paymentId=${paymentEntity.id}, method=${paymentEntity.method ?? "unknown"}`);
+        logger.info({ orderId: internalOrderId, paymentId: paymentEntity.id, method: paymentEntity.method }, "confirming order via webhook");
         // Confirm the order using the service client (idempotent — safe if callback already confirmed)
         // Pass null for signature — the webhook HMAC is not the payment signature.
         // The payment signature was already verified by the client-side callback.
@@ -139,7 +140,7 @@ export async function POST(request: Request) {
           paymentEntity.method ?? null,
           supabase,
         );
-        console.log(`[webhook] ${eventType}: order confirmed, orderId=${internalOrderId}`);
+        logger.info({ orderId: internalOrderId }, "order confirmed via webhook");
 
         // Insert payment_ledger entry (best-effort, but using service client)
         try {
@@ -182,7 +183,7 @@ export async function POST(request: Request) {
             }
           }
         } catch (ledgerErr) {
-          console.error("Ledger insert from webhook failed:", ledgerErr);
+          logger.error({ orderId: internalOrderId, error: ledgerErr instanceof Error ? ledgerErr.message : String(ledgerErr) }, "ledger insert from webhook failed");
         }
 
         processed = true;
@@ -192,12 +193,12 @@ export async function POST(request: Request) {
       case "payment.failed": {
         if (!internalOrderId) {
           errorMessage = "Missing order id for payment.failed";
-          console.warn(`[webhook] payment.failed: missing orderId, eventId=${eventId}`);
+          logger.warn({ eventId }, "payment.failed: missing orderId");
           break;
         }
-        console.log(`[webhook] payment.failed: failing orderId=${internalOrderId}`);
+        logger.info({ orderId: internalOrderId }, "failing order via webhook");
         await failRazorpayOrder(internalOrderId, supabase);
-        console.log(`[webhook] payment.failed: order failed, orderId=${internalOrderId}`);
+        logger.info({ orderId: internalOrderId }, "order failed via webhook");
         processed = true;
         break;
       }
@@ -205,7 +206,7 @@ export async function POST(request: Request) {
       case "refund.processed": {
         // Update refund record to COMPLETED — match by razorpay_refund_id for precision
         if (refundEntity?.id) {
-          console.log(`[webhook] refund.processed: refundId=${refundEntity.id}, amount=${refundEntity.amount ?? "unknown"}`);
+          logger.info({ refundId: refundEntity.id, amount: refundEntity.amount }, "refund.processed via webhook");
           await supabase
             .from("refunds")
             .update({
@@ -255,7 +256,7 @@ export async function POST(request: Request) {
               }
             }
           } catch (ledgerErr) {
-            console.error("Refund ledger insert from webhook failed:", ledgerErr);
+            logger.error({ refundId: refundEntity.id, error: ledgerErr instanceof Error ? ledgerErr.message : String(ledgerErr) }, "refund ledger insert from webhook failed");
           }
         }
         processed = true;
@@ -264,7 +265,7 @@ export async function POST(request: Request) {
 
       case "refund.failed": {
         if (refundEntity?.id) {
-          console.warn(`[webhook] refund.failed: refundId=${refundEntity.id}`);
+          logger.warn({ refundId: refundEntity.id }, "refund.failed via webhook");
           await supabase
             .from("refunds")
             .update({
@@ -279,17 +280,17 @@ export async function POST(request: Request) {
 
       default:
         // Unknown event — log but don't error
-        console.log(`[webhook] Unhandled event type: ${eventType}, eventId=${eventId}`);
+        logger.info({ eventType, eventId }, "unhandled webhook event type");
         processed = true;
         break;
     }
   } catch (err) {
     errorMessage = err instanceof Error ? err.message : "Processing failed";
     processed = false;
-    console.error(`[webhook] Processing error for ${eventType} (eventId=${eventId}):`, err);
+    logger.error({ eventType, eventId, error: errorMessage }, "webhook processing error");
   }
 
-  console.log(`[webhook] Complete: type=${eventType}, eventId=${eventId}, processed=${processed}, error=${errorMessage ?? "null"}`);
+  logger.info({ eventType, eventId, processed, error: errorMessage }, "webhook complete");
 
   // 6. Update the webhook event record
   await supabase

@@ -7,6 +7,7 @@ import { MapPin, Plus, Trash2 } from "lucide-react";
 
 import { updateEventAction, type UpdateEventState } from "@/actions/events";
 import { GalleryUploader } from "@/components/organizer/gallery-uploader";
+import { PosterGuidelines } from "@/components/organizer/poster-guidelines";
 import { PosterField, TagPicker } from "@/components/organizer/event-form";
 import { Button } from "@/components/ui/button";
 import { PhoneInput } from "@/components/ui/phone-input";
@@ -42,7 +43,7 @@ interface EditableTier {
   phaseClosesAt?: string;
 }
 
-export function EditEventForm({ event }: { event: EventDetail }) {
+export function EditEventForm({ event, pastEvents = [] }: { event: EventDetail; pastEvents?: Array<{ id: string; title: string; startsAt: string }> }) {
   const [state, formAction, pending] = useActionState<UpdateEventState, FormData>(
     updateEventAction,
     { error: null },
@@ -447,10 +448,11 @@ export function EditEventForm({ event }: { event: EventDetail }) {
       </div>
 
       {/* Posters */}
+      <PosterGuidelines />
       <div className="grid gap-4 sm:grid-cols-2">
         <PosterField
           name="cardPosterUrl"
-          label="Card poster (4:5)"
+          label="Card poster (3:4)"
           organizerName={event.organizer.name}
           eventTitle={event.title}
           subFolder="card-posters"
@@ -717,6 +719,37 @@ export function EditEventForm({ event }: { event: EventDetail }) {
           </label>
         </div>
       </div>
+
+      {/* Link past events as previous editions */}
+      {pastEvents.length > 0 && (
+        <div className="rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
+          <p className="text-sm font-bold">Link Previous Editions</p>
+          <p className="mt-1 text-xs text-muted">
+            Select your past events that are previous editions of this one.
+          </p>
+          <div className="mt-3 max-h-48 space-y-2 overflow-y-auto">
+            {pastEvents.map((pe) => (
+              <label
+                key={pe.id}
+                className="flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-100 p-2 hover:bg-violet-neon/5 dark:border-white/5"
+              >
+                <input
+                  type="checkbox"
+                  name="linkedPastEventIds"
+                  value={pe.id}
+                  defaultChecked={event.linkedPastEventIds.includes(pe.id)}
+                  onChange={() => setDirty(true)}
+                  className="h-4 w-4 accent-violet-neon"
+                />
+                <span className="min-w-0 flex-1 truncate text-sm">{pe.title}</span>
+                <span className="shrink-0 text-xs text-muted">
+                  {new Date(pe.startsAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
 
       <Button type="submit" disabled={pending || !!dateError || !!phaseError || !!mapsError || !!tierError || !dirty} loading={pending} loadingText="Saving…">
         Save changes

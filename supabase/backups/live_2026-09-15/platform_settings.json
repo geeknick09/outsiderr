@@ -1,0 +1,169 @@
+[
+  {
+    "key": "cancellation_charge_percent",
+    "value": 20,
+    "description": "Cancellation charge %",
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  },
+  {
+    "key": "commission_tier1_bps",
+    "value": 1000,
+    "description": "Tier 1 commission rate (1000 = 10%)",
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  },
+  {
+    "key": "commission_tier1_max_paise",
+    "value": 50000,
+    "description": "Tier 1 threshold in paise",
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  },
+  {
+    "key": "commission_tier2_bps",
+    "value": 700,
+    "description": "Tier 2 commission rate (700 = 7%)",
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  },
+  {
+    "key": "commission_tier2_max_paise",
+    "value": 300000,
+    "description": "Tier 2 threshold in paise",
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  },
+  {
+    "key": "commission_tier3_bps",
+    "value": 500,
+    "description": "Tier 3 commission rate (500 = 5%)",
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  },
+  {
+    "key": "door_staff_available",
+    "value": 10,
+    "description": "Available door staff slots",
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  },
+  {
+    "key": "door_staff_max",
+    "value": 5,
+    "description": "Max door staff per event",
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  },
+  {
+    "key": "door_staff_pricing",
+    "value": {
+      "1": 1500,
+      "2": 2500,
+      "3": 3500,
+      "4": 5000,
+      "5": 6500
+    },
+    "description": "Door staff pricing tiers",
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  },
+  {
+    "key": "hero_boost_duration_days",
+    "value": 7,
+    "description": "Hero Boost duration in days",
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  },
+  {
+    "key": "hero_boost_enabled",
+    "value": true,
+    "description": "Enable Hero Boost feature",
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  },
+  {
+    "key": "hero_boost_price",
+    "value": 99900,
+    "description": "Hero Boost price in paise (₹999)",
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  },
+  {
+    "key": "hero_max_visible_events",
+    "value": 7,
+    "description": "Max Hero Boost events visible",
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  },
+  {
+    "key": "hero_rotation_interval_minutes",
+    "value": 30,
+    "description": "Hero carousel rotation interval",
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  },
+  {
+    "key": "max_tickets_per_order",
+    "value": 1,
+    "description": "Max tickets per order",
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  },
+  {
+    "key": "organizer_whatsapp_number",
+    "value": "7980085212",
+    "description": "Organizer support WhatsApp number",
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  },
+  {
+    "key": "platform_fee_bps",
+    "value": 500,
+    "description": "Legacy flat fee bps (now tiered)",
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  },
+  {
+    "key": "postponement_charge_percent",
+    "value": 10,
+    "description": "Postponement charge %",
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  },
+  {
+    "key": "tagline_footer",
+    "value": "Cyphers, battles, stunts, skates, jams & real communities.",
+    "description": "Footer tagline",
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  },
+  {
+    "key": "tagline_header",
+    "value": "Find what's happening outside the mainstream.",
+    "description": "Homepage header tagline",
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  },
+  {
+    "key": "tagline_subheader",
+    "value": "Discover raw events happening today near you.",
+    "description": "Homepage subheader tagline",
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  },
+  {
+    "key": "terms_version",
+    "value": "organizer-v1.0",
+    "description": "Current terms version",
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  },
+  {
+    "key": "venue_announcement_deadline_hours",
+    "value": 48,
+    "description": "Hours before event to announce venue",
+    "updated_at": "2026-09-08T12:30:51.929Z",
+    "updated_by": null
+  }
+]

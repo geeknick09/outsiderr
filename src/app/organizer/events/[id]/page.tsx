@@ -11,6 +11,9 @@ import { CancelPostponeButtons } from "@/components/organizer/cancel-postpone-bu
 import { DoorStaffPaymentPanel } from "@/components/organizer/door-staff-payment";
 import { DoorStaffRequest } from "@/components/organizer/door-staff-request";
 import { EventStaffManager } from "@/components/organizer/event-staff-manager";
+import { CollaborationPanel } from "@/components/organizer/collaboration-panel";
+import { ScannerPinManager } from "@/components/organizer/scanner-pin-manager";
+import { BoxOfficePinManager } from "@/components/organizer/box-office-pin-manager";
 import { HeroBoostPanel } from "@/components/organizer/hero-boost-panel";
 import { PastEventGalleryManager } from "@/components/organizer/past-event-gallery-manager";
 import { ShareButton } from "@/components/events/share-button";
@@ -21,10 +24,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { getCurrentUser } from "@/lib/auth";
-import { getEvent } from "@/lib/data/events";
+import { getEvent, getOrganizerPastEventsForLinking } from "@/lib/data/events";
 import { getDoorStaffOrder } from "@/lib/data/door-staff";
 import { listEventStaff } from "@/lib/data/event-staff";
+import { listEventScannerPins } from "@/lib/data/scanner-pins";
+import { listBoxOfficePinsForEvent } from "@/lib/data/box-office-pins";
 import { getOrganizerEventAnalytics } from "@/lib/data/organizer";
+import { getEventCollaboratorsForOwner } from "@/lib/data/engagement";
 import { listEventOrders, listEventTickets } from "@/lib/data/admin";
 import { expireWaitlistOffers, listEventWaitlist } from "@/lib/data/waitlist";
 import { publishEventAction } from "@/actions/events";
@@ -56,7 +62,7 @@ export default async function ManageEventPage({
 
   // Load all page data in parallel. Log the real error server-side before letting
   // the route-level error.tsx handle the fallback UI for the user.
-  const [event, analytics, cancelChargePct, postponeChargePct, doorStaffOrder, doorStaffPricing, doorStaffAvailable, heroBoost, heroBoostPrice, heroBoostDuration, orders, tickets, waitlistEntries, eventStaff] = await Promise.all([
+  const [event, analytics, cancelChargePct, postponeChargePct, doorStaffOrder, doorStaffPricing, doorStaffAvailable, heroBoost, heroBoostPrice, heroBoostDuration, orders, tickets, waitlistEntries, eventStaff, scannerPins, boxOfficePins, collaborators] = await Promise.all([
     getEvent(id),
     getOrganizerEventAnalytics(user, id),
     getCancellationChargePercent(),
@@ -71,6 +77,9 @@ export default async function ManageEventPage({
     listEventTickets(id),
     listEventWaitlist(id),
     listEventStaff(user, id),
+    listEventScannerPins(user, id),
+    listBoxOfficePinsForEvent(user, id),
+    getEventCollaboratorsForOwner(user, id),
   ]).catch((err: unknown) => {
     console.error("[ManageEventPage] Data load error for event", id, err);
     throw err; // Re-throw so the route error boundary (error.tsx) handles it
@@ -80,6 +89,8 @@ export default async function ManageEventPage({
   try { await expireWaitlistOffers(); } catch { /* ignore */ }
 
   if (!event || !analytics) notFound();
+
+  const pastEventsForLinking = await getOrganizerPastEventsForLinking(event.organizer.id, id);
 
   const eventPast = isPast(event.startsAt);
 
@@ -248,7 +259,7 @@ export default async function ManageEventPage({
 
       {/* Edit form — disabled for cancelled, past, and events starting within 2 hours */}
       {event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast && (startMs - nowMs) > 2 * 60 * 60 * 1000 ? (
-        <EditEventForm event={event} />
+        <EditEventForm event={event} pastEvents={pastEventsForLinking} />
       ) : event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast && (startMs - nowMs) <= 2 * 60 * 60 * 1000 ? (
         <div className="glass rounded-3xl p-5">
           <h2 className="mb-2 text-base font-bold">Edit Event</h2>
@@ -307,9 +318,24 @@ export default async function ManageEventPage({
         </section>
       ) : null */}
 
+      {/* Collaboration panel — invite co-organizers */}
+      {!eventPast ? (
+        <CollaborationPanel eventId={event.id} collaborators={collaborators} />
+      ) : null}
+
       {/* Door staff management — disabled for past events */}
       {!eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
         <EventStaffManager eventId={event.id} staff={eventStaff} />
+      ) : null}
+
+      {/* Scanner PIN management — disabled for past events */}
+      {!eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
+        <ScannerPinManager eventId={event.id} pins={scannerPins} />
+      ) : null}
+
+      {/* Box office PIN management — disabled for past events */}
+      {!eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
+        <BoxOfficePinManager eventId={event.id} pins={boxOfficePins} />
       ) : null}
 
       {/* Cancel / Postpone — disabled for past events */}
