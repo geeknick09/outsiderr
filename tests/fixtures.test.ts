@@ -195,7 +195,7 @@ describe("Test fixtures — inventory state", () => {
   it("tickets sold in tracked tiers matches order quantities", () => {
     // Only check tiers that have orders in our fixture set (paid general tier).
     // The sold-out tier has pre-existing sales not tracked in our fixtures.
-    const trackedTierIds = new Set(allOrders.map((o) => o.tierId));
+    const trackedTierIds = new Set<string>(allOrders.map((o) => o.tierId));
     const totalSold = allTiers
       .filter((t) => trackedTierIds.has(t.id))
       .reduce((sum, t) => sum + t.quantitySold, 0);

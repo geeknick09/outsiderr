@@ -1112,6 +1112,8 @@ alter table public.organizers
   add column if not exists kyc_review_note text;
 -- Backfill kyc_status for existing organizers: if kyc_submitted=true, set to PENDING
 update public.organizers set kyc_status = 'PENDING' where kyc_submitted = true and kyc_status = 'NOT_SUBMITTED';
+-- Make event_id nullable on event_notifications (KYC notifications have no event)
+alter table public.event_notifications alter column event_id drop not null;
 
 -- ----------------------------------------------------------------
 -- STEP 9: Sync is_organizer flag on profiles
@@ -2418,6 +2420,8 @@ end;
 $$;
 
 -- Bulk generate scanner PINs
+-- Drop old 2-param version first to avoid ambiguity (idempotent)
+drop function if exists public.generate_scanner_pins(uuid, text[]);
 create or replace function public.generate_scanner_pins(
   p_event_id     uuid,
   p_staff_names  text[],

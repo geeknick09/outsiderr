@@ -1,0 +1,13 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^Set-Location \"c:\\\\Users\\\\Anurag Shaw\\\\Desktop\\\\Upcoming projects\\\\Outsiderr\\\\outsiderr\"; npx tsc --noEmit; npx vitest run tests/fixtures\\.test\\.ts; npm run build$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^cd \"c:\\\\Users\\\\Anurag Shaw\\\\Desktop\\\\Upcoming projects\\\\Outsiderr\\\\outsiderr\"; npx tsc --noEmit; npx vitest run tests/fixtures\\.test\\.ts; npm run build$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "npx tsc": true
+    }
+}

@@ -65,7 +65,6 @@ export async function approveKycAction(organizerId: string): Promise<KycReviewRe
     await (supabase.from("event_notifications") as any).insert({
       user_id: org.owner_id,
       type: "KYC_APPROVED",
-      title: "Organizer Verified!",
       message: `Congratulations! Your organizer profile has been approved. You can now publish events and manage your dashboard.`,
       event_id: null,
       read: false,
@@ -116,7 +115,6 @@ export async function rejectKycAction(organizerId: string, note: string): Promis
     await (supabase.from("event_notifications") as any).insert({
       user_id: org.owner_id,
       type: "KYC_REJECTED",
-      title: "Organizer Application Rejected",
       message: `Your organizer application was not approved. Reason: ${note.trim()}`,
       event_id: null,
       read: false,
@@ -166,7 +164,6 @@ export async function requestClarificationAction(organizerId: string, note: stri
     await (supabase.from("event_notifications") as any).insert({
       user_id: org.owner_id,
       type: "KYC_CLARIFICATION",
-      title: "Clarification Needed — We'll Contact You",
       message: `Before your organizer application can be approved, we need some clarification. An Outsiderr team member will contact you shortly. Note: ${note.trim()}`,
       event_id: null,
       read: false,

@@ -393,7 +393,7 @@ create index if not exists refunds_status_idx on public.refunds(status);
 -- Event notifications — informs users of cancellations/postponements/reschedules
 create table if not exists public.event_notifications (
   id          uuid                       primary key default gen_random_uuid(),
-  event_id    uuid                       not null references public.events(id) on delete cascade,
+  event_id    uuid                       references public.events(id) on delete cascade,
   user_id     uuid                       not null references auth.users(id) on delete cascade,
   type        event_notification_type    not null,
   message     text                       not null default '',
