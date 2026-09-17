@@ -7,6 +7,7 @@ import { PrintButton } from "@/components/organizer/print-button";
 import { getCurrentUser } from "@/lib/auth";
 import { getEvent } from "@/lib/data/events";
 import { getEventAnalytics, listEventOrders, listEventTickets } from "@/lib/data/admin";
+import { getEventAccessLevel, canViewAnalytics } from "@/lib/data/engagement";
 import { getOrganizerProfile } from "@/lib/data/organizer";
 import { formatDateTime, formatPaise } from "@/lib/format";
 
@@ -31,8 +32,11 @@ export default async function EventReportPage({
 
   const { id } = await params;
 
-  const organizer = await getOrganizerProfile(user);
-  if (!organizer) notFound();
+  const [organizer, accessLevel] = await Promise.all([
+    getOrganizerProfile(user),
+    getEventAccessLevel(user, id),
+  ]);
+  if (!organizer || !accessLevel || !canViewAnalytics(accessLevel)) notFound();
 
   const [event, analytics, orders, tickets] = await Promise.all([
     getEvent(id),

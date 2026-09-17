@@ -66,7 +66,7 @@ export function OrganizerEventsList({
   events,
   analyticsMap = {},
 }: {
-  events: EventSummary[];
+  events: (EventSummary & { collaboratorPermission?: string })[];
   analyticsMap?: Record<string, EventAnalytics>;
 }) {
   const [activeTab, setActiveTab] = useState<LifecycleTab>("published");
@@ -74,7 +74,7 @@ export function OrganizerEventsList({
   const [sortAsc, setSortAsc] = useState(false);
 
   // Group events by lifecycle tab
-  const grouped: Record<LifecycleTab, EventSummary[]> = {
+  const grouped: Record<LifecycleTab, (EventSummary & { collaboratorPermission?: string })[]> = {
     published: [],
     drafts: [],
     completed: [],
@@ -195,6 +195,9 @@ export function OrganizerEventsList({
                 <p className="text-xs text-muted">{formatDateTime(event.startsAt)}</p>
               </div>
               <div className="flex items-center gap-2">
+                {event.collaboratorPermission ? (
+                  <Badge tone="violet">Co-organizer · {event.collaboratorPermission}</Badge>
+                ) : null}
                 {event.status !== "DRAFT" ? (
                   <Badge tone="neutral">{event.registrationsCount} registered</Badge>
                 ) : null}

@@ -2768,15 +2768,18 @@ end $$;
 -- Event Collaborators (co-hosting)
 -- ================================================================
 create table if not exists public.event_collaborators (
-  id              uuid        primary key default gen_random_uuid(),
-  event_id        uuid        not null references public.events(id) on delete cascade,
-  organizer_id    uuid        not null references public.organizers(id) on delete cascade,
-  invited_by      uuid        not null references public.organizers(id) on delete cascade,
-  status          text        not null default 'PENDING',
-  created_at      timestamptz not null default now(),
-  updated_at      timestamptz not null default now(),
+  id               uuid        primary key default gen_random_uuid(),
+  event_id         uuid        not null references public.events(id) on delete cascade,
+  organizer_id     uuid        not null references public.organizers(id) on delete cascade,
+  invited_by       uuid        not null references public.organizers(id) on delete cascade,
+  status           text        not null default 'PENDING',
+  permission_level text        not null default 'VIEW_ONLY',
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now(),
   unique (event_id, organizer_id)
 );
+-- Add permission_level column to existing tables (idempotent)
+alter table public.event_collaborators add column if not exists permission_level text not null default 'VIEW_ONLY';
 create index if not exists event_collab_event_idx    on public.event_collaborators(event_id);
 create index if not exists event_collab_org_idx      on public.event_collaborators(organizer_id);
 create index if not exists event_collab_invited_idx  on public.event_collaborators(invited_by);

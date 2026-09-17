@@ -146,6 +146,72 @@ export async function listOrganizerEvents(
   });
 }
 
+/**
+ * List events the current user co-organizes (accepted collaborations only).
+ * Returns EventSummary[] with an extra `collaboratorPermission` field.
+ */
+export async function listCollaboratedEvents(
+  user: CurrentUser,
+): Promise<(EventSummary & { collaboratorPermission: string })[]> {
+  const organizer = await getOrganizerProfile(user);
+  if (!organizer) return [];
+
+  const supabase = await createClient();
+
+  // Get accepted collaborations for this organizer
+  const { data: collabs } = await supabase
+    .from("event_collaborators")
+    .select("event_id, permission_level")
+    .eq("organizer_id", organizer.id)
+    .eq("status", "ACCEPTED");
+
+  if (!collabs || collabs.length === 0) return [];
+
+  const eventIds = collabs.map((c) => c.event_id);
+  const permMap = new Map(collabs.map((c) => [c.event_id, c.permission_level]));
+
+  const { data: events } = await supabase
+    .from("events")
+    .select("*")
+    .in("id", eventIds)
+    .order("starts_at", { ascending: true });
+
+  if (!events || events.length === 0) return [];
+
+  const { data: tiers } = await supabase
+    .from("ticket_tiers")
+    .select("event_id, price_paise, quantity, quantity_sold")
+    .in("event_id", eventIds);
+
+  return events.map((event) => {
+    const eventTiers = (tiers ?? []).filter((tier) => tier.event_id === event.id);
+    const prices = eventTiers.map((tier) => tier.price_paise);
+    const totalCapacity = eventTiers.reduce((sum, t) => sum + (t.quantity ?? 0), 0);
+    const ticketsSold = eventTiers.reduce((sum, t) => sum + (t.quantity_sold ?? 0), 0);
+    return {
+      id: event.id,
+      title: event.title,
+      category: event.category,
+      categories: ((event as { categories?: string[] }).categories ?? [event.category]) as EventCategory[],
+      city: event.city,
+      venueName: event.venue_name,
+      startsAt: event.starts_at,
+      endsAt: (event as { ends_at?: string | null }).ends_at ?? null,
+      cardPosterUrl: event.card_poster_url,
+      bannerPosterUrl: event.banner_poster_url,
+      minPricePaise: prices.length ? Math.min(...prices) : 0,
+      isFeatured: event.is_featured,
+      registrationsCount: event.registrations_count,
+      tags: event.tags ?? [],
+      status: event.status as import("@/lib/types").EventStatus,
+      pricingMode: (event.pricing_mode ?? "PAID") as PricingMode,
+      totalCapacity,
+      ticketsSold,
+      collaboratorPermission: permMap.get(event.id) ?? "VIEW_ONLY",
+    };
+  });
+}
+
 export async function createEvent(
   user: CurrentUser,
   input: CreateEventInput,
@@ -229,17 +295,10 @@ export async function getOrganizerEventAnalytics(
   eventId: string,
 ): Promise<import("@/lib/types").EventAnalytics | null> {
   const { getEventAnalytics } = await import("@/lib/data/admin");
-  // Verify the event belongs to this organizer
-  const organizer = await getOrganizerProfile(user);
-  if (!organizer) return null;
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("events")
-    .select("id")
-    .eq("id", eventId)
-    .eq("organizer_id", organizer.id)
-    .maybeSingle();
-  if (!data) return null;
+  const { getEventAccessLevel, canViewAnalytics } = await import("@/lib/data/engagement");
+  // Verify the event belongs to this organizer OR they are an accepted collaborator
+  const accessLevel = await getEventAccessLevel(user, eventId);
+  if (!accessLevel || !canViewAnalytics(accessLevel)) return null;
   return getEventAnalytics(eventId);
 }
 

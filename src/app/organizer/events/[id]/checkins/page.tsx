@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDateTime } from "@/lib/format";
 import { getCurrentUser } from "@/lib/auth";
 import { getEvent } from "@/lib/data/events";
-import { getOrganizerProfile } from "@/lib/data/organizer";
+import { getEventAccessLevel, canScanTickets } from "@/lib/data/engagement";
 import { listEventTickets } from "@/lib/data/admin";
 
 export const dynamic = "force-dynamic";
@@ -29,18 +29,12 @@ export default async function EventCheckInsPage({
   if (!user) redirect("/login?next=%2Forganizer");
 
   const { id } = await params;
-  const [organizer, event] = await Promise.all([
-    getOrganizerProfile(user),
+  const [event, accessLevel] = await Promise.all([
     getEvent(id),
+    getEventAccessLevel(user, id),
   ]);
 
-  if (!organizer) redirect("/organizer");
-  if (!event) notFound();
-
-  // Verify ownership — organizer must own this event
-  if (event.organizer.ownerId !== user.id) {
-    notFound();
-  }
+  if (!event || !accessLevel || !canScanTickets(accessLevel)) notFound();
 
   const tickets = await listEventTickets(id);
   const checkedIn = tickets.filter((t) => t.status === "USED");

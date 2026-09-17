@@ -30,7 +30,7 @@ import { listEventStaff } from "@/lib/data/event-staff";
 import { listEventScannerPins } from "@/lib/data/scanner-pins";
 import { listBoxOfficePinsForEvent } from "@/lib/data/box-office-pins";
 import { getOrganizerEventAnalytics } from "@/lib/data/organizer";
-import { getEventCollaboratorsForOwner } from "@/lib/data/engagement";
+import { getEventCollaboratorsForOwner, getEventAccessLevel, canViewAnalytics, canScanTickets, canEditEvent, canManageOrders } from "@/lib/data/engagement";
 import { listEventOrders, listEventTickets } from "@/lib/data/admin";
 import { expireWaitlistOffers, listEventWaitlist } from "@/lib/data/waitlist";
 import { publishEventAction } from "@/actions/events";
@@ -89,6 +89,15 @@ export default async function ManageEventPage({
   try { await expireWaitlistOffers(); } catch { /* ignore */ }
 
   if (!event || !analytics) notFound();
+
+  // Check access level — owner or accepted collaborator
+  const accessLevel = await getEventAccessLevel(user, id);
+  if (!accessLevel) notFound();
+  const isOwner = accessLevel === "OWNER";
+  const canView = canViewAnalytics(accessLevel);
+  const canScan = canScanTickets(accessLevel);
+  const canEdit = canEditEvent(accessLevel);
+  const canOrders = canManageOrders(accessLevel);
 
   const pastEventsForLinking = await getOrganizerPastEventsForLinking(event.organizer.id, id);
 
@@ -161,6 +170,7 @@ export default async function ManageEventPage({
         <Badge tone="violet">{CATEGORY_LABELS[event.category]}</Badge>
         <Badge tone={statusTone}>{statusLabel}</Badge>
         {event.isFeatured ? <Badge tone="lime">Boosted</Badge> : null}
+        {!isOwner ? <Badge tone="violet">Co-organizer · {accessLevel}</Badge> : null}
       </div>
 
       {/* Actions */}
@@ -180,23 +190,23 @@ export default async function ManageEventPage({
           variant="secondary"
           size="sm"
         />
-        {eventPast ? null : (
+        {eventPast ? null : canScan ? (
           <Link href={`/organizer/events/${event.id}/scan`}>
             <Button size="sm">
               <ScanLine className="h-4 w-4" />
               Door Scanner
             </Button>
           </Link>
-        )}
-        {eventPast ? null : (
+        ) : null}
+        {eventPast ? null : canScan ? (
           <Link href="/scan">
             <Button variant="secondary" size="sm">
               <ScanLine className="h-4 w-4" />
               Staff Scanner
             </Button>
           </Link>
-        )}
-        {event.status === "DRAFT" && !eventPast ? (
+        ) : null}
+        {event.status === "DRAFT" && !eventPast && canEdit ? (
           <form>
             <SubmitButton
               formAction={async () => {
@@ -212,20 +222,20 @@ export default async function ManageEventPage({
         ) : null}
       </div>
 
-      {/* Analytics — hidden for draft events (no data yet) */}
-      {event.status !== "DRAFT" ? (
+      {/* Analytics — hidden for draft events (no data yet) or view-only collaborators */}
+      {event.status !== "DRAFT" && canView ? (
         <section className="space-y-3">
           <h2 className="text-lg font-bold">Analytics</h2>
           <AnalyticsPanel analytics={analytics} eventId={event.id} />
         </section>
       ) : null}
 
-      {analytics.waitlistCount > 0 ? (
+      {canView && analytics.waitlistCount > 0 ? (
         <WaitlistPanel waitlistCount={analytics.waitlistCount} entries={waitlistEntries} />
       ) : null}
 
       {/* Payment verification queue — for paid events with manual UPI flow */}
-      {orders.some((o) => o.status === "PENDING_VERIFICATION") ? (
+      {canOrders && orders.some((o) => o.status === "PENDING_VERIFICATION") ? (
         <section className="space-y-3">
           <h2 className="text-lg font-bold">Payment Verification</h2>
           <VerificationQueue
@@ -236,7 +246,7 @@ export default async function ManageEventPage({
       ) : null}
 
       {/* Walk-in / manual check-in — available before and during the event */}
-      {event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast ? (
+      {event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast && canScan ? (
         <section className="space-y-3">
           <h2 className="text-lg font-bold">
             {isHappeningNow ? "Walk-in Check-in" : "Manual Walk-in Registration"}
@@ -246,6 +256,7 @@ export default async function ManageEventPage({
       ) : null}
 
       {/* Attendees / Orders list */}
+      {canOrders ? (
       <section className="space-y-3">
         <h2 className="text-lg font-bold">Attendees ({orders.length})</h2>
         {orders.length === 0 ? (
@@ -256,11 +267,12 @@ export default async function ManageEventPage({
           <AttendeesTable orders={orders} tickets={tickets} />
         )}
       </section>
+      ) : null}
 
       {/* Edit form — disabled for cancelled, past, and events starting within 2 hours */}
-      {event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast && (startMs - nowMs) > 2 * 60 * 60 * 1000 ? (
+      {canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast && (startMs - nowMs) > 2 * 60 * 60 * 1000 ? (
         <EditEventForm event={event} pastEvents={pastEventsForLinking} />
-      ) : event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast && (startMs - nowMs) <= 2 * 60 * 60 * 1000 ? (
+      ) : canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast && (startMs - nowMs) <= 2 * 60 * 60 * 1000 ? (
         <div className="glass rounded-3xl p-5">
           <h2 className="mb-2 text-base font-bold">Edit Event</h2>
           <p className="text-sm text-muted">
@@ -270,7 +282,7 @@ export default async function ManageEventPage({
       ) : null}
 
       {/* Front Row — disabled for cancelled and past events */}
-      {event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast ? (
+      {canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast ? (
         <HeroBoostPanel
           eventId={event.id}
           boost={heroBoost}
@@ -282,7 +294,7 @@ export default async function ManageEventPage({
       ) : null}
 
       {/* Slot Boost — link to boost page, disabled for past events */}
-      {event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast ? (
+      {canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast ? (
         <section className="glass rounded-3xl p-5">
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -318,28 +330,28 @@ export default async function ManageEventPage({
         </section>
       ) : null */}
 
-      {/* Collaboration panel — invite co-organizers */}
-      {!eventPast ? (
+      {/* Collaboration panel — invite co-organizers (owner only) */}
+      {!eventPast && isOwner ? (
         <CollaborationPanel eventId={event.id} collaborators={collaborators} />
       ) : null}
 
       {/* Door staff management — disabled for past events */}
-      {!eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
+      {canEdit && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
         <EventStaffManager eventId={event.id} staff={eventStaff} />
       ) : null}
 
       {/* Scanner PIN management — disabled for past events */}
-      {!eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
+      {canEdit && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
         <ScannerPinManager eventId={event.id} pins={scannerPins} />
       ) : null}
 
       {/* Box office PIN management — disabled for past events */}
-      {!eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
+      {canEdit && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
         <BoxOfficePinManager eventId={event.id} pins={boxOfficePins} />
       ) : null}
 
       {/* Cancel / Postpone — disabled for past events */}
-      {!eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
+      {canEdit && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
         <section className="rounded-3xl border border-red-500/30 p-5">
           <h2 className="text-base font-bold text-red-500">Event actions</h2>
           <p className="mt-1 text-sm text-muted">
@@ -356,7 +368,7 @@ export default async function ManageEventPage({
       ) : null}
 
       {/* Past events — allow gallery photo deletion only */}
-      {eventPast ? (
+      {eventPast && canEdit ? (
         <PastEventGalleryManager eventId={event.id} photoUrls={event.photoUrls} />
       ) : null}
     </div>

@@ -5,7 +5,7 @@ import { ChevronLeft, ScanLine } from "lucide-react";
 
 import { getCurrentUser } from "@/lib/auth";
 import { getEvent } from "@/lib/data/events";
-import { getOrganizerProfile } from "@/lib/data/organizer";
+import { getEventAccessLevel, canScanTickets } from "@/lib/data/engagement";
 import { formatDateRange } from "@/lib/format";
 
 // Lazy load DoorScanner — html5-qrcode is ~110kB
@@ -34,13 +34,12 @@ export default async function EventScanPage({
 
   const { id } = await params;
 
-  const [organizer, event] = await Promise.all([
-    getOrganizerProfile(user),
+  const [event, accessLevel] = await Promise.all([
     getEvent(id),
+    getEventAccessLevel(user, id),
   ]);
 
-  if (!organizer) redirect("/organizer");
-  if (!event) notFound();
+  if (!event || !accessLevel || !canScanTickets(accessLevel)) notFound();
 
   return (
     <div className="mx-auto max-w-lg space-y-4 py-6">

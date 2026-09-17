@@ -103,26 +103,27 @@ export async function getEventCollaborators(eventId: string): Promise<EventColla
   const supabase = await createClient();
   const { data } = await supabase
     .from("event_collaborators")
-    .select(`
-      id,
-      organizer_id,
-      status,
-      invited_by,
-      created_at,
-      organizers!event_collaborators_organizer_id_fkey (
-        name,
-        photo_url
-      )
-    `)
+    .select("id, organizer_id, status, invited_by, created_at")
     .eq("event_id", eventId)
     .eq("status", "ACCEPTED")
     .order("created_at", { ascending: true });
 
-  return (data ?? []).map((c) => ({
+  if (!data || data.length === 0) return [];
+
+  // Fetch organizer details separately (avoids nested join type issues)
+  const organizerIds = [...new Set(data.map((c) => c.organizer_id))];
+  const { data: orgs } = await supabase
+    .from("organizers")
+    .select("id, name, avatar_url")
+    .in("id", organizerIds);
+
+  const orgMap = new Map((orgs ?? []).map((o) => [o.id, o]));
+
+  return data.map((c) => ({
     id: c.id,
     organizerId: c.organizer_id,
-    organizerName: c.organizers?.name ?? "Unknown",
-    organizerPhotoUrl: c.organizers?.photo_url ?? null,
+    organizerName: orgMap.get(c.organizer_id)?.name ?? "Unknown",
+    organizerPhotoUrl: orgMap.get(c.organizer_id)?.avatar_url ?? null,
     status: c.status,
     invitedBy: c.invited_by,
     createdAt: c.created_at,
@@ -157,27 +158,30 @@ export async function getPendingCollaborationInvites(
 
   const { data } = await supabase
     .from("event_collaborators")
-    .select(`
-      id,
-      event_id,
-      status,
-      created_at,
-      events!event_collaborators_event_id_fkey (
-        title
-      ),
-      organizers!event_collaborators_invited_by_fkey (
-        name
-      )
-    `)
+    .select("id, event_id, invited_by, status, created_at")
     .eq("organizer_id", myOrg.id)
     .eq("status", "PENDING")
     .order("created_at", { ascending: false });
 
-  return (data ?? []).map((c) => ({
+  if (!data || data.length === 0) return [];
+
+  // Fetch event titles and inviter names separately
+  const eventIds = [...new Set(data.map((c) => c.event_id))];
+  const inviterIds = [...new Set(data.map((c) => c.invited_by))];
+
+  const [eventsResult, invitersResult] = await Promise.all([
+    supabase.from("events").select("id, title").in("id", eventIds),
+    supabase.from("organizers").select("id, name").in("id", inviterIds),
+  ]);
+
+  const eventMap = new Map((eventsResult.data ?? []).map((e) => [e.id, e.title]));
+  const inviterMap = new Map((invitersResult.data ?? []).map((o) => [o.id, o.name]));
+
+  return data.map((c) => ({
     id: c.id,
     eventId: c.event_id,
-    eventTitle: c.events?.title ?? "Unknown event",
-    invitedByName: c.organizers?.name ?? "Unknown organizer",
+    eventTitle: eventMap.get(c.event_id) ?? "Unknown event",
+    invitedByName: inviterMap.get(c.invited_by) ?? "Unknown organizer",
     status: c.status,
     createdAt: c.created_at,
   }));
@@ -196,6 +200,7 @@ export async function getEventCollaboratorsForOwner(
     organizerName: string;
     organizerPhotoUrl: string | null;
     status: string;
+    permissionLevel: string;
     createdAt: string;
   }[]
 > {
@@ -220,25 +225,156 @@ export async function getEventCollaboratorsForOwner(
 
   const { data } = await supabase
     .from("event_collaborators")
-    .select(`
-      id,
-      organizer_id,
-      status,
-      created_at,
-      organizers!event_collaborators_organizer_id_fkey (
-        name,
-        photo_url
-      )
-    `)
+    .select("id, organizer_id, status, permission_level, created_at")
     .eq("event_id", eventId)
     .order("created_at", { ascending: true });
 
-  return (data ?? []).map((c) => ({
+  if (!data || data.length === 0) return [];
+
+  // Fetch organizer details separately
+  const organizerIds = [...new Set(data.map((c) => c.organizer_id))];
+  const { data: orgs } = await supabase
+    .from("organizers")
+    .select("id, name, avatar_url")
+    .in("id", organizerIds);
+
+  const orgMap = new Map((orgs ?? []).map((o) => [o.id, o]));
+
+  return data.map((c) => ({
     id: c.id,
     organizerId: c.organizer_id,
-    organizerName: c.organizers?.name ?? "Unknown",
-    organizerPhotoUrl: c.organizers?.photo_url ?? null,
+    organizerName: orgMap.get(c.organizer_id)?.name ?? "Unknown",
+    organizerPhotoUrl: orgMap.get(c.organizer_id)?.avatar_url ?? null,
     status: c.status,
+    permissionLevel: c.permission_level ?? "VIEW_ONLY",
     createdAt: c.created_at,
   }));
+}
+
+// ================================================================
+// Co-organizer access helpers
+// ================================================================
+
+export type CollaboratorPermission = "VIEW_ONLY" | "ANALYTICS" | "SCAN" | "FULL";
+
+/**
+ * Get the events the current user co-organizes (accepted invites only),
+ * along with the permission level for each.
+ */
+export async function getCollaboratedEvents(
+  user: CurrentUser,
+): Promise<{ eventId: string; permissionLevel: CollaboratorPermission }[]> {
+  const supabase = await createClient();
+
+  const { data: myOrg } = await supabase
+    .from("organizers")
+    .select("id")
+    .eq("owner_id", user.id)
+    .maybeSingle();
+
+  if (!myOrg) return [];
+
+  const { data } = await supabase
+    .from("event_collaborators")
+    .select("event_id, permission_level")
+    .eq("organizer_id", myOrg.id)
+    .eq("status", "ACCEPTED");
+
+  return (data ?? []).map((c) => ({
+    eventId: c.event_id,
+    permissionLevel: c.permission_level as CollaboratorPermission,
+  }));
+}
+
+/**
+ * Get the permission level for a specific event the user co-organizes.
+ * Returns null if the user is not a collaborator on this event.
+ */
+export async function getCollaboratorPermission(
+  user: CurrentUser,
+  eventId: string,
+): Promise<CollaboratorPermission | null> {
+  const supabase = await createClient();
+
+  const { data: myOrg } = await supabase
+    .from("organizers")
+    .select("id")
+    .eq("owner_id", user.id)
+    .maybeSingle();
+
+  if (!myOrg) return null;
+
+  const { data } = await supabase
+    .from("event_collaborators")
+    .select("permission_level")
+    .eq("organizer_id", myOrg.id)
+    .eq("event_id", eventId)
+    .eq("status", "ACCEPTED")
+    .maybeSingle();
+
+  return (data?.permission_level as CollaboratorPermission) ?? null;
+}
+
+/**
+ * Check if the user is either the owner or an accepted collaborator of an event.
+ * Returns the access level: "OWNER", a permission level, or null.
+ */
+export async function getEventAccessLevel(
+  user: CurrentUser,
+  eventId: string,
+): Promise<"OWNER" | CollaboratorPermission | null> {
+  const supabase = await createClient();
+
+  // Check ownership first
+  const { data: myOrg } = await supabase
+    .from("organizers")
+    .select("id")
+    .eq("owner_id", user.id)
+    .maybeSingle();
+
+  if (!myOrg) return null;
+
+  const { data: event } = await supabase
+    .from("events")
+    .select("organizer_id")
+    .eq("id", eventId)
+    .maybeSingle();
+
+  if (!event) return null;
+
+  if (event.organizer_id === myOrg.id) return "OWNER";
+
+  // Check collaborator access
+  const { data: collab } = await supabase
+    .from("event_collaborators")
+    .select("permission_level")
+    .eq("organizer_id", myOrg.id)
+    .eq("event_id", eventId)
+    .eq("status", "ACCEPTED")
+    .maybeSingle();
+
+  return (collab?.permission_level as CollaboratorPermission) ?? null;
+}
+
+/**
+ * Permission helpers — given a permission level, what can the user do?
+ */
+export function canViewEvent(perm: "OWNER" | CollaboratorPermission | null): boolean {
+  return perm !== null;
+}
+
+export function canViewAnalytics(perm: "OWNER" | CollaboratorPermission | null): boolean {
+  return perm === "OWNER" || perm === "ANALYTICS" || perm === "FULL";
+}
+
+export function canScanTickets(perm: "OWNER" | CollaboratorPermission | null): boolean {
+  return perm === "OWNER" || perm === "SCAN" || perm === "FULL";
+}
+
+export function canEditEvent(perm: "OWNER" | CollaboratorPermission | null): boolean {
+  return perm === "OWNER" || perm === "FULL";
+}
+
+export function canManageOrders(perm: "OWNER" | CollaboratorPermission | null): boolean {
+  return perm === "OWNER" || perm === "ANALYTICS" || perm === "FULL";
 }

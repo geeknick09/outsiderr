@@ -142,7 +142,7 @@ export async function searchOrganizersAction(
 
   let queryBuilder = supabase
     .from("organizers")
-    .select("id, name, photo_url")
+    .select("id, name, avatar_url")
     .ilike("name", `%${query}%`)
     .limit(10);
 
@@ -159,17 +159,19 @@ export async function searchOrganizersAction(
     organizers: (data ?? []).map((o) => ({
       id: o.id,
       name: o.name,
-      avatarUrl: o.photo_url,
+      avatarUrl: o.avatar_url,
     })),
   };
 }
 
 /**
  * Invite another organizer to collaborate on an event.
+ * permission_level: VIEW_ONLY | ANALYTICS | SCAN | FULL
  */
 export async function inviteCollaboratorAction(
   eventId: string,
   organizerId: string,
+  permissionLevel: "VIEW_ONLY" | "ANALYTICS" | "SCAN" | "FULL" = "VIEW_ONLY",
 ): Promise<{ error: string | null }> {
   const user = await getCurrentUser();
   if (!user) return { error: "Please log in." };
@@ -213,6 +215,7 @@ export async function inviteCollaboratorAction(
     organizer_id: organizerId,
     invited_by: myOrg.id,
     status: "PENDING",
+    permission_level: permissionLevel,
   });
 
   if (error) return { error: error.message };
@@ -259,7 +262,7 @@ export async function acceptCollaborationAction(
   // Verify the current user is the invited organizer
   const { data: myOrg } = await supabase
     .from("organizers")
-    .select("id")
+    .select("id, name")
     .eq("owner_id", user.id)
     .maybeSingle();
 
@@ -385,5 +388,50 @@ export async function removeCollaboratorAction(
 
   revalidatePath(`/organizer/events/${eventId}`);
   revalidatePath(`/events/${eventId}`);
+  return { error: null };
+}
+
+/**
+ * Change a collaborator's permission level (event owner only).
+ * permission_level: VIEW_ONLY | ANALYTICS | SCAN | FULL
+ */
+export async function changeCollaboratorPermissionAction(
+  eventId: string,
+  collaboratorId: string,
+  permissionLevel: "VIEW_ONLY" | "ANALYTICS" | "SCAN" | "FULL",
+): Promise<{ error: string | null }> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Please log in." };
+
+  const supabase = await createClient();
+
+  // Verify the current user owns this event
+  const { data: event } = await supabase
+    .from("events")
+    .select("organizer_id")
+    .eq("id", eventId)
+    .maybeSingle();
+
+  if (!event) return { error: "Event not found." };
+
+  const { data: myOrg } = await supabase
+    .from("organizers")
+    .select("id")
+    .eq("owner_id", user.id)
+    .maybeSingle();
+
+  if (!myOrg || myOrg.id !== event.organizer_id) {
+    return { error: "Only the event owner can change collaborator permissions." };
+  }
+
+  const { error } = await supabase
+    .from("event_collaborators")
+    .update({ permission_level: permissionLevel, updated_at: new Date().toISOString() })
+    .eq("id", collaboratorId)
+    .eq("event_id", eventId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/organizer/events/${eventId}`);
   return { error: null };
 }

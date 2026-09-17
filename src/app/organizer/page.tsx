@@ -19,6 +19,7 @@ import {
   getOrganizerProfile,
   getOrganizerDailyRevenue,
   listOrganizerEvents,
+  listCollaboratedEvents,
 } from "@/lib/data/organizer";
 import { getOrganizerPastEventsForLinking } from "@/lib/data/events";
 import { listClubMembers, listMyClubs } from "@/lib/data/clubs";
@@ -67,7 +68,7 @@ export default async function OrganizerPage({
   const rawTab = (await searchParams).tab as Tab | undefined;
   const tab: Tab = TABS.some((t) => t.value === rawTab) ? (rawTab as Tab) : "events";
 
-  const [events, pending, termsVersion, doorStaffPricing, doorStaffMax, doorStaffAvailable, pastEventsForLinking, collabInvites] = await Promise.all([
+  const [events, pending, termsVersion, doorStaffPricing, doorStaffMax, doorStaffAvailable, pastEventsForLinking, collabInvites, collabEvents] = await Promise.all([
     listOrganizerEvents(user),
     listPendingOrders(),
     getTermsVersion(),
@@ -76,10 +77,16 @@ export default async function OrganizerPage({
     getDoorStaffAvailable(),
     getOrganizerPastEventsForLinking(organizerProfile.id),
     getPendingCollaborationInvites(user),
+    listCollaboratedEvents(user),
   ]);
 
+  // Merge owned events + collaborated events (dedup by id, owned takes precedence)
+  const ownedIds = new Set(events.map((e) => e.id));
+  const collaboratedEvents = collabEvents.filter((e) => !ownedIds.has(e.id));
+  const allEvents = [...events, ...collaboratedEvents];
+
   // Fetch all orders for the organizer's events (for the Order Monitor)
-  const organizerEventIds = events.map((e) => e.id);
+  const organizerEventIds = allEvents.map((e) => e.id);
   const allOrders = organizerEventIds.length > 0
     ? await listOrdersForOrganizerEvents(organizerEventIds)
     : [];
@@ -90,7 +97,7 @@ export default async function OrganizerPage({
   let dailyRevenue: Awaited<ReturnType<typeof getOrganizerDailyRevenue>> = [];
   if (tab === "analytics" || tab === "events") {
     [analyticsData, dailyRevenue] = await Promise.all([
-      Promise.all(events.map((event) => getOrganizerEventAnalytics(user, event.id))),
+      Promise.all(allEvents.map((event) => getOrganizerEventAnalytics(user, event.id))),
       tab === "analytics" ? getOrganizerDailyRevenue(user) : Promise.resolve([]),
     ]);
   }
@@ -132,7 +139,7 @@ export default async function OrganizerPage({
       {collabInvites.length > 0 ? <CollaborationInvites invites={collabInvites} /> : null}
 
       {tab === "events" ? (
-        <OrganizerEventsList events={events} analyticsMap={analyticsMap} />
+        <OrganizerEventsList events={allEvents} analyticsMap={analyticsMap} />
       ) : tab === "create" ? (
         <Suspense
           fallback={
@@ -155,7 +162,7 @@ export default async function OrganizerPage({
         <div className="space-y-6">
           {/* Aggregated analytics across all events (exclude drafts) */}
           {(() => {
-            const nonDraftEvents = events.filter((e) => e.status !== "DRAFT");
+            const nonDraftEvents = allEvents.filter((e) => e.status !== "DRAFT");
             const nonDraftAnalytics = nonDraftEvents.map((e) => analyticsMap[e.id]).filter((a): a is NonNullable<typeof a> => !!a);
             return (
               <>
