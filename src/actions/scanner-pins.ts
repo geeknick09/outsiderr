@@ -22,11 +22,13 @@ export interface GeneratePinsResult {
 
 /**
  * Generate scanner PINs for an event.
- * Supports bulk generation by passing an array of staff names.
+ * Supports bulk generation by passing arrays of staff names + optional emails/phones.
  */
 export async function generateScannerPinsAction(
   eventId: string,
   staffNames: string[],
+  staffEmails?: string[],
+  staffPhones?: string[],
 ): Promise<GeneratePinsResult> {
   const v = validate(generatePinsSchema, { eventId, staffNames, role: "ORGANIZER" });
   if (!v.success) return { error: v.error, success: false };
@@ -51,6 +53,8 @@ export async function generateScannerPinsAction(
   const { data, error } = await supabase.rpc("generate_scanner_pins", {
     p_event_id: validEventId,
     p_staff_names: validNames,
+    p_staff_emails: staffEmails ?? [],
+    p_staff_phones: staffPhones ?? [],
   });
 
   if (error) return { error: error.message, success: false };

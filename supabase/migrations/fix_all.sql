@@ -1105,6 +1105,14 @@ alter table public.organizers
   add column if not exists bank_account_type   text,
   add column if not exists kyc_submitted       boolean not null default false;
 
+-- KYC review workflow columns (idempotent)
+alter table public.organizers
+  add column if not exists kyc_status      text not null default 'NOT_SUBMITTED',
+  add column if not exists kyc_reviewed_at timestamptz,
+  add column if not exists kyc_review_note text;
+-- Backfill kyc_status for existing organizers: if kyc_submitted=true, set to PENDING
+update public.organizers set kyc_status = 'PENDING' where kyc_submitted = true and kyc_status = 'NOT_SUBMITTED';
+
 -- ----------------------------------------------------------------
 -- STEP 9: Sync is_organizer flag on profiles
 -- Any user who has an organizer profile but is_organizer = false
@@ -2274,6 +2282,9 @@ create index if not exists box_office_pins_org_idx   on public.box_office_pins(o
 -- Add pin_hash columns (idempotent) and backfill hashes for existing PINs
 alter table public.scanner_pins add column if not exists pin_hash text;
 alter table public.box_office_pins add column if not exists pin_hash text;
+-- Add staff contact columns to scanner_pins (idempotent)
+alter table public.scanner_pins add column if not exists staff_email text;
+alter table public.scanner_pins add column if not exists staff_phone text;
 -- Backfill pin_hash for existing rows using SHA-256 of (event_id || ':' || pin_code)
 update public.scanner_pins set pin_hash = encode(digest(event_id::text || ':' || pin_code, 'sha256'), 'hex') where pin_hash is null;
 update public.box_office_pins set pin_hash = encode(digest(event_id::text || ':' || pin_code, 'sha256'), 'hex') where pin_hash is null;
@@ -2408,8 +2419,10 @@ $$;
 
 -- Bulk generate scanner PINs
 create or replace function public.generate_scanner_pins(
-  p_event_id    uuid,
-  p_staff_names text[]
+  p_event_id     uuid,
+  p_staff_names  text[],
+  p_staff_emails text[] default '{}',
+  p_staff_phones text[] default '{}'
 )
 returns table (pin_code text, staff_name text)
 language plpgsql
@@ -2419,8 +2432,11 @@ as $$
 declare
   v_organizer_id uuid;
   v_name text;
+  v_email text;
+  v_phone text;
   v_pin text;
   v_hash text;
+  v_idx integer := 0;
 begin
   select organizer_id into v_organizer_id from public.events where id = p_event_id;
   if not found then raise exception 'Event not found'; end if;
@@ -2430,6 +2446,9 @@ begin
     raise exception 'Not authorised to manage scanner PINs for this event';
   end if;
   foreach v_name in array p_staff_names loop
+    v_idx := v_idx + 1;
+    v_email := coalesce(p_staff_emails[v_idx], '');
+    v_phone := coalesce(p_staff_phones[v_idx], '');
     loop
       v_pin := lpad((floor(random() * 1000000))::text, 6, '0');
       v_hash := encode(digest(p_event_id::text || ':' || v_pin, 'sha256'), 'hex');
@@ -2437,8 +2456,8 @@ begin
         select 1 from public.scanner_pins sp where sp.event_id = p_event_id and sp.pin_hash = v_hash
       );
     end loop;
-    insert into public.scanner_pins (event_id, organizer_id, pin_code, pin_hash, staff_name)
-    values (p_event_id, v_organizer_id, v_pin, v_hash, v_name);
+    insert into public.scanner_pins (event_id, organizer_id, pin_code, pin_hash, staff_name, staff_email, staff_phone)
+    values (p_event_id, v_organizer_id, v_pin, v_hash, v_name, nullif(v_email, ''), nullif(v_phone, ''));
     return query select v_pin, v_name;
   end loop;
 end;
@@ -2688,6 +2707,15 @@ do $$ begin
 exception when others then null; end $$;
 do $$ begin
   alter type public.event_notification_type add value if not exists 'COLLAB_ACCEPTED';
+exception when others then null; end $$;
+do $$ begin
+  alter type public.event_notification_type add value if not exists 'KYC_APPROVED';
+exception when others then null; end $$;
+do $$ begin
+  alter type public.event_notification_type add value if not exists 'KYC_REJECTED';
+exception when others then null; end $$;
+do $$ begin
+  alter type public.event_notification_type add value if not exists 'KYC_CLARIFICATION';
 exception when others then null; end $$;
 
 -- ================================================================

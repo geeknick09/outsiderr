@@ -70,6 +70,15 @@ do $$ begin
   alter type public.event_notification_type add value if not exists 'COLLAB_ACCEPTED';
 exception when others then null; end $$;
 do $$ begin
+  alter type public.event_notification_type add value if not exists 'KYC_APPROVED';
+exception when others then null; end $$;
+do $$ begin
+  alter type public.event_notification_type add value if not exists 'KYC_REJECTED';
+exception when others then null; end $$;
+do $$ begin
+  alter type public.event_notification_type add value if not exists 'KYC_CLARIFICATION';
+exception when others then null; end $$;
+do $$ begin
   create type event_category as enum (
     'CYPHER_BATTLE','SKATE_STUNT','FITNESS','JAM_GIG','HIP_HOP_PARTY','CAR_BIKE_MEET','WORKSHOP','OTHER'
   );
@@ -183,6 +192,9 @@ create table if not exists public.organizers (
   bank_account_name   text,
   bank_account_type   text,        -- SAVINGS | CURRENT
   kyc_submitted       boolean     not null default false,
+  kyc_status          text        not null default 'NOT_SUBMITTED',  -- NOT_SUBMITTED | PENDING | APPROVED | REJECTED | CLARIFICATION_NEEDED
+  kyc_reviewed_at     timestamptz,
+  kyc_review_note     text,                   -- admin note on rejection/clarification
   verified            boolean     not null default false,
   created_at          timestamptz not null default now()
 );
@@ -597,6 +609,8 @@ create table if not exists public.scanner_pins (
   pin_code     text        not null,  -- plaintext kept only for organizer display; verify via pin_hash
   pin_hash     text        not null,  -- SHA-256 of (event_id::text || ':' || pin_code)
   staff_name   text        not null,
+  staff_email  text,                   -- optional contact email for door staff
+  staff_phone  text,                   -- optional contact phone for door staff
   is_active    boolean     not null default true,
   created_at   timestamptz not null default now(),
   last_used_at timestamptz,
@@ -1022,8 +1036,10 @@ $$;
 -- Bulk generate scanner PINs for an event.
 -- Pass an array of staff names; returns generated PINs.
 create or replace function public.generate_scanner_pins(
-  p_event_id    uuid,
-  p_staff_names text[]
+  p_event_id     uuid,
+  p_staff_names  text[],
+  p_staff_emails text[] default '{}',
+  p_staff_phones text[] default '{}'
 )
 returns table (pin_code text, staff_name text)
 language plpgsql
@@ -1033,6 +1049,8 @@ as $$
 declare
   v_organizer_id uuid;
   v_name text;
+  v_email text;
+  v_phone text;
   v_pin text;
   v_hash text;
   v_idx integer := 0;
@@ -1048,6 +1066,8 @@ begin
 
   foreach v_name in array p_staff_names loop
     v_idx := v_idx + 1;
+    v_email := coalesce(p_staff_emails[v_idx], '');
+    v_phone := coalesce(p_staff_phones[v_idx], '');
     -- Generate unique 6-digit PIN
     loop
       v_pin := lpad((floor(random() * 1000000))::text, 6, '0');
@@ -1056,8 +1076,8 @@ begin
         select 1 from public.scanner_pins sp where sp.event_id = p_event_id and sp.pin_hash = v_hash
       );
     end loop;
-    insert into public.scanner_pins (event_id, organizer_id, pin_code, pin_hash, staff_name)
-    values (p_event_id, v_organizer_id, v_pin, v_hash, v_name);
+    insert into public.scanner_pins (event_id, organizer_id, pin_code, pin_hash, staff_name, staff_email, staff_phone)
+    values (p_event_id, v_organizer_id, v_pin, v_hash, v_name, nullif(v_email, ''), nullif(v_phone, ''));
     return query select v_pin, v_name;
   end loop;
 end;

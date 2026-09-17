@@ -6,6 +6,8 @@ export interface ScannerPin {
   organizerId: string;
   pinCode: string;
   staffName: string;
+  staffEmail: string | null;
+  staffPhone: string | null;
   isActive: boolean;
   createdAt: string;
   lastUsedAt: string | null;

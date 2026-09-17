@@ -52,6 +52,11 @@ This document tracks all product, engineering, infrastructure, payment, organize
 - [x] **P54. Past Event Booking Guard** — TicketTiers component disables booking for past events, shows "Event ended" message instead of "Book now" button.
 - [ ] **P55. Follow/Unfollow Organizers** — Users can follow organizers. Follower count on profile. Feed of followed organizers' events. (Deferred)
 - [x] **P56. Organizer Rating & Reviews** — Checked-in attendees (USED ticket) can leave 1-5 star + text reviews. Reviews aggregate on organizer profile with average rating + distribution. Reviews also show on completed event pages. RLS: public read, checked-in insert, author delete + admin delete. Organizers cannot delete reviews. Server actions: `submitReview`, `deleteReview` (own), `adminDeleteReview` (admin only).
+- [x] **P57. "Update Me" Event Subscriptions** — Per-event subscription button on public event page. Users who haven't booked yet can subscribe to get notified about changes (venue, city, time), reminders, and ticket availability. `event_subscriptions` table with RLS + realtime. Subscribe/unsubscribe server actions. Notification code merges ticket holders + subscribers (both get notified on event changes).
+- [x] **P58. Follow/Unfollow Organizers** — Users can follow any organizer from their public profile page (`/organizers/[id]`). Follower count displayed on profile. `organizer_follows` table with RLS + realtime. Follow/unfollow server actions. Follow is display-only (no notification feed) per product decision.
+- [x] **P59. Event Collaboration (Co-Organizer Invites)** — Primary organizer can invite other organizers to co-host an event. Invite/accept/reject flow with notifications. Co-organizers shown on public event page. `event_collaborators` table with RLS + realtime. Collaboration invites shown on organizer dashboard.
+- [x] **P60. Co-Organizer Permission Levels** — Primary owner picks a permission level at invite time: `VIEW_ONLY` (dashboard + read), `ANALYTICS` (view + analytics + orders), `SCAN` (view + scan tickets only), `FULL` (everything except delete). Owner can change permission level anytime via dropdown. Co-organized events appear in co-organizer's dashboard with "Co-organizer" badge. All event sub-pages (management, scan, orders, check-ins, report) gated by permission level.
+- [x] **P61. Category: Gaming + Fitness Rename** — "Fitness" category label changed to "Alternate Sports & Fitness". New "Gaming" category added (`GAMING` enum value). Gaming tags added (Esports, LAN Tournament, FIFA, BGMI, Valorant, Free Fire, Call of Duty, Console Night, Retro Gaming, Arcade, Speedrun). Migration applied to live DB.
 
 ---
 
@@ -140,8 +145,10 @@ This document tracks all product, engineering, infrastructure, payment, organize
 - [x] **P39. Admin/Hero Boost Sync** — Admin overview stats now include hero boost counts (active + pending). Pending hero boost alert banner on admin overview with link to `/admin/hero-boosts`. Cross-links between Slot Boosts and Hero Boosts admin pages.
 - [x] **P40. Standalone Hero Boosts Migration** — Created `supabase/migrations/hero_boosts.sql` with table creation, settings inserts, indexes, and RLS policies for easy one-shot execution in Supabase SQL Editor.
 - [x] **P41. Organizer KYC / Banking Onboarding** — 5-step wizard collecting PAN, GST (optional), bank account, UPI, and organizer agreement. Schema extended with `pan_number`, `pan_name`, `gst_number`, `gst_business_name`, `bank_account_number`, `bank_ifsc`, `bank_account_name`, `bank_account_type`, `kyc_submitted` columns. PAN format (`ABCDE1234F`) and IFSC format (`ABCD0123456`) validated server-side.
+- [x] **P62. KYC Admin Review Workflow** — Admin review gate for organizer applications. `kyc_status` column (`NOT_SUBMITTED` / `PENDING` / `APPROVED` / `REJECTED` / `CLARIFICATION_NEEDED`) on `organizers` table. Admin page at `/admin/kyc` lists submissions with filter tabs (Pending, Clarification Needed, Approved, Rejected, All). Admin can approve, reject (with reason), or request clarification (with note). Notifications sent to organizer's bell icon: `KYC_APPROVED`, `KYC_REJECTED`, `KYC_CLARIFICATION` ("An Outsiderr team member will contact you"). Organizer dashboard shows status banner (pending/rejected/clarification). New KYC submissions set `kyc_status = PENDING` automatically.
 - [x] **P42. List Your Event Landing Page** — Marketing page at `/list-your-event` with hero, stats, how-it-works, feature cards, category chips, and CTA. "Get Started" routes to `/organizer`. Navbar "List your event" link removed; access via profile menu and footer.
 - [x] **P43. Per-Event Door Scanner** — Scanner moved from universal (`/organizer/scan`) to per-event (`/organizer/events/[id]/scan`). Validates both ticket authenticity and event ID match. Door scanner button removed from organizer dashboard header; only visible on individual event management pages.
+- [x] **P63. Scanner PIN Staff Contact Info** — Scanner PINs now store optional `staff_email` and `staff_phone` alongside `staff_name`. Single PIN mode has email + phone fields. Bulk "paste names" mode has parallel email/phone text areas. Active PIN list displays email (with mail icon) and phone (with phone icon) for each staff member. `generate_scanner_pins` RPC updated to accept `p_staff_emails` and `p_staff_phones` arrays.
 - [x] **P44. Past Events Handling** — Events past their start date are excluded from Featured, Happening Today, Popular, and All Events sections. New "Past Events" section at bottom of homepage with disabled (non-clickable) cards showing "Completed" badge. Organizer dashboard and event management page show "Completed" status for past events. Past events are read-only — edit form, hero boost, door staff, cancel/postpone, publish, and door scanner all hidden.
 - [x] **P45. Platform Footer** — District-style footer with 4 columns: Brand + social icons (Instagram, Facebook, YouTube, WhatsApp), Help (Contact Us), Quick Links (Become an Organizer / Manage Your Events based on organizer status, Join a Club / Crew, About Us), Legal (Terms, Privacy, Refund, Cancellation). Bottom bar with copyright, legal links, and consent notice. Responsive (stacks on mobile).
 - [x] **P46. Dynamic Platform Commission** — Platform fee now sourced from admin settings (`platform_fee_bps`) instead of hardcoded constant. `calculatePrice()` and `platformFee()` accept `feeBps` parameter. Checkout, order creation, and ticket tier preview all fetch the dynamic fee. Fee percentage label updates automatically (e.g. "Platform fee (5%)").
@@ -237,6 +244,18 @@ This document tracks all product, engineering, infrastructure, payment, organize
 - [x] Slot-based boost management (manual UPI, admin approve/reject)
 - [x] Hero/Featured Event Boosting V1 (7-day, rotation, eligibility, organizer + admin UI, homepage carousel)
 
+### Engagement & Community
+- [x] "Update Me" event subscriptions (per-event, notify on changes/reminders/availability)
+- [x] Follow/unfollow organizers (follower count on profile, display-only)
+- [x] Event collaboration (co-organizer invites, accept/reject, co-organizer display on event page)
+- [x] Co-organizer permission levels (VIEW_ONLY, ANALYTICS, SCAN, FULL — owner picks at invite, changeable anytime)
+- [x] Co-organized events appear in co-organizer's dashboard with badge
+- [x] All event sub-pages gated by permission level (management, scan, orders, check-ins, report)
+
+### Categories
+- [x] "Fitness" renamed to "Alternate Sports & Fitness"
+- [x] New "Gaming" category added (GAMING enum + gaming tags)
+
 ### Clubs & Crews
 - [x] Clubs & crews (create, join, members, admin verification)
 - [x] Club display picture + Facebook-style cover photo
@@ -308,6 +327,8 @@ This document tracks all product, engineering, infrastructure, payment, organize
 - [ ] **Run `scripts/_apply_backup_bucket.mjs`** — Creates the private `backups` Supabase Storage bucket for automated database backups. Then run `supabase/migrations/fix_all.sql` (re-run after backup feature) to add RLS policies for the backups bucket (service-role only). Configure Vercel Cron for `/api/cron/backup?type=daily` (2 AM) and `/api/cron/backup?type=weekly` (3 AM Sundays) — see `vercel.json`.
 - [ ] **Run `supabase/migrations/fix_all.sql`** (re-run after reviews feature) — Now includes: `event_reviews` table (id, event_id, organizer_id, user_id, rating 1-5, review_text, created_at) with unique(event_id, user_id) constraint, 3 indexes, RLS (public read, checked-in users can insert, users delete own), and realtime publication. Reviews appear on organizer public profile page.
 - [ ] **Run `supabase/migrations/fix_all.sql`** (re-run after linked events feature) — Now includes: `events.linked_past_event_ids` column (uuid[], default '{}'). Organizers can link their own past events as "previous editions" when creating/editing an event. Linked events show on the event page with aggregate rating.
+- [ ] **Run `supabase/migrations/fix_all.sql`** (re-run after engagement features) — Now includes: `event_subscriptions` table (per-event "Update Me" subscriptions), `organizer_follows` table (follow/unfollow organizers), `event_collaborators` table (co-organizer invites), `permission_level` column on `event_collaborators` (VIEW_ONLY/ANALYTICS/SCAN/FULL), `GAMING` enum value on `event_category`, new notification types (COLLAB_INVITE, COLLAB_ACCEPTED), RLS policies for all three engagement tables, and realtime publication for all three tables. Migration applied to live DB via `scripts/_apply_fix_all.mjs`.
+- [ ] **Run `supabase/migrations/fix_all.sql`** (re-run after KYC review + scanner contact features) — Now includes: `kyc_status` column on `organizers` (NOT_SUBMITTED/PENDING/APPROVED/REJECTED/CLARIFICATION_NEEDED), `kyc_reviewed_at` and `kyc_review_note` columns on `organizers`, `staff_email` and `staff_phone` columns on `scanner_pins`, updated `generate_scanner_pins` RPC (accepts `p_staff_emails` + `p_staff_phones` arrays), new notification types (KYC_APPROVED, KYC_REJECTED, KYC_CLARIFICATION), backfill of existing organizers with `kyc_status = PENDING` where `kyc_submitted = true`. Migration applied to live DB via `scripts/_apply_fix_all.mjs`.
 
 ---
 
@@ -324,7 +345,6 @@ This document tracks all product, engineering, infrastructure, payment, organize
 - [ ] **Online Event Support** — Physical vs Online toggle, meeting platform, meeting URL.
 - [ ] **Guest Checkout / OTP Checkout** — Prefill profile for logged-in users.
 - [ ] **Event Analytics** — Views, unique visitors, conversion rate, sales over time.
-- [ ] **Organizer Analytics (Aggregate)** — Cross-event dashboard, views/conversion.
 - [ ] **Scheduled Jobs / Cron** — Venue reminders, event reminders, boost expiry job, media cleanup, refund checks.
 - [ ] **Payment Webhook Infrastructure** — Razorpay webhook endpoint.
 - [ ] **Admin Analytics** — DAU/MAU/trends.
@@ -415,7 +435,7 @@ A new section on the organizer dashboard showing the running balance the organiz
 - [x] **Branded Loading Animation** — Neon-gradient spinner (`BrandedLoader`) on all route loading states.
 - [ ] **3-Month Data Retention / Archival** — Archive old data, preserve financial/legal records.
 - [ ] **Media Cleanup** — Reference-aware cleanup of orphaned files.
-- [ ] **RBAC** — Role-based access control beyond current admin/organizer/user.
+- [ ] **RBAC** — Role-based access control beyond current admin/organizer/user. (Co-organizer permission levels implemented as a lightweight version.)
 - [ ] **Automated Organizer Settlements** — Payout calculation and processing.
 - [ ] **Advanced Analytics** — Recommendation/personalization, advanced reporting.
 - [ ] **Push Notifications** — Browser push for event reminders.
@@ -503,7 +523,7 @@ A new section on the organizer dashboard showing the running balance the organiz
 19. [ ] Online events
 20. [ ] Advanced notifications
 21. [ ] Event analytics (views + conversion)
-22. [~] Organizer analytics (per-event done, aggregate deferred)
+22. [x] Organizer analytics (per-event + aggregate dashboard with 30-day revenue trend)
 23. [x] Event boosting — slot-based (manual UPI)
 24. [x] Hero/Featured Event Boosting V1 (rotation, eligibility, organizer + admin UI, homepage carousel)
 25. [x] Admin policy management (legal pages CRUD)

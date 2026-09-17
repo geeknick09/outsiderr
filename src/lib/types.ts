@@ -103,6 +103,9 @@ export interface Organizer {
   bankIfsc?: string | null;
   bankAccountName?: string | null;
   bankAccountType?: string | null;
+  kycStatus?: string; // NOT_SUBMITTED | PENDING | APPROVED | REJECTED | CLARIFICATION_NEEDED
+  kycReviewedAt?: string | null;
+  kycReviewNote?: string | null;
 }
 
 export interface UserProfile {

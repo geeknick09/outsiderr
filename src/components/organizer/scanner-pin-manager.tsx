@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { KeyRound, Plus, Trash2, Users } from "lucide-react";
+import { KeyRound, Plus, Trash2, Users, Mail, Phone } from "lucide-react";
 
 import { generateScannerPinsAction, revokeScannerPinAction } from "@/actions/scanner-pins";
 import { Button } from "@/components/ui/button";
@@ -17,9 +17,13 @@ export function ScannerPinManager({
   const [pins, setPins] = useState<ScannerPin[]>(initialPins);
   const [mode, setMode] = useState<"single" | "bulk-count" | "bulk-names">("single");
   const [staffName, setStaffName] = useState("");
+  const [staffEmail, setStaffEmail] = useState("");
+  const [staffPhone, setStaffPhone] = useState("");
   const [count, setCount] = useState("");
   const [pattern, setPattern] = useState("Gate {n}");
   const [namesText, setNamesText] = useState("");
+  const [emailsText, setEmailsText] = useState("");
+  const [phonesText, setPhonesText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generatedPins, setGeneratedPins] = useState<{ pinCode: string; staffName: string }[] | null>(null);
@@ -29,12 +33,17 @@ export function ScannerPinManager({
     setGeneratedPins(null);
 
     let names: string[] = [];
+    let emails: string[] = [];
+    let phones: string[] = [];
+
     if (mode === "single") {
       if (!staffName.trim()) {
         setError("Staff name is required.");
         return;
       }
       names = [staffName.trim()];
+      emails = [staffEmail.trim()];
+      phones = [staffPhone.trim()];
     } else if (mode === "bulk-count") {
       const n = parseInt(count, 10);
       if (!n || n < 1 || n > 100) {
@@ -48,10 +57,15 @@ export function ScannerPinManager({
         setError("Enter at least one name.");
         return;
       }
+      emails = emailsText.split("\n").map((s) => s.trim());
+      phones = phonesText.split("\n").map((s) => s.trim());
+      // Pad to match names length
+      while (emails.length < names.length) emails.push("");
+      while (phones.length < names.length) phones.push("");
     }
 
     setSubmitting(true);
-    const result = await generateScannerPinsAction(eventId, names);
+    const result = await generateScannerPinsAction(eventId, names, emails, phones);
     setSubmitting(false);
 
     if (result.error || !result.success) {
@@ -61,8 +75,12 @@ export function ScannerPinManager({
 
     setGeneratedPins(result.pins ?? []);
     setStaffName("");
+    setStaffEmail("");
+    setStaffPhone("");
     setCount("");
     setNamesText("");
+    setEmailsText("");
+    setPhonesText("");
     // Refresh pins list
     window.location.reload();
   }
@@ -119,16 +137,42 @@ export function ScannerPinManager({
 
       {/* Input area */}
       {mode === "single" ? (
-        <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Staff name</label>
-          <input
-            type="text"
-            value={staffName}
-            onChange={(e) => setStaffName(e.target.value)}
-            placeholder="e.g. Rahul - Gate 1"
-            className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white"
-            disabled={submitting}
-          />
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Staff name *</label>
+            <input
+              type="text"
+              value={staffName}
+              onChange={(e) => setStaffName(e.target.value)}
+              placeholder="e.g. Rahul - Gate 1"
+              className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white"
+              disabled={submitting}
+            />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Email (optional)</label>
+              <input
+                type="email"
+                value={staffEmail}
+                onChange={(e) => setStaffEmail(e.target.value)}
+                placeholder="rahul@example.com"
+                className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white"
+                disabled={submitting}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Phone (optional)</label>
+              <input
+                type="tel"
+                value={staffPhone}
+                onChange={(e) => setStaffPhone(e.target.value)}
+                placeholder="+91 98765 43210"
+                className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white"
+                disabled={submitting}
+              />
+            </div>
+          </div>
         </div>
       ) : mode === "bulk-count" ? (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -159,16 +203,42 @@ export function ScannerPinManager({
           </div>
         </div>
       ) : (
-        <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Staff names (one per line)</label>
-          <textarea
-            value={namesText}
-            onChange={(e) => setNamesText(e.target.value)}
-            placeholder={"Rahul\nPriya\nAmit\nSneha"}
-            rows={5}
-            className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white"
-            disabled={submitting}
-          />
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Staff names (one per line) *</label>
+            <textarea
+              value={namesText}
+              onChange={(e) => setNamesText(e.target.value)}
+              placeholder={"Rahul\nPriya\nAmit\nSneha"}
+              rows={5}
+              className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white"
+              disabled={submitting}
+            />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Emails (one per line, optional)</label>
+              <textarea
+                value={emailsText}
+                onChange={(e) => setEmailsText(e.target.value)}
+                placeholder={"rahul@example.com\npriya@example.com"}
+                rows={5}
+                className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white"
+                disabled={submitting}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Phones (one per line, optional)</label>
+              <textarea
+                value={phonesText}
+                onChange={(e) => setPhonesText(e.target.value)}
+                placeholder={"+91 98765 43210\n+91 98765 43211"}
+                rows={5}
+                className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white"
+                disabled={submitting}
+              />
+            </div>
+          </div>
         </div>
       )}
 
@@ -210,9 +280,19 @@ export function ScannerPinManager({
           </div>
           {activePins.map((pin) => (
             <div key={pin.id} className="flex items-center justify-between rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
-              <div>
+              <div className="space-y-0.5">
                 <p className="text-sm font-semibold">{pin.staffName}</p>
                 <p className="font-mono text-lg font-black tracking-widest text-violet-neon">{pin.pinCode}</p>
+                {pin.staffEmail ? (
+                  <p className="flex items-center gap-1 text-[10px] text-muted">
+                    <Mail className="h-3 w-3" /> {pin.staffEmail}
+                  </p>
+                ) : null}
+                {pin.staffPhone ? (
+                  <p className="flex items-center gap-1 text-[10px] text-muted">
+                    <Phone className="h-3 w-3" /> {pin.staffPhone}
+                  </p>
+                ) : null}
                 {pin.lastUsedAt ? (
                   <p className="text-[10px] text-muted">Last used: {new Date(pin.lastUsedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</p>
                 ) : (

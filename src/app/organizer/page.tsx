@@ -9,6 +9,7 @@ import { BecomeOrganizerForm } from "@/components/organizer/become-organizer-for
 import { ClubForm } from "@/components/organizer/club-form";
 import { ClubMembersPanel } from "@/components/organizer/club-members-panel";
 import { CollaborationInvites } from "@/components/organizer/collaboration-invites";
+import { KycStatusBanner } from "@/components/organizer/kyc-status-banner";
 import { OrganizerEventsList } from "@/components/organizer/organizer-events-list";
 import { OrganizerHeader } from "@/components/organizer/organizer-header";
 import { OrderMonitor } from "@/components/organizer/order-monitor";
@@ -119,6 +120,9 @@ export default async function OrganizerPage({
     <div className="space-y-6 py-6">
       {/* Profile header with avatar, name, edit button, and action buttons */}
       <OrganizerHeader organizer={organizerProfile} />
+
+      {/* KYC status banner — shown if pending/rejected/clarification */}
+      <KycStatusBanner kycStatus={organizerProfile.kycStatus ?? "NOT_SUBMITTED"} />
 
       <div className="flex flex-wrap gap-2">
         {TABS.map((t) => (

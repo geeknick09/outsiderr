@@ -57,6 +57,9 @@ export type OrganizerRow = {
   bank_account_name: string | null;
   bank_account_type: string | null;
   kyc_submitted: boolean;
+  kyc_status: string; // NOT_SUBMITTED | PENDING | APPROVED | REJECTED | CLARIFICATION_NEEDED
+  kyc_reviewed_at: string | null;
+  kyc_review_note: string | null;
 }
 
 export type EventRow = {
@@ -340,6 +343,8 @@ export type ScannerPinRow = {
   pin_code: string;
   pin_hash: string;
   staff_name: string;
+  staff_email: string | null;
+  staff_phone: string | null;
   is_active: boolean;
   created_at: string;
   last_used_at: string | null;

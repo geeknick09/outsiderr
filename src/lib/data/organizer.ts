@@ -93,6 +93,9 @@ export async function getOrganizerProfile(
     bankIfsc: (data as { bank_ifsc?: string | null }).bank_ifsc ?? null,
     bankAccountName: (data as { bank_account_name?: string | null }).bank_account_name ?? null,
     bankAccountType: (data as { bank_account_type?: string | null }).bank_account_type ?? null,
+    kycStatus: (data as { kyc_status?: string }).kyc_status ?? "NOT_SUBMITTED",
+    kycReviewedAt: (data as { kyc_reviewed_at?: string | null }).kyc_reviewed_at ?? null,
+    kycReviewNote: (data as { kyc_review_note?: string | null }).kyc_review_note ?? null,
   };
 }
 
@@ -823,6 +826,7 @@ export async function createOrganizerProfile(
       bank_account_name: input.bankAccountName || null,
       bank_account_type: input.bankAccountType || null,
       kyc_submitted: !!(input.panNumber && input.bankAccountNumber),
+      kyc_status: (input.panNumber && input.bankAccountNumber) ? "PENDING" : "NOT_SUBMITTED",
     })
     .select("id")
     .single();
@@ -833,7 +837,9 @@ export async function createOrganizerProfile(
   }
   if (!data?.id) throw new Error("Failed to create organizer profile — no ID returned.");
 
-  // Flip the is_organizer flag on the profile row.
+  // Only flip is_organizer flag if KYC is approved (or no KYC needed yet —
+  // for backward compat, we still set it so existing organizers aren't locked out).
+  // The dashboard will gate access behind kyc_status = APPROVED.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: profileError } = await supabase.from("profiles").update({ is_organizer: true } as any).eq("id", user.id);
   if (profileError) {

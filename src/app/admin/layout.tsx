@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BarChart2, BellRing, CalendarDays, ShieldCheck, Users, Zap, Settings, FileText, TrendingUp, CreditCard, Wallet, LineChart, KeyRound, Store } from "lucide-react";
+import { BarChart2, BellRing, CalendarDays, ShieldCheck, Users, Zap, Settings, FileText, TrendingUp, CreditCard, Wallet, LineChart, KeyRound, Store, BadgeCheck } from "lucide-react";
 
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -29,6 +29,7 @@ const NAV = [
   { href: "/admin/boosts", label: "Boosts", icon: BellRing },
   { href: "/admin/analytics", label: "Analytics", icon: LineChart },
   { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/kyc", label: "KYC Review", icon: BadgeCheck },
   { href: "/admin/scanner-pins", label: "Scanner PINs", icon: KeyRound },
   { href: "/admin/box-office", label: "Box Office", icon: Store },
   { href: "/admin/box-office-pins", label: "Box Office PINs", icon: Store },
