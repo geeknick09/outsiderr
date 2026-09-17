@@ -1,0 +1,38 @@
+name: Outsiderr Cron Jobs
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+    - cron: '0 2 * * *'
+    - cron: '0 3 * * 0'
+
+jobs:
+  expire-reservations:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '*/5 * * * *'
+    steps:
+      - name: Trigger reservation expiry
+        run: |
+          curl -fsS \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/expire-reservations"
+
+  daily-backup:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 2 * * *'
+    steps:
+      - name: Trigger daily backup
+        run: |
+          curl -fsS \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/backup?type=daily"
+
+  weekly-backup:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 3 * * 0'
+    steps:
+      - name: Trigger weekly backup
+        run: |
+          curl -fsS \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/backup?type=weekly"
