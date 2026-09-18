@@ -29,6 +29,8 @@ export function FollowOrganizerButton({
       type="button"
       onClick={handleClick}
       disabled={pending}
+      aria-label={following ? "Unfollow organizer" : "Follow organizer"}
+      title={following ? "Unfollow organizer" : "Follow organizer"}
       className={`flex items-center gap-2 rounded-full px-5 py-2 text-sm font-bold transition-all disabled:opacity-50 ${
         following
           ? "border border-zinc-200 bg-white text-zinc-600 hover:border-red-300 hover:text-red-500 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300"

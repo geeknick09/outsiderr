@@ -3,34 +3,40 @@
 /* eslint-disable react/no-unescaped-entities */
 
 import { useState } from "react";
-import { ChevronDown, ImageIcon, FileText, Monitor, Smartphone } from "lucide-react";
+import { FileText, ImageIcon, Info, Monitor, Smartphone } from "lucide-react";
+
+import { Modal } from "@/components/ui/modal";
 
 /**
- * Collapsible poster + description guidelines shown in the event form.
+ * Click-to-open poster + description guidelines for the event form.
  * Helps organizers upload the right images and write good descriptions.
  */
 export function PosterGuidelines() {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="glass rounded-3xl border border-zinc-200 dark:border-white/10">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-2 p-4 text-left"
-      >
-        <span className="flex items-center gap-2 text-sm font-bold">
-          <ImageIcon className="h-4 w-4 text-violet-neon" />
-          Poster & Description Guidelines
-        </span>
-        <ChevronDown
-          className={`h-4 w-4 text-muted transition-transform ${open ? "rotate-180" : ""}`}
-        />
-      </button>
+    <>
+      <div className="glass rounded-3xl border border-zinc-200 dark:border-white/10">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="flex w-full items-center justify-between gap-2 p-4 text-left"
+        >
+          <span className="flex items-center gap-2 text-sm font-bold">
+            <ImageIcon className="h-4 w-4 text-violet-neon" />
+            Poster & Description Guidelines
+          </span>
+          <span className="text-xs font-semibold text-violet-neon">View</span>
+        </button>
+      </div>
 
-      {open ? (
-        <div className="space-y-6 border-t border-zinc-200 px-4 pb-5 pt-4 dark:border-white/10">
-          {/* Card poster spec */}
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Poster & Description Guidelines"
+        className="sm:max-w-2xl"
+      >
+        <div className="space-y-6">
           <section>
             <h3 className="flex items-center gap-2 text-sm font-bold">
               <Smartphone className="h-4 w-4 text-violet-neon" />
@@ -68,7 +74,6 @@ export function PosterGuidelines() {
             </p>
           </section>
 
-          {/* Banner poster spec */}
           <section>
             <h3 className="flex items-center gap-2 text-sm font-bold">
               <Monitor className="h-4 w-4 text-violet-neon" />
@@ -106,7 +111,6 @@ export function PosterGuidelines() {
             </p>
           </section>
 
-          {/* Do's and Don'ts for images */}
           <section>
             <h3 className="text-sm font-bold">Image Quality — Do&apos;s & Don&apos;ts</h3>
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
@@ -121,7 +125,7 @@ export function PosterGuidelines() {
                 </ul>
               </div>
               <div className="rounded-2xl border border-red-200 bg-red-50/50 p-3 dark:border-red-500/20 dark:bg-red-500/5">
-                <p className="text-xs font-bold text-red-600 dark:text-red-400">✗ Don't</p>
+                <p className="text-xs font-bold text-red-600 dark:text-red-400">✗ Don&apos;t</p>
                 <ul className="mt-2 space-y-1 text-xs text-muted">
                   <li>Date, time, or full venue address</li>
                   <li>Phone numbers, email IDs, QR codes</li>
@@ -137,7 +141,6 @@ export function PosterGuidelines() {
             </div>
           </section>
 
-          {/* Description guidelines */}
           <section>
             <h3 className="flex items-center gap-2 text-sm font-bold">
               <FileText className="h-4 w-4 text-violet-neon" />
@@ -183,7 +186,7 @@ export function PosterGuidelines() {
             </div>
           </section>
         </div>
-      ) : null}
-    </div>
+      </Modal>
+    </>
   );
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 
 import { runBackup } from "@/lib/backup";
+import { getCronEnvironmentError } from "@/lib/cron";
 import { logger } from "@/lib/logger";
 
 // Must run on Node.js (not Edge) — needs zlib for gzip
@@ -32,9 +33,10 @@ export const maxDuration = 300; // 5 minutes
  */
 export async function GET(request: Request) {
   const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) {
-    logger.error("CRON_SECRET not configured");
-    return NextResponse.json({ error: "Cron not configured" }, { status: 500 });
+  const envError = getCronEnvironmentError();
+  if (!cronSecret || envError) {
+    logger.error({ envError }, "cron environment missing");
+    return NextResponse.json({ error: envError ?? "Cron not configured" }, { status: 500 });
   }
 
   // Verify the authorization header using timing-safe comparison
