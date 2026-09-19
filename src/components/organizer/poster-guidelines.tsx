@@ -1,9 +1,7 @@
 "use client";
 
-/* eslint-disable react/no-unescaped-entities */
-
 import { useState } from "react";
-import { FileText, ImageIcon, Info, Monitor, Smartphone } from "lucide-react";
+import { FileText, ImageIcon, Monitor, Smartphone } from "lucide-react";
 
 import { Modal } from "@/components/ui/modal";
 

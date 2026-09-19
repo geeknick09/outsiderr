@@ -801,37 +801,39 @@ export async function createOrganizerProfile(
   const supabase = await createClient();
   // Single atomic INSERT with all fields — KYC included — so no partial profile is
   // left behind if the database is missing columns from an unapplied migration.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mergedDescription = mergeOrganizerIntent(input.description ?? "", input.organizerIntent ?? "");
 
-  const { data, error } = await (supabase.from("organizers") as any)
-    .insert({
-      owner_id: user.id,
-      name: input.name,
-      bio: input.bio || null,
-      description: mergedDescription || null,
-      upi_id: input.upiId || null,
-      avatar_url: input.avatarUrl,
-      cover_url: input.coverUrl,
-      instagram_url: input.instagramUrl,
-      youtube_url: input.youtubeUrl,
-      x_url: input.xUrl,
-      facebook_url: input.facebookUrl,
-      linkedin_url: input.linkedinUrl,
-      // KYC / payout fields — included here so the insert is atomic.
-      // If any of these columns are missing (unapplied migration), the whole
-      // INSERT fails cleanly and no orphaned partial profile is created.
-      pan_number: input.panNumber || null,
-      pan_name: input.panName || null,
-      gst_number: input.gstNumber || null,
-      gst_business_name: input.gstBusinessName || null,
-      bank_account_number: input.bankAccountNumber || null,
-      bank_ifsc: input.bankIfsc || null,
-      bank_account_name: input.bankAccountName || null,
-      bank_account_type: input.bankAccountType || null,
-      kyc_submitted: !!(input.panNumber && input.bankAccountNumber),
-      kyc_status: (input.panNumber && input.bankAccountNumber) ? "PENDING" : "NOT_SUBMITTED",
-    })
+  const organizerInsert = {
+    owner_id: user.id,
+    name: input.name,
+    bio: input.bio || null,
+    description: mergedDescription || null,
+    upi_id: input.upiId || null,
+    avatar_url: input.avatarUrl,
+    cover_url: input.coverUrl,
+    instagram_url: input.instagramUrl,
+    youtube_url: input.youtubeUrl,
+    x_url: input.xUrl,
+    facebook_url: input.facebookUrl,
+    linkedin_url: input.linkedinUrl,
+    // KYC / payout fields — included here so the insert is atomic.
+    // If any of these columns are missing (unapplied migration), the whole
+    // INSERT fails cleanly and no orphaned partial profile is created.
+    pan_number: input.panNumber || null,
+    pan_name: input.panName || null,
+    gst_number: input.gstNumber || null,
+    gst_business_name: input.gstBusinessName || null,
+    bank_account_number: input.bankAccountNumber || null,
+    bank_ifsc: input.bankIfsc || null,
+    bank_account_name: input.bankAccountName || null,
+    bank_account_type: input.bankAccountType || null,
+    kyc_submitted: !!(input.panNumber && input.bankAccountNumber),
+    kyc_status: (input.panNumber && input.bankAccountNumber) ? "PENDING" : "NOT_SUBMITTED",
+  } satisfies Record<string, string | boolean | null>;
+
+  const { data, error } = await supabase
+    .from("organizers")
+    .insert(organizerInsert)
     .select("id")
     .single();
 
@@ -844,8 +846,10 @@ export async function createOrganizerProfile(
   // Only flip is_organizer flag if KYC is approved (or no KYC needed yet —
   // for backward compat, we still set it so existing organizers aren't locked out).
   // The dashboard will gate access behind kyc_status = APPROVED.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: profileError } = await supabase.from("profiles").update({ is_organizer: true } as any).eq("id", user.id);
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .update({ is_organizer: true })
+    .eq("id", user.id);
   if (profileError) {
     console.error("Failed to set is_organizer flag:", profileError);
     // Non-fatal — organizer profile is created, flag can be set later
@@ -911,8 +915,7 @@ export async function updateOrganizerProfile(
 
   const { error } = await supabase
     .from("organizers")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .update(update as any)
+    .update(update)
     .eq("id", organizer.id);
 
   if (error) throw error;
