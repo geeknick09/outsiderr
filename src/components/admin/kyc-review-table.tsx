@@ -153,9 +153,19 @@ export function KycReviewTable({ submissions }: { submissions: KycSubmission[] }
               <InfoCard label="UPI" value={selected.upiId ?? "—"} />
             </div>
 
-            <div className="rounded-2xl border border-zinc-200 p-3 text-sm text-muted dark:border-white/10">
-              <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Bio / intent</p>
-              <p>{selected.bio || "No profile summary provided."}</p>
+            <div className="space-y-3 rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
+              <div>
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Bio</p>
+                <p className="text-sm text-muted">{selected.bio || "No bio provided."}</p>
+              </div>
+              <div>
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">About</p>
+                <p className="text-sm text-muted">{selected.aboutText || "No about section provided."}</p>
+              </div>
+              <div>
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Organizer intent</p>
+                <p className="text-sm text-muted">{selected.organizerIntent || "No organizer intent provided."}</p>
+              </div>
             </div>
 
             {error ? <p className="text-sm text-red-500">{error}</p> : null}

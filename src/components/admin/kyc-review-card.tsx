@@ -106,7 +106,20 @@ export function KycReviewCard({ submission }: { submission: KycSubmission }) {
         </span>
       </div>
 
-      {submission.bio ? <p className="text-sm text-muted">{submission.bio}</p> : null}
+      <div className="space-y-3 rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
+        <div>
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Bio</p>
+          <p className="text-sm text-muted">{submission.bio || "No bio provided."}</p>
+        </div>
+        <div>
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">About</p>
+          <p className="text-sm text-muted">{submission.aboutText || "No about section provided."}</p>
+        </div>
+        <div>
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Organizer intent</p>
+          <p className="text-sm text-muted">{submission.organizerIntent || "No organizer intent provided."}</p>
+        </div>
+      </div>
 
       {/* KYC Details */}
       <div className="grid gap-3 sm:grid-cols-2">

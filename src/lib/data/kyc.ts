@@ -12,6 +12,8 @@ export interface KycSubmission {
   ownerPhone: string | null;
   avatarUrl: string | null;
   bio: string | null;
+  aboutText: string | null;
+  organizerIntent: string | null;
   panNumber: string | null;
   panName: string | null;
   gstNumber: string | null;
@@ -28,6 +30,21 @@ export interface KycSubmission {
   createdAt: string;
 }
 
+function splitOrganizerProfileDescription(raw: string | null): { aboutText: string | null; organizerIntent: string | null } {
+  const parts = (raw ?? "")
+    .split(/\n\s*\n/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length === 0) return { aboutText: null, organizerIntent: null };
+  if (parts.length === 1) return { aboutText: parts[0], organizerIntent: null };
+
+  return {
+    aboutText: parts[0] ?? null,
+    organizerIntent: parts.slice(1).join("\n\n") || null,
+  };
+}
+
 /**
  * List all organizers with KYC status (admin only).
  * Filters by status filter if provided.
@@ -41,6 +58,7 @@ export async function listKycSubmissions(statusFilter?: string): Promise<KycSubm
       id,
       name,
       bio,
+      description,
       avatar_url,
       upi_id,
       pan_number,
@@ -80,6 +98,7 @@ export async function listKycSubmissions(statusFilter?: string): Promise<KycSubm
 
   return data.map((row) => {
     const profile = profileMap.get(row.owner_id);
+    const { aboutText, organizerIntent } = splitOrganizerProfileDescription(row.description ?? null);
     return {
       id: row.id,
       organizerName: row.name,
@@ -88,6 +107,8 @@ export async function listKycSubmissions(statusFilter?: string): Promise<KycSubm
       ownerPhone: (profile as { phone?: string })?.phone ?? null,
       avatarUrl: row.avatar_url,
       bio: row.bio,
+      aboutText,
+      organizerIntent,
       panNumber: row.pan_number,
       panName: row.pan_name,
       gstNumber: row.gst_number,
@@ -117,6 +138,7 @@ export async function getKycSubmission(organizerId: string): Promise<KycSubmissi
       id,
       name,
       bio,
+      description,
       avatar_url,
       upi_id,
       pan_number,
@@ -145,6 +167,8 @@ export async function getKycSubmission(organizerId: string): Promise<KycSubmissi
     .eq("id", data.owner_id)
     .maybeSingle();
 
+  const { aboutText, organizerIntent } = splitOrganizerProfileDescription(data.description ?? null);
+
   return {
     id: data.id,
     organizerName: data.name,
@@ -153,6 +177,8 @@ export async function getKycSubmission(organizerId: string): Promise<KycSubmissi
     ownerPhone: (profile as { phone?: string })?.phone ?? null,
     avatarUrl: data.avatar_url,
     bio: data.bio,
+    aboutText,
+    organizerIntent,
     panNumber: data.pan_number,
     panName: data.pan_name,
     gstNumber: data.gst_number,

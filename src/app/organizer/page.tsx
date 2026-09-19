@@ -12,6 +12,7 @@ import { CollaborationInvites } from "@/components/organizer/collaboration-invit
 import { KycStatusBanner } from "@/components/organizer/kyc-status-banner";
 import { OrganizerEventsList } from "@/components/organizer/organizer-events-list";
 import { OrganizerHeader } from "@/components/organizer/organizer-header";
+import { OrganizerKycRealtimeRefresher } from "@/components/organizer/organizer-kyc-realtime";
 import { OrderMonitor } from "@/components/organizer/order-monitor";
 import { getCurrentUser } from "@/lib/auth";
 import { getPendingCollaborationInvites } from "@/lib/data/engagement";
@@ -118,6 +119,8 @@ export default async function OrganizerPage({
 
   return (
     <div className="space-y-6 py-6">
+      <OrganizerKycRealtimeRefresher userId={user.id} />
+
       {/* Profile header with avatar, name, edit button, and action buttons */}
       <OrganizerHeader organizer={organizerProfile} />
 
