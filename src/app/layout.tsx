@@ -7,7 +7,8 @@ import { ServiceWorkerRegister } from "@/components/pwa/register-sw";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { getCurrentUser } from "@/lib/auth";
 import { getOrganizerProfile } from "@/lib/data/organizer";
-import { getTaglineFooter } from "@/lib/data/platform-settings";
+import { getSettingInt, getTaglineFooter } from "@/lib/data/platform-settings";
+import { getOrganizerAccessState } from "@/lib/organizer-eligibility";
 
 import "./globals.css";
 
@@ -52,11 +53,16 @@ export default async function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const user = await getCurrentUser();
   // Parallelize: fetch footer tagline and organizer profile at the same time
-  const [footerTagline, org] = await Promise.all([
+  const [footerTagline, org, rejectionLimit] = await Promise.all([
     getTaglineFooter(),
     user ? getOrganizerProfile(user) : Promise.resolve(null),
+    getSettingInt("organizer_rejection_limit"),
   ]);
-  const isOrganizer = !!org;
+  const isOrganizer = org ? getOrganizerAccessState({
+    kycStatus: org.kycStatus,
+    rejectionCount: org.rejectionCount,
+    rejectionLimit,
+  }).eligible : false;
 
   return (
     <html lang="en" suppressHydrationWarning>

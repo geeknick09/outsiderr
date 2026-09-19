@@ -2,6 +2,8 @@ import "server-only";
 
 import { DEFAULT_EVENT_TERMS } from "@/lib/constants";
 import { mergeOrganizerIntent } from "@/lib/event-lifecycle";
+import { getOrganizerAccessState } from "@/lib/organizer-eligibility";
+import { getSettingInt } from "@/lib/data/platform-settings";
 import { createClient } from "@/lib/supabase/server";
 import type { CurrentUser } from "@/lib/auth";
 import type { Database } from "@/lib/supabase/database.types";
@@ -89,15 +91,20 @@ export async function getOrganizerProfile(
     verified: data.verified,
     panNumber: (data as { pan_number?: string | null }).pan_number ?? null,
     panName: (data as { pan_name?: string | null }).pan_name ?? null,
+    panDocumentUrl: (data as { pan_document_url?: string | null }).pan_document_url ?? null,
     gstNumber: (data as { gst_number?: string | null }).gst_number ?? null,
     gstBusinessName: (data as { gst_business_name?: string | null }).gst_business_name ?? null,
     bankAccountNumber: (data as { bank_account_number?: string | null }).bank_account_number ?? null,
     bankIfsc: (data as { bank_ifsc?: string | null }).bank_ifsc ?? null,
     bankAccountName: (data as { bank_account_name?: string | null }).bank_account_name ?? null,
     bankAccountType: (data as { bank_account_type?: string | null }).bank_account_type ?? null,
+    bankDocumentUrl: (data as { bank_document_url?: string | null }).bank_document_url ?? null,
+    rejectionCount: Number((data as { rejection_count?: number | null }).rejection_count ?? 0),
     kycStatus: (data as { kyc_status?: string }).kyc_status ?? "NOT_SUBMITTED",
     kycReviewedAt: (data as { kyc_reviewed_at?: string | null }).kyc_reviewed_at ?? null,
     kycReviewNote: (data as { kyc_review_note?: string | null }).kyc_review_note ?? null,
+    kycResponseNote: (data as { kyc_response_note?: string | null }).kyc_response_note ?? null,
+    kycResponseDocumentUrl: (data as { kyc_response_document_url?: string | null }).kyc_response_document_url ?? null,
   };
 }
 
@@ -778,12 +785,14 @@ export interface CreateOrganizerInput {
   linkedinUrl: string | null;
   panNumber: string;
   panName: string;
+  panDocumentUrl?: string | null;
   gstNumber: string;
   gstBusinessName: string;
   bankAccountNumber: string;
   bankIfsc: string;
   bankAccountName: string;
   bankAccountType: string;
+  bankDocumentUrl?: string | null;
   agreedToTerms: boolean;
 }
 
@@ -822,15 +831,18 @@ export async function createOrganizerProfile(
     // INSERT fails cleanly and no orphaned partial profile is created.
     pan_number: input.panNumber || null,
     pan_name: input.panName || null,
+    pan_document_url: input.panDocumentUrl || null,
     gst_number: input.gstNumber || null,
     gst_business_name: input.gstBusinessName || null,
     bank_account_number: input.bankAccountNumber || null,
     bank_ifsc: input.bankIfsc || null,
     bank_account_name: input.bankAccountName || null,
     bank_account_type: input.bankAccountType || null,
+    bank_document_url: input.bankDocumentUrl || null,
+    rejection_count: 0,
     kyc_submitted: !!(input.panNumber && input.bankAccountNumber),
     kyc_status: (input.panNumber && input.bankAccountNumber) ? "PENDING" : "NOT_SUBMITTED",
-  } satisfies Record<string, string | boolean | null>;
+  } satisfies Record<string, string | boolean | number | null>;
 
   const { data, error } = await supabase
     .from("organizers")
@@ -874,12 +886,14 @@ export interface UpdateOrganizerInput {
   linkedinUrl?: string | null;
   panNumber?: string;
   panName?: string;
+  panDocumentUrl?: string | null;
   gstNumber?: string;
   gstBusinessName?: string;
   bankAccountNumber?: string;
   bankIfsc?: string;
   bankAccountName?: string;
   bankAccountType?: string;
+  bankDocumentUrl?: string | null;
 }
 
 /** Updates an organizer's profile (name, bio, UPI ID, avatar, cover, social, KYC). */
@@ -907,12 +921,14 @@ export async function updateOrganizerProfile(
   if (input.linkedinUrl !== undefined) update.linkedin_url = input.linkedinUrl;
   if (input.panNumber !== undefined) update.pan_number = input.panNumber;
   if (input.panName !== undefined) update.pan_name = input.panName;
+  if (input.panDocumentUrl !== undefined) update.pan_document_url = input.panDocumentUrl;
   if (input.gstNumber !== undefined) update.gst_number = input.gstNumber;
   if (input.gstBusinessName !== undefined) update.gst_business_name = input.gstBusinessName;
   if (input.bankAccountNumber !== undefined) update.bank_account_number = input.bankAccountNumber;
   if (input.bankIfsc !== undefined) update.bank_ifsc = input.bankIfsc;
   if (input.bankAccountName !== undefined) update.bank_account_name = input.bankAccountName;
   if (input.bankAccountType !== undefined) update.bank_account_type = input.bankAccountType;
+  if (input.bankDocumentUrl !== undefined) update.bank_document_url = input.bankDocumentUrl;
 
   const { error } = await supabase
     .from("organizers")

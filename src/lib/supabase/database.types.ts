@@ -50,16 +50,21 @@ export type OrganizerRow = {
   // KYC / payout details
   pan_number: string | null;
   pan_name: string | null;
+  pan_document_url: string | null;
   gst_number: string | null;
   gst_business_name: string | null;
   bank_account_number: string | null;
   bank_ifsc: string | null;
   bank_account_name: string | null;
   bank_account_type: string | null;
+  bank_document_url: string | null;
+  rejection_count: number;
   kyc_submitted: boolean;
   kyc_status: string; // NOT_SUBMITTED | PENDING | APPROVED | REJECTED | CLARIFICATION_NEEDED
   kyc_reviewed_at: string | null;
   kyc_review_note: string | null;
+  kyc_response_note: string | null;
+  kyc_response_document_url: string | null;
 }
 
 export type EventRow = {

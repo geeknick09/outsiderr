@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CheckCircle2, ChevronRight, Upload } from "lucide-react";
 
 import { createOrganizerAction, type CreateOrganizerState } from "@/actions/organizer";
@@ -29,10 +30,18 @@ const STEPS = [
 type StepIndex = 0 | 1 | 2 | 3 | 4;
 
 export function BecomeOrganizerForm() {
+  const router = useRouter();
   const [state, formAction, pending] = useActionState<CreateOrganizerState, FormData>(
     createOrganizerAction,
     { error: null },
   );
+
+  useEffect(() => {
+    if (state.success) {
+      const timer = setTimeout(() => router.push("/organizer"), 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [state.success, router]);
 
   const formRef = useRef<HTMLFormElement>(null);
   const [step, setStep] = useState<StepIndex>(0);
@@ -108,6 +117,23 @@ export function BecomeOrganizerForm() {
 
   function back() {
     if (step > 0) setStep((s) => (s - 1) as StepIndex);
+  }
+
+  if (state.success) {
+    return (
+      <div className="mx-auto max-w-2xl py-10">
+        <div className="glass rounded-3xl border border-emerald-500/30 bg-emerald-500/5 p-6 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-white">
+            <CheckCircle2 className="h-7 w-7" />
+          </div>
+          <h1 className="text-2xl font-black tracking-tight">Organizer profile submitted</h1>
+          <p className="mt-3 text-sm text-muted">
+            We are verifying your organizer profile. If anything is required, our team will contact you. Once approved, you’ll receive a notification and your organizer dashboard will be ready within 1–2 business days.
+          </p>
+          <p className="mt-4 text-xs text-muted">Redirecting to your organizer dashboard…</p>
+        </div>
+      </div>
+    );
   }
 
   return (

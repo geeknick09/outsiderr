@@ -9,9 +9,13 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { getCurrentUser } from "@/lib/auth";
 import { getOrganizerProfile } from "@/lib/data/organizer";
 import {
+  getSettingInt,
+} from "@/lib/data/platform-settings";
+import {
   getUnreadNotificationCount,
   listUserNotifications,
 } from "@/lib/data/notifications";
+import { getOrganizerAccessState } from "@/lib/organizer-eligibility";
 import { createClient } from "@/lib/supabase/server";
 
 export async function Navbar() {
@@ -35,7 +39,14 @@ export async function Navbar() {
     isOrganizer = profile?.is_organizer === true;
     if (!isOrganizer) {
       const organizer = await getOrganizerProfile(user);
-      isOrganizer = !!organizer;
+      if (organizer) {
+        const accessState = getOrganizerAccessState({
+          kycStatus: organizer.kycStatus,
+          rejectionCount: organizer.rejectionCount,
+          rejectionLimit: await getSettingInt("organizer_rejection_limit"),
+        });
+        isOrganizer = accessState.eligible;
+      }
     }
     // Check if user is assigned as door staff for any event
     const { count: staffCount } = await supabase

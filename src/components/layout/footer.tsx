@@ -41,7 +41,7 @@ export function Footer({ isOrganizer = false, tagline = "" }: { isOrganizer?: bo
           {/* Quick Links */}
           <FooterColumn title="Quick Links">
             <FooterLink href={isOrganizer ? "/organizer" : "/list-your-event"}>
-              {isOrganizer ? "Manage Your Events" : "Become an Organizer"}
+              {isOrganizer ? "Organizer Dashboard" : "Become an Organizer"}
             </FooterLink>
             {/* Clubs & Crews disabled for this release */}
             {/* <FooterLink href="/clubs">Join a Club / Crew</FooterLink> */}

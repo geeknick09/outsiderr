@@ -70,6 +70,7 @@ const SECTIONS: SectionDef[] = [
       { key: "venue_announcement_deadline_hours", label: "Venue announcement deadline", type: "number", suffix: "hours" },
       { key: "max_popular_per_city", label: "Max popular events per city", type: "number" },
       { key: "max_sponsored_per_city", label: "Max sponsored events per city", type: "number" },
+      { key: "organizer_rejection_limit", label: "Organizer rejection limit", type: "number", help: "Once a profile reaches this many rejections, organizer access is blocked" },
       { key: "default_commission_bps", label: "Default commission (bps)", type: "number", help: "1000 = 10%" },
       { key: "default_convenience_fee_bps", label: "Default convenience fee (bps)", type: "number", help: "200 = 2%" },
     ],

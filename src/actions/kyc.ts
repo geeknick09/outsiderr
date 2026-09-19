@@ -47,6 +47,7 @@ export async function approveKycAction(organizerId: string): Promise<KycReviewRe
       kyc_reviewed_at: new Date().toISOString(),
       kyc_review_note: null,
       verified: true,
+      rejection_count: 0,
     })
     .eq("id", organizerId);
 
@@ -92,6 +93,14 @@ export async function rejectKycAction(organizerId: string, note: string): Promis
 
   const supabase = await createClient();
 
+  const { data: organizer } = await supabase
+    .from("organizers")
+    .select("rejection_count, owner_id, name")
+    .eq("id", organizerId)
+    .maybeSingle();
+
+  const nextRejectionCount = Math.max(0, Number(organizer?.rejection_count ?? 0) + 1);
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: updateError } = await (supabase.from("organizers") as any)
     .update({
@@ -99,6 +108,7 @@ export async function rejectKycAction(organizerId: string, note: string): Promis
       kyc_reviewed_at: new Date().toISOString(),
       kyc_review_note: note.trim(),
       verified: false,
+      rejection_count: nextRejectionCount,
     })
     .eq("id", organizerId);
 

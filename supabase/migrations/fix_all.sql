@@ -1284,6 +1284,10 @@ end $$;
 -- bio stays as a short intro (up to 200 chars)
 -- ----------------------------------------------------------------
 alter table public.organizers add column if not exists description text;
+alter table public.organizers add column if not exists pan_document_url text;
+alter table public.organizers add column if not exists bank_document_url text;
+alter table public.organizers add column if not exists kyc_response_note text;
+alter table public.organizers add column if not exists kyc_response_document_url text;
 
 -- ----------------------------------------------------------------
 -- Atomic offer_waitlist_next RPC (returns the offered row so app can

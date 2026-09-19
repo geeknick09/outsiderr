@@ -9,6 +9,7 @@ import { mergeOrganizerIntent } from "@/lib/event-lifecycle";
 
 export interface CreateOrganizerState {
   error: string | null;
+  success?: boolean;
 }
 
 export interface UpdateOrganizerState {
@@ -84,10 +85,11 @@ export async function createOrganizerAction(
     };
   }
 
-  // Revalidate the root layout so the Navbar switches to "Manage Your Events" immediately.
+  // Revalidate the organizer page so the route refreshes and shows the
+  // verification banner instead of leaving the user on the submission form.
   revalidatePath("/", "layout");
   revalidatePath("/organizer");
-  redirect("/organizer");
+  return { error: null, success: true };
 }
 
 export async function updateOrganizerAction(

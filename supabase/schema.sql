@@ -185,16 +185,20 @@ create table if not exists public.organizers (
   -- KYC / payout details
   pan_number          text,
   pan_name            text,
+  pan_document_url    text,
   gst_number          text,
   gst_business_name   text,
   bank_account_number text,
   bank_ifsc           text,
   bank_account_name   text,
   bank_account_type   text,        -- SAVINGS | CURRENT
+  bank_document_url   text,
   kyc_submitted       boolean     not null default false,
   kyc_status          text        not null default 'NOT_SUBMITTED',  -- NOT_SUBMITTED | PENDING | APPROVED | REJECTED | CLARIFICATION_NEEDED
   kyc_reviewed_at     timestamptz,
   kyc_review_note     text,                   -- admin note on rejection/clarification
+  kyc_response_note   text,
+  kyc_response_document_url text,
   verified            boolean     not null default false,
   created_at          timestamptz not null default now()
 );

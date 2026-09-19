@@ -15,7 +15,9 @@ import { OrganizerHeader } from "@/components/organizer/organizer-header";
 import { OrganizerKycRealtimeRefresher } from "@/components/organizer/organizer-kyc-realtime";
 import { OrderMonitor } from "@/components/organizer/order-monitor";
 import { getCurrentUser } from "@/lib/auth";
+import { getSettingInt } from "@/lib/data/platform-settings";
 import { getPendingCollaborationInvites } from "@/lib/data/engagement";
+import { getOrganizerAccessState } from "@/lib/organizer-eligibility";
 import {
   getOrganizerEventAnalytics,
   getOrganizerProfile,
@@ -23,6 +25,7 @@ import {
   listOrganizerEvents,
   listCollaboratedEvents,
 } from "@/lib/data/organizer";
+import { OrganizerKycReviewPanel } from "@/components/organizer/organizer-kyc-review-panel";
 import { getOrganizerPastEventsForLinking } from "@/lib/data/events";
 import { listClubMembers, listMyClubs } from "@/lib/data/clubs";
 import { listPendingOrders, listOrdersForOrganizerEvents } from "@/lib/data/orders";
@@ -63,6 +66,35 @@ export default async function OrganizerPage({
     return (
       <div className="py-10">
         <BecomeOrganizerForm />
+      </div>
+    );
+  }
+
+  const rejectionLimit = await getSettingInt("organizer_rejection_limit");
+  const accessState = getOrganizerAccessState({
+    kycStatus: organizerProfile.kycStatus,
+    rejectionCount: organizerProfile.rejectionCount,
+    rejectionLimit,
+  });
+
+  const kycInProgress = organizerProfile.kycStatus === "PENDING" || organizerProfile.kycStatus === "CLARIFICATION_NEEDED";
+  if (kycInProgress || organizerProfile.kycStatus === "REJECTED") {
+    if (accessState.blocked) {
+      return (
+        <div className="py-10">
+          <div className="glass rounded-3xl border border-red-300 bg-red-500/5 p-8 text-center">
+            <h1 className="text-2xl font-black tracking-tight">Organizer access blocked</h1>
+            <p className="mt-3 text-sm text-muted">
+              This profile has reached the maximum {rejectionLimit} rejection limit and cannot reapply as an organizer.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6 py-6">
+        <OrganizerKycReviewPanel organizer={organizerProfile} />
       </div>
     );
   }

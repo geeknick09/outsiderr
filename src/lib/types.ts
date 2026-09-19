@@ -97,15 +97,20 @@ export interface Organizer {
   verified: boolean;
   panNumber?: string | null;
   panName?: string | null;
+  panDocumentUrl?: string | null;
   gstNumber?: string | null;
   gstBusinessName?: string | null;
   bankAccountNumber?: string | null;
   bankIfsc?: string | null;
   bankAccountName?: string | null;
   bankAccountType?: string | null;
+  bankDocumentUrl?: string | null;
+  rejectionCount?: number;
   kycStatus?: string; // NOT_SUBMITTED | PENDING | APPROVED | REJECTED | CLARIFICATION_NEEDED
   kycReviewedAt?: string | null;
   kycReviewNote?: string | null;
+  kycResponseNote?: string | null;
+  kycResponseDocumentUrl?: string | null;
 }
 
 export interface UserProfile {
