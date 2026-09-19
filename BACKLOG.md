@@ -12,6 +12,25 @@ This document tracks all product, engineering, infrastructure, payment, organize
 - `[~]` — In progress / partially done
 - `[ ]` — Not started
 
+## Recent progress snapshot (2026-09-19)
+
+### Newly added / updated since the last backlog pass
+- [x] **Admin KYC refresh fix** — KYC approval, rejection, and clarification now invalidate the admin KYC page and trigger a client refresh so approved entries disappear from the pending list immediately instead of staying stale.
+- [x] **Pagination fix for admin and organizer lists** — The admin users page and organizer order list now page correctly instead of continuing to scroll endlessly.
+- [x] **Supabase typed update fix** — Organizer update payloads now conform to the generated `organizers` table types, resolving the `Record<string, string | null>` assignment issue.
+- [x] **Build stability cleanup** — Stale `.next` build artifacts were cleared and the app was rebuilt successfully after the Windows EPERM/stale cache issue.
+
+### Already completed and reflected in the backlog
+- [x] **P62. KYC Admin Review Workflow** — Complete as listed in the backlog.
+- [x] **P15. Centralized Admin Dashboard** — Complete as listed in the backlog.
+- [x] **P27. Organizer Analytics** — Complete as listed in the backlog.
+- [x] **P28. Hero Boost Payment System** — Complete as listed in the backlog.
+- [x] **P33. Hero/Featured Event Boosting System (V1)** — Complete as listed in the backlog.
+- [x] **P58. Follow/Unfollow Organizers** — Complete as listed in the backlog.
+- [x] **P59. Event Collaboration (Co-Organizer Invites)** — Complete as listed in the backlog.
+- [x] **P60. Co-Organizer Permission Levels** — Complete as listed in the backlog.
+- [x] **P61. Category: Gaming + Fitness Rename** — Complete as listed in the backlog.
+
 ---
 
 ## 1. Payment & Monetization

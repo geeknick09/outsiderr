@@ -2407,11 +2407,12 @@ drop policy if exists "organizers owner insert" on public.organizers;
 drop policy if exists "organizers owner update" on public.organizers;
 drop policy if exists "organizers owner delete" on public.organizers;
 create policy "organizers owner insert" on public.organizers
-  for insert with check (auth.uid() = owner_id);
+  for insert with check (auth.uid() = owner_id or public.is_current_user_admin());
 create policy "organizers owner update" on public.organizers
-  for update using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+  for update using (auth.uid() = owner_id or public.is_current_user_admin())
+  with check (auth.uid() = owner_id or public.is_current_user_admin());
 create policy "organizers owner delete" on public.organizers
-  for delete using (auth.uid() = owner_id);
+  for delete using (auth.uid() = owner_id or public.is_current_user_admin());
 
 -- events
 drop policy if exists "published events are public" on public.events;
