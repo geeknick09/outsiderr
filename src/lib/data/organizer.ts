@@ -4,6 +4,7 @@ import { DEFAULT_EVENT_TERMS } from "@/lib/constants";
 import { mergeOrganizerIntent } from "@/lib/event-lifecycle";
 import { createClient } from "@/lib/supabase/server";
 import type { CurrentUser } from "@/lib/auth";
+import type { Database } from "@/lib/supabase/database.types";
 import type {
   City,
   EventCategory,
@@ -891,7 +892,7 @@ export async function updateOrganizerProfile(
 
   const supabase = await createClient();
   const mergedDescription = mergeOrganizerIntent(input.description ?? "", input.organizerIntent ?? "");
-  const update: Record<string, string | null> = {
+  const update: Database["public"]["Tables"]["organizers"]["Update"] = {
     name: input.name,
     bio: input.bio || null,
     description: mergedDescription || null,
