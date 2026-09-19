@@ -1,5 +1,5 @@
 import { listKycSubmissions } from "@/lib/data/kyc";
-import { KycReviewCard } from "@/components/admin/kyc-review-card";
+import { KycReviewTable } from "@/components/admin/kyc-review-table";
 
 export const dynamic = "force-dynamic";
 
@@ -53,11 +53,7 @@ export default async function AdminKycPage({
           <p className="text-sm text-muted">No submissions in this category.</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {submissions.map((s) => (
-            <KycReviewCard key={s.id} submission={s} />
-          ))}
-        </div>
+        <KycReviewTable submissions={submissions} />
       )}
     </div>
   );

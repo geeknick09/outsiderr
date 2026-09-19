@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/lib/auth";
 import { createOrganizerProfile, updateOrganizerProfile } from "@/lib/data/organizer";
+import { mergeOrganizerIntent } from "@/lib/event-lifecycle";
 
 export interface CreateOrganizerState {
   error: string | null;
@@ -24,6 +25,7 @@ export async function createOrganizerAction(
   const name = String(formData.get("name") ?? "").trim();
   const bio = String(formData.get("bio") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
+  const organizerIntent = String(formData.get("organizerIntent") ?? "").trim();
   const upiId = String(formData.get("upiId") ?? "").trim();
   const avatarUrl = String(formData.get("avatarUrl") ?? "").trim() || null;
   const coverUrl = String(formData.get("coverUrl") ?? "").trim() || null;
@@ -59,7 +61,14 @@ export async function createOrganizerAction(
 
   try {
     await createOrganizerProfile(user, {
-      name, bio, description, upiId, avatarUrl, coverUrl, instagramUrl,
+      name,
+      bio,
+      description: mergeOrganizerIntent(description, organizerIntent),
+      organizerIntent,
+      upiId,
+      avatarUrl,
+      coverUrl,
+      instagramUrl,
       youtubeUrl: String(formData.get("youtubeUrl") ?? "").trim() || null,
       xUrl: String(formData.get("xUrl") ?? "").trim() || null,
       facebookUrl: String(formData.get("facebookUrl") ?? "").trim() || null,
@@ -91,6 +100,7 @@ export async function updateOrganizerAction(
   const name = String(formData.get("name") ?? "").trim();
   const bio = String(formData.get("bio") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
+  const organizerIntent = String(formData.get("organizerIntent") ?? "").trim();
   const upiId = String(formData.get("upiId") ?? "").trim();
   const avatarUrl = String(formData.get("avatarUrl") ?? "").trim() || null;
   const coverUrl = String(formData.get("coverUrl") ?? "").trim() || null;
@@ -122,8 +132,22 @@ export async function updateOrganizerAction(
 
   try {
     await updateOrganizerProfile(user, {
-      name, bio, description, upiId, avatarUrl, coverUrl, instagramUrl, youtubeUrl, xUrl, facebookUrl, linkedinUrl,
-      panNumber, panName, gstNumber, gstBusinessName,
+      name,
+      bio,
+      description: mergeOrganizerIntent(description, organizerIntent),
+      organizerIntent,
+      upiId,
+      avatarUrl,
+      coverUrl,
+      instagramUrl,
+      youtubeUrl,
+      xUrl,
+      facebookUrl,
+      linkedinUrl,
+      panNumber,
+      panName,
+      gstNumber,
+      gstBusinessName,
       bankAccountNumber, bankIfsc, bankAccountName, bankAccountType,
     });
   } catch (error) {

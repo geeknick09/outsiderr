@@ -33,15 +33,20 @@ const FILTER_TABS: { key: string; label: string }[] = [
 export default async function AdminTransactionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; page?: string }>;
 }) {
-  const { status } = await searchParams;
+  const { status, page } = await searchParams;
   const all = await listAllAdminOrders();
 
   const filtered =
     status && status !== "all"
       ? all.filter((o) => o.status === status)
       : all;
+
+  const pageNumber = Math.max(1, Number(page ?? 1) || 1);
+  const pageSize = 10;
+  const pageRows = filtered.slice((pageNumber - 1) * pageSize, pageNumber * pageSize);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
 
   // Summary counts
   const confirmed = all.filter((o) => o.status === "CONFIRMED");
@@ -96,9 +101,9 @@ export default async function AdminTransactionsPage({
       </div>
 
       {/* Transactions list */}
-      <div className="space-y-2">
-        {filtered.map((order) => (
-          <div key={order.id} className="glass flex flex-wrap items-center gap-3 rounded-3xl p-4">
+      <div className="glass space-y-2 rounded-3xl p-3">
+        {pageRows.map((order) => (
+          <div key={order.id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-200/80 p-4 dark:border-white/10">
             <div className="min-w-0 flex-1">
               <p className="truncate font-semibold">{order.eventTitle}</p>
               <p className="text-xs text-muted">
@@ -127,9 +132,34 @@ export default async function AdminTransactionsPage({
           </div>
         ))}
         {filtered.length === 0 ? (
-          <p className="glass rounded-3xl p-5 text-sm text-muted">No transactions found.</p>
+          <p className="rounded-2xl border border-dashed border-zinc-200 p-5 text-sm text-muted dark:border-white/10">No transactions found.</p>
         ) : null}
       </div>
+
+      {filtered.length > pageSize ? (
+        <div className="flex items-center justify-between gap-3 rounded-3xl border border-zinc-200 bg-white/50 p-3 text-xs dark:border-white/10 dark:bg-white/5">
+          <a
+            href={buildPageHref(status, pageNumber - 1)}
+            className={`rounded-full border px-3 py-1.5 font-semibold ${pageNumber <= 1 ? "pointer-events-none opacity-50" : "border-zinc-200 text-muted hover:border-violet-neon dark:border-white/10"}`}
+          >
+            Previous
+          </a>
+          <span className="text-muted">Page {pageNumber} of {totalPages}</span>
+          <a
+            href={buildPageHref(status, pageNumber + 1)}
+            className={`rounded-full border px-3 py-1.5 font-semibold ${pageNumber >= totalPages ? "pointer-events-none opacity-50" : "border-zinc-200 text-muted hover:border-violet-neon dark:border-white/10"}`}
+          >
+            Next
+          </a>
+        </div>
+      ) : null}
     </div>
   );
+}
+
+function buildPageHref(status: string | undefined, page: number) {
+  const params = new URLSearchParams();
+  if (status && status !== "all") params.set("status", status);
+  if (page > 1) params.set("page", String(page));
+  return `/admin/orders${params.toString() ? `?${params.toString()}` : ""}`;
 }

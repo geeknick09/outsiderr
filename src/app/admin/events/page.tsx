@@ -97,6 +97,7 @@ export default async function AdminEventsPage({
         {events.map((event) => {
           const statusLabel = getStatusLabel(event.status, event.startsAt, event.endsAt);
           const statusTone = getStatusTone(event.status, event.startsAt, event.endsAt);
+          const readOnly = new Date(event.startsAt).getTime() <= Date.now();
           return (
           <div key={event.id} className="glass space-y-3 rounded-3xl p-4">
             <div className="flex flex-wrap items-center gap-3">
@@ -120,7 +121,7 @@ export default async function AdminEventsPage({
                 {event.isFeatured ? <Badge tone="lime">Featured</Badge> : null}
                 {event.pricingMode === "PHASED" ? <Badge tone="violet">Phased</Badge> : null}
 
-                {event.status === "PUBLISHED" ? (
+                {event.status === "PUBLISHED" && !readOnly ? (
                   <form>
                     <ActionButton
                       formAction={async () => {
@@ -140,7 +141,7 @@ export default async function AdminEventsPage({
                   </form>
                 ) : null}
 
-                {event.status === "PUBLISHED" ? (
+                {event.status === "PUBLISHED" && !readOnly ? (
                   <form>
                     <ActionButton
                       formAction={async () => {
@@ -153,7 +154,7 @@ export default async function AdminEventsPage({
                       Cancel
                     </ActionButton>
                   </form>
-                ) : event.status === "CANCELLED" ? (
+                ) : event.status === "CANCELLED" && !readOnly ? (
                   <form>
                     <ActionButton
                       formAction={async () => {
@@ -166,7 +167,7 @@ export default async function AdminEventsPage({
                       Re-publish
                     </ActionButton>
                   </form>
-                ) : event.status === "DRAFT" ? (
+                ) : event.status === "DRAFT" && !readOnly ? (
                   <form>
                     <ActionButton
                       formAction={async () => {
@@ -181,18 +182,20 @@ export default async function AdminEventsPage({
                   </form>
                 ) : null}
 
-                <form>
-                  <ActionButton
-                    formAction={async () => {
-                      "use server";
-                      await adminDeleteEventAction(event.id);
-                    }}
-                    loadingText="…"
-                    className="border-zinc-200 text-muted hover:border-red-400 hover:text-red-500 dark:border-white/10"
-                  >
-                    Delete
-                  </ActionButton>
-                </form>
+                {!readOnly ? (
+                  <form>
+                    <ActionButton
+                      formAction={async () => {
+                        "use server";
+                        await adminDeleteEventAction(event.id);
+                      }}
+                      loadingText="…"
+                      className="border-zinc-200 text-muted hover:border-red-400 hover:text-red-500 dark:border-white/10"
+                    >
+                      Delete
+                    </ActionButton>
+                  </form>
+                ) : null}
               </div>
             </div>
 
@@ -207,6 +210,7 @@ export default async function AdminEventsPage({
               venueAddress={event.venueAddress}
               startsAt={event.startsAt}
               endsAt={event.endsAt}
+              readOnly={readOnly}
             />
 
             {/* Commission + convenience fee controls */}

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { DEFAULT_EVENT_TERMS } from "@/lib/constants";
+import { mergeOrganizerIntent } from "@/lib/event-lifecycle";
 import { createClient } from "@/lib/supabase/server";
 import type { CurrentUser } from "@/lib/auth";
 import type {
@@ -765,6 +766,7 @@ export interface CreateOrganizerInput {
   name: string;
   bio: string;
   description?: string;
+  organizerIntent?: string;
   upiId: string;
   avatarUrl: string | null;
   coverUrl: string | null;
@@ -800,12 +802,14 @@ export async function createOrganizerProfile(
   // Single atomic INSERT with all fields — KYC included — so no partial profile is
   // left behind if the database is missing columns from an unapplied migration.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mergedDescription = mergeOrganizerIntent(input.description ?? "", input.organizerIntent ?? "");
+
   const { data, error } = await (supabase.from("organizers") as any)
     .insert({
       owner_id: user.id,
       name: input.name,
       bio: input.bio || null,
-      description: input.description || null,
+      description: mergedDescription || null,
       upi_id: input.upiId || null,
       avatar_url: input.avatarUrl,
       cover_url: input.coverUrl,
@@ -854,6 +858,7 @@ export interface UpdateOrganizerInput {
   name: string;
   bio: string;
   description?: string;
+  organizerIntent?: string;
   upiId: string;
   avatarUrl: string | null;
   coverUrl?: string | null;
@@ -881,10 +886,11 @@ export async function updateOrganizerProfile(
   if (!organizer) throw new Error("No organizer profile found.");
 
   const supabase = await createClient();
+  const mergedDescription = mergeOrganizerIntent(input.description ?? "", input.organizerIntent ?? "");
   const update: Record<string, string | null> = {
     name: input.name,
     bio: input.bio || null,
-    description: input.description || null,
+    description: mergedDescription || null,
     upi_id: input.upiId || null,
     avatar_url: input.avatarUrl,
   };

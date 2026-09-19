@@ -17,6 +17,7 @@ import { approveBoost, rejectBoost } from "@/lib/data/boosts";
 import { setClubVerified } from "@/lib/data/clubs";
 import { approveOrder, rejectOrder } from "@/lib/data/orders";
 import { createClient } from "@/lib/supabase/server";
+import { isEventReadOnly } from "@/lib/event-lifecycle";
 import type { EventStatus } from "@/lib/types";
 
 async function requireAdmin() {
@@ -37,6 +38,11 @@ async function requireAdmin() {
 
 export async function adminDeleteEventAction(eventId: string): Promise<void> {
   const user = await requireAdmin();
+  const supabase = await createClient();
+  const { data: event } = await supabase.from("events").select("starts_at").eq("id", eventId).maybeSingle();
+  if (event && isEventReadOnly(event.starts_at)) {
+    throw new Error("This event has already started and cannot be deleted.");
+  }
   await adminDeleteEvent(eventId);
   await auditEventAction(user.id, "DELETE_EVENT", eventId);
   revalidatePath("/admin/events");
@@ -50,10 +56,14 @@ export async function adminUpdateEventStatusAction(
   status: EventStatus,
 ): Promise<void> {
   const user = await requireAdmin();
+  const supabase = await createClient();
+  const { data: event } = await supabase.from("events").select("starts_at").eq("id", eventId).maybeSingle();
+  if (event && isEventReadOnly(event.starts_at)) {
+    throw new Error("This event has already started and is now read-only for admins.");
+  }
   // If admin is cancelling an event, use the atomic cancel_event RPC
   // which processes refunds, cancels tickets, and sends notifications.
   if (status === "CANCELLED") {
-    const supabase = await createClient();
     const { getCancellationChargePercent } = await import("@/lib/data/platform-settings");
     const cancellationChargePercent = await getCancellationChargePercent();
     const { error } = await supabase.rpc("cancel_event", {
@@ -115,6 +125,11 @@ export async function adminToggleAdminAction(userId: string, isAdmin: boolean): 
 
 export async function adminToggleFeaturedAction(eventId: string, featured: boolean): Promise<void> {
   await requireAdmin();
+  const supabase = await createClient();
+  const { data: event } = await supabase.from("events").select("starts_at").eq("id", eventId).maybeSingle();
+  if (event && isEventReadOnly(event.starts_at)) {
+    throw new Error("This event is live and cannot be featured or unfeatured.");
+  }
   await adminToggleEventFeatured(eventId, featured);
   revalidatePath("/admin/events");
   revalidatePath("/");
@@ -135,6 +150,11 @@ export async function adminUpdateEventAction(
 ): Promise<{ error: string | null }> {
   try {
     const user = await requireAdmin();
+    const supabase = await createClient();
+    const { data: event } = await supabase.from("events").select("starts_at").eq("id", eventId).maybeSingle();
+    if (event && isEventReadOnly(event.starts_at)) {
+      return { error: "This event has already started and is locked in read-only mode." };
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await adminUpdateEvent(eventId, data as any);
     await auditEventAction(user.id, "ADMIN_UPDATE_EVENT", eventId, data);

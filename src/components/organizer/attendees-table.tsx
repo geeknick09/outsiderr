@@ -25,6 +25,8 @@ export function AttendeesTable({
   tickets: Ticket[];
 }) {
   const [filter, setFilter] = useState<FilterKey>("all");
+  const [page, setPage] = useState(1);
+  const pageSize = 8;
 
   // Build a set of order IDs that have at least one checked-in ticket
   const checkedInOrderIds = new Set(
@@ -46,6 +48,10 @@ export function AttendeesTable({
     }
   });
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pageRows = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   const counts: Record<FilterKey, number> = {
     all: orders.length,
     confirmed: orders.filter((o) => o.status === "CONFIRMED").length,
@@ -64,7 +70,10 @@ export function AttendeesTable({
             <button
               key={f.value}
               type="button"
-              onClick={() => setFilter(f.value)}
+              onClick={() => {
+                setFilter(f.value);
+                setPage(1);
+              }}
               className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors ${
                 filter === f.value
                   ? "bg-violet-neon text-white"
@@ -105,7 +114,7 @@ export function AttendeesTable({
               </tr>
             </thead>
             <tbody>
-              {filtered.map((order) => {
+              {pageRows.map((order) => {
                 const isCheckedIn = checkedInOrderIds.has(order.id);
                 const isManual = order.orderSource != null && order.orderSource !== "ONLINE";
                 const isBoxOffice = order.isBoxOffice === true;

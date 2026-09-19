@@ -8,9 +8,9 @@
  */
 
 const SIZES = {
-  sm: "h-6 w-6",
-  md: "h-10 w-10",
-  lg: "h-16 w-16",
+  sm: "h-5 w-5",
+  md: "h-8 w-8",
+  lg: "h-12 w-12",
 } as const;
 
 export function BrandedLoader({
@@ -46,10 +46,10 @@ export function BrandedLoader({
  */
 export function BrandedPageLoader({ label = "Loading" }: { label?: string }) {
   return (
-    <div className="flex min-h-[50vh] items-center justify-center py-12">
-      <div className="glass flex flex-col items-center gap-4 rounded-3xl px-12 py-10">
-        <BrandedLoader size="lg" label={label} />
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+    <div className="flex min-h-[50vh] items-center justify-center px-4 py-12">
+      <div className="glass flex flex-col items-center justify-center gap-2 rounded-3xl px-6 py-5 shadow-lg shadow-violet-500/10">
+        <BrandedLoader size="sm" label={label} />
+        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">
           {label}
         </p>
       </div>

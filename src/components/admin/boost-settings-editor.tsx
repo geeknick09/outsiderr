@@ -110,13 +110,14 @@ export function BoostSettingsEditor({ config }: { config: BoostConfig }) {
                     <button
                       type="button"
                       onClick={() => setValue(field.key, value === "true" ? "false" : "true")}
-                      className={`relative h-6 w-11 rounded-full transition-colors ${
-                        value === "true" ? "bg-violet-neon" : "bg-zinc-300 dark:bg-white/20"
+                      aria-label={field.label}
+                      className={`relative h-7 w-12 rounded-full border border-zinc-200 transition-all duration-200 shadow-inner ${
+                        value === "true" ? "bg-violet-neon border-violet-500 shadow-violet-500/20" : "bg-zinc-300 dark:border-white/10 dark:bg-white/20"
                       }`}
                     >
                       <span
-                        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
-                          value === "true" ? "translate-x-5" : "translate-x-0.5"
+                        className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+                          value === "true" ? "translate-x-6" : "translate-x-1"
                         }`}
                       />
                     </button>

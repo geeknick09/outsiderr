@@ -22,6 +22,7 @@ export function AdminEventEditForm({
   venueAddress,
   startsAt,
   endsAt,
+  readOnly = false,
 }: {
   eventId: string;
   title: string;
@@ -32,6 +33,7 @@ export function AdminEventEditForm({
   venueAddress: string;
   startsAt: string;
   endsAt: string;
+  readOnly?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
@@ -94,10 +96,11 @@ export function AdminEventEditForm({
   if (!editing) {
     return (
       <div className="flex items-center gap-3">
-        <Button type="button" variant="secondary" size="sm" onClick={startEdit}>
-          Edit Details
+        <Button type="button" variant="secondary" size="sm" onClick={startEdit} disabled={readOnly}>
+          {readOnly ? "Read-only" : "Edit Details"}
         </Button>
         {saved ? <span className="text-xs font-semibold text-emerald-500">✓ Saved</span> : null}
+        {readOnly ? <span className="text-xs font-semibold text-muted">Event started — read-only</span> : null}
       </div>
     );
   }

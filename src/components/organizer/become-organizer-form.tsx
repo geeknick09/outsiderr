@@ -41,6 +41,7 @@ export function BecomeOrganizerForm() {
   const [orgName, setOrgName] = useState("");
   const [bio, setBio] = useState("");
   const [description, setDescription] = useState("");
+  const [organizerIntent, setOrganizerIntent] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
@@ -168,6 +169,7 @@ export function BecomeOrganizerForm() {
             <input type="hidden" name="name" value={orgName} />
             <input type="hidden" name="bio" value={bio} />
             <input type="hidden" name="description" value={description} />
+            <input type="hidden" name="organizerIntent" value={organizerIntent} />
             <input type="hidden" name="avatarUrl" value={avatarUrl} />
             <input type="hidden" name="coverUrl" value="" />
             <input type="hidden" name="instagramUrl" value={instagramUrl} />
@@ -225,6 +227,19 @@ export function BecomeOrganizerForm() {
                       className={INPUT}
                     />
                     <span className="text-right text-[10px] text-muted">{description.length}/400</span>
+                  </label>
+
+                  <label className={LABEL}>
+                    <span className={LABEL_TEXT}>Organizer intent <span className="normal-case text-zinc-400">(what events or vision you want to build)</span></span>
+                    <textarea
+                      rows={3}
+                      maxLength={500}
+                      value={organizerIntent}
+                      onChange={(e) => setOrganizerIntent(e.target.value)}
+                      placeholder="We plan to host underground cyphers, community jams, and small-format cultural nights focused on local creators."
+                      className={INPUT}
+                    />
+                    <span className="text-right text-[10px] text-muted">{organizerIntent.length}/500</span>
                   </label>
 
                   <label className={LABEL}>
