@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Check, X, MessageSquareWarning, Loader2 } from "lucide-react";
 import {
   approveKycAction,
@@ -10,6 +11,7 @@ import {
 import type { KycSubmission } from "@/lib/data/kyc";
 
 export function KycReviewCard({ submission }: { submission: KycSubmission }) {
+  const router = useRouter();
   const [mode, setMode] = useState<"idle" | "reject" | "clarify">("idle");
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -22,6 +24,8 @@ export function KycReviewCard({ submission }: { submission: KycSubmission }) {
       const result = await approveKycAction(submission.id);
       if (result.error) {
         setError(result.error);
+      } else {
+        router.refresh();
       }
     });
   }
@@ -39,6 +43,7 @@ export function KycReviewCard({ submission }: { submission: KycSubmission }) {
       } else {
         setMode("idle");
         setNote("");
+        router.refresh();
       }
     });
   }
@@ -56,6 +61,7 @@ export function KycReviewCard({ submission }: { submission: KycSubmission }) {
       } else {
         setMode("idle");
         setNote("");
+        router.refresh();
       }
     });
   }

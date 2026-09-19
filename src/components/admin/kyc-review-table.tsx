@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Check, Eye, Loader2, MessageSquareWarning, X } from "lucide-react";
 
 import { approveKycAction, rejectKycAction, requestClarificationAction } from "@/actions/kyc";
@@ -16,6 +17,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export function KycReviewTable({ submissions }: { submissions: KycSubmission[] }) {
+  const router = useRouter();
   const [selected, setSelected] = useState<KycSubmission | null>(null);
   const [mode, setMode] = useState<"idle" | "reject" | "clarify">("idle");
   const [note, setNote] = useState("");
@@ -39,6 +41,7 @@ export function KycReviewTable({ submissions }: { submissions: KycSubmission[] }
         setError(result.error);
       } else {
         setSelected(null);
+        router.refresh();
       }
       return;
     }
@@ -61,6 +64,7 @@ export function KycReviewTable({ submissions }: { submissions: KycSubmission[] }
       setMode("idle");
       setNote("");
       setSelected(null);
+      router.refresh();
     }
   }
 

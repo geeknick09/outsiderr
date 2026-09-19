@@ -72,8 +72,8 @@ export async function approveKycAction(organizerId: string): Promise<KycReviewRe
     });
   }
 
-  revalidatePath("/admin/kyc");
-  revalidatePath("/organizer");
+  revalidatePath("/admin/kyc", "page");
+  revalidatePath("/organizer", "page");
   return { error: null, success: true };
 }
 
@@ -122,8 +122,8 @@ export async function rejectKycAction(organizerId: string, note: string): Promis
     });
   }
 
-  revalidatePath("/admin/kyc");
-  revalidatePath("/organizer");
+  revalidatePath("/admin/kyc", "page");
+  revalidatePath("/organizer", "page");
   return { error: null, success: true };
 }
 
@@ -171,7 +171,7 @@ export async function requestClarificationAction(organizerId: string, note: stri
     });
   }
 
-  revalidatePath("/admin/kyc");
-  revalidatePath("/organizer");
+  revalidatePath("/admin/kyc", "page");
+  revalidatePath("/organizer", "page");
   return { error: null, success: true };
 }

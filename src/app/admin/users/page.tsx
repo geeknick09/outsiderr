@@ -9,11 +9,22 @@ export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Admin: Users — Outsiderr" };
 
-export default async function AdminUsersPage() {
+export default async function AdminUsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const { page } = await searchParams;
   const [users, analytics] = await Promise.all([
     listAllAdminUsers(),
     getUserAnalytics(),
   ]);
+
+  const pageSize = 20;
+  const pageNumber = Math.max(1, Number(page ?? 1) || 1);
+  const totalPages = Math.max(1, Math.ceil(users.length / pageSize));
+  const safePage = Math.min(pageNumber, totalPages);
+  const pageUsers = users.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   const stats = [
     { label: "Total Users", value: analytics.totalUsers },
@@ -59,7 +70,7 @@ export default async function AdminUsersPage() {
       {/* Users list */}
       <div className="space-y-2">
         <h2 className="text-lg font-bold">All Users</h2>
-        {users.map((user) => (
+        {pageUsers.map((user) => (
           <div key={user.id} className="glass flex flex-wrap items-center gap-3 rounded-3xl p-4">
             <div className="min-w-0 flex-1">
               <p className="font-semibold">{user.fullName ?? "—"}</p>
@@ -90,6 +101,29 @@ export default async function AdminUsersPage() {
           <p className="glass rounded-3xl p-5 text-sm text-muted">No users found.</p>
         ) : null}
       </div>
+
+      {users.length > pageSize ? (
+        <div className="flex items-center justify-between gap-3 rounded-3xl border border-zinc-200 bg-white/50 p-3 text-xs dark:border-white/10 dark:bg-white/5">
+          <a
+            href={buildUsersPageHref(safePage - 1)}
+            className={`rounded-full border px-3 py-1.5 font-semibold ${safePage <= 1 ? "pointer-events-none opacity-50" : "border-zinc-200 text-muted hover:border-violet-neon dark:border-white/10"}`}
+          >
+            Previous
+          </a>
+          <span className="text-muted">Page {safePage} of {totalPages}</span>
+          <a
+            href={buildUsersPageHref(safePage + 1)}
+            className={`rounded-full border px-3 py-1.5 font-semibold ${safePage >= totalPages ? "pointer-events-none opacity-50" : "border-zinc-200 text-muted hover:border-violet-neon dark:border-white/10"}`}
+          >
+            Next
+          </a>
+        </div>
+      ) : null}
     </div>
   );
+}
+
+function buildUsersPageHref(page: number) {
+  if (page <= 1) return "/admin/users";
+  return `/admin/users?page=${page}`;
 }

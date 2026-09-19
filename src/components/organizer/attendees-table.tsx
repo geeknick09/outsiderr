@@ -51,6 +51,7 @@ export function AttendeesTable({
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const pageRows = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const showPagination = filtered.length > pageSize;
 
   const counts: Record<FilterKey, number> = {
     all: orders.length,
@@ -100,66 +101,90 @@ export function AttendeesTable({
           No bookings in this category.
         </div>
       ) : (
-        <div className="glass overflow-hidden rounded-2xl">
-          <table className="w-full text-left text-xs sm:text-sm">
-            <thead className="border-b border-zinc-200 dark:border-white/10">
-              <tr>
-                <th className="px-3 py-2 font-semibold text-muted">Buyer</th>
-                <th className="hidden px-3 py-2 font-semibold text-muted sm:table-cell">Tier</th>
-                <th className="px-3 py-2 font-semibold text-muted">Pax</th>
-                <th className="hidden px-3 py-2 font-semibold text-muted sm:table-cell">Total</th>
-                <th className="px-3 py-2 font-semibold text-muted">Status</th>
-                <th className="hidden px-3 py-2 font-semibold text-muted md:table-cell">UTR</th>
-                <th className="hidden px-3 py-2 font-semibold text-muted md:table-cell">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageRows.map((order) => {
-                const isCheckedIn = checkedInOrderIds.has(order.id);
-                const isManual = order.orderSource != null && order.orderSource !== "ONLINE";
-                const isBoxOffice = order.isBoxOffice === true;
-                return (
-                  <tr key={order.id} className="border-b border-zinc-100 dark:border-white/5">
-                    <td className="px-3 py-2">
-                      <p className="font-semibold">{order.buyerName}</p>
-                      <p className="text-[10px] text-muted">{order.buyerPhone}</p>
-                      {order.buyerEmail ? (
-                        <p className="text-[10px] text-muted">{order.buyerEmail}</p>
-                      ) : null}
-                    </td>
-                    <td className="hidden px-3 py-2 text-muted sm:table-cell">{order.tierName}</td>
-                    <td className="px-3 py-2 font-semibold">{order.quantity}</td>
-                    <td className="hidden px-3 py-2 sm:table-cell">
-                      {order.totalPaise > 0 ? formatPaise(order.totalPaise) : "Free"}
-                    </td>
-                    <td className="px-3 py-2">
-                      {isCheckedIn ? (
-                        <Badge tone="success">Checked In</Badge>
-                      ) : order.status === "CONFIRMED" ? (
-                        <Badge tone="success">Confirmed</Badge>
-                      ) : order.status === "REJECTED" ? (
-                        <Badge tone="danger">Rejected</Badge>
-                      ) : (
-                        <Badge tone="violet">Pending</Badge>
-                      )}
-                      {isManual ? (
-                        <span className="ml-1 inline-block rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-300">
-                          {isBoxOffice ? "Box Office" : "Manual"}
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="hidden px-3 py-2 font-mono text-[10px] text-muted md:table-cell">
-                      {order.utrReference || "—"}
-                    </td>
-                    <td className="hidden px-3 py-2 text-[10px] text-muted md:table-cell">
-                      {formatDateTime(order.createdAt)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <div className="glass overflow-hidden rounded-2xl">
+            <table className="w-full text-left text-xs sm:text-sm">
+              <thead className="border-b border-zinc-200 dark:border-white/10">
+                <tr>
+                  <th className="px-3 py-2 font-semibold text-muted">Buyer</th>
+                  <th className="hidden px-3 py-2 font-semibold text-muted sm:table-cell">Tier</th>
+                  <th className="px-3 py-2 font-semibold text-muted">Pax</th>
+                  <th className="hidden px-3 py-2 font-semibold text-muted sm:table-cell">Total</th>
+                  <th className="px-3 py-2 font-semibold text-muted">Status</th>
+                  <th className="hidden px-3 py-2 font-semibold text-muted md:table-cell">UTR</th>
+                  <th className="hidden px-3 py-2 font-semibold text-muted md:table-cell">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageRows.map((order) => {
+                  const isCheckedIn = checkedInOrderIds.has(order.id);
+                  const isManual = order.orderSource != null && order.orderSource !== "ONLINE";
+                  const isBoxOffice = order.isBoxOffice === true;
+                  return (
+                    <tr key={order.id} className="border-b border-zinc-100 dark:border-white/5">
+                      <td className="px-3 py-2">
+                        <p className="font-semibold">{order.buyerName}</p>
+                        <p className="text-[10px] text-muted">{order.buyerPhone}</p>
+                        {order.buyerEmail ? (
+                          <p className="text-[10px] text-muted">{order.buyerEmail}</p>
+                        ) : null}
+                      </td>
+                      <td className="hidden px-3 py-2 text-muted sm:table-cell">{order.tierName}</td>
+                      <td className="px-3 py-2 font-semibold">{order.quantity}</td>
+                      <td className="hidden px-3 py-2 sm:table-cell">
+                        {order.totalPaise > 0 ? formatPaise(order.totalPaise) : "Free"}
+                      </td>
+                      <td className="px-3 py-2">
+                        {isCheckedIn ? (
+                          <Badge tone="success">Checked In</Badge>
+                        ) : order.status === "CONFIRMED" ? (
+                          <Badge tone="success">Confirmed</Badge>
+                        ) : order.status === "REJECTED" ? (
+                          <Badge tone="danger">Rejected</Badge>
+                        ) : (
+                          <Badge tone="violet">Pending</Badge>
+                        )}
+                        {isManual ? (
+                          <span className="ml-1 inline-block rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-300">
+                            {isBoxOffice ? "Box Office" : "Manual"}
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="hidden px-3 py-2 font-mono text-[10px] text-muted md:table-cell">
+                        {order.utrReference || "—"}
+                      </td>
+                      <td className="hidden px-3 py-2 text-[10px] text-muted md:table-cell">
+                        {formatDateTime(order.createdAt)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {showPagination ? (
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-white/50 p-3 text-xs dark:border-white/10 dark:bg-white/5">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+                className={`rounded-full border px-3 py-1.5 font-semibold ${currentPage <= 1 ? "pointer-events-none opacity-50" : "border-zinc-200 text-muted hover:border-violet-neon dark:border-white/10"}`}
+              >
+                Previous
+              </button>
+              <span className="text-muted">Page {currentPage} of {totalPages}</span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className={`rounded-full border px-3 py-1.5 font-semibold ${currentPage >= totalPages ? "pointer-events-none opacity-50" : "border-zinc-200 text-muted hover:border-violet-neon dark:border-white/10"}`}
+              >
+                Next
+              </button>
+            </div>
+          ) : null}
+        </>
       )}
     </div>
   );
