@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 
-import { createClient } from "@/modules/shared/server";
-import { getCurrentUser } from "@/modules/shared/server";
-import { logger } from "@/modules/shared/server";
+import { createClient } from "../auth/client";
+import { getCurrentUser } from "../auth/auth";
+import { logger } from "../lib/logger";
 
 /**
  * Require the current user to be an admin.

@@ -8,7 +8,7 @@ import {
   rejectKycAction,
   requestClarificationAction,
 } from "../actions/kyc";
-import type { KycSubmission } from "@/modules/admin/server";
+import { KycSubmission } from "../data/kyc";
 
 export function KycReviewCard({ submission }: { submission: KycSubmission }) {
   const router = useRouter();

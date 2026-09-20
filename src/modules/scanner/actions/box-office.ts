@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { createClient } from "@/modules/shared/server";
 import { validate, verifyBoxOfficePinSchema, boxOfficeOrderSchema, rateLimit, getRateLimitIdentifier, RATE_LIMITS } from "@/modules/shared";

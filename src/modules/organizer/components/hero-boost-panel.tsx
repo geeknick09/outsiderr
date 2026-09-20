@@ -9,7 +9,7 @@ import {
   handleHeroBoostFailureAction,
 } from "@/modules/shared/actions/hero-boosts";
 import { Button } from "@/modules/shared";
-import { RazorpayCheckout } from "@/modules/web";
+import { RazorpayCheckout } from "@/modules/shared";
 import { formatDateTime } from "@/modules/shared";
 import type { CheckoutSession, HeroBoost } from "@/modules/shared";
 

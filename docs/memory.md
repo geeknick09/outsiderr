@@ -18,6 +18,12 @@ Last updated: 2025-09-20
 
 - **Repo · Placeholder monorepo removed** — untracked `apps/` + `packages/` stub folders deleted; target structure lives in `docs/architecture.md` §3.
 
+- **Repo · R7+R8 landed** — `modules/campaigns` stub (types.ts + README, contract for ad-click/attribution — no live tables/UI yet). Boundary enforcement ON: `eslint.config.mjs` bans legacy `@/{lib,components,actions}/*` AND deep internals `@/modules/*/{components,data,lib,ui,hooks,offline}/*`, plus per-module direction overrides (shared imports no sibling; analytics/web/scanner → shared only; organizer/admin → shared+analytics). `src/{components,actions,lib}` deleted. Migration codemods removed.
+
+- **Codemod · `scripts/_rewrite_imports.mjs` (deleted after R8)** — lesson: `node -e "..."` inline scripts with JS template literals get their `${}` mangled by bash → wrote corrupt `;` lines. Fixed by writing `.mjs` files instead of inline eval, and restoring corruption via `git checkout HEAD --`. A follow-up `scripts/_fix_self_imports.mjs` (deleted too) converted intra-module `@/modules/<self>` imports to relative paths to kill barrel self-cycles.
+
+- **RazorpayCheckout layering** — moved to `shared/ui/payment` (used by web checkout + organizer boost). Its `verifyAction`/`failureAction` are now REQUIRED props (dependency injection) — removed the internal `import("@/actions/orders")` default so shared never reaches into web. Caller injects the domain action (hero-boost-panel → boost actions; future order checkout → `@/modules/web/actions/orders`).
+
 - **DB · `event_notifications.event_id` was `NOT NULL`** — KYC/collab-less notifications have no event → insert failed. Fix: `alter column event_id drop not null` in `fix_all.sql`; schema updated. Table has `message` (no `title` column) — notification UI derives its label from `TYPE_LABELS[type]` in `notification-bell.tsx`.
 
 - **DB · Postgres function overload trap** — `create or replace function generate_scanner_pins(uuid, text[], text[], text[])` did NOT remove the old `(uuid, text[])` signature → two overloads, ambiguous calls. Fix: `drop function if exists public.generate_scanner_pins(uuid, text[])` before the create (now in `fix_all.sql`).

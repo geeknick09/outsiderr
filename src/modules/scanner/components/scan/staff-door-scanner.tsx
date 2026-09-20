@@ -15,7 +15,7 @@ import {
 import { checkInTicketAction } from "@/modules/scanner/actions/check-in";
 import { useRealtime } from "@/modules/shared";
 import { formatDateRange } from "@/modules/shared";
-import { ScannerSyncManager, type SyncStatus } from "@/modules/scanner";
+import { ScannerSyncManager, type SyncStatus } from "../../offline/sync-manager";
 import { OfflineStatus } from "./offline-status";
 import type { ScanResult } from "@/modules/shared";
 

@@ -38,7 +38,7 @@ External:
 | Obs. | Sentry (`@sentry/nextjs`), pino logger with secret redaction |
 | Misc | `html5-qrcode` (scanning), `qrcode`, `react-leaflet` (maps, `ssr:false`), `recharts`, `jspdf`, `next-themes`, `pg` (migration scripts) |
 
-## 3. Folder structure (target — Phase R in progress)
+## 3. Folder structure
 
 Single Next.js app organized into **domain modules**. Each module maps 1:1 to a future standalone app.
 
@@ -64,6 +64,18 @@ outsiderr/
         ├── analytics/        # → apps/analytics : organizer + admin analytics components & queries
         └── campaigns/        # → apps/campaigns : stub — types + README only (see prd.md §8)
 ```
+
+### Per-module contents (as built)
+
+| Module | `components/` | `data/` | `actions/` | other |
+|---|---|---|---|---|
+| `shared` | `ui/{ui,layout,theme,pwa,auth,community,payment}` | events, orders, event-orders, tickets, organizers, organizer-profile, profile, platform-settings, notifications, waitlist, clubs, reviews, engagement, door-staff, scanner-pins, box-office-pins, boosts, hero-boosts | auth, profile, notifications, push, clubs, engagement, hero-boosts, reviews | `auth/` (client/server/service/middleware/config), `db/database.types`, `lib/` (20 utils), `hooks/` |
+| `web` | `{events,checkout,profile,reviews,tickets}` + follow-button, join-club-form | — | orders, waitlist | — |
+| `organizer` | 28 dashboard/event/staff/KYC/boost/collab components | organizer-events, event-staff | organizer, events, event-staff, door-staff, boosts, order-verify, scanner-pins, box-office-pins | — |
+| `admin` | 9 (event-edit, kyc-review, settings, legal, boosts, slot-price, bulk-approve) | admin, kyc, legal-pages | admin, kyc, legal-pages | — |
+| `scanner` | `{scan,box-office}` + door-scanner, event-door-scanner, walkin-checkin-form | — | scan, check-in, box-office | `offline/` (scanner-db, sync-manager) |
+| `analytics` | analytics-charts(+lazy), user-analytics-export, analytics-panel, aggregated-analytics | organizer-analytics, admin-analytics | — | — |
+| `campaigns` | — | — | — | `types.ts` (stub) |
 
 ### Module public API convention
 

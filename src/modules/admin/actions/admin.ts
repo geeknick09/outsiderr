@@ -5,7 +5,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { getCurrentUser } from "@/modules/shared/server";
 import { auditEventAction, auditFinancialAction, auditLog } from "@/modules/shared/server";
 import { logger } from "@/modules/shared/server";
-import { adminDeleteEvent, adminUpdateEvent, adminUpdateEventStatus, adminToggleEventFeatured, adminToggleUserAdmin } from "@/modules/admin/server";
+import { adminDeleteEvent, adminUpdateEvent, adminUpdateEventStatus, adminToggleEventFeatured, adminToggleUserAdmin } from "../data/admin";
 import { updateSlotPrice } from "@/modules/shared/server";
 import { approveBoost, rejectBoost } from "@/modules/shared/server";
 import { setClubVerified } from "@/modules/shared/server";

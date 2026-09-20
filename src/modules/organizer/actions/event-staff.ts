@@ -4,10 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/modules/shared/server";
-import {
-  addEventStaff,
-  removeEventStaff,
-} from "@/modules/organizer/server";
+import { addEventStaff, removeEventStaff } from "../data/event-staff";
 
 export async function addEventStaffAction(
   eventId: string,

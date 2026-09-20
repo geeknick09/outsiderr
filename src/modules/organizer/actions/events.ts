@@ -4,7 +4,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/modules/shared/server";
-import { createEvent, updateEvent, updateEventStatus, type TicketTierInput } from "@/modules/organizer/server";
+import { createEvent, updateEvent, updateEventStatus, type TicketTierInput } from "../data/organizer-events";
 import { istToUTC } from "@/modules/shared";
 import type { City, EventCategory, FeePayer, PricingMode } from "@/modules/shared";
 

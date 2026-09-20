@@ -68,3 +68,4 @@ export * from "./ui/auth/login-panel";
 // ---- community UI (cross-domain: used by organizer dashboard + public web) ----
 export * from "./ui/community/club-form";
 export * from "./ui/community/club-members-panel";
+export * from "./ui/payment/razorpay-checkout";

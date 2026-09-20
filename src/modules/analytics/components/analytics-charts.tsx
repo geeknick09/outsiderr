@@ -12,7 +12,7 @@ import {
 } from "recharts";
 
 import { formatPaise } from "@/modules/shared";
-import type { UserAnalytics, PaymentAnalytics, OrganizerAnalytics } from "@/modules/analytics/server";
+import { UserAnalytics, PaymentAnalytics, OrganizerAnalytics } from "../data/admin-analytics";
 
 const PIE_COLORS = ["#8b5cf6", "#ec4899", "#06b6d4", "#10b981", "#f59e0b", "#ef4444"];
 

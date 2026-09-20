@@ -7,7 +7,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 import type { AdminUser } from "@/modules/shared";
-import type { UserAnalytics } from "@/modules/analytics/server";
+import { UserAnalytics } from "../data/admin-analytics";
 
 export function UserAnalyticsExport({
   analytics,

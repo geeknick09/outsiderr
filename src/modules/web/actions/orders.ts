@@ -5,24 +5,18 @@ import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/modules/shared/server";
 import {
-  approveOrder,
-  checkInTicket,
-  checkInTicketWithPin,
   confirmRazorpayOrder,
   createFreeOrder,
   createOrder,
   createReservedOrder,
   failRazorpayOrder,
-  rejectOrder,
   setRazorpayOrderId,
 } from "@/modules/shared/server";
 import { getEvent } from "@/modules/shared/server";
 import { addInterestedTags, updateUserProfile } from "@/modules/shared/server";
 import { getRazorpay, getPublicKeyId, isRazorpayConfigured } from "@/modules/shared/server";
 import { verifyRazorpayPaymentSignature } from "@/modules/shared/server";
-import { validate, checkInWithPinSchema, boxOfficeOrderSchema } from "@/modules/shared";
-import { rateLimit, getRateLimitIdentifier, RATE_LIMITS } from "@/modules/shared";
-import type { CheckoutSession, ScanResult } from "@/modules/shared";
+import type { CheckoutSession } from "@/modules/shared";
 
 export interface CheckoutState {
   error: string | null;

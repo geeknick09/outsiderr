@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { CheckoutSession } from "@/modules/shared";
+import { CheckoutSession } from "../../lib/types";
 
 // Augment the Window object with the Razorpay constructor.
 declare global {
@@ -58,15 +58,15 @@ interface RazorpayCheckoutProps {
   onError?: (message: string) => void;
   onCancel?: () => void;
   /**
-   * Custom verify action. Defaults to the order verifyPaymentAction.
-   * Hero Boost passes verifyHeroBoostPaymentAction here.
+   * Verify action — server action that confirms the Razorpay payment.
+   * Hero Boost passes verifyHeroBoostPaymentAction; orders pass verifyPaymentAction.
+   * (Required: injected by the caller so this shared component stays domain-agnostic.)
    */
-  verifyAction?: VerifyAction;
+  verifyAction: VerifyAction;
   /**
-   * Custom failure action. Defaults to the order handlePaymentFailureAction.
-   * Hero Boost passes a hero-specific failure action here.
+   * Failure action — releases the reservation/boost on payment failure/dismiss.
    */
-  failureAction?: FailureAction;
+  failureAction: FailureAction;
   /**
    * Where to redirect on success. Defaults to /tickets?success=1.
    * Hero Boost redirects to /organizer?boost=success.
@@ -110,19 +110,10 @@ export function RazorpayCheckout({
   const [message, setMessage] = useState<string>("");
   const openedRef = useRef(false);
 
-  // Lazy-load the default order actions only if no custom action is provided.
-  // This avoids importing order actions when Hero Boost provides its own.
-  const getVerifyAction = useCallback(async (): Promise<VerifyAction> => {
-    if (verifyAction) return verifyAction;
-    const { verifyPaymentAction } = await import("../../actions/orders");
-    return verifyPaymentAction;
-  }, [verifyAction]);
-
-  const getFailureAction = useCallback(async (): Promise<FailureAction> => {
-    if (failureAction) return failureAction;
-    const { handlePaymentFailureAction } = await import("../../actions/orders");
-    return handlePaymentFailureAction;
-  }, [failureAction]);
+  // Verify/failure actions are injected by the caller (see props) — this shared
+  // component stays domain-agnostic and never imports order/boost actions.
+  const getVerifyAction = useCallback(async (): Promise<VerifyAction> => verifyAction, [verifyAction]);
+  const getFailureAction = useCallback(async (): Promise<FailureAction> => failureAction, [failureAction]);
 
   const handleFailure = useCallback(
     async (reason: string) => {

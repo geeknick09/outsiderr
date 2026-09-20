@@ -2,7 +2,7 @@ import "server-only";
 
 import { createClient } from "../../shared/auth/server";
 import type { CurrentUser } from "../../shared/auth/auth";
-import { getOrganizerProfile, getEventAccessLevel } from "../../shared/server";
+import { getOrganizerProfile } from "../../shared/server";
 
 export async function getOrganizerEventAnalytics(
   user: CurrentUser,

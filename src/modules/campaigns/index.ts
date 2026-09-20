@@ -1,2 +1,3 @@
-// modules/campaigns — stub (see docs/prd.md §8). Filled in Phase R7.
-export {};
+// modules/campaigns — ad-click aggregation + attribution (stub, Phase R7).
+// Contract types only; data tables + /c/[slug] redirect route land later.
+export * from "./types";

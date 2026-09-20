@@ -4,8 +4,8 @@ import { useTransition } from "react";
 import { AtSign, Check, Loader2, X } from "lucide-react";
 
 import { acceptMemberAction, rejectMemberAction } from "../../actions/clubs";
-import { Badge } from "@/modules/shared";
-import type { Club, ClubMember } from "@/modules/shared";
+import { Badge } from "../ui/badge";
+import { Club, ClubMember } from "../../lib/types";
 
 export function ClubMembersPanel({
   club,

@@ -5,7 +5,7 @@ import { Check, Pencil, Plus, Trash2 } from "lucide-react";
 
 import { deleteLegalPageAction, saveLegalPageAction } from "../actions/legal-pages";
 import { Button } from "@/modules/shared";
-import type { LegalPage } from "@/modules/admin/server";
+import { LegalPage } from "../data/legal-pages";
 
 const INPUT =
   "w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white";

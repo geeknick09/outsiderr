@@ -7,7 +7,7 @@ import { ThemeLogo } from "./theme-logo";
 import { UserMenu } from "./user-menu";
 import { ThemeToggle } from "../theme/theme-toggle";
 import { getCurrentUser } from "../../auth/auth";
-import { getOrganizerProfile } from "@/modules/shared/server";
+import { getOrganizerProfile } from "../../data/organizer-profile";
 import {
   getSettingInt,
 } from "../../data/platform-settings";

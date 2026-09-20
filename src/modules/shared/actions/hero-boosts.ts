@@ -2,20 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 
-import { getCurrentUser } from "@/modules/shared/server";
-import {
-  activateHeroBoost,
-  cancelHeroBoost,
-  cancelHeroBoostsForEvent,
-  createHeroBoost,
-  getHeroBoostForEvent,
-  submitHeroBoostUtr,
-} from "@/modules/shared/server";
-import { getHeroBoostDurationDays, getHeroBoostPrice } from "@/modules/shared/server";
-import { createClient } from "@/modules/shared/server";
-import { getRazorpay, getPublicKeyId, isRazorpayConfigured } from "@/modules/shared/server";
-import { verifyRazorpayPaymentSignature } from "@/modules/shared/server";
-import type { CheckoutSession } from "@/modules/shared";
+import { getCurrentUser } from "../auth/auth";
+import { activateHeroBoost, cancelHeroBoost, cancelHeroBoostsForEvent, createHeroBoost, getHeroBoostForEvent, submitHeroBoostUtr } from "../data/hero-boosts";
+import { getHeroBoostDurationDays, getHeroBoostPrice } from "../data/platform-settings";
+import { createClient } from "../auth/client";
+import { getRazorpay, getPublicKeyId, isRazorpayConfigured } from "../lib/razorpay";
+import { verifyRazorpayPaymentSignature } from "../lib/razorpay-verify";
+import { CheckoutSession } from "../lib/types";
 
 /**
  * Check if the current user is an admin.

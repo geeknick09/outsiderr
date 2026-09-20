@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { getCurrentUser } from "@/modules/shared/server";
 import { createClient } from "@/modules/shared/server";
-import { deleteLegalPage, upsertLegalPage } from "@/modules/admin/server";
+import { deleteLegalPage, upsertLegalPage } from "../data/legal-pages";
 
 async function requireAdmin() {
   const user = await getCurrentUser();

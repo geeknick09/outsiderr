@@ -2,7 +2,7 @@ import "server-only";
 
 import { createClient } from "../../shared/auth/server";
 import { getCurrentUser } from "../../shared/auth/auth";
-import type { EventAnalytics, PricingMode, Ticket } from "../../shared";
+import type { EventAnalytics } from "../../shared";
 
 async function requireAdminUser(): Promise<void> {
   const user = await getCurrentUser();

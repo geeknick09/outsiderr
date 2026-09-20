@@ -2,7 +2,7 @@ import "server-only";
 
 import { createClient } from "../auth/server";
 import type { CurrentUser } from "../auth/auth";
-import { getOrganizerProfile } from "@/modules/shared/server";
+import { getOrganizerProfile } from "./organizer-profile";
 
 export type { ScannerPin, ScannerPinWithEvent } from "../lib/types/scanner-pins";
 import type { ScannerPin, ScannerPinWithEvent } from "../lib/types/scanner-pins";

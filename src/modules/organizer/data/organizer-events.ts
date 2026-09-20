@@ -2,7 +2,7 @@ import "server-only";
 
 import { DEFAULT_EVENT_TERMS } from "../../shared";
 import { getOrganizerProfile, createClient } from "../../shared/server";
-import type { CurrentUser, Database } from "../../shared";
+import type { CurrentUser } from "../../shared";
 import type { City, EventCategory, EventSummary, FeePayer, PricingMode } from "../../shared";
 
 export interface TicketTierInput {

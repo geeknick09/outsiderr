@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
-import { getCurrentUser } from "@/modules/shared/server";
-import { createClient } from "@/modules/shared/server";
+import { getCurrentUser } from "../auth/auth";
+import { createClient } from "../auth/client";
 
 // ================================================================
 // Event Subscriptions ("Update Me")
