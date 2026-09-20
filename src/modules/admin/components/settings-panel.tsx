@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Check, Settings as SettingsIcon, Loader2 } from "lucide-react";
 
-import { updatePlatformSettingAction } from "@/actions/admin";
+import { updatePlatformSettingAction } from "../actions/admin";
 import { Button } from "@/modules/shared";
 import type { PlatformSetting } from "@/modules/shared";
 

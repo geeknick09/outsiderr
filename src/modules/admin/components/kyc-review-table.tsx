@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Eye, Loader2, MessageSquareWarning, X } from "lucide-react";
 
-import { approveKycAction, rejectKycAction, requestClarificationAction } from "@/actions/kyc";
+import { approveKycAction, rejectKycAction, requestClarificationAction } from "../actions/kyc";
 import { Modal } from "@/modules/shared";
 import type { KycSubmission } from "@/modules/admin/server";
 

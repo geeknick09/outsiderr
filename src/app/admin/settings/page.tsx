@@ -1,4 +1,4 @@
-import { AdminSettingsPanel } from "@/components/admin/settings-panel";
+import { AdminSettingsPanel } from "@/modules/admin";
 import { getAllSettings } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";

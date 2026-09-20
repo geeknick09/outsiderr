@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Check, Pencil, Plus, Trash2 } from "lucide-react";
 
-import { deleteLegalPageAction, saveLegalPageAction } from "@/actions/legal-pages";
+import { deleteLegalPageAction, saveLegalPageAction } from "../actions/legal-pages";
 import { Button } from "@/modules/shared";
 import type { LegalPage } from "@/modules/admin/server";
 

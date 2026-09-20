@@ -1,5 +1,5 @@
-import { adminToggleAdminAction } from "@/actions/admin";
-import { UserAnalyticsExport } from "@/components/admin/user-analytics-export";
+import { adminToggleAdminAction } from "@/modules/admin/actions/admin";
+import { UserAnalyticsExport } from "@/modules/analytics";
 import { Badge } from "@/modules/shared";
 import { ActionButton } from "@/modules/shared";
 import { getUserAnalytics } from "@/modules/analytics/server";

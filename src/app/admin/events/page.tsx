@@ -5,8 +5,8 @@ import {
   adminToggleFeaturedAction,
   adminUpdateEventStatusAction,
   adminUpdateEventFeesAction,
-} from "@/actions/admin";
-import { AdminEventEditForm } from "@/components/admin/admin-event-edit-form";
+} from "@/modules/admin/actions/admin";
+import { AdminEventEditForm } from "@/modules/admin";
 import { Badge } from "@/modules/shared";
 import { ActionButton } from "@/modules/shared";
 import { listAllAdminEvents } from "@/modules/admin/server";

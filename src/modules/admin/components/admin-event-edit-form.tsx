@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Check, X } from "lucide-react";
 
-import { adminUpdateEventAction } from "@/actions/admin";
+import { adminUpdateEventAction } from "../actions/admin";
 import { Button } from "@/modules/shared";
 import { CATEGORY_LABELS, CITY_LABELS } from "@/modules/shared";
 import { istToUTC, utcToISTInput } from "@/modules/shared";

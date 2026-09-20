@@ -1,3 +1,5 @@
-// modules/analytics — client-safe public API (components, types).
-// Filled as components move in Phase R6. Server data: ./server
-export {};
+// modules/analytics — client-safe public API (analytics charts/widgets).
+// Server data: ./server
+export * from "./components/analytics-charts";
+export * from "./components/analytics-charts-lazy";
+export * from "./components/user-analytics-export";

@@ -1,6 +1,6 @@
-import { BoostSettingsEditor } from "@/components/admin/boost-settings-editor";
-import { HeroBoostAdminActions } from "@/components/admin/hero-boost-admin-actions";
-import { SlotPriceEditor } from "@/components/admin/slot-price-editor";
+import { BoostSettingsEditor } from "@/modules/admin";
+import { HeroBoostAdminActions } from "@/modules/admin";
+import { SlotPriceEditor } from "@/modules/admin";
 import { Badge } from "@/modules/shared";
 import { listBoostSlotPrices, listOccupiedSlots, listActiveBoosts } from "@/modules/shared/server";
 import { listAllHeroBoosts } from "@/modules/shared/server";

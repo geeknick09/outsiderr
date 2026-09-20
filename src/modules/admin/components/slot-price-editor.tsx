@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Check, Pencil } from "lucide-react";
 
-import { adminUpdateSlotPriceAction } from "@/actions/admin";
+import { adminUpdateSlotPriceAction } from "../actions/admin";
 import { formatPaise } from "@/modules/shared";
 import type { BoostSlotPrice } from "@/modules/shared";
 

@@ -1,5 +1,5 @@
 import { listKycSubmissions } from "@/modules/admin/server";
-import { KycReviewTable } from "@/components/admin/kyc-review-table";
+import { KycReviewTable } from "@/modules/admin";
 
 export const dynamic = "force-dynamic";
 

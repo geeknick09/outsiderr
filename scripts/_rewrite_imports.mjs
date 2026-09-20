@@ -41,6 +41,15 @@ for (const f of fs.existsSync("src/modules/scanner/components/box-office") ? fs.
   mv(`components/box-office/${f}`, `modules/scanner/components/box-office/${f}`);
 for (const f of ["door-scanner","event-door-scanner","walkin-checkin-form"])
   mv(`components/organizer/${f}.tsx`, `modules/scanner/components/${f}.tsx`);
+// admin components -> admin/components
+for (const f of fs.existsSync("src/modules/admin/components") ? fs.readdirSync("src/modules/admin/components") : [])
+  mv(`components/admin/${f}`, `modules/admin/components/${f}`);
+// analytics components (were under components/admin) -> analytics/components
+for (const f of ["analytics-charts","analytics-charts-lazy","user-analytics-export"])
+  mv(`components/admin/${f}.tsx`, `modules/analytics/components/${f}.tsx`);
+// admin actions
+for (const f of ["admin","kyc","legal-pages"])
+  mv(`actions/${f}.ts`, `modules/admin/actions/${f}.ts`);
 
 // ---------- symbol routing for split files ----------
 const SYMBOL_ROUTES = {

@@ -1,4 +1,4 @@
-import { adminApproveClubAction, adminRejectClubAction } from "@/actions/admin";
+import { adminApproveClubAction, adminRejectClubAction } from "@/modules/admin/actions/admin";
 import { Badge } from "@/modules/shared";
 import { ActionButton } from "@/modules/shared";
 import { listClubs, listPendingClubs } from "@/modules/shared/server";

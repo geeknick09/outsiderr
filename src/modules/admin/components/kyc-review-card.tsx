@@ -7,7 +7,7 @@ import {
   approveKycAction,
   rejectKycAction,
   requestClarificationAction,
-} from "@/actions/kyc";
+} from "../actions/kyc";
 import type { KycSubmission } from "@/modules/admin/server";
 
 export function KycReviewCard({ submission }: { submission: KycSubmission }) {

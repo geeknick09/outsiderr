@@ -1,5 +1,5 @@
 import { getUserAnalytics, getPaymentAnalytics, getOrganizerAnalytics } from "@/modules/analytics/server";
-import { AnalyticsChartsLazy } from "@/components/admin/analytics-charts-lazy";
+import { AnalyticsChartsLazy } from "@/modules/analytics";
 
 export const dynamic = "force-dynamic";
 

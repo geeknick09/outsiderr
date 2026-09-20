@@ -1,4 +1,4 @@
-import { LegalPagesPanel } from "@/components/admin/legal-pages-panel";
+import { LegalPagesPanel } from "@/modules/admin";
 import { listLegalPages } from "@/modules/admin/server";
 
 export const dynamic = "force-dynamic";
