@@ -3,10 +3,10 @@ import { notFound, redirect } from "next/navigation";
 import { lazy, Suspense } from "react";
 import { ChevronLeft, ScanLine } from "lucide-react";
 
-import { getCurrentUser } from "@/lib/auth";
-import { getEvent } from "@/lib/data/events";
-import { getEventAccessLevel, canScanTickets } from "@/lib/data/engagement";
-import { formatDateRange } from "@/lib/format";
+import { getCurrentUser } from "@/modules/shared/server";
+import { getEvent } from "@/modules/shared/server";
+import { getEventAccessLevel, canScanTickets } from "@/modules/shared/server";
+import { formatDateRange } from "@/modules/shared";
 
 // Lazy load DoorScanner — html5-qrcode is ~110kB
 const EventDoorScanner = lazy(() =>

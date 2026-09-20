@@ -2,23 +2,17 @@
 
 import { revalidatePath, revalidateTag } from "next/cache";
 
-import { getCurrentUser } from "@/lib/auth";
-import { auditEventAction, auditFinancialAction, auditLog } from "@/lib/audit";
-import { logger } from "@/lib/logger";
-import {
-  adminDeleteEvent,
-  adminUpdateEvent,
-  adminUpdateEventStatus,
-  adminToggleEventFeatured,
-  adminToggleUserAdmin,
-} from "@/lib/data/admin";
-import { updateSlotPrice } from "@/lib/data/boosts";
-import { approveBoost, rejectBoost } from "@/lib/data/boosts";
-import { setClubVerified } from "@/lib/data/clubs";
-import { approveOrder, rejectOrder } from "@/lib/data/orders";
-import { createClient } from "@/lib/supabase/server";
-import { isEventReadOnly } from "@/lib/event-lifecycle";
-import type { EventStatus } from "@/lib/types";
+import { getCurrentUser } from "@/modules/shared/server";
+import { auditEventAction, auditFinancialAction, auditLog } from "@/modules/shared/server";
+import { logger } from "@/modules/shared/server";
+import { adminDeleteEvent, adminUpdateEvent, adminUpdateEventStatus, adminToggleEventFeatured, adminToggleUserAdmin } from "@/modules/admin/server";
+import { updateSlotPrice } from "@/modules/shared/server";
+import { approveBoost, rejectBoost } from "@/modules/shared/server";
+import { setClubVerified } from "@/modules/shared/server";
+import { approveOrder, rejectOrder } from "@/modules/shared/server";
+import { createClient } from "@/modules/shared/server";
+import { isEventReadOnly } from "@/modules/shared";
+import type { EventStatus } from "@/modules/shared";
 
 async function requireAdmin() {
   const user = await getCurrentUser();
@@ -64,7 +58,7 @@ export async function adminUpdateEventStatusAction(
   // If admin is cancelling an event, use the atomic cancel_event RPC
   // which processes refunds, cancels tickets, and sends notifications.
   if (status === "CANCELLED") {
-    const { getCancellationChargePercent } = await import("@/lib/data/platform-settings");
+    const { getCancellationChargePercent } = await import("@/modules/shared/server");
     const cancellationChargePercent = await getCancellationChargePercent();
     const { error } = await supabase.rpc("cancel_event", {
       p_event_id: eventId,
@@ -278,8 +272,8 @@ export async function adminInitiateRefundAction(
 
   logger.info({ orderId, amountPaise, reason }, "admin refund initiated");
 
-  const { createClient } = await import("@/lib/supabase/server");
-  const { getRazorpay, isRazorpayConfigured } = await import("@/lib/razorpay");
+  const { createClient } = await import("@/modules/shared/server");
+  const { getRazorpay, isRazorpayConfigured } = await import("@/modules/shared/server");
 
   if (!isRazorpayConfigured()) {
     logger.warn("admin refund: Razorpay not configured");
@@ -433,7 +427,7 @@ export async function adminRecordPayoutAction(
 ): Promise<{ success: boolean; error?: string }> {
   const user = await requireAdmin();
 
-  const { createClient } = await import("@/lib/supabase/server");
+  const { createClient } = await import("@/modules/shared/server");
   const supabase = await createClient();
 
   const { error } = await supabase.from("payout_records").insert({
@@ -494,8 +488,8 @@ export async function updatePlatformSettingAction(
       parsedValue = value;
     }
 
-    const { updateSetting } = await import("@/lib/data/platform-settings");
-    const { data: existing } = await (await import("@/lib/supabase/server")).createClient()
+    const { updateSetting } = await import("@/modules/shared/server");
+    const { data: existing } = await (await import("@/modules/shared/server")).createClient()
       .then((s) => s.from("platform_settings").select("value").eq("key", key).maybeSingle());
     await updateSetting(user.id, key, parsedValue);
     await auditLog({

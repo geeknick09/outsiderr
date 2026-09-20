@@ -4,8 +4,8 @@ import { useState } from "react";
 import { ShieldCheck, Users } from "lucide-react";
 
 import { createDoorStaffOrderAction } from "@/actions/door-staff";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Button } from "@/modules/shared";
+import { cn } from "@/modules/shared";
 
 export function DoorStaffRequest({
   eventId,

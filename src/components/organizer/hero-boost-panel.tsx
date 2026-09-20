@@ -8,10 +8,10 @@ import {
   verifyHeroBoostPaymentAction,
   handleHeroBoostFailureAction,
 } from "@/actions/hero-boosts";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/modules/shared";
 import { RazorpayCheckout } from "@/components/checkout/razorpay-checkout";
-import { formatDateTime } from "@/lib/format";
-import type { CheckoutSession, HeroBoost } from "@/lib/types";
+import { formatDateTime } from "@/modules/shared";
+import type { CheckoutSession, HeroBoost } from "@/modules/shared";
 
 export function HeroBoostPanel({
   eventId,

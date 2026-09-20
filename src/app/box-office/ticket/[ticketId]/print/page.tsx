@@ -3,10 +3,10 @@ import type { Metadata } from "next";
 import { ChevronLeft } from "lucide-react";
 
 import { PrintButton } from "@/components/organizer/print-button";
-import { QrCode } from "@/components/ui/qr-code";
-import { createClient } from "@/lib/supabase/server";
-import { getEvent } from "@/lib/data/events";
-import { formatDateTime } from "@/lib/format";
+import { QrCode } from "@/modules/shared";
+import { createClient } from "@/modules/shared/server";
+import { getEvent } from "@/modules/shared/server";
+import { formatDateTime } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 

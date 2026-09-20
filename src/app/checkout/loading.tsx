@@ -1,7 +1,7 @@
 /**
  * Checkout loading skeleton — shown while the checkout page loads event/tier data.
  */
-import { BrandedLoader } from "@/components/ui/branded-loader";
+import { BrandedLoader } from "@/modules/shared";
 
 export default function CheckoutLoading() {
   return (

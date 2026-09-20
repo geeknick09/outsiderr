@@ -1,0 +1,280 @@
+import "server-only";
+
+import { MAX_FEATURED_EVENTS } from "../lib/constants";
+import { createClient } from "../auth/server";
+import type {
+  EventRow,
+  OrganizerRow,
+  TicketTierRow,
+} from "../db/database.types";
+import type {
+  City,
+  EventCategory,
+  EventDetail,
+  EventSummary,
+  Organizer,
+  PricingMode,
+  TicketTier,
+  TierType,
+} from "../lib/types";
+
+export interface EventQuery {
+  city?: City;
+  category?: EventCategory;
+  search?: string;
+}
+
+function toOrganizer(row: OrganizerRow): Organizer {
+  return {
+    id: row.id,
+    ownerId: (row as { owner_id?: string }).owner_id ?? "",
+    name: row.name,
+    bio: row.bio,
+    description: (row as { description?: string | null }).description ?? null,
+    avatarUrl: row.avatar_url,
+    coverUrl: (row as { cover_url?: string | null }).cover_url ?? null,
+    instagramUrl: (row as { instagram_url?: string | null }).instagram_url ?? null,
+    youtubeUrl: (row as { youtube_url?: string | null }).youtube_url ?? null,
+    xUrl: (row as { x_url?: string | null }).x_url ?? null,
+    facebookUrl: (row as { facebook_url?: string | null }).facebook_url ?? null,
+    linkedinUrl: (row as { linkedin_url?: string | null }).linkedin_url ?? null,
+    upiId: row.upi_id,
+    upiQrUrl: row.upi_qr_url,
+    verified: row.verified,
+  };
+}
+
+function toTier(row: TicketTierRow): TicketTier {
+  return {
+    id: row.id,
+    eventId: row.event_id,
+    name: row.name,
+    pricePaise: row.price_paise,
+    quantity: row.quantity,
+    quantitySold: row.quantity_sold,
+    quantityReserved: (row as { quantity_reserved?: number }).quantity_reserved ?? 0,
+    perks: row.perks ?? [],
+    sortOrder: row.sort_order,
+    tierType: ((row as { tier_type?: string }).tier_type as TierType) ?? "NAMED",
+    phaseOrder: (row as { phase_order?: number | null }).phase_order ?? null,
+    phaseOpensAt: (row as { phase_opens_at?: string | null }).phase_opens_at ?? null,
+    phaseClosesAt: (row as { phase_closes_at?: string | null }).phase_closes_at ?? null,
+  };
+}
+
+function minPrice(tiers: TicketTier[]): number {
+  return tiers.length === 0 ? 0 : Math.min(...tiers.map((tier) => tier.pricePaise));
+}
+
+function toSummary(row: EventRow, tiers: TicketTier[]): EventSummary {
+  const categoriesRaw = (row as { categories?: string[] }).categories ?? [];
+  return {
+    id: row.id,
+    title: row.title,
+    category: row.category,
+    categories: categoriesRaw.length > 0 ? categoriesRaw as EventCategory[] : [row.category],
+    city: row.city,
+    venueName: row.venue_name,
+    startsAt: row.starts_at,
+    cardPosterUrl: row.card_poster_url,
+    bannerPosterUrl: row.banner_poster_url,
+    minPricePaise: minPrice(tiers),
+    isFeatured: row.is_featured,
+    registrationsCount: row.registrations_count,
+    tags: row.tags ?? [],
+    status: row.status,
+    pricingMode: (row.pricing_mode ?? "PAID") as PricingMode,
+  };
+}
+
+function toDetail(
+  row: EventRow,
+  organizer: Organizer,
+  tiers: TicketTier[],
+): EventDetail {
+  return {
+    ...toSummary(row, tiers),
+    description: row.description,
+    thingsToKnow: row.things_to_know ?? [],
+    venueAddress: row.venue_address,
+    latitude: row.latitude,
+    longitude: row.longitude,
+    googleMapsLink: row.google_maps_link ?? null,
+    endsAt: row.ends_at,
+    feePayer: row.fee_payer,
+    commissionBps: (row as { commission_bps?: number }).commission_bps ?? 1000,
+    commissionEnabled: (row as { commission_enabled?: boolean }).commission_enabled ?? true,
+    convenienceFeeBps: (row as { convenience_fee_bps?: number }).convenience_fee_bps ?? 200,
+    convenienceFeeEnabled: (row as { convenience_fee_enabled?: boolean }).convenience_fee_enabled ?? true,
+    status: row.status,
+    needsDoorStaff: row.needs_door_staff,
+    waitlistEnabled: (row as { waitlist_enabled?: boolean }).waitlist_enabled ?? true,
+    allowBookingDuringEvent: (row as { allow_booking_during_event?: boolean }).allow_booking_during_event ?? false,
+    terms: row.terms ?? [],
+    organizer,
+    tiers: tiers.sort((a, b) => a.sortOrder - b.sortOrder),
+    photoUrls: row.photo_urls ?? [],
+    contactEmail: row.contact_email ?? null,
+    contactPhone: row.contact_phone ?? null,
+    instagramUrl: (row as { instagram_url?: string | null }).instagram_url ?? null,
+    youtubeUrl: (row as { youtube_url?: string | null }).youtube_url ?? null,
+    xUrl: (row as { x_url?: string | null }).x_url ?? null,
+    facebookUrl: (row as { facebook_url?: string | null }).facebook_url ?? null,
+    linkedinUrl: (row as { linkedin_url?: string | null }).linkedin_url ?? null,
+    linkedPastEventIds: (row as { linked_past_event_ids?: string[] }).linked_past_event_ids ?? [],
+  };
+}
+
+export async function listEvents(query: EventQuery = {}): Promise<EventSummary[]> {
+  const search = query.search?.trim().toLowerCase();
+
+  const supabase = await createClient();
+  let request = supabase
+    .from("events")
+    .select("*")
+    .in("status", ["PUBLISHED", "POSTPONED"])
+    .order("starts_at", { ascending: true });
+
+  if (query.city) request = request.eq("city", query.city);
+  // Filter by categories array (contains) — supports multi-category events
+  if (query.category) request = request.contains("categories", [query.category]);
+  if (search) {
+    request = request.or(`title.ilike.%${search}%,venue_name.ilike.%${search}%,description.ilike.%${search}%`);
+  }
+
+  const { data: events, error } = await request;
+  if (error) {
+    console.error("[listEvents] Supabase error:", JSON.stringify(error));
+    // 22P02 = invalid input value for enum — DB enum out of sync; return empty
+    if ((error as { code?: string }).code === "22P02") return [];
+    throw error;
+  }
+  if (!events || events.length === 0) return [];
+
+  const { data: tiers } = await supabase
+    .from("ticket_tiers")
+    .select("*")
+    .in(
+      "event_id",
+      events.map((event) => event.id),
+    );
+
+  return events.map((event) =>
+    toSummary(
+      event,
+      (tiers ?? []).filter((tier) => tier.event_id === event.id).map(toTier),
+    ),
+  );
+}
+
+export async function listFeaturedEvents(city?: City): Promise<EventSummary[]> {
+  const events = await listEvents({ city });
+  return events.filter((event) => event.isFeatured).slice(0, MAX_FEATURED_EVENTS);
+}
+
+export async function getEvent(id: string): Promise<EventDetail | null> {
+  const supabase = await createClient();
+  const { data: event } = await supabase
+    .from("events")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (!event) return null;
+
+  const [{ data: organizer }, { data: tiers }] = await Promise.all([
+    supabase.from("organizers").select("*").eq("id", event.organizer_id).maybeSingle(),
+    supabase
+      .from("ticket_tiers")
+      .select("*")
+      .eq("event_id", event.id)
+      .order("sort_order", { ascending: true }),
+  ]);
+
+  if (!organizer) return null;
+
+  return toDetail(event, toOrganizer(organizer), (tiers ?? []).map(toTier));
+}
+
+/**
+ * Get an organizer's past events (completed, not cancelled) for linking as previous editions.
+ * Returns minimal info: id, title, startsAt. Only for the event form's multi-select.
+ */
+export async function getOrganizerPastEventsForLinking(
+  organizerId: string,
+  excludeEventId?: string,
+): Promise<Array<{ id: string; title: string; startsAt: string }>> {
+  const supabase = await createClient();
+  const now = new Date().toISOString();
+
+  let query = supabase
+    .from("events")
+    .select("id, title, starts_at")
+    .eq("organizer_id", organizerId)
+    .lt("starts_at", now)
+    .neq("status", "CANCELLED")
+    .order("starts_at", { ascending: false });
+
+  if (excludeEventId) {
+    query = query.neq("id", excludeEventId);
+  }
+
+  const { data: events } = await query;
+  if (!events) return [];
+
+  return events.map((e) => ({
+    id: e.id,
+    title: e.title,
+    startsAt: e.starts_at,
+  }));
+}
+
+/**
+ * Get details for linked past events (for display on the event page).
+ * Returns: id, title, startsAt, cardPosterUrl, and aggregate rating.
+ */
+export async function getLinkedPastEvents(
+  eventIds: string[],
+): Promise<Array<{ id: string; title: string; startsAt: string; cardPosterUrl: string | null; rating: number; reviewCount: number }>> {
+  if (!eventIds.length) return [];
+
+  const supabase = await createClient();
+
+  const { data: events } = await supabase
+    .from("events")
+    .select("id, title, starts_at, card_poster_url")
+    .in("id", eventIds)
+    .order("starts_at", { ascending: false });
+
+  if (!events || events.length === 0) return [];
+
+  // Get reviews for these events
+  const { data: reviews } = await supabase
+    .from("event_reviews")
+    .select("event_id, rating")
+    .in("event_id", eventIds);
+
+  const ratingByEvent: Record<string, { sum: number; count: number }> = {};
+  for (const r of reviews ?? []) {
+    const eid = (r as { event_id: string }).event_id;
+    if (!ratingByEvent[eid]) ratingByEvent[eid] = { sum: 0, count: 0 };
+    ratingByEvent[eid].sum += (r as { rating: number }).rating;
+    ratingByEvent[eid].count++;
+  }
+
+  // Preserve the order of eventIds (which is the order the organizer chose)
+  return eventIds
+    .map((id) => {
+      const event = events.find((e) => e.id === id);
+      if (!event) return null;
+      const ratingInfo = ratingByEvent[id];
+      return {
+        id: event.id,
+        title: event.title,
+        startsAt: event.starts_at,
+        cardPosterUrl: (event as { card_poster_url?: string | null }).card_poster_url ?? null,
+        rating: ratingInfo && ratingInfo.count > 0 ? Math.round((ratingInfo.sum / ratingInfo.count) * 10) / 10 : 0,
+        reviewCount: ratingInfo?.count ?? 0,
+      };
+    })
+    .filter((e): e is NonNullable<typeof e> => e !== null);
+}

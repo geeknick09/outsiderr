@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isEventReadOnly, mergeOrganizerIntent } from "@/lib/event-lifecycle";
+import { isEventReadOnly, mergeOrganizerIntent } from "@/modules/shared";
 
 describe("event lifecycle guards", () => {
   it("marks an event as read-only after it has started", () => {

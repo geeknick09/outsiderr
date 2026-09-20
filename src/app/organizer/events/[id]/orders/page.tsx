@@ -3,10 +3,10 @@ import Link from "next/link";
 import { ChevronLeft, Users } from "lucide-react";
 
 import { AttendeesTable } from "@/components/organizer/attendees-table";
-import { getCurrentUser } from "@/lib/auth";
-import { getEvent } from "@/lib/data/events";
-import { getEventAccessLevel, canManageOrders } from "@/lib/data/engagement";
-import { listEventOrders, listEventTickets } from "@/lib/data/admin";
+import { getCurrentUser } from "@/modules/shared/server";
+import { getEvent } from "@/modules/shared/server";
+import { getEventAccessLevel, canManageOrders } from "@/modules/shared/server";
+import { listEventOrders, listEventTickets } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
 

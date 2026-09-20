@@ -2,10 +2,10 @@ import { redirect } from "next/navigation";
 
 import { TicketsRealtimeWrapper } from "@/components/tickets/tickets-realtime-wrapper";
 import { ReviewForm } from "@/components/reviews/review-form";
-import { getCurrentUser } from "@/lib/auth";
-import { listMyOrders, listMyTickets } from "@/lib/data/orders";
-import { getOrganizerWhatsappNumber } from "@/lib/data/platform-settings";
-import { getReviewableEvents } from "@/lib/data/reviews";
+import { getCurrentUser } from "@/modules/shared/server";
+import { listMyOrders, listMyTickets } from "@/modules/shared/server";
+import { getOrganizerWhatsappNumber } from "@/modules/shared/server";
+import { getReviewableEvents } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
 

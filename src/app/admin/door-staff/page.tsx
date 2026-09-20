@@ -1,6 +1,6 @@
-import { Badge } from "@/components/ui/badge";
-import { listAllDoorStaffOrders } from "@/lib/data/door-staff";
-import { formatPaise } from "@/lib/format";
+import { Badge } from "@/modules/shared";
+import { listAllDoorStaffOrders } from "@/modules/shared/server";
+import { formatPaise } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 

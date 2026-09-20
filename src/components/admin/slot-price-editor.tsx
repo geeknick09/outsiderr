@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Check, Pencil } from "lucide-react";
 
 import { adminUpdateSlotPriceAction } from "@/actions/admin";
-import { formatPaise } from "@/lib/format";
-import type { BoostSlotPrice } from "@/lib/types";
+import { formatPaise } from "@/modules/shared";
+import type { BoostSlotPrice } from "@/modules/shared";
 
 export function SlotPriceEditor({
   slotPrices,

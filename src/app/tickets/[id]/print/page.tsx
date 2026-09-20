@@ -4,12 +4,12 @@ import type { Metadata } from "next";
 import { ChevronLeft } from "lucide-react";
 
 import { PrintButton } from "@/components/organizer/print-button";
-import { QrCode } from "@/components/ui/qr-code";
-import { getCurrentUser } from "@/lib/auth";
-import { getEvent } from "@/lib/data/events";
-import { listMyTickets } from "@/lib/data/orders";
-import { createClient } from "@/lib/supabase/server";
-import { formatDateTime, formatPaise } from "@/lib/format";
+import { QrCode } from "@/modules/shared";
+import { getCurrentUser } from "@/modules/shared/server";
+import { getEvent } from "@/modules/shared/server";
+import { listMyTickets } from "@/modules/shared/server";
+import { createClient } from "@/modules/shared/server";
+import { formatDateTime, formatPaise } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 

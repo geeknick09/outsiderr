@@ -6,8 +6,8 @@ import { Download, Loader2 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-import type { AdminUser } from "@/lib/types";
-import type { UserAnalytics } from "@/lib/data/admin";
+import type { AdminUser } from "@/modules/shared";
+import type { UserAnalytics } from "@/modules/analytics/server";
 
 export function UserAnalyticsExport({
   analytics,

@@ -4,8 +4,8 @@ import { useTransition } from "react";
 import { BellRing, Loader2, X } from "lucide-react";
 
 import { joinWaitlistAction, leaveWaitlistAction } from "@/actions/waitlist";
-import { Button } from "@/components/ui/button";
-import type { WaitlistEntry } from "@/lib/types";
+import { Button } from "@/modules/shared";
+import type { WaitlistEntry } from "@/modules/shared";
 
 export function WaitlistButton({
   tierId,

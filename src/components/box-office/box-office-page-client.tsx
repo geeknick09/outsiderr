@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Loader2, Ticket, UserCheck } from "lucide-react";
 
 import { verifyBoxOfficePinAction, createBoxOfficeOrderAction } from "@/actions/box-office";
-import { formatPaise } from "@/lib/format";
+import { formatPaise } from "@/modules/shared";
 
 export interface BoxOfficeEventOption {
   id: string;

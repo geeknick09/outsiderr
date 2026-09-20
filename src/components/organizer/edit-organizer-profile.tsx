@@ -4,12 +4,12 @@ import { useActionState, useState } from "react";
 import { Check, X } from "lucide-react";
 
 import { updateOrganizerAction, type UpdateOrganizerState } from "@/actions/organizer";
-import { Button } from "@/components/ui/button";
-import { ImageUploadWithCrop } from "@/components/ui/image-cropper";
-import { QrCode } from "@/components/ui/qr-code";
-import { uploadPublicFile } from "@/lib/upload";
-import { upiIntent, validateUpiId } from "@/lib/upi";
-import type { Organizer } from "@/lib/types";
+import { Button } from "@/modules/shared";
+import { ImageUploadWithCrop } from "@/modules/shared";
+import { QrCode } from "@/modules/shared";
+import { uploadPublicFile } from "@/modules/shared";
+import { upiIntent, validateUpiId } from "@/modules/shared";
+import type { Organizer } from "@/modules/shared";
 
 const INPUT =
   "w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white";

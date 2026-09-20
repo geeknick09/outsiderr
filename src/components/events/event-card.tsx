@@ -2,11 +2,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { MapPin } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { CATEGORY_LABELS } from "@/lib/constants";
-import { formatDateBadge, formatPriceTag } from "@/lib/format";
-import type { EventSummary } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { Badge } from "@/modules/shared";
+import { CATEGORY_LABELS } from "@/modules/shared";
+import { formatDateBadge, formatPriceTag } from "@/modules/shared";
+import type { EventSummary } from "@/modules/shared";
+import { cn } from "@/modules/shared";
 
 export function EventCard({
   event,

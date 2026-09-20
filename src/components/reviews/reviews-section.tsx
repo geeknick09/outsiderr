@@ -1,8 +1,8 @@
 import Image from "next/image";
 import { Star } from "lucide-react";
 
-import type { EventReview, OrganizerRating } from "@/lib/types";
-import { formatDateTime } from "@/lib/format";
+import type { EventReview, OrganizerRating } from "@/modules/shared";
+import { formatDateTime } from "@/modules/shared";
 
 interface ReviewsSectionProps {
   reviews: EventReview[];

@@ -5,12 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/modules/shared";
 import { TicketCard } from "@/components/tickets/ticket-card";
 import { PostponementRefundButton } from "@/components/tickets/postponement-refund-button";
-import { useRealtime } from "@/lib/hooks/use-realtime";
-import { formatPaise } from "@/lib/format";
-import type { Order, OrderStatus, Ticket } from "@/lib/types";
+import { useRealtime } from "@/modules/shared";
+import { formatPaise } from "@/modules/shared";
+import type { Order, OrderStatus, Ticket } from "@/modules/shared";
 
 const STATUS_TONE: Record<OrderStatus, "warning" | "success" | "danger" | "neutral" | "violet"> = {
   PENDING_VERIFICATION: "warning",

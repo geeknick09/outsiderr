@@ -4,11 +4,11 @@ import { useState } from "react";
 import { CheckCircle2, Clock, ShieldCheck } from "lucide-react";
 
 import { verifyDoorStaffPaymentAction } from "@/actions/door-staff";
-import { QrCode } from "@/components/ui/qr-code";
-import { Button } from "@/components/ui/button";
-import { formatPaise } from "@/lib/format";
-import { upiIntent } from "@/lib/upi";
-import type { DoorStaffOrder } from "@/lib/types";
+import { QrCode } from "@/modules/shared";
+import { Button } from "@/modules/shared";
+import { formatPaise } from "@/modules/shared";
+import { upiIntent } from "@/modules/shared";
+import type { DoorStaffOrder } from "@/modules/shared";
 
 const INPUT =
   "w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white";

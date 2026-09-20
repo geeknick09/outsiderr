@@ -1,5 +1,5 @@
 import { AdminSettingsPanel } from "@/components/admin/settings-panel";
-import { getAllSettings } from "@/lib/data/platform-settings";
+import { getAllSettings } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
 

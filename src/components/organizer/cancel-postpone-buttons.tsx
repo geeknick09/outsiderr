@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, CalendarClock, X } from "lucide-react";
 
 import { cancelEventAction, postponeEventAction } from "@/actions/events";
-import { Button } from "@/components/ui/button";
-import { SubmitButton } from "@/components/ui/submit-button";
-import { nowISTInput, utcToISTInput } from "@/lib/datetime";
-import type { EventDetail } from "@/lib/types";
+import { Button } from "@/modules/shared";
+import { SubmitButton } from "@/modules/shared";
+import { nowISTInput, utcToISTInput } from "@/modules/shared";
+import type { EventDetail } from "@/modules/shared";
 
 const INPUT =
   "w-full min-w-0 box-border rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon [color-scheme:light] dark:[color-scheme:dark] dark:border-white/10 dark:bg-white/5 dark:text-white";

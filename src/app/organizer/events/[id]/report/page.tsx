@@ -4,12 +4,13 @@ import type { Metadata } from "next";
 import { ChevronLeft } from "lucide-react";
 
 import { PrintButton } from "@/components/organizer/print-button";
-import { getCurrentUser } from "@/lib/auth";
-import { getEvent } from "@/lib/data/events";
-import { getEventAnalytics, listEventOrders, listEventTickets } from "@/lib/data/admin";
-import { getEventAccessLevel, canViewAnalytics } from "@/lib/data/engagement";
-import { getOrganizerProfile } from "@/lib/data/organizer";
-import { formatDateTime, formatPaise } from "@/lib/format";
+import { getCurrentUser } from "@/modules/shared/server";
+import { getEvent } from "@/modules/shared/server";
+import { getEventAnalytics } from "@/modules/analytics/server";
+import { listEventOrders, listEventTickets } from "@/modules/shared/server";
+import { getEventAccessLevel, canViewAnalytics } from "@/modules/shared/server";
+import { getOrganizerProfile } from "@/modules/shared/server";
+import { formatDateTime, formatPaise } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 

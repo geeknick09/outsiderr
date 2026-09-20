@@ -1,5 +1,5 @@
 import { ScanPageClient } from "@/components/scan/scan-page-client";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
 

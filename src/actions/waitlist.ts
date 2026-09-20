@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { getCurrentUser } from "@/lib/auth";
-import { joinWaitlist, leaveWaitlist } from "@/lib/data/waitlist";
+import { getCurrentUser } from "@/modules/shared/server";
+import { joinWaitlist, leaveWaitlist } from "@/modules/shared/server";
 
 export async function joinWaitlistAction(eventId: string, tierId: string): Promise<void> {
   const user = await getCurrentUser();

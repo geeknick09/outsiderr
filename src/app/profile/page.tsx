@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 
 import { EditProfileForm } from "@/components/profile/edit-profile-form";
-import { getCurrentUser } from "@/lib/auth";
-import { getUserProfile } from "@/lib/data/profile";
+import { getCurrentUser } from "@/modules/shared/server";
+import { getUserProfile } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
 

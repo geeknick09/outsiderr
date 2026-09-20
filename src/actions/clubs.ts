@@ -3,15 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@/modules/shared/server";
 import {
   createClub,
   joinClub,
   updateMemberStatus,
   type CreateClubInput,
-} from "@/lib/data/clubs";
-import { getOrganizerProfile } from "@/lib/data/organizer";
-import type { City, ClubType, MembershipType } from "@/lib/types";
+} from "@/modules/shared/server";
+import { getOrganizerProfile } from "@/modules/shared/server";
+import type { City, ClubType, MembershipType } from "@/modules/shared";
 
 export interface CreateClubState {
   error: string | null;

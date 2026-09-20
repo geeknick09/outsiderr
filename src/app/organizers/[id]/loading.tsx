@@ -1,7 +1,7 @@
 /**
  * Organizer profile loading skeleton.
  */
-import { BrandedLoader } from "@/components/ui/branded-loader";
+import { BrandedLoader } from "@/modules/shared";
 
 export default function OrganizerProfileLoading() {
   return (

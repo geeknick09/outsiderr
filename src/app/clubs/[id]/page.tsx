@@ -5,12 +5,12 @@ import type { Metadata } from "next";
 import { AtSign, BadgeCheck, MapPin, Users } from "lucide-react";
 
 import { JoinClubForm } from "@/components/clubs/join-club-form";
-import { Badge } from "@/components/ui/badge";
-import { getCurrentUser } from "@/lib/auth";
-import { getClub, getMyMembership } from "@/lib/data/clubs";
-import { CITY_LABELS } from "@/lib/constants";
-import { formatPaise } from "@/lib/format";
-import type { ClubType, MembershipType } from "@/lib/types";
+import { Badge } from "@/modules/shared";
+import { getCurrentUser } from "@/modules/shared/server";
+import { getClub, getMyMembership } from "@/modules/shared/server";
+import { CITY_LABELS } from "@/modules/shared";
+import { formatPaise } from "@/modules/shared";
+import type { ClubType, MembershipType } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 

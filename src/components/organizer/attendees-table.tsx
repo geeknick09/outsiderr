@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { Printer } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { formatDateTime, formatPaise } from "@/lib/format";
-import type { Order, Ticket } from "@/lib/types";
+import { Badge } from "@/modules/shared";
+import { formatDateTime, formatPaise } from "@/modules/shared";
+import type { Order, Ticket } from "@/modules/shared";
 
 type FilterKey = "all" | "confirmed" | "checked_in" | "pending" | "rejected" | "cancelled";
 

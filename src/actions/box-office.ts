@@ -3,17 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
-import { getCurrentUser } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
-import { getOrganizerProfile } from "@/lib/data/organizer";
+import { getCurrentUser } from "@/modules/shared/server";
+import { createClient } from "@/modules/shared/server";
+import { getOrganizerProfile } from "@/modules/shared/server";
 import {
   validate,
   generatePinsSchema,
   verifyBoxOfficePinSchema,
   boxOfficeOrderSchema,
   revokePinSchema,
-} from "@/lib/validation";
-import { rateLimit, getRateLimitIdentifier, RATE_LIMITS } from "@/lib/rate-limit";
+} from "@/modules/shared";
+import { rateLimit, getRateLimitIdentifier, RATE_LIMITS } from "@/modules/shared";
 
 export interface GenerateBoxOfficePinsResult {
   error: string | null;

@@ -1,6 +1,6 @@
-import { Badge } from "@/components/ui/badge";
-import { formatDateTime } from "@/lib/format";
-import { createServiceClient } from "@/lib/supabase/service";
+import { Badge } from "@/modules/shared";
+import { formatDateTime } from "@/modules/shared";
+import { createServiceClient } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Admin: Payments — Outsiderr" };

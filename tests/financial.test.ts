@@ -6,7 +6,7 @@ import {
   DEFAULT_FEE_TIERS,
   DEFAULT_COMMISSION_BPS,
   DEFAULT_CONVENIENCE_FEE_BPS,
-} from "@/lib/pricing";
+} from "@/modules/shared";
 
 describe("Financial calculations — dual-fee model", () => {
   // The canonical example from the product spec:

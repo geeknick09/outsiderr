@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@/modules/shared/server";
 import {
   activateHeroBoost,
   cancelHeroBoost,
@@ -10,12 +10,12 @@ import {
   createHeroBoost,
   getHeroBoostForEvent,
   submitHeroBoostUtr,
-} from "@/lib/data/hero-boosts";
-import { getHeroBoostDurationDays, getHeroBoostPrice } from "@/lib/data/platform-settings";
-import { createClient } from "@/lib/supabase/server";
-import { getRazorpay, getPublicKeyId, isRazorpayConfigured } from "@/lib/razorpay";
-import { verifyRazorpayPaymentSignature } from "@/lib/razorpay-verify";
-import type { CheckoutSession } from "@/lib/types";
+} from "@/modules/shared/server";
+import { getHeroBoostDurationDays, getHeroBoostPrice } from "@/modules/shared/server";
+import { createClient } from "@/modules/shared/server";
+import { getRazorpay, getPublicKeyId, isRazorpayConfigured } from "@/modules/shared/server";
+import { verifyRazorpayPaymentSignature } from "@/modules/shared/server";
+import type { CheckoutSession } from "@/modules/shared";
 
 /**
  * Check if the current user is an admin.

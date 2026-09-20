@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Check, Share2 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/modules/shared";
 
 interface ShareButtonProps {
   url: string;

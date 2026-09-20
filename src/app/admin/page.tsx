@@ -1,8 +1,9 @@
 import Link from "next/link";
 
-import { getAdminStats, getUserAnalytics } from "@/lib/data/admin";
-import { listPendingHeroBoosts } from "@/lib/data/hero-boosts";
-import { formatPaise } from "@/lib/format";
+import { getAdminStats } from "@/modules/admin/server";
+import { getUserAnalytics } from "@/modules/analytics/server";
+import { listPendingHeroBoosts } from "@/modules/shared/server";
+import { formatPaise } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 

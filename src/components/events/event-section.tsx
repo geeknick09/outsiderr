@@ -1,5 +1,5 @@
 import { EventCard } from "@/components/events/event-card";
-import type { EventSummary } from "@/lib/types";
+import type { EventSummary } from "@/modules/shared";
 
 export function EventSection({
   title,

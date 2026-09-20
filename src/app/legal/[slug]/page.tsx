@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
-import { getLegalPage } from "@/lib/data/legal-pages";
+import { getLegalPage } from "@/modules/admin/server";
 
 export const dynamic = "force-dynamic";
 

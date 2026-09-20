@@ -7,8 +7,8 @@ import {
   activateHeroBoostAction,
   cancelHeroBoostAction,
 } from "@/actions/hero-boosts";
-import { SubmitButton } from "@/components/ui/submit-button";
-import type { HeroBoostWithEvent } from "@/lib/types";
+import { SubmitButton } from "@/modules/shared";
+import type { HeroBoostWithEvent } from "@/modules/shared";
 
 export function HeroBoostAdminActions({ boost }: { boost: HeroBoostWithEvent }) {
   const [activateState, activateAction] = useActionState(

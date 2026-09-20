@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@/modules/shared/server";
 import {
   approveOrder,
   checkInTicket,
@@ -15,14 +15,14 @@ import {
   failRazorpayOrder,
   rejectOrder,
   setRazorpayOrderId,
-} from "@/lib/data/orders";
-import { getEvent } from "@/lib/data/events";
-import { addInterestedTags, updateUserProfile } from "@/lib/data/profile";
-import { getRazorpay, getPublicKeyId, isRazorpayConfigured } from "@/lib/razorpay";
-import { verifyRazorpayPaymentSignature } from "@/lib/razorpay-verify";
-import { validate, checkInWithPinSchema, boxOfficeOrderSchema } from "@/lib/validation";
-import { rateLimit, getRateLimitIdentifier, RATE_LIMITS } from "@/lib/rate-limit";
-import type { CheckoutSession, ScanResult } from "@/lib/types";
+} from "@/modules/shared/server";
+import { getEvent } from "@/modules/shared/server";
+import { addInterestedTags, updateUserProfile } from "@/modules/shared/server";
+import { getRazorpay, getPublicKeyId, isRazorpayConfigured } from "@/modules/shared/server";
+import { verifyRazorpayPaymentSignature } from "@/modules/shared/server";
+import { validate, checkInWithPinSchema, boxOfficeOrderSchema } from "@/modules/shared";
+import { rateLimit, getRateLimitIdentifier, RATE_LIMITS } from "@/modules/shared";
+import type { CheckoutSession, ScanResult } from "@/modules/shared";
 
 export interface CheckoutState {
   error: string | null;
@@ -327,7 +327,7 @@ export async function verifyPaymentAction(input: {
   }
 
   // 2. Find internal order by Razorpay order id
-  const { findOrderByRazorpayOrderId } = await import("@/lib/data/orders");
+  const { findOrderByRazorpayOrderId } = await import("@/modules/shared/server");
   const order = await findOrderByRazorpayOrderId(input.razorpayOrderId);
   if (!order) {
     console.error(`[verify-payment] Order not found: razorpayOrderId=${input.razorpayOrderId}`);
@@ -356,7 +356,7 @@ export async function verifyPaymentAction(input: {
 
   // 4. Insert payment ledger entry (best-effort)
   try {
-    const { createClient } = await import("@/lib/supabase/server");
+    const { createClient } = await import("@/modules/shared/server");
     const supabase = await createClient();
     const { data: orderRow } = await supabase
       .from("orders")
@@ -424,7 +424,7 @@ export async function handlePaymentFailureAction(input: {
 
   console.log(`[payment-failure] handlePaymentFailureAction: razorpayOrderId=${input.razorpayOrderId}, userId=${user.id}`);
 
-  const { findOrderByRazorpayOrderId } = await import("@/lib/data/orders");
+  const { findOrderByRazorpayOrderId } = await import("@/modules/shared/server");
   const order = await findOrderByRazorpayOrderId(input.razorpayOrderId);
   if (!order) {
     // Order may have already expired via cron — safe to return success
@@ -535,7 +535,7 @@ export async function requestPostponementRefundAction(
   console.log(`[postponement-refund] requestPostponementRefundAction: eventId=${eventId}, userId=${user.id}`);
 
   try {
-    const { createClient } = await import("@/lib/supabase/server");
+    const { createClient } = await import("@/modules/shared/server");
     const supabase = await createClient();
 
     // Call the RPC to mark order as REFUND_REQUESTED and create refund record
@@ -557,7 +557,7 @@ export async function requestPostponementRefundAction(
     // If there's a Razorpay payment, process the refund automatically
     if (row.razorpay_payment_id) {
       try {
-        const { getRazorpay, isRazorpayConfigured } = await import("@/lib/razorpay");
+        const { getRazorpay, isRazorpayConfigured } = await import("@/modules/shared/server");
         if (isRazorpayConfigured()) {
           const razorpay = getRazorpay();
           const refund = await razorpay.payments.refund(row.razorpay_payment_id, {
@@ -673,11 +673,11 @@ export async function createWalkinOrderAction(formData: FormData): Promise<Walki
   const { eventId: validEventId, tierId: validTierId, buyerName: validName, buyerPhone: validPhone, buyerEmail: validEmail, amountPaise: validAmount, mode: validMode } = v.data;
 
   // Verify organizer owns this event
-  const { getOrganizerProfile } = await import("@/lib/data/organizer");
+  const { getOrganizerProfile } = await import("@/modules/shared/server");
   const organizer = await getOrganizerProfile(user);
   if (!organizer) return { error: "No organizer profile.", success: false };
 
-  const { createClient } = await import("@/lib/supabase/server");
+  const { createClient } = await import("@/modules/shared/server");
   const supabase = await createClient();
   const { data: eventRow } = await supabase
     .from("events")
@@ -723,11 +723,11 @@ export async function updateWalkinOrderAction(formData: FormData): Promise<{ err
   if (!orderId) return { error: "Missing order ID.", success: false };
 
   // Verify organizer owns the event this order belongs to
-  const { getOrganizerProfile } = await import("@/lib/data/organizer");
+  const { getOrganizerProfile } = await import("@/modules/shared/server");
   const organizer = await getOrganizerProfile(user);
   if (!organizer) return { error: "No organizer profile.", success: false };
 
-  const { createClient } = await import("@/lib/supabase/server");
+  const { createClient } = await import("@/modules/shared/server");
   const supabase = await createClient();
   const { data: orderRow } = await supabase
     .from("orders")

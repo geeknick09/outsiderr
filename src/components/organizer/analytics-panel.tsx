@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { formatPaise } from "@/lib/format";
-import type { EventAnalytics } from "@/lib/types";
+import { formatPaise } from "@/modules/shared";
+import type { EventAnalytics } from "@/modules/shared";
 
 export function AnalyticsPanel({
   analytics,

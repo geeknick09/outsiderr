@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
-import { getCurrentUser } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/modules/shared/server";
+import { createClient } from "@/modules/shared/server";
 
 export interface KycReviewResult {
   error: string | null;

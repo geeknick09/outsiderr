@@ -6,9 +6,9 @@ import { Pencil, Rocket } from "lucide-react";
 import Link from "next/link";
 
 import { EditOrganizerProfile } from "@/components/organizer/edit-organizer-profile";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import type { Organizer } from "@/lib/types";
+import { Badge } from "@/modules/shared";
+import { Button } from "@/modules/shared";
+import type { Organizer } from "@/modules/shared";
 
 /* ── Brand SVG icons (lucide-react removed brand icons) ── */
 

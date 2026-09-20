@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 
-import { runBackup } from "@/lib/backup";
-import { getCronEnvironmentError } from "@/lib/cron";
-import { logger } from "@/lib/logger";
+import { runBackup } from "@/modules/shared/server";
+import { getCronEnvironmentError } from "@/modules/shared/server";
+import { logger } from "@/modules/shared/server";
 
 // Must run on Node.js (not Edge) — needs zlib for gzip
 export const runtime = "nodejs";

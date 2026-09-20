@@ -3,9 +3,9 @@ import { redirect } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 
 import { BoostPanel } from "@/components/organizer/boost-panel";
-import { getCurrentUser } from "@/lib/auth";
-import { listBoostSlotPrices, listOccupiedSlots } from "@/lib/data/boosts";
-import { listOrganizerEvents } from "@/lib/data/organizer";
+import { getCurrentUser } from "@/modules/shared/server";
+import { listBoostSlotPrices, listOccupiedSlots } from "@/modules/shared/server";
+import { listOrganizerEvents } from "@/modules/organizer/server";
 
 export const dynamic = "force-dynamic";
 

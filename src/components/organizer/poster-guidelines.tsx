@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { FileText, ImageIcon, Monitor, Smartphone } from "lucide-react";
 
-import { Modal } from "@/components/ui/modal";
+import { Modal } from "@/modules/shared";
 
 /**
  * Click-to-open poster + description guidelines for the event form.

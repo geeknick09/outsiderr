@@ -5,14 +5,14 @@ import { useRouter } from "next/navigation";
 import { BellRing, Check, Clock, Loader2, Sparkles, X } from "lucide-react";
 
 import { joinWaitlistAction, leaveWaitlistAction } from "@/actions/waitlist";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { formatDateTime, formatPaise } from "@/lib/format";
-import { useRealtime } from "@/lib/hooks/use-realtime";
-import { computePhaseAvailability } from "@/lib/phases";
-import { calculatePrice } from "@/lib/pricing";
-import type { EventDetail, TicketTier, WaitlistEntry } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { Badge } from "@/modules/shared";
+import { Button } from "@/modules/shared";
+import { formatDateTime, formatPaise } from "@/modules/shared";
+import { useRealtime } from "@/modules/shared";
+import { computePhaseAvailability } from "@/modules/shared";
+import { calculatePrice } from "@/modules/shared";
+import type { EventDetail, TicketTier, WaitlistEntry } from "@/modules/shared";
+import { cn } from "@/modules/shared";
 
 export interface WaitlistTierData {
   tierId: string;

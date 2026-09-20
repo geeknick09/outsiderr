@@ -4,10 +4,10 @@ import { useState } from "react";
 import { Loader2, Trash2, UserPlus, Users } from "lucide-react";
 
 import { addEventStaffAction, removeEventStaffAction } from "@/actions/event-staff";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { formatDateTime } from "@/lib/format";
-import type { EventStaffMember } from "@/lib/data/event-staff";
+import { Badge } from "@/modules/shared";
+import { Button } from "@/modules/shared";
+import { formatDateTime } from "@/modules/shared";
+import type { EventStaffMember } from "@/modules/organizer/server";
 
 const INPUT =
   "w-full min-w-0 box-border rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white";

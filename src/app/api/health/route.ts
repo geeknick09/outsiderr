@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { logger } from "@/lib/logger";
+import { logger } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
 

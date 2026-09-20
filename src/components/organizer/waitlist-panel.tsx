@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { Users, X } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { formatDateTime } from "@/lib/format";
+import { Badge } from "@/modules/shared";
+import { formatDateTime } from "@/modules/shared";
 
 interface WaitlistEntry {
   id: string;

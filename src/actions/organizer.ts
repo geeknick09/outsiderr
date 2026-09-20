@@ -3,9 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { getCurrentUser } from "@/lib/auth";
-import { createOrganizerProfile, updateOrganizerProfile } from "@/lib/data/organizer";
-import { mergeOrganizerIntent } from "@/lib/event-lifecycle";
+import { getCurrentUser } from "@/modules/shared/server";
+import { createOrganizerProfile, updateOrganizerProfile } from "@/modules/shared/server";
+import { mergeOrganizerIntent } from "@/modules/shared";
 
 export interface CreateOrganizerState {
   error: string | null;

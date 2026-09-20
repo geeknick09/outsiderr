@@ -1,5 +1,5 @@
-import { formatPaise } from "@/lib/format";
-import type { EventAnalytics, EventSummary } from "@/lib/types";
+import { formatPaise } from "@/modules/shared";
+import type { EventAnalytics, EventSummary } from "@/modules/shared";
 
 export interface DailyRevenuePoint {
   date: string;

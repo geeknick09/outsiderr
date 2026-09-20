@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { Check, Eye, Loader2, MessageSquareWarning, X } from "lucide-react";
 
 import { approveKycAction, rejectKycAction, requestClarificationAction } from "@/actions/kyc";
-import { Modal } from "@/components/ui/modal";
-import type { KycSubmission } from "@/lib/data/kyc";
+import { Modal } from "@/modules/shared";
+import type { KycSubmission } from "@/modules/admin/server";
 
 const STATUS_STYLES: Record<string, string> = {
   PENDING: "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400",

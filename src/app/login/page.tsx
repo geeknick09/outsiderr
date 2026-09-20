@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
-import { LoginPanel } from "@/components/auth/login-panel";
-import { getCurrentUser } from "@/lib/auth";
+import { LoginPanel } from "@/modules/shared";
+import { getCurrentUser } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
 

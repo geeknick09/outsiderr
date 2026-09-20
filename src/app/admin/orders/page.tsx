@@ -1,7 +1,7 @@
-import { Badge } from "@/components/ui/badge";
-import { listAllAdminOrders } from "@/lib/data/admin";
-import { formatDateTime, formatPaise } from "@/lib/format";
-import type { OrderStatus } from "@/lib/types";
+import { Badge } from "@/modules/shared";
+import { listAllAdminOrders } from "@/modules/admin/server";
+import { formatDateTime, formatPaise } from "@/modules/shared";
+import type { OrderStatus } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 

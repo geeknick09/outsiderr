@@ -1,14 +1,14 @@
 import type { Metadata, Viewport } from "next";
 
-import { Footer } from "@/components/layout/footer";
-import { Navbar } from "@/components/layout/navbar";
-import { NavigationProgress } from "@/components/ui/navigation-progress";
-import { ServiceWorkerRegister } from "@/components/pwa/register-sw";
-import { ThemeProvider } from "@/components/theme/theme-provider";
-import { getCurrentUser } from "@/lib/auth";
-import { getOrganizerProfile } from "@/lib/data/organizer";
-import { getSettingInt, getTaglineFooter } from "@/lib/data/platform-settings";
-import { getOrganizerAccessState } from "@/lib/organizer-eligibility";
+import { Footer } from "@/modules/shared";
+import { Navbar } from "@/modules/shared/server";
+import { NavigationProgress } from "@/modules/shared";
+import { ServiceWorkerRegister } from "@/modules/shared";
+import { ThemeProvider } from "@/modules/shared";
+import { getCurrentUser } from "@/modules/shared/server";
+import { getOrganizerProfile } from "@/modules/shared/server";
+import { getSettingInt, getTaglineFooter } from "@/modules/shared/server";
+import { getOrganizerAccessState } from "@/modules/shared";
 
 import "./globals.css";
 

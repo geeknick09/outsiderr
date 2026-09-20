@@ -4,11 +4,11 @@ import { useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 
 import { requestBoostAction } from "@/actions/boosts";
-import { QrCode } from "@/components/ui/qr-code";
-import { formatPaise } from "@/lib/format";
-import { upiIntent } from "@/lib/upi";
-import { cn } from "@/lib/utils";
-import type { BoostSlotPrice, EventSummary } from "@/lib/types";
+import { QrCode } from "@/modules/shared";
+import { formatPaise } from "@/modules/shared";
+import { upiIntent } from "@/modules/shared";
+import { cn } from "@/modules/shared";
+import type { BoostSlotPrice, EventSummary } from "@/modules/shared";
 
 const DURATIONS = [
   { label: "7 days", days: 7 },

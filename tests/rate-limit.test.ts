@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { rateLimit, RATE_LIMITS, type RateLimitConfig } from "@/lib/rate-limit";
+import { rateLimit, RATE_LIMITS, type RateLimitConfig } from "@/modules/shared";
 
 // Use a unique identifier per test to avoid cross-test interference
 let counter = 0;

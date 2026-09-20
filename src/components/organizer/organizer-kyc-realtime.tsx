@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 
-import { useRealtime } from "@/lib/hooks/use-realtime";
+import { useRealtime } from "@/modules/shared";
 
 const KYC_NOTIFICATION_TYPES = new Set([
   "KYC_APPROVED",

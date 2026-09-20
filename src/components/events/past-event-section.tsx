@@ -1,5 +1,5 @@
 import { PastEventCard } from "@/components/events/past-event-card";
-import type { EventSummary } from "@/lib/types";
+import type { EventSummary } from "@/modules/shared";
 
 export function PastEventSection({
   title,

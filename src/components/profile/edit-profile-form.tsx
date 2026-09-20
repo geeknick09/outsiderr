@@ -3,13 +3,13 @@
 import { useActionState, useState } from "react";
 import { Check, Upload } from "lucide-react";
 
-import { updateProfileAction } from "@/actions/profile";
-import { Button } from "@/components/ui/button";
-import { ImageUploadWithCrop } from "@/components/ui/image-cropper";
-import { PhoneInput } from "@/components/ui/phone-input";
-import { CATEGORIES, PREDEFINED_EVENT_TAGS } from "@/lib/constants";
-import { uploadPublicFile } from "@/lib/upload";
-import { cn } from "@/lib/utils";
+import { updateProfileAction } from "@/modules/shared/actions/profile";
+import { Button } from "@/modules/shared";
+import { ImageUploadWithCrop } from "@/modules/shared";
+import { PhoneInput } from "@/modules/shared";
+import { CATEGORIES, PREDEFINED_EVENT_TAGS } from "@/modules/shared";
+import { uploadPublicFile } from "@/modules/shared";
+import { cn } from "@/modules/shared";
 
 const INPUT =
   "w-full min-w-0 box-border rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon [color-scheme:light] dark:[color-scheme:dark] dark:border-white/10 dark:bg-white/5 dark:text-white";

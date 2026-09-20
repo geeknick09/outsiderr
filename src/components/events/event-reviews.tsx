@@ -2,8 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { Star } from "lucide-react";
 
-import type { EventReview } from "@/lib/types";
-import { formatDateTime } from "@/lib/format";
+import type { EventReview } from "@/modules/shared";
+import { formatDateTime } from "@/modules/shared";
 
 interface EventReviewsProps {
   reviews: EventReview[];

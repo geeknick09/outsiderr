@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { CloudOff, Cloud, RefreshCw, Check } from "lucide-react";
 
-import type { SyncStatus } from "@/lib/offline/sync-manager";
+import type { SyncStatus } from "@/modules/scanner";
 
 export function OfflineStatus({ status }: { status: SyncStatus }) {
   const [showSynced, setShowSynced] = useState(false);

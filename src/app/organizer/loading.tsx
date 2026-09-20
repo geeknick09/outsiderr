@@ -1,4 +1,4 @@
-import { BrandedLoader } from "@/components/ui/branded-loader";
+import { BrandedLoader } from "@/modules/shared";
 
 export default function Loading() {
   return (

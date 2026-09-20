@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/modules/shared";
 
 export function TermsAccordion({ terms }: { terms: string[] }) {
   const [open, setOpen] = useState(false);

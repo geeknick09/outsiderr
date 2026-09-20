@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { BadgeCheck, CalendarDays, Globe, Info, Link2, Mail, MapPin, MessageCircle, Phone, Play } from "lucide-react";
-import { InstagramIcon } from "@/components/ui/instagram-icon";
+import { InstagramIcon } from "@/modules/shared";
 import { EventRealtimeWrapper } from "@/components/events/event-realtime-wrapper";
 
 import { EventReviews } from "@/components/events/event-reviews";
@@ -16,14 +16,14 @@ import { TagPills } from "@/components/events/tag-pills";
 import { TermsAccordion } from "@/components/events/terms-accordion";
 import { TicketTiers } from "@/components/events/ticket-tiers";
 import { UpdateMeButton } from "@/components/events/update-me-button";
-import { Badge } from "@/components/ui/badge";
-import { CATEGORY_LABELS, CITY_LABELS } from "@/lib/constants";
-import { getCurrentUser } from "@/lib/auth";
-import { getEvent, getLinkedPastEvents } from "@/lib/data/events";
-import { getEventReviews } from "@/lib/data/reviews";
-import { isSubscribedToEvent, getEventCollaborators } from "@/lib/data/engagement";
-import { getWaitlistEntry, getWaitlistCount } from "@/lib/data/waitlist";
-import { formatDateRange, mapsLink } from "@/lib/format";
+import { Badge } from "@/modules/shared";
+import { CATEGORY_LABELS, CITY_LABELS } from "@/modules/shared";
+import { getCurrentUser } from "@/modules/shared/server";
+import { getEvent, getLinkedPastEvents } from "@/modules/shared/server";
+import { getEventReviews } from "@/modules/shared/server";
+import { isSubscribedToEvent, getEventCollaborators } from "@/modules/shared/server";
+import { getWaitlistEntry, getWaitlistCount } from "@/modules/shared/server";
+import { formatDateRange, mapsLink } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 // Event detail pages are dynamic (user-specific waitlist, ticket availability),
@@ -56,7 +56,7 @@ export default async function EventDetailsPage({
     const isOrganizer = user && event.organizer.ownerId === user.id;
     let isAdmin = false;
     if (user && !isOrganizer) {
-      const { createClient } = await import("@/lib/supabase/server");
+      const { createClient } = await import("@/modules/shared/server");
       const supabase = await createClient();
       const { data: profile } = await supabase
         .from("profiles")

@@ -3,14 +3,14 @@ import { Plus } from "lucide-react";
 import type { Metadata } from "next";
 import { AtSign, Clock, MapPin, Users } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { getCurrentUser } from "@/lib/auth";
-import { listClubs } from "@/lib/data/clubs";
-import { getOrganizerProfile } from "@/lib/data/organizer";
-import { CITIES, CITY_LABELS } from "@/lib/constants";
-import { formatPaise } from "@/lib/format";
-import { cn } from "@/lib/utils";
-import type { City, ClubType, MembershipType } from "@/lib/types";
+import { Badge } from "@/modules/shared";
+import { getCurrentUser } from "@/modules/shared/server";
+import { listClubs } from "@/modules/shared/server";
+import { getOrganizerProfile } from "@/modules/shared/server";
+import { CITIES, CITY_LABELS } from "@/modules/shared";
+import { formatPaise } from "@/modules/shared";
+import { cn } from "@/modules/shared";
+import type { City, ClubType, MembershipType } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 

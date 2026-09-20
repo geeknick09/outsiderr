@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 
-import { getCurrentUser } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
-import { deleteLegalPage, upsertLegalPage } from "@/lib/data/legal-pages";
+import { getCurrentUser } from "@/modules/shared/server";
+import { createClient } from "@/modules/shared/server";
+import { deleteLegalPage, upsertLegalPage } from "@/modules/admin/server";
 
 async function requireAdmin() {
   const user = await getCurrentUser();

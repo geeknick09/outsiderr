@@ -1,7 +1,7 @@
 "use client";
 
-import { QrCode } from "@/components/ui/qr-code";
-import { upiIntent } from "@/lib/upi";
+import { QrCode } from "@/modules/shared";
+import { upiIntent } from "@/modules/shared";
 
 /**
  * Renders a UPI QR code dynamically from the organizer's UPI ID.

@@ -4,8 +4,8 @@ import { useCallback, useMemo, useState, useTransition } from "react";
 import { CheckCircle2, Clock, XCircle, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
 
 import { approveOrderAction, rejectOrderAction } from "@/actions/orders";
-import { useRealtime } from "@/lib/hooks/use-realtime";
-import type { Order } from "@/lib/types";
+import { useRealtime } from "@/modules/shared";
+import type { Order } from "@/modules/shared";
 
 interface OrderMonitorProps {
   orders: Order[];

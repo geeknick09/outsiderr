@@ -4,8 +4,8 @@ import { useState } from "react";
 import { KeyRound, Plus, Trash2, Users, Mail, Phone } from "lucide-react";
 
 import { generateScannerPinsAction, revokeScannerPinAction } from "@/actions/scanner-pins";
-import { Button } from "@/components/ui/button";
-import type { ScannerPin } from "@/lib/types/scanner-pins";
+import { Button } from "@/modules/shared";
+import type { ScannerPin } from "@/modules/shared";
 
 export function ScannerPinManager({
   eventId,

@@ -4,9 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowDownUp } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { formatDateTime, isPast } from "@/lib/format";
-import type { EventAnalytics, EventSummary } from "@/lib/types";
+import { Badge } from "@/modules/shared";
+import { formatDateTime, isPast } from "@/modules/shared";
+import type { EventAnalytics, EventSummary } from "@/modules/shared";
 
 type SortKey = "date" | "title" | "popularity" | "waitlist" | "revenue";
 

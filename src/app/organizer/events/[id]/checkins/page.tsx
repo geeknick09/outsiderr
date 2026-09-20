@@ -2,12 +2,12 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle2, ChevronLeft } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { formatDateTime } from "@/lib/format";
-import { getCurrentUser } from "@/lib/auth";
-import { getEvent } from "@/lib/data/events";
-import { getEventAccessLevel, canScanTickets } from "@/lib/data/engagement";
-import { listEventTickets } from "@/lib/data/admin";
+import { Badge } from "@/modules/shared";
+import { formatDateTime } from "@/modules/shared";
+import { getCurrentUser } from "@/modules/shared/server";
+import { getEvent } from "@/modules/shared/server";
+import { getEventAccessLevel, canScanTickets } from "@/modules/shared/server";
+import { listEventTickets } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
 

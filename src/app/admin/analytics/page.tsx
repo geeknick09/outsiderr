@@ -1,8 +1,4 @@
-import {
-  getUserAnalytics,
-  getPaymentAnalytics,
-  getOrganizerAnalytics,
-} from "@/lib/data/admin";
+import { getUserAnalytics, getPaymentAnalytics, getOrganizerAnalytics } from "@/modules/analytics/server";
 import { AnalyticsChartsLazy } from "@/components/admin/analytics-charts-lazy";
 
 export const dynamic = "force-dynamic";

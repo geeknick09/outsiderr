@@ -4,7 +4,7 @@ import { useState } from "react";
 import { AlertCircle, Loader2, RotateCcw } from "lucide-react";
 
 import { requestPostponementRefundAction } from "@/actions/orders";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/modules/shared";
 
 /**
  * Shows a "Request Refund" or "Keep Ticket" choice for postponed events.

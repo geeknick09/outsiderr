@@ -1,5 +1,5 @@
-import { getRevenueAnalytics } from "@/lib/data/admin";
-import { formatPaise } from "@/lib/format";
+import { getRevenueAnalytics } from "@/modules/analytics/server";
+import { formatPaise } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 

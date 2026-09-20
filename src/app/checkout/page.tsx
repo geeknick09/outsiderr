@@ -3,12 +3,12 @@ import { notFound, redirect } from "next/navigation";
 
 import { CheckoutForm } from "@/components/checkout/checkout-form";
 import { UpiQrCode } from "@/components/checkout/upi-qr-code";
-import { MAX_TICKETS_PER_ORDER } from "@/lib/constants";
-import { getEvent } from "@/lib/data/events";
-import { formatDateTime, formatPaise } from "@/lib/format";
-import { getCurrentUser } from "@/lib/auth";
-import { calculatePrice } from "@/lib/pricing";
-import { createClient } from "@/lib/supabase/server";
+import { MAX_TICKETS_PER_ORDER } from "@/modules/shared";
+import { getEvent } from "@/modules/shared/server";
+import { formatDateTime, formatPaise } from "@/modules/shared";
+import { getCurrentUser } from "@/modules/shared/server";
+import { calculatePrice } from "@/modules/shared";
+import { createClient } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
 

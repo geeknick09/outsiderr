@@ -4,9 +4,19 @@ One-sentence purpose: append-only knowledge so agents never re-derive a past fix
 Format: `Date · Area · What happened/decision → Fix/rule · Files`. Newest entries go on top.
 Last updated: 2025-09-20
 
-## 2025-09-20
+## 2025-09-20 — Phase R (domain-module restructure)
 
-- **Repo · Placeholder monorepo removed** — untracked `apps/` + `packages/` stub folders (created by an earlier session, never wired to build) were confusing agents → deleted; target structure now lives in `docs/architecture.md` §3 and code moves happen in Phase R (see `docs/task.md`).
+- **Repo · R0+R1 landed** — `src/modules/{shared,web,organizer,admin,scanner,analytics,campaigns}` created; `src/{lib,components,actions}` being drained into them. Public API per module: `index.ts` (client-safe) / `server.ts` (`import "server-only"`) / `actions/*` / `auth/middleware` (edge-safe direct path). Import rule: intra-module = RELATIVE paths only (barrels would create cycles); cross-module = `@/modules/<m>` public entry. Enforced by ESLint `no-restricted-imports` (deep internals banned); direction checked by greps in R8.
+
+- **Tooling · `server-only` + vitest** — `import "server-only"` throws under vitest (no RSC split). Barrel `index.ts` re-exporting client components that import `"use server"` action files pulls `server-only` transitively → all tests failed. Fix: `vitest.config.ts` aliases `server-only` → `tests/stubs/empty.ts`. Harmless (Next still enforces the real boundary at build).
+
+- **Codemod · `scripts/_rewrite_imports.mjs`** — rewrites `@/lib|components|actions/*` → `@/modules/*`. Handles: whole-file moves (MOVE map), symbol-level routing for split files (SYMBOL_ROUTES: organizer.ts, admin.ts, kyc.ts, auth.ts), destructured dynamic imports `const {x}=await import(...)`, and type-position `import("@/...").Type`. Same-module → relative; cross → public entry. Run from repo root after each move phase.
+
+- **Data-layer ownership (decision)** — entity data used by ≥2 sibling apps lives in `shared/data` (becomes `packages/db` on split): events, orders, organizers, organizer-profile, profile, platform-settings, notifications, waitlist, clubs, reviews, engagement, door-staff, scanner-pins, box-office-pins, boosts, hero-boosts, event-orders, tickets. App-specific queries stay in `<module>/data`: organizer-events + event-staff (organizer), admin + kyc + legal-pages (admin), organizer-analytics + admin-analytics (analytics). This fixed the smell where organizer pages imported `@/lib/data/admin` — `listEventOrders`/`listEventTickets` now in `shared/data` (no admin guard, RLS-scoped).
+
+- **Splits** — `lib/data/organizer.ts` → `shared/data/organizer-profile.ts` (get/create/updateOrganizerProfile + Organizer/CreateOrganizerInput/UpdateOrganizerInput) + `organizer/data/organizer-events.ts` (event CRUD/lists) + `analytics/data/organizer-analytics.ts`. `lib/data/admin.ts` → `admin/data/admin.ts` (CRUD/stats/lists) + `analytics/data/admin-analytics.ts` (all *Analytics fns) + `shared/data/event-orders.ts`+`tickets.ts`.
+
+- **Repo · Placeholder monorepo removed** — untracked `apps/` + `packages/` stub folders deleted; target structure lives in `docs/architecture.md` §3.
 
 - **DB · `event_notifications.event_id` was `NOT NULL`** — KYC/collab-less notifications have no event → insert failed. Fix: `alter column event_id drop not null` in `fix_all.sql`; schema updated. Table has `message` (no `title` column) — notification UI derives its label from `TYPE_LABELS[type]` in `notification-bell.tsx`.
 

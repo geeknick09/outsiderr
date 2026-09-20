@@ -9,13 +9,13 @@ import { updateEventAction, type UpdateEventState } from "@/actions/events";
 import { GalleryUploader } from "@/components/organizer/gallery-uploader";
 import { PosterGuidelines } from "@/components/organizer/poster-guidelines";
 import { PosterField, TagPicker } from "@/components/organizer/event-form";
-import { Button } from "@/components/ui/button";
-import { PhoneInput } from "@/components/ui/phone-input";
-import { CATEGORIES, CITIES } from "@/lib/constants";
-import { utcToISTInput, nowISTInput } from "@/lib/datetime";
-import { cn } from "@/lib/utils";
-import { isGoogleMapsLink } from "@/lib/upi";
-import type { EventDetail } from "@/lib/types";
+import { Button } from "@/modules/shared";
+import { PhoneInput } from "@/modules/shared";
+import { CATEGORIES, CITIES } from "@/modules/shared";
+import { utcToISTInput, nowISTInput } from "@/modules/shared";
+import { cn } from "@/modules/shared";
+import { isGoogleMapsLink } from "@/modules/shared";
+import type { EventDetail } from "@/modules/shared";
 
 // Lazy load MapPicker with ssr: false — Leaflet requires `window`
 const MapPicker = dynamic(

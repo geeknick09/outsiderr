@@ -3,11 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@/modules/shared/server";
 import {
   addEventStaff,
   removeEventStaff,
-} from "@/lib/data/event-staff";
+} from "@/modules/organizer/server";
 
 export async function addEventStaffAction(
   eventId: string,

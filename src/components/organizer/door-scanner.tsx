@@ -5,8 +5,8 @@ import { Html5Qrcode } from "html5-qrcode";
 import { CheckCircle2, CircleSlash, RotateCcw, XCircle } from "lucide-react";
 
 import { checkInTicketAction } from "@/actions/orders";
-import { Button } from "@/components/ui/button";
-import type { ScanResult } from "@/lib/types";
+import { Button } from "@/modules/shared";
+import type { ScanResult } from "@/modules/shared";
 
 const READER_ID = "outsiderr-qr-reader";
 

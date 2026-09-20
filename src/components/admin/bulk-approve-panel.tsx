@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 
 import { adminApproveOrderAction } from "@/actions/admin";
-import type { Order } from "@/lib/types";
+import type { Order } from "@/modules/shared";
 
 export function BulkApprovePanel({ pendingOrders }: { pendingOrders: Order[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());

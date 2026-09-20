@@ -1,9 +1,9 @@
 import { adminApproveClubAction, adminRejectClubAction } from "@/actions/admin";
-import { Badge } from "@/components/ui/badge";
-import { ActionButton } from "@/components/ui/submit-button";
-import { listClubs, listPendingClubs } from "@/lib/data/clubs";
-import { CITY_LABELS } from "@/lib/constants";
-import { formatDateTime } from "@/lib/format";
+import { Badge } from "@/modules/shared";
+import { ActionButton } from "@/modules/shared";
+import { listClubs, listPendingClubs } from "@/modules/shared/server";
+import { CITY_LABELS } from "@/modules/shared";
+import { formatDateTime } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 

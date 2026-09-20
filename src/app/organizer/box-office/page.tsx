@@ -1,5 +1,5 @@
 import { BoxOfficePageClient } from "@/components/box-office/box-office-page-client";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
 

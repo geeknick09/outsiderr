@@ -15,9 +15,9 @@ const AnalyticsCharts = dynamicImport(
 );
 
 export function AnalyticsChartsLazy(props: {
-  userAnalytics: import("@/lib/data/admin").UserAnalytics;
-  paymentAnalytics: import("@/lib/data/admin").PaymentAnalytics;
-  organizerAnalytics: import("@/lib/data/admin").OrganizerAnalytics;
+  userAnalytics: import("@/modules/analytics/server").UserAnalytics;
+  paymentAnalytics: import("@/modules/analytics/server").PaymentAnalytics;
+  organizerAnalytics: import("@/modules/analytics/server").OrganizerAnalytics;
 }) {
   return <AnalyticsCharts {...props} />;
 }

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   getOrganizerAccessState,
   type OrganizerAccessState,
-} from "@/lib/organizer-eligibility";
+} from "@/modules/shared";
 
 describe("organizer access eligibility", () => {
   it("allows approved organizers through", () => {

@@ -5,10 +5,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Flame, MapPin } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { CITY_LABELS } from "@/lib/constants";
-import { formatDateTime, formatPriceTag } from "@/lib/format";
-import type { HeroEvent } from "@/lib/types";
+import { Badge } from "@/modules/shared";
+import { CITY_LABELS } from "@/modules/shared";
+import { formatDateTime, formatPriceTag } from "@/modules/shared";
+import type { HeroEvent } from "@/modules/shared";
 
 const AUTO_ROTATE_MS = 6000;
 

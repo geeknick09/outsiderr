@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { CheckCircle2, ChevronRight, Upload } from "lucide-react";
 
 import { createOrganizerAction, type CreateOrganizerState } from "@/actions/organizer";
-import { Button } from "@/components/ui/button";
-import { ImageUploadWithCrop } from "@/components/ui/image-cropper";
-import { QrCode } from "@/components/ui/qr-code";
-import { uploadPublicFile } from "@/lib/upload";
-import { upiIntent, validateUpiId } from "@/lib/upi";
+import { Button } from "@/modules/shared";
+import { ImageUploadWithCrop } from "@/modules/shared";
+import { QrCode } from "@/modules/shared";
+import { uploadPublicFile } from "@/modules/shared";
+import { upiIntent, validateUpiId } from "@/modules/shared";
 
 // ─── Shared input style ───────────────────────────────────────────────────────
 const INPUT =

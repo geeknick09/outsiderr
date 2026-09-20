@@ -2,8 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { lazy, Suspense } from "react";
 
-import { getCurrentUser } from "@/lib/auth";
-import { getOrganizerProfile, listOrganizerEvents } from "@/lib/data/organizer";
+import { getCurrentUser } from "@/modules/shared/server";
+import { getOrganizerProfile } from "@/modules/shared/server";
+import { listOrganizerEvents } from "@/modules/organizer/server";
 
 // Lazy load DoorScanner — html5-qrcode is ~110kB
 const DoorScanner = lazy(() =>

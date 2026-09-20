@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@/modules/shared";
 
 export function TagPills({
   tags,

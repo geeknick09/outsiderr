@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { getCurrentUser } from "@/lib/auth";
-import { createDoorStaffOrder, updateDoorStaffPaymentStatus } from "@/lib/data/door-staff";
+import { getCurrentUser } from "@/modules/shared/server";
+import { createDoorStaffOrder, updateDoorStaffPaymentStatus } from "@/modules/shared/server";
 
 export async function verifyDoorStaffPaymentAction(
   orderId: string,

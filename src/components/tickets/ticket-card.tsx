@@ -4,12 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { CalendarDays, Clock, MapPin, Printer, Ticket as TicketIcon, X } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { QrCode } from "@/components/ui/qr-code";
-import { DownloadQrButton } from "@/components/ui/download-qr-button";
-import { formatDateTime, isPast } from "@/lib/format";
-import type { Ticket } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { Badge } from "@/modules/shared";
+import { QrCode } from "@/modules/shared";
+import { DownloadQrButton } from "@/modules/shared";
+import { formatDateTime, isPast } from "@/modules/shared";
+import type { Ticket } from "@/modules/shared";
+import { cn } from "@/modules/shared";
 
 export function TicketCard({ ticket }: { ticket: Ticket }) {
   const [expanded, setExpanded] = useState(false);

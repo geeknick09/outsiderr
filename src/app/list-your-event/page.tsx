@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { BarChart3, CalendarDays, MapPin, QrCode, Rocket, ScanLine, Shield, TrendingUp, Users, Zap } from "lucide-react";
 
-import { ThemeLogo } from "@/components/layout/theme-logo";
+import { ThemeLogo } from "@/modules/shared";
 
 export const metadata = { title: "List Your Event — Outsiderr" };
 

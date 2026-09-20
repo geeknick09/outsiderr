@@ -11,12 +11,8 @@ import {
   PieChart, Pie, Cell, Legend,
 } from "recharts";
 
-import { formatPaise } from "@/lib/format";
-import type {
-  UserAnalytics,
-  PaymentAnalytics,
-  OrganizerAnalytics,
-} from "@/lib/data/admin";
+import { formatPaise } from "@/modules/shared";
+import type { UserAnalytics, PaymentAnalytics, OrganizerAnalytics } from "@/modules/analytics/server";
 
 const PIE_COLORS = ["#8b5cf6", "#ec4899", "#06b6d4", "#10b981", "#f59e0b", "#ef4444"];
 

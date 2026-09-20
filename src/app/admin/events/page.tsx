@@ -7,13 +7,13 @@ import {
   adminUpdateEventFeesAction,
 } from "@/actions/admin";
 import { AdminEventEditForm } from "@/components/admin/admin-event-edit-form";
-import { Badge } from "@/components/ui/badge";
-import { ActionButton } from "@/components/ui/submit-button";
-import { listAllAdminEvents } from "@/lib/data/admin";
-import { CATEGORY_LABELS, CITY_LABELS } from "@/lib/constants";
-import { formatDateTime, isPast } from "@/lib/format";
-import { cn } from "@/lib/utils";
-import type { EventCategory, City } from "@/lib/types";
+import { Badge } from "@/modules/shared";
+import { ActionButton } from "@/modules/shared";
+import { listAllAdminEvents } from "@/modules/admin/server";
+import { CATEGORY_LABELS, CITY_LABELS } from "@/modules/shared";
+import { formatDateTime, isPast } from "@/modules/shared";
+import { cn } from "@/modules/shared";
+import type { EventCategory, City } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 

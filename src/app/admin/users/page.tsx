@@ -1,9 +1,10 @@
 import { adminToggleAdminAction } from "@/actions/admin";
 import { UserAnalyticsExport } from "@/components/admin/user-analytics-export";
-import { Badge } from "@/components/ui/badge";
-import { ActionButton } from "@/components/ui/submit-button";
-import { getUserAnalytics, listAllAdminUsers } from "@/lib/data/admin";
-import { formatDateTime } from "@/lib/format";
+import { Badge } from "@/modules/shared";
+import { ActionButton } from "@/modules/shared";
+import { getUserAnalytics } from "@/modules/analytics/server";
+import { listAllAdminUsers } from "@/modules/admin/server";
+import { formatDateTime } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 

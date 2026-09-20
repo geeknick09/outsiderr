@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Check, Settings as SettingsIcon, Loader2 } from "lucide-react";
 
 import { updatePlatformSettingAction } from "@/actions/admin";
-import { Button } from "@/components/ui/button";
-import type { PlatformSetting } from "@/lib/types";
+import { Button } from "@/modules/shared";
+import type { PlatformSetting } from "@/modules/shared";
 
 const INPUT =
   "w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white";

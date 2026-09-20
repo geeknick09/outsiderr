@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 
-import { createClient } from "@/lib/supabase/server";
-import { getCurrentUser } from "@/lib/auth";
-import { logger } from "@/lib/logger";
+import { createClient } from "@/modules/shared/server";
+import { getCurrentUser } from "@/modules/shared/server";
+import { logger } from "@/modules/shared/server";
 
 /**
  * Require the current user to be an admin.

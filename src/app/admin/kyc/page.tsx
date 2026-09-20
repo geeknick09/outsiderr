@@ -1,4 +1,4 @@
-import { listKycSubmissions } from "@/lib/data/kyc";
+import { listKycSubmissions } from "@/modules/admin/server";
 import { KycReviewTable } from "@/components/admin/kyc-review-table";
 
 export const dynamic = "force-dynamic";

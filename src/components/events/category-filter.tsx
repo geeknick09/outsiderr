@@ -2,8 +2,8 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { CATEGORIES } from "@/lib/constants";
-import { cn } from "@/lib/utils";
+import { CATEGORIES } from "@/modules/shared";
+import { cn } from "@/modules/shared";
 
 export function CategoryFilter({ active }: { active: string }) {
   const router = useRouter();

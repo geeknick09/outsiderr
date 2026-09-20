@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { ImagePlus, Trash2, Upload } from "lucide-react";
 
-import { uploadPublicFile } from "@/lib/upload";
-import { cn } from "@/lib/utils";
+import { uploadPublicFile } from "@/modules/shared";
+import { cn } from "@/modules/shared";
 
 const MAX_PHOTOS = 8;
 

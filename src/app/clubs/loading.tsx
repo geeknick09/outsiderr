@@ -1,5 +1,5 @@
-import { BrandedLoader } from "@/components/ui/branded-loader";
-import { SkeletonGrid } from "@/components/ui/skeleton";
+import { BrandedLoader } from "@/modules/shared";
+import { SkeletonGrid } from "@/modules/shared";
 
 export default function Loading() {
   return (

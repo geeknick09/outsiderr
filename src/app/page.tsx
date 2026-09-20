@@ -11,10 +11,10 @@ import {
   CATEGORY_LABELS,
   CITY_LABELS,
   DEFAULT_CITY,
-} from "@/lib/constants";
-import { listEvents } from "@/lib/data/events";
-import { getHeroEvents } from "@/lib/data/hero-boosts";
-import { getMyEventsToday } from "@/lib/data/orders";
+} from "@/modules/shared";
+import { listEvents } from "@/modules/shared/server";
+import { getHeroEvents } from "@/modules/shared/server";
+import { getMyEventsToday } from "@/modules/shared/server";
 import {
   getHeroBoostEnabled,
   getHeroMaxVisibleEvents,
@@ -23,10 +23,10 @@ import {
   getMaxSponsoredPerCity,
   getTaglineHeader,
   getTaglineSubheader,
-} from "@/lib/data/platform-settings";
-import { getCurrentUser } from "@/lib/auth";
-import { formatDateTime, isPast, isToday } from "@/lib/format";
-import type { City, EventCategory } from "@/lib/types";
+} from "@/modules/shared/server";
+import { getCurrentUser } from "@/modules/shared/server";
+import { formatDateTime, isPast, isToday } from "@/modules/shared";
+import type { City, EventCategory } from "@/modules/shared";
 
 // Revalidate the home page every 60 seconds.
 // Event mutations (create/edit/publish/cancel) call revalidatePath("/")

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { CheckoutSession } from "@/lib/types";
+import type { CheckoutSession } from "@/modules/shared";
 
 // Augment the Window object with the Razorpay constructor.
 declare global {

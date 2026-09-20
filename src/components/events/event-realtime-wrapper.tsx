@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { useRealtime } from "@/lib/hooks/use-realtime";
+import { useRealtime } from "@/modules/shared";
 
 /**
  * Wraps the event detail page to provide realtime updates when the organizer

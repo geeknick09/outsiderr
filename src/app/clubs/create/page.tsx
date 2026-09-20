@@ -3,8 +3,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowLeft, Clock, ShieldAlert } from "lucide-react";
 
-import { getCurrentUser } from "@/lib/auth";
-import { getOrganizerProfile } from "@/lib/data/organizer";
+import { getCurrentUser } from "@/modules/shared/server";
+import { getOrganizerProfile } from "@/modules/shared/server";
 import { ClubForm } from "@/components/organizer/club-form";
 
 export const dynamic = "force-dynamic";

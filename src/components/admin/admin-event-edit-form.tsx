@@ -4,10 +4,10 @@ import { useState } from "react";
 import { Check, X } from "lucide-react";
 
 import { adminUpdateEventAction } from "@/actions/admin";
-import { Button } from "@/components/ui/button";
-import { CATEGORY_LABELS, CITY_LABELS } from "@/lib/constants";
-import { istToUTC, utcToISTInput } from "@/lib/datetime";
-import type { EventCategory, City } from "@/lib/types";
+import { Button } from "@/modules/shared";
+import { CATEGORY_LABELS, CITY_LABELS } from "@/modules/shared";
+import { istToUTC, utcToISTInput } from "@/modules/shared";
+import type { EventCategory, City } from "@/modules/shared";
 
 const INPUT =
   "w-full min-w-0 box-border rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon [color-scheme:light] dark:[color-scheme:dark] dark:border-white/10 dark:bg-white/5 dark:text-white";

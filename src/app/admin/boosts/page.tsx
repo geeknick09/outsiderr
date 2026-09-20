@@ -1,18 +1,18 @@
 import { BoostSettingsEditor } from "@/components/admin/boost-settings-editor";
 import { HeroBoostAdminActions } from "@/components/admin/hero-boost-admin-actions";
 import { SlotPriceEditor } from "@/components/admin/slot-price-editor";
-import { Badge } from "@/components/ui/badge";
-import { listBoostSlotPrices, listOccupiedSlots, listActiveBoosts } from "@/lib/data/boosts";
-import { listAllHeroBoosts } from "@/lib/data/hero-boosts";
+import { Badge } from "@/modules/shared";
+import { listBoostSlotPrices, listOccupiedSlots, listActiveBoosts } from "@/modules/shared/server";
+import { listAllHeroBoosts } from "@/modules/shared/server";
 import {
   getHeroBoostEnabled,
   getHeroBoostPrice,
   getHeroBoostDurationDays,
   getHeroRotationIntervalMinutes,
   getHeroMaxVisibleEvents,
-} from "@/lib/data/platform-settings";
-import { formatDateTime, formatPaise } from "@/lib/format";
-import { cn } from "@/lib/utils";
+} from "@/modules/shared/server";
+import { formatDateTime, formatPaise } from "@/modules/shared";
+import { cn } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 

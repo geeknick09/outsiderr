@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Plus, Store, Trash2, Users } from "lucide-react";
 
 import { generateBoxOfficePinsAction, revokeBoxOfficePinAction } from "@/actions/box-office";
-import { Button } from "@/components/ui/button";
-import type { BoxOfficePin } from "@/lib/types/box-office-pins";
+import { Button } from "@/modules/shared";
+import type { BoxOfficePin } from "@/modules/shared";
 
 export function BoxOfficePinManager({
   eventId,

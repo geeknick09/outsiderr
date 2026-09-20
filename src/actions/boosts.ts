@@ -3,9 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { getCurrentUser } from "@/lib/auth";
-import { requestBoost } from "@/lib/data/boosts";
-import { getOrganizerProfile } from "@/lib/data/organizer";
+import { getCurrentUser } from "@/modules/shared/server";
+import { requestBoost } from "@/modules/shared/server";
+import { getOrganizerProfile } from "@/modules/shared/server";
 
 export interface RequestBoostInput {
   eventId: string;

@@ -3,10 +3,10 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { getCurrentUser } from "@/lib/auth";
-import { createEvent, updateEvent, updateEventStatus, type TicketTierInput } from "@/lib/data/organizer";
-import { istToUTC } from "@/lib/datetime";
-import type { City, EventCategory, FeePayer, PricingMode } from "@/lib/types";
+import { getCurrentUser } from "@/modules/shared/server";
+import { createEvent, updateEvent, updateEventStatus, type TicketTierInput } from "@/modules/organizer/server";
+import { istToUTC } from "@/modules/shared";
+import type { City, EventCategory, FeePayer, PricingMode } from "@/modules/shared";
 
 export interface CreateEventState {
   error: string | null;
@@ -308,7 +308,7 @@ export async function createEventAction(
         values: extractFormValues(formData),
       };
     }
-    const { isGoogleMapsLink } = await import("@/lib/upi");
+    const { isGoogleMapsLink } = await import("@/modules/shared");
     if (!isGoogleMapsLink(googleMapsLink)) {
       return {
         error: "Google Maps link must be a valid maps.google.com or maps.app.goo.gl URL.",
@@ -362,7 +362,7 @@ export async function createEventAction(
       const doorStaffCount = Number(formData.get("doorStaffCount") ?? 1);
       const doorStaffAmount = Number(formData.get("doorStaffAmount") ?? 0);
       try {
-        const { createDoorStaffOrder } = await import("@/lib/data/door-staff");
+        const { createDoorStaffOrder } = await import("@/modules/shared/server");
         await createDoorStaffOrder(user, eventId, doorStaffCount, doorStaffAmount * 100);
       } catch {
         // Best-effort — don't fail event creation if door staff order fails
@@ -371,10 +371,10 @@ export async function createEventAction(
 
     // Store T&C acceptance with the current terms version
     try {
-      const { getTermsVersion } = await import("@/lib/data/platform-settings");
+      const { getTermsVersion } = await import("@/modules/shared/server");
       const termsVersion = await getTermsVersion();
-      const { createClient } = await import("@/lib/supabase/server");
-      const { getOrganizerProfile } = await import("@/lib/data/organizer");
+      const { createClient } = await import("@/modules/shared/server");
+      const { getOrganizerProfile } = await import("@/modules/shared/server");
       const organizer = await getOrganizerProfile(user);
 
       if (organizer) {
@@ -442,7 +442,7 @@ export async function updateEventAction(
     if (!googleMapsLink) {
       return { error: "Google Maps link is required when venue is not TBA. Paste a maps.google.com or maps.app.goo.gl link." };
     }
-    const { isGoogleMapsLink } = await import("@/lib/upi");
+    const { isGoogleMapsLink } = await import("@/modules/shared");
     if (!isGoogleMapsLink(googleMapsLink)) {
       return { error: "Google Maps link must be a valid maps.google.com or maps.app.goo.gl URL." };
     }
@@ -569,13 +569,13 @@ export async function cancelEventAction(formData: FormData): Promise<void> {
 
   console.log(`[cancel] cancelEventAction: eventId=${eventId}, reason="${reason}", byUser=${user.id}`);
 
-  const { cancelEvent } = await import("@/lib/data/organizer");
+  const { cancelEvent } = await import("@/modules/organizer/server");
   const result = await cancelEvent(user, eventId, reason);
 
   console.log(`[cancel] cancelEvent RPC result: refundCount=${result.refundCount}, totalRefundPaise=${result.totalRefundPaise}, totalPlatformFeePaise=${result.totalPlatformFeePaise}, cancellationChargePaise=${result.cancellationChargePaise}, cancellationChargePercent=${result.cancellationChargePercent}, organizerOwesPaise=${result.organizerOwesPaise}`);
 
   // Cancel any active Hero Boosts for this event
-  const { cancelHeroBoostsForEvent } = await import("@/lib/data/hero-boosts");
+  const { cancelHeroBoostsForEvent } = await import("@/modules/shared/server");
   await cancelHeroBoostsForEvent(eventId);
   console.log(`[cancel] Hero boosts cancelled for eventId=${eventId}`);
 
@@ -584,8 +584,8 @@ export async function cancelEventAction(formData: FormData): Promise<void> {
   let refundSuccessCount = 0;
   let refundFailCount = 0;
   try {
-    const { createClient } = await import("@/lib/supabase/server");
-    const { getRazorpay, isRazorpayConfigured } = await import("@/lib/razorpay");
+    const { createClient } = await import("@/modules/shared/server");
+    const { getRazorpay, isRazorpayConfigured } = await import("@/modules/shared/server");
     const supabase = await createClient();
 
     // Get all refund records for this event that are PENDING
@@ -757,7 +757,7 @@ export async function postponeEventAction(formData: FormData): Promise<void> {
     }
   }
 
-  const { postponeEvent } = await import("@/lib/data/organizer");
+  const { postponeEvent } = await import("@/modules/organizer/server");
   const result = await postponeEvent(
     user,
     eventId,

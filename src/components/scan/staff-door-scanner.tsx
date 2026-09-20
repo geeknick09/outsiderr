@@ -13,11 +13,11 @@ import {
 } from "lucide-react";
 
 import { checkInTicketAction } from "@/actions/orders";
-import { useRealtime } from "@/lib/hooks/use-realtime";
-import { formatDateRange } from "@/lib/format";
-import { ScannerSyncManager, type SyncStatus } from "@/lib/offline/sync-manager";
+import { useRealtime } from "@/modules/shared";
+import { formatDateRange } from "@/modules/shared";
+import { ScannerSyncManager, type SyncStatus } from "@/modules/scanner";
 import { OfflineStatus } from "@/components/scan/offline-status";
-import type { ScanResult } from "@/lib/types";
+import type { ScanResult } from "@/modules/shared";
 
 interface StaffEvent {
   id: string;

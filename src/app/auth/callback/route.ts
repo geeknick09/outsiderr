@@ -3,8 +3,8 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import type { EmailOtpType } from "@supabase/supabase-js";
 
-import type { Database } from "@/lib/supabase/database.types";
-import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/supabase/config";
+import type { Database } from "@/modules/shared";
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/modules/shared";
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);

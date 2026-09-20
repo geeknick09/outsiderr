@@ -14,22 +14,18 @@ import { OrganizerEventsList } from "@/components/organizer/organizer-events-lis
 import { OrganizerHeader } from "@/components/organizer/organizer-header";
 import { OrganizerKycRealtimeRefresher } from "@/components/organizer/organizer-kyc-realtime";
 import { OrderMonitor } from "@/components/organizer/order-monitor";
-import { getCurrentUser } from "@/lib/auth";
-import { getSettingInt } from "@/lib/data/platform-settings";
-import { getPendingCollaborationInvites } from "@/lib/data/engagement";
-import { getOrganizerAccessState } from "@/lib/organizer-eligibility";
-import {
-  getOrganizerEventAnalytics,
-  getOrganizerProfile,
-  getOrganizerDailyRevenue,
-  listOrganizerEvents,
-  listCollaboratedEvents,
-} from "@/lib/data/organizer";
+import { getCurrentUser } from "@/modules/shared/server";
+import { getSettingInt } from "@/modules/shared/server";
+import { getPendingCollaborationInvites } from "@/modules/shared/server";
+import { getOrganizerAccessState } from "@/modules/shared";
+import { getOrganizerEventAnalytics, getOrganizerDailyRevenue } from "@/modules/analytics/server";
+import { getOrganizerProfile } from "@/modules/shared/server";
+import { listOrganizerEvents, listCollaboratedEvents } from "@/modules/organizer/server";
 import { OrganizerKycReviewPanel } from "@/components/organizer/organizer-kyc-review-panel";
-import { getOrganizerPastEventsForLinking } from "@/lib/data/events";
-import { listClubMembers, listMyClubs } from "@/lib/data/clubs";
-import { listPendingOrders, listOrdersForOrganizerEvents } from "@/lib/data/orders";
-import { getTermsVersion, getDoorStaffPricing, getDoorStaffMax, getDoorStaffAvailable } from "@/lib/data/platform-settings";
+import { getOrganizerPastEventsForLinking } from "@/modules/shared/server";
+import { listClubMembers, listMyClubs } from "@/modules/shared/server";
+import { listPendingOrders, listOrdersForOrganizerEvents } from "@/modules/shared/server";
+import { getTermsVersion, getDoorStaffPricing, getDoorStaffMax, getDoorStaffAvailable } from "@/modules/shared/server";
 
 // Lazy load EventForm — it pulls in Leaflet (~140kB) via MapPicker
 const EventForm = lazy(() =>

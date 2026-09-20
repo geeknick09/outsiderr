@@ -5,12 +5,12 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 import { approveOrderAction, rejectOrderAction } from "@/actions/orders";
-import { Badge } from "@/components/ui/badge";
-import { SubmitButton } from "@/components/ui/submit-button";
-import { Modal } from "@/components/ui/modal";
-import { useRealtime } from "@/lib/hooks/use-realtime";
-import { formatPaise } from "@/lib/format";
-import type { Order } from "@/lib/types";
+import { Badge } from "@/modules/shared";
+import { SubmitButton } from "@/modules/shared";
+import { Modal } from "@/modules/shared";
+import { useRealtime } from "@/modules/shared";
+import { formatPaise } from "@/modules/shared";
+import type { Order } from "@/modules/shared";
 
 export function VerificationQueue({
   orders,

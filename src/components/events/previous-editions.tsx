@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { CalendarDays, Star } from "lucide-react";
 
-import { formatDateRange } from "@/lib/format";
+import { formatDateRange } from "@/modules/shared";
 
 interface LinkedEvent {
   id: string;

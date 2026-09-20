@@ -4,10 +4,10 @@ import {
   confirmRazorpayOrder,
   failRazorpayOrder,
   findOrderByRazorpayOrderId,
-} from "@/lib/data/orders";
-import { verifyRazorpayWebhookSignature } from "@/lib/razorpay-verify";
-import { createServiceClient } from "@/lib/supabase/service";
-import { logger } from "@/lib/logger";
+} from "@/modules/shared/server";
+import { verifyRazorpayWebhookSignature } from "@/modules/shared/server";
+import { createServiceClient } from "@/modules/shared/server";
+import { logger } from "@/modules/shared/server";
 
 // Must run on Node.js (not Edge) — needs crypto for HMAC verification
 export const runtime = "nodejs";

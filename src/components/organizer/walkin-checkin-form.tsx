@@ -4,9 +4,9 @@ import { useState } from "react";
 import { CheckCircle2, Loader2, Ticket, UserCheck } from "lucide-react";
 
 import { createWalkinOrderAction } from "@/actions/orders";
-import { Button } from "@/components/ui/button";
-import { formatPaise } from "@/lib/format";
-import type { EventDetail } from "@/lib/types";
+import { Button } from "@/modules/shared";
+import { formatPaise } from "@/modules/shared";
+import type { EventDetail } from "@/modules/shared";
 
 const INPUT =
   "w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white";

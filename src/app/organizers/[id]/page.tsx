@@ -2,17 +2,17 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Image from "next/image";
 import { BadgeCheck, CalendarDays, Clock, Globe, Link2, MessageCircle, Play } from "lucide-react";
-import { InstagramIcon } from "@/components/ui/instagram-icon";
+import { InstagramIcon } from "@/modules/shared";
 
 import { EventCard } from "@/components/events/event-card";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/modules/shared";
 import { FollowOrganizerButton } from "@/components/organizer/follow-button";
 import { ReviewsSection } from "@/components/reviews/reviews-section";
-import { getPublicOrganizer, listPublicOrganizerEvents } from "@/lib/data/organizers";
-import { getOrganizerReviews, getOrganizerRating } from "@/lib/data/reviews";
-import { getOrganizerFollowerCount, isFollowingOrganizer } from "@/lib/data/engagement";
-import { getCurrentUser } from "@/lib/auth";
-import { isPast } from "@/lib/format";
+import { getPublicOrganizer, listPublicOrganizerEvents } from "@/modules/shared/server";
+import { getOrganizerReviews, getOrganizerRating } from "@/modules/shared/server";
+import { getOrganizerFollowerCount, isFollowingOrganizer } from "@/modules/shared/server";
+import { getCurrentUser } from "@/modules/shared/server";
+import { isPast } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 

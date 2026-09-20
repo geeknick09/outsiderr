@@ -1,7 +1,7 @@
 import { Store } from "lucide-react";
 
-import { listAllBoxOfficePins } from "@/lib/data/box-office-pins";
-import { formatDateTime } from "@/lib/format";
+import { listAllBoxOfficePins } from "@/modules/shared/server";
+import { formatDateTime } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 

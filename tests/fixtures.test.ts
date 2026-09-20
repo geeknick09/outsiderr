@@ -21,7 +21,7 @@ import {
   allTickets,
   allUsers,
 } from "./fixtures";
-import { calculatePrice, DEFAULT_COMMISSION_BPS, DEFAULT_CONVENIENCE_FEE_BPS } from "@/lib/pricing";
+import { calculatePrice, DEFAULT_COMMISSION_BPS, DEFAULT_CONVENIENCE_FEE_BPS } from "@/modules/shared";
 
 /**
  * Integration tests using deterministic test fixtures.

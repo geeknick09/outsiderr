@@ -5,15 +5,15 @@ import { Suspense, useActionState, useEffect, useState } from "react";
 import { MapPin, Plus, ShieldCheck, Trash2, Upload, Users } from "lucide-react";
 
 import { createEventAction, type CreateEventState } from "@/actions/events";
-import { Button } from "@/components/ui/button";
-import { PhoneInput } from "@/components/ui/phone-input";
+import { Button } from "@/modules/shared";
+import { PhoneInput } from "@/modules/shared";
 import { GalleryUploader } from "@/components/organizer/gallery-uploader";
 import { PosterGuidelines } from "@/components/organizer/poster-guidelines";
-import { CATEGORIES, CITIES, PREDEFINED_EVENT_TAGS } from "@/lib/constants";
-import { nowISTInput } from "@/lib/datetime";
-import { uploadPublicFile } from "@/lib/upload";
-import { isGoogleMapsLink } from "@/lib/upi";
-import { cn } from "@/lib/utils";
+import { CATEGORIES, CITIES, PREDEFINED_EVENT_TAGS } from "@/modules/shared";
+import { nowISTInput } from "@/modules/shared";
+import { uploadPublicFile } from "@/modules/shared";
+import { isGoogleMapsLink } from "@/modules/shared";
+import { cn } from "@/modules/shared";
 
 // Lazy load MapPicker with ssr: false — Leaflet requires `window`
 const MapPicker = dynamic(

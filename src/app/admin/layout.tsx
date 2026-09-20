@@ -2,8 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BarChart2, BellRing, CalendarDays, ShieldCheck, Users, Zap, Settings, FileText, TrendingUp, CreditCard, Wallet, LineChart, KeyRound, Store, BadgeCheck } from "lucide-react";
 
-import { getCurrentUser } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/modules/shared/server";
+import { createClient } from "@/modules/shared/server";
 
 async function checkAdminAccess(): Promise<boolean> {
   const user = await getCurrentUser();

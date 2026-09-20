@@ -5,9 +5,9 @@ import Link from "next/link";
 import { useCallback, useRef } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { formatDateTime, formatPriceTag } from "@/lib/format";
-import type { EventSummary } from "@/lib/types";
+import { Badge } from "@/modules/shared";
+import { formatDateTime, formatPriceTag } from "@/modules/shared";
+import type { EventSummary } from "@/modules/shared";
 
 export function FeaturedCarousel({ events }: { events: EventSummary[] }) {
   const trackRef = useRef<HTMLDivElement>(null);
