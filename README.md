@@ -124,7 +124,7 @@ The app requires Supabase credentials to function (demo mode has been removed).
 
 **Swagger UI:** Visit `http://localhost:3000/api-docs` in your browser to view and test all HTTP API endpoints interactively.
 
-See [API_SPEC.md](API_SPEC.md) for full API documentation including all Server Actions, Supabase RPCs, realtime channels, and the financial model.
+See [docs/reference/api-spec.md](docs/reference/api-spec.md) for full API documentation including all Server Actions, Supabase RPCs, realtime channels, and the financial model.
 
 ## Payment Flow (Current Release)
 
@@ -190,50 +190,44 @@ node scripts/tba-category-test.mjs            # 10 checks — TBA venue + catego
 | File | Description |
 |------|-------------|
 | [PRODUCT_VISION.md](PRODUCT_VISION.md) | Product constitution — read before making product decisions |
-| [API_SPEC.md](API_SPEC.md) | Full API specification — routes, server actions, RPCs, realtime |
-| [BACKLOG.md](BACKLOG.md) | Tracked work, known issues, and vision roadmap |
-| [AGENTS.md](AGENTS.md) | Agent guidelines — tech stack, conventions, build process |
+| [docs/prd.md](docs/prd.md) | Product overview, personas, MVP feature map, financial model, campaigns design |
+| [docs/architecture.md](docs/architecture.md) | System layout, module boundaries, request flows, DB, future split path |
+| [docs/rules.md](docs/rules.md) | Working rules for AI agents & contributors (supersedes old AGENTS.md) |
+| [docs/design.md](docs/design.md) | Design tokens, typography, component patterns |
+| [docs/task.md](docs/task.md) | Task tracker — phases, status, blockers (replaces BACKLOG.md) |
+| [docs/memory.md](docs/memory.md) | Log of past decisions, bugs, and fixes |
+| [docs/reference/](docs/reference/) | Long-form docs: test scenarios, QA report, API spec, historical plans |
+| [AGENTS.md](AGENTS.md) | Thin pointer → `docs/rules.md` (kept for tool auto-discovery) |
 | [supabase/schema.sql](supabase/schema.sql) | Full database schema with RLS policies and RPCs |
 | [supabase/migrations/fix_all.sql](supabase/migrations/fix_all.sql) | Incremental schema fixes — re-run after pulling |
 
 ## Project Structure
 
+The codebase is organized into **domain modules** so each product area can later become its own app (`apps/<name>`) with a mechanical move — see `docs/architecture.md` for the full boundary rules and split path.
+
 ```
 src/
-├── app/                    # Next.js App Router pages
-│   ├── api/                # HTTP API routes (webhooks, cron)
-│   ├── admin/              # Admin dashboard pages
-│   ├── organizer/          # Organizer dashboard pages
-│   ├── checkout/           # Ticket checkout
-│   ├── tickets/            # User tickets and QR passes
-│   ├── events/             # Public event detail pages
-│   ├── clubs/              # Culture clubs
-│   ├── profile/            # User profile
-│   ├── scan/               # QR scanner (door staff)
-│   └── login/              # Authentication
-├── actions/                # Server Actions (mutations)
-├── components/             # React components
-│   ├── checkout/           # Checkout form, Razorpay checkout
-│   ├── organizer/          # Analytics, verification queue, attendees, scanner
-│   ├── admin/              # Admin UI components
-│   ├── tickets/            # Ticket display, realtime wrapper
-│   ├── scan/               # QR scanner components
-│   └── ui/                 # Shared UI primitives (Button, Badge, Modal, etc.)
-├── lib/
-│   ├── data/               # Data access layer (orders, events, admin, etc.)
-│   ├── supabase/           # Supabase client + database types
-│   ├── auth.ts             # Current user identity
-│   ├── pricing.ts          # Price calculation (source of truth)
-│   ├── format.ts           # Formatting utilities (paise, dates)
-│   ├── types.ts            # Shared TypeScript types
-│   └── constants.ts        # Categories, cities, tags, labels
-└── middleware.ts           # Route protection (auth, admin, organizer guards)
+├── app/                     # Thin routes only (guard → fetch → render a module component)
+├── middleware.ts            # Auth/session middleware
+└── modules/
+    ├── shared/              # UI primitives, core data (events/orders/tickets/organizers),
+    │                        # auth, db types, lib (constants, validation, pricing, logger…)
+    ├── web/                 # Public consumer app: discovery, event page, checkout, tickets,
+    │                        # clubs, reviews, user profile, organizer public profiles
+    ├── organizer/           # Organizer dashboard, event CRUD, KYC submit, collab, staff, PINs
+    ├── admin/               # Moderation, KYC review, settings, legal, users, revenue
+    ├── scanner/             # Door scanner, PIN login, offline sync, box office, walk-in
+    ├── analytics/           # Organizer + admin analytics components & queries
+    └── campaigns/           # Ad-click / attribution (stub — see docs/prd.md §8)
 
 supabase/
-├── schema.sql              # Canonical schema — tables, RLS, RPCs
-└── migrations/
-    └── fix_all.sql         # Incremental schema fixes
+├── schema.sql               # Canonical schema — tables, RLS, RPCs
+└── migrations/fix_all.sql   # Incremental schema fixes (idempotent)
+
+docs/                        # Knowledge base — prd, architecture, rules, design, task, memory
 ```
+
+Each module exposes `index.ts` (client-safe), `server.ts` (server-only data), and `actions/*` — import only through these. Deep imports into another module's internals are banned by ESLint.
 
 ## License
 
