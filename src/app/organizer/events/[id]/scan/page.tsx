@@ -10,7 +10,7 @@ import { formatDateRange } from "@/modules/shared";
 
 // Lazy load DoorScanner — html5-qrcode is ~110kB
 const EventDoorScanner = lazy(() =>
-  import("@/components/organizer/event-door-scanner").then((m) => ({ default: m.EventDoorScanner })),
+  import("@/modules/scanner").then((m) => ({ default: m.EventDoorScanner })),
 );
 
 export const dynamic = "force-dynamic";

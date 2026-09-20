@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { CheckCircle2, Loader2, Ticket, UserCheck } from "lucide-react";
 
-import { createWalkinOrderAction } from "@/actions/orders";
+import { createWalkinOrderAction } from "@/modules/scanner/actions/check-in";
 import { Button } from "@/modules/shared";
 import { formatPaise } from "@/modules/shared";
 import type { EventDetail } from "@/modules/shared";

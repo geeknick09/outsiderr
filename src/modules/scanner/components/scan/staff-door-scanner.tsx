@@ -12,11 +12,11 @@ import {
   History,
 } from "lucide-react";
 
-import { checkInTicketAction } from "@/actions/orders";
+import { checkInTicketAction } from "@/modules/scanner/actions/check-in";
 import { useRealtime } from "@/modules/shared";
 import { formatDateRange } from "@/modules/shared";
 import { ScannerSyncManager, type SyncStatus } from "@/modules/scanner";
-import { OfflineStatus } from "@/components/scan/offline-status";
+import { OfflineStatus } from "./offline-status";
 import type { ScanResult } from "@/modules/shared";
 
 interface StaffEvent {

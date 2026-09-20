@@ -1,4 +1,4 @@
-import { ScanPageClient } from "@/components/scan/scan-page-client";
+import { ScanPageClient } from "@/modules/scanner";
 import { createClient } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";

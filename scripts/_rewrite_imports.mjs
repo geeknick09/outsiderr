@@ -34,6 +34,13 @@ mv("lib/offline/sync-manager.ts", "modules/scanner/offline/sync-manager.ts");
 for (const dir of ["ui","layout","theme","pwa","auth"])
   for (const f of fs.existsSync(`src/modules/shared/ui/${dir}`) ? fs.readdirSync(`src/modules/shared/ui/${dir}`) : [])
     mv(`components/${dir}/${f}`, `modules/shared/ui/${dir}/${f}`);
+// scanner components (components/{scan,box-office} + organizer/{door-scanner,event-door-scanner,walkin-checkin-form})
+for (const f of fs.existsSync("src/modules/scanner/components/scan") ? fs.readdirSync("src/modules/scanner/components/scan") : [])
+  mv(`components/scan/${f}`, `modules/scanner/components/scan/${f}`);
+for (const f of fs.existsSync("src/modules/scanner/components/box-office") ? fs.readdirSync("src/modules/scanner/components/box-office") : [])
+  mv(`components/box-office/${f}`, `modules/scanner/components/box-office/${f}`);
+for (const f of ["door-scanner","event-door-scanner","walkin-checkin-form"])
+  mv(`components/organizer/${f}.tsx`, `modules/scanner/components/${f}.tsx`);
 
 // ---------- symbol routing for split files ----------
 const SYMBOL_ROUTES = {
@@ -59,6 +66,21 @@ const SYMBOL_ROUTES = {
   "lib/auth": {
     getCurrentUser:"shared/server",
     CurrentUser:"shared", CurrentProfile:"shared",
+  },
+  // ---- action file splits (Phase R2+) ----
+  "actions/scanner-pins": {
+    verifyScannerPinAction:"scanner/actions/scan",
+    generateScannerPinsAction:"organizer/actions/scanner-pins", revokeScannerPinAction:"organizer/actions/scanner-pins",
+    GeneratePinsResult:"organizer/actions/scanner-pins",
+  },
+  "actions/box-office": {
+    verifyBoxOfficePinAction:"scanner/actions/box-office", createBoxOfficeOrderAction:"scanner/actions/box-office",
+    generateBoxOfficePinsAction:"organizer/actions/box-office-pins", revokeBoxOfficePinAction:"organizer/actions/box-office-pins",
+    GenerateBoxOfficePinsResult:"organizer/actions/box-office-pins",
+  },
+  "actions/orders": {
+    checkInTicketAction:"scanner/actions/check-in", createWalkinOrderAction:"scanner/actions/check-in",
+    updateWalkinOrderAction:"scanner/actions/check-in", WalkinResult:"scanner/actions/check-in",
   },
 };
 
@@ -127,7 +149,11 @@ for (const file of files){
         const groups={};
         for(const n0 of named){
           const isT=/^type\s+/.test(n0); const n=n0.replace(/^type\s+/,"");
-          const dest=route[n]; const key=dest?dest:"@/modules/shared"; // unrouted symbol -> shared index (types)
+          const dest=route[n];
+          // unrouted symbol: if the source file still exists (partial split), keep "@/spec"; else treat as a type -> shared index
+          let key;
+          if (dest) key=dest;
+          else key = fs.existsSync(`src/${spec}.ts`)||fs.existsSync(`src/${spec}.tsx`) ? `@/${spec}` : "@/modules/shared";
           (groups[key]||=[]).push((isT?"type ":"")+n);
         }
         const tK = typeKw?" type":"";
@@ -151,11 +177,11 @@ for (const file of files){
       if (!route) return `const {${names}} = await import("${aliasTarget(spec,file,srcMod)}")`;
       const syms = names.split(",").map(s=>s.trim()).filter(Boolean);
       const mods = [...new Set(syms.map(s=>{ const n=s.split(/\s+as\s+/)[0].trim(); return route[n]; }).filter(Boolean))];
-      if (mods.length===1) return `const {${names}} = await import("@/modules/${mods[0]}")`;
-      // mixed modules -> build one await per module
+      if (mods.length===1 && mods.length===syms.length) return `const {${names}} = await import("@/modules/${mods[0]}")`;
+      // mixed/unrouted -> keep unrouted at original spec, routed to their module
       const byMod={};
-      for(const s of syms){ const n=s.split(/\s+as\s+/)[0].trim(); const mod=route[n]||"shared/server"; (byMod[mod]||=[]).push(s); }
-      const parts = Object.entries(byMod).map(([mod,ns],i)=>`const { ${ns.join(", ")} } = await import("@/modules/${mod}")`);
+      for(const s of syms){ const n=s.split(/\s+as\s+/)[0].trim(); const mod=route[n]? `@/modules/${route[n]}` : `@/${spec}`; (byMod[mod]||=[]).push(s); }
+      const parts = Object.entries(byMod).map(([mod,ns])=>`const { ${ns.join(", ")} } = await import("${mod}")`);
       splitNotes.push(`${file}: split-dynamic @/${spec}`);
       return parts.join(";\n  ");
     });

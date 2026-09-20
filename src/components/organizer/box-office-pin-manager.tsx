@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Plus, Store, Trash2, Users } from "lucide-react";
 
-import { generateBoxOfficePinsAction, revokeBoxOfficePinAction } from "@/actions/box-office";
+import { generateBoxOfficePinsAction, revokeBoxOfficePinAction } from "@/modules/organizer/actions/box-office-pins";
 import { Button } from "@/modules/shared";
 import type { BoxOfficePin } from "@/modules/shared";
 

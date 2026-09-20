@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Loader2, Ticket, UserCheck } from "lucide-react";
 
-import { verifyBoxOfficePinAction, createBoxOfficeOrderAction } from "@/actions/box-office";
+import { verifyBoxOfficePinAction, createBoxOfficeOrderAction } from "@/modules/scanner/actions/box-office";
 import { formatPaise } from "@/modules/shared";
 
 export interface BoxOfficeEventOption {

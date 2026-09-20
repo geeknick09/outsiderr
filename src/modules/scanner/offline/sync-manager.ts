@@ -194,7 +194,7 @@ export class ScannerSyncManager {
 
       console.log(`[sync] Syncing ${queued.length} queued scans`);
 
-      const { checkInTicketAction } = await import("@/actions/orders");
+      const { checkInTicketAction } = await import("@/modules/scanner/actions/check-in");
 
       for (const scan of queued) {
         const scanId = scan.id;

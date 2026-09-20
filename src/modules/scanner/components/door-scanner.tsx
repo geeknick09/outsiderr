@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { CheckCircle2, CircleSlash, RotateCcw, XCircle } from "lucide-react";
 
-import { checkInTicketAction } from "@/actions/orders";
+import { checkInTicketAction } from "@/modules/scanner/actions/check-in";
 import { Button } from "@/modules/shared";
 import type { ScanResult } from "@/modules/shared";
 

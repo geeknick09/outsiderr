@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 
-import { PinLogin, type VerifiedScannerSession } from "@/components/scan/pin-login";
-import { StaffDoorScannerLazy } from "@/components/scan/staff-door-scanner-lazy";
+import { PinLogin, type VerifiedScannerSession } from "./pin-login";
+import { StaffDoorScannerLazy } from "./staff-door-scanner-lazy";
 
 export interface ScannerEventOption {
   id: string;

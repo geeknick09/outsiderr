@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Loader2, ScanLine } from "lucide-react";
 
-import { verifyScannerPinAction } from "@/actions/scanner-pins";
+import { verifyScannerPinAction } from "@/modules/scanner/actions/scan";
 
 export interface ScannerEventOption {
   id: string;

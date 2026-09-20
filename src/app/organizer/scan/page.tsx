@@ -8,7 +8,7 @@ import { listOrganizerEvents } from "@/modules/organizer/server";
 
 // Lazy load DoorScanner — html5-qrcode is ~110kB
 const DoorScanner = lazy(() =>
-  import("@/components/organizer/door-scanner").then((m) => ({ default: m.DoorScanner })),
+  import("@/modules/scanner").then((m) => ({ default: m.DoorScanner })),
 );
 
 export const dynamic = "force-dynamic";

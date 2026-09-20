@@ -19,7 +19,7 @@ import { PastEventGalleryManager } from "@/components/organizer/past-event-galle
 import { ShareButton } from "@/components/events/share-button";
 import { VerificationQueue } from "@/components/organizer/verification-queue";
 import { WaitlistPanel } from "@/components/organizer/waitlist-panel";
-import { WalkinCheckinForm } from "@/components/organizer/walkin-checkin-form";
+import { WalkinCheckinForm } from "@/modules/scanner";
 import { Badge } from "@/modules/shared";
 import { Button } from "@/modules/shared";
 import { SubmitButton } from "@/modules/shared";

@@ -1,4 +1,4 @@
-import { BoxOfficePageClient } from "@/components/box-office/box-office-page-client";
+import { BoxOfficePageClient } from "@/modules/scanner";
 import { createClient } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
