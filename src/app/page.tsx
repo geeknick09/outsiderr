@@ -1,12 +1,12 @@
 import { Suspense } from "react";
 import Link from "next/link";
 
-import { CategoryFilter } from "@/components/events/category-filter";
-import { EventSearch } from "@/components/events/event-search";
-import { EventSection } from "@/components/events/event-section";
-import { FeaturedCarousel } from "@/components/events/featured-carousel";
-import { HeroCarousel } from "@/components/events/hero-carousel";
-import { PastEventSection } from "@/components/events/past-event-section";
+import { CategoryFilter } from "@/modules/web";
+import { EventSearch } from "@/modules/web";
+import { EventSection } from "@/modules/web";
+import { FeaturedCarousel } from "@/modules/web";
+import { HeroCarousel } from "@/modules/web";
+import { PastEventSection } from "@/modules/web";
 import {
   CATEGORY_LABELS,
   CITY_LABELS,

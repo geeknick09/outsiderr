@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { AtSign, BadgeCheck, MapPin, Users } from "lucide-react";
 
-import { JoinClubForm } from "@/components/clubs/join-club-form";
+import { JoinClubForm } from "@/modules/web";
 import { Badge } from "@/modules/shared";
 import { getCurrentUser } from "@/modules/shared/server";
 import { getClub, getMyMembership } from "@/modules/shared/server";

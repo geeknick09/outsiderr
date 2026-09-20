@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { EditProfileForm } from "@/components/profile/edit-profile-form";
+import { EditProfileForm } from "@/modules/web";
 import { getCurrentUser } from "@/modules/shared/server";
 import { getUserProfile } from "@/modules/shared/server";
 

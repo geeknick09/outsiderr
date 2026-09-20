@@ -50,6 +50,30 @@ for (const f of ["analytics-charts","analytics-charts-lazy","user-analytics-expo
 // admin actions
 for (const f of ["admin","kyc","legal-pages"])
   mv(`actions/${f}.ts`, `modules/admin/actions/${f}.ts`);
+// organizer components (components/organizer/* -> modules/organizer/components)
+for (const f of fs.existsSync("src/modules/organizer/components") ? fs.readdirSync("src/modules/organizer/components") : [])
+  mv(`components/organizer/${f}`, `modules/organizer/components/${f}`);
+// analytics comps moved from components/organizer
+for (const f of ["aggregated-analytics","analytics-panel"])
+  mv(`components/organizer/${f}.tsx`, `modules/analytics/components/${f}.tsx`);
+// organizer actions
+for (const f of ["organizer","event-staff","door-staff","boosts","events"])
+  mv(`actions/${f}.ts`, `modules/organizer/actions/${f}.ts`);
+// web components (components/<dir> -> modules/web/components/<dir>)
+for (const dir of ["events","checkout","profile","reviews","tickets"])
+  for (const f of fs.existsSync(`src/modules/web/components/${dir}`) ? fs.readdirSync(`src/modules/web/components/${dir}`) : [])
+    mv(`components/${dir}/${f}`, `modules/web/components/${dir}/${f}`);
+mv(`components/clubs/join-club-form.tsx`, `modules/web/components/join-club-form.tsx`);
+// community UI used by organizer+web -> shared/ui/community
+for (const f of ["club-form","club-members-panel"])
+  mv(`components/organizer/${f}.tsx`, `modules/shared/ui/community/${f}.tsx`);
+mv(`components/organizer/follow-button.tsx`, `modules/web/components/follow-button.tsx`);
+// shared actions (cross-domain)
+for (const f of ["clubs","engagement","hero-boosts","reviews"])
+  mv(`actions/${f}.ts`, `modules/shared/actions/${f}.ts`);
+// web actions
+for (const f of ["orders","waitlist"])
+  mv(`actions/${f}.ts`, `modules/web/actions/${f}.ts`);
 
 // ---------- symbol routing for split files ----------
 const SYMBOL_ROUTES = {
@@ -90,6 +114,7 @@ const SYMBOL_ROUTES = {
   "actions/orders": {
     checkInTicketAction:"scanner/actions/check-in", createWalkinOrderAction:"scanner/actions/check-in",
     updateWalkinOrderAction:"scanner/actions/check-in", WalkinResult:"scanner/actions/check-in",
+    approveOrderAction:"organizer/actions/order-verify", rejectOrderAction:"organizer/actions/order-verify",
   },
 };
 
@@ -162,7 +187,10 @@ for (const file of files){
           // unrouted symbol: if the source file still exists (partial split), keep "@/spec"; else treat as a type -> shared index
           let key;
           if (dest) key=dest;
-          else key = fs.existsSync(`src/${spec}.ts`)||fs.existsSync(`src/${spec}.tsx`) ? `@/${spec}` : "@/modules/shared";
+          else {
+            const mt=movedTarget(spec); // unrouted: follow the file's move if it moved, else keep "@/spec", else shared index (types)
+            key = mt ? publicEntry(mt) : (fs.existsSync(`src/${spec}.ts`)||fs.existsSync(`src/${spec}.tsx`) ? `@/${spec}` : "@/modules/shared");
+          }
           (groups[key]||=[]).push((isT?"type ":"")+n);
         }
         const tK = typeKw?" type":"";
@@ -187,9 +215,11 @@ for (const file of files){
       const syms = names.split(",").map(s=>s.trim()).filter(Boolean);
       const mods = [...new Set(syms.map(s=>{ const n=s.split(/\s+as\s+/)[0].trim(); return route[n]; }).filter(Boolean))];
       if (mods.length===1 && mods.length===syms.length) return `const {${names}} = await import("@/modules/${mods[0]}")`;
-      // mixed/unrouted -> keep unrouted at original spec, routed to their module
+      // mixed/unrouted -> keep unrouted at the file's new location (or original if unmoved)
       const byMod={};
-      for(const s of syms){ const n=s.split(/\s+as\s+/)[0].trim(); const mod=route[n]? `@/modules/${route[n]}` : `@/${spec}`; (byMod[mod]||=[]).push(s); }
+      const unmoved=`@/${spec}`; const mt=movedTarget(spec);
+      const unroutedSpec = mt ? publicEntry(mt) : unmoved;
+      for(const s of syms){ const n=s.split(/\s+as\s+/)[0].trim(); const mod=route[n]? `@/modules/${route[n]}` : unroutedSpec; (byMod[mod]||=[]).push(s); }
       const parts = Object.entries(byMod).map(([mod,ns])=>`const { ${ns.join(", ")} } = await import("${mod}")`);
       splitNotes.push(`${file}: split-dynamic @/${spec}`);
       return parts.join(";\n  ");

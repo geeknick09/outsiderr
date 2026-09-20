@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
-import { TicketsRealtimeWrapper } from "@/components/tickets/tickets-realtime-wrapper";
-import { ReviewForm } from "@/components/reviews/review-form";
+import { TicketsRealtimeWrapper } from "@/modules/web";
+import { ReviewForm } from "@/modules/web";
 import { getCurrentUser } from "@/modules/shared/server";
 import { listMyOrders, listMyTickets } from "@/modules/shared/server";
 import { getOrganizerWhatsappNumber } from "@/modules/shared/server";

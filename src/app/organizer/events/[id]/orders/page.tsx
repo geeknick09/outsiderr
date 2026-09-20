@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, Users } from "lucide-react";
 
-import { AttendeesTable } from "@/components/organizer/attendees-table";
+import { AttendeesTable } from "@/modules/organizer";
 import { getCurrentUser } from "@/modules/shared/server";
 import { getEvent } from "@/modules/shared/server";
 import { getEventAccessLevel, canManageOrders } from "@/modules/shared/server";

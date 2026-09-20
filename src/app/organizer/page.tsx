@@ -3,17 +3,17 @@ import { redirect } from "next/navigation";
 import { lazy, Suspense } from "react";
 import { BarChart2 } from "lucide-react";
 
-import { AnalyticsPanel } from "@/components/organizer/analytics-panel";
-import { AggregatedAnalytics } from "@/components/organizer/aggregated-analytics";
-import { BecomeOrganizerForm } from "@/components/organizer/become-organizer-form";
-import { ClubForm } from "@/components/organizer/club-form";
-import { ClubMembersPanel } from "@/components/organizer/club-members-panel";
-import { CollaborationInvites } from "@/components/organizer/collaboration-invites";
-import { KycStatusBanner } from "@/components/organizer/kyc-status-banner";
-import { OrganizerEventsList } from "@/components/organizer/organizer-events-list";
-import { OrganizerHeader } from "@/components/organizer/organizer-header";
-import { OrganizerKycRealtimeRefresher } from "@/components/organizer/organizer-kyc-realtime";
-import { OrderMonitor } from "@/components/organizer/order-monitor";
+import { AnalyticsPanel } from "@/modules/analytics";
+import { AggregatedAnalytics } from "@/modules/analytics";
+import { BecomeOrganizerForm } from "@/modules/organizer";
+import { ClubForm } from "@/modules/shared";
+import { ClubMembersPanel } from "@/modules/shared";
+import { CollaborationInvites } from "@/modules/organizer";
+import { KycStatusBanner } from "@/modules/organizer";
+import { OrganizerEventsList } from "@/modules/organizer";
+import { OrganizerHeader } from "@/modules/organizer";
+import { OrganizerKycRealtimeRefresher } from "@/modules/organizer";
+import { OrderMonitor } from "@/modules/organizer";
 import { getCurrentUser } from "@/modules/shared/server";
 import { getSettingInt } from "@/modules/shared/server";
 import { getPendingCollaborationInvites } from "@/modules/shared/server";
@@ -21,7 +21,7 @@ import { getOrganizerAccessState } from "@/modules/shared";
 import { getOrganizerEventAnalytics, getOrganizerDailyRevenue } from "@/modules/analytics/server";
 import { getOrganizerProfile } from "@/modules/shared/server";
 import { listOrganizerEvents, listCollaboratedEvents } from "@/modules/organizer/server";
-import { OrganizerKycReviewPanel } from "@/components/organizer/organizer-kyc-review-panel";
+import { OrganizerKycReviewPanel } from "@/modules/organizer";
 import { getOrganizerPastEventsForLinking } from "@/modules/shared/server";
 import { listClubMembers, listMyClubs } from "@/modules/shared/server";
 import { listPendingOrders, listOrdersForOrganizerEvents } from "@/modules/shared/server";
@@ -29,7 +29,7 @@ import { getTermsVersion, getDoorStaffPricing, getDoorStaffMax, getDoorStaffAvai
 
 // Lazy load EventForm — it pulls in Leaflet (~140kB) via MapPicker
 const EventForm = lazy(() =>
-  import("@/components/organizer/event-form").then((m) => ({ default: m.EventForm })),
+  import("@/modules/organizer").then((m) => ({ default: m.EventForm })),
 );
 
 export const dynamic = "force-dynamic";

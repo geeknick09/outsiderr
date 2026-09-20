@@ -6,7 +6,7 @@ import { CheckCircle2, XCircle } from "lucide-react";
 import {
   activateHeroBoostAction,
   cancelHeroBoostAction,
-} from "@/actions/hero-boosts";
+} from "@/modules/shared/actions/hero-boosts";
 import { SubmitButton } from "@/modules/shared";
 import type { HeroBoostWithEvent } from "@/modules/shared";
 

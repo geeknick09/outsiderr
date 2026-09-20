@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { ChevronLeft } from "lucide-react";
 
-import { PrintButton } from "@/components/organizer/print-button";
+import { PrintButton } from "@/modules/organizer";
 import { QrCode } from "@/modules/shared";
 import { getCurrentUser } from "@/modules/shared/server";
 import { getEvent } from "@/modules/shared/server";

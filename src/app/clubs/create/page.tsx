@@ -5,7 +5,7 @@ import { ArrowLeft, Clock, ShieldAlert } from "lucide-react";
 
 import { getCurrentUser } from "@/modules/shared/server";
 import { getOrganizerProfile } from "@/modules/shared/server";
-import { ClubForm } from "@/components/organizer/club-form";
+import { ClubForm } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 

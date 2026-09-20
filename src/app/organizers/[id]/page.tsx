@@ -4,10 +4,10 @@ import Image from "next/image";
 import { BadgeCheck, CalendarDays, Clock, Globe, Link2, MessageCircle, Play } from "lucide-react";
 import { InstagramIcon } from "@/modules/shared";
 
-import { EventCard } from "@/components/events/event-card";
+import { EventCard } from "@/modules/web";
 import { Badge } from "@/modules/shared";
-import { FollowOrganizerButton } from "@/components/organizer/follow-button";
-import { ReviewsSection } from "@/components/reviews/reviews-section";
+import { FollowOrganizerButton } from "@/modules/web";
+import { ReviewsSection } from "@/modules/web";
 import { getPublicOrganizer, listPublicOrganizerEvents } from "@/modules/shared/server";
 import { getOrganizerReviews, getOrganizerRating } from "@/modules/shared/server";
 import { getOrganizerFollowerCount, isFollowingOrganizer } from "@/modules/shared/server";

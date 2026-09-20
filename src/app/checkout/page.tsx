@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
-import { CheckoutForm } from "@/components/checkout/checkout-form";
-import { UpiQrCode } from "@/components/checkout/upi-qr-code";
+import { CheckoutForm } from "@/modules/web";
+import { UpiQrCode } from "@/modules/web";
 import { MAX_TICKETS_PER_ORDER } from "@/modules/shared";
 import { getEvent } from "@/modules/shared/server";
 import { formatDateTime, formatPaise } from "@/modules/shared";

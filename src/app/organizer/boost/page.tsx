@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 
-import { BoostPanel } from "@/components/organizer/boost-panel";
+import { BoostPanel } from "@/modules/organizer";
 import { getCurrentUser } from "@/modules/shared/server";
 import { listBoostSlotPrices, listOccupiedSlots } from "@/modules/shared/server";
 import { listOrganizerEvents } from "@/modules/organizer/server";

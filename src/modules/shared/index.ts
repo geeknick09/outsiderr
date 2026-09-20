@@ -65,3 +65,6 @@ export * from "./ui/theme/theme-toggle";
 export * from "./ui/pwa/push-subscribe";
 export * from "./ui/pwa/register-sw";
 export * from "./ui/auth/login-panel";
+// ---- community UI (cross-domain: used by organizer dashboard + public web) ----
+export * from "./ui/community/club-form";
+export * from "./ui/community/club-members-panel";

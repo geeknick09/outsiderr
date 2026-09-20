@@ -1,3 +1,30 @@
-// modules/organizer — client-safe public API (components, types).
-// Filled as components move in Phase R4. Server data: ./server
-export {};
+// modules/organizer — client-safe public API (organizer dashboard/event components).
+// Server data: ./server · Server actions: ./actions/{organizer,events,event-staff,door-staff,boosts,order-verify,scanner-pins,box-office-pins}
+export * from "./components/attendees-table";
+export * from "./components/become-organizer-form";
+export * from "./components/boost-panel";
+export * from "./components/box-office-pin-manager";
+export * from "./components/cancel-postpone-buttons";
+export * from "./components/collaboration-invites";
+export * from "./components/collaboration-panel";
+export * from "./components/door-staff-payment";
+export * from "./components/door-staff-request";
+export * from "./components/edit-event-form";
+export * from "./components/edit-organizer-profile";
+export * from "./components/event-form";
+export * from "./components/event-staff-manager";
+export * from "./components/gallery-uploader";
+export * from "./components/hero-boost-panel";
+export * from "./components/kyc-status-banner";
+export * from "./components/map-picker";
+export * from "./components/order-monitor";
+export * from "./components/organizer-events-list";
+export * from "./components/organizer-header";
+export * from "./components/organizer-kyc-realtime";
+export * from "./components/organizer-kyc-review-panel";
+export * from "./components/past-event-gallery-manager";
+export * from "./components/poster-guidelines";
+export * from "./components/print-button";
+export * from "./components/scanner-pin-manager";
+export * from "./components/verification-queue";
+export * from "./components/waitlist-panel";
