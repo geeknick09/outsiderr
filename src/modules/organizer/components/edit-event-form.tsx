@@ -457,6 +457,7 @@ export function EditEventForm({ event, pastEvents = [] }: { event: EventDetail; 
           eventTitle={event.title}
           subFolder="card-posters"
           initialValue={event.cardPosterUrl ?? ""}
+          aspect={3 / 4}
         />
         <PosterField
           name="bannerPosterUrl"
@@ -465,6 +466,7 @@ export function EditEventForm({ event, pastEvents = [] }: { event: EventDetail; 
           eventTitle={event.title}
           subFolder="banner-posters"
           initialValue={event.bannerPosterUrl ?? ""}
+          aspect={16 / 9}
         />
       </div>
 

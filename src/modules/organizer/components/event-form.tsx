@@ -12,6 +12,7 @@ import { PosterGuidelines } from "./poster-guidelines";
 import { CATEGORIES, CITIES, PREDEFINED_EVENT_TAGS } from "@/modules/shared";
 import { nowISTInput } from "@/modules/shared";
 import { uploadPublicFile } from "@/modules/shared";
+import { ImageCropper } from "@/modules/shared";
 import { isGoogleMapsLink } from "@/modules/shared";
 import { cn } from "@/modules/shared";
 
@@ -499,6 +500,7 @@ export function EventForm({
           eventTitle={eventTitle}
           subFolder="card-posters"
           initialValue={sv?.cardPosterUrl ?? ""}
+          aspect={3 / 4}
         />
         <PosterField
           name="bannerPosterUrl"
@@ -507,6 +509,7 @@ export function EventForm({
           eventTitle={eventTitle}
           subFolder="banner-posters"
           initialValue={sv?.bannerPosterUrl ?? ""}
+          aspect={16 / 9}
         />
       </section>
 
@@ -1336,6 +1339,7 @@ export function PosterField({
   eventTitle,
   subFolder,
   initialValue,
+  aspect,
 }: {
   name: string;
   label: string;
@@ -1343,11 +1347,14 @@ export function PosterField({
   eventTitle: string;
   subFolder: string;
   initialValue?: string;
+  /** Crop aspect ratio (e.g. 3/4 card, 16/9 banner). */
+  aspect: number;
 }) {
   const [url, setUrl] = useState(initialValue ?? "");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(false);
   const [sizeError, setSizeError] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
 
   // Build path: organizer-name/event-title/subFolder/filename
   // Sanitize: lowercase, replace spaces/special chars with hyphens
@@ -1357,16 +1364,23 @@ export function PosterField({
 
   const MAX_FILE_BYTES = 1.5 * 1024 * 1024; // 1.5 MB
 
-  async function handleFile(file: File | undefined) {
+  // On select: validate size, then open the cropper so the user can center
+  // the image within the target aspect before it uploads.
+  function handleSelect(file: File | undefined) {
     if (!file) return;
     setSizeError(false);
     if (file.size > MAX_FILE_BYTES) {
       setSizeError(true);
       return;
     }
+    setPendingFile(file);
+  }
+
+  async function handleCropped(cropped: File) {
+    setPendingFile(null);
     setUploading(true);
     try {
-      const uploaded = await uploadPublicFile(file, folder);
+      const uploaded = await uploadPublicFile(cropped, folder);
       if (uploaded) setUrl(uploaded);
       else setUploadError(true);
     } catch {
@@ -1388,7 +1402,10 @@ export function PosterField({
           type="file"
           accept="image/png,image/jpeg"
           className="hidden"
-          onChange={(event) => void handleFile(event.target.files?.[0])}
+          onChange={(event) => {
+            void handleSelect(event.target.files?.[0]);
+            event.target.value = ""; // allow re-selecting the same file
+          }}
         />
       </label>
       {sizeError ? (
@@ -1403,6 +1420,17 @@ export function PosterField({
         placeholder={uploadError ? "Upload failed — paste an image URL" : "or paste an image URL"}
         className={INPUT}
       />
+      {pendingFile ? (
+        <ImageCropper
+          file={pendingFile}
+          aspect={aspect}
+          title={`Crop ${label.toLowerCase()}`}
+          maxFileSizeBytes={MAX_FILE_BYTES}
+          onSizeError={() => setSizeError(true)}
+          onCropComplete={(cropped) => void handleCropped(cropped)}
+          onCancel={() => setPendingFile(null)}
+        />
+      ) : null}
     </div>
   );
 }
