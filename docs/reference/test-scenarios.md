@@ -120,6 +120,24 @@
 - [ ] Select gaming tags → verify they save with the event
 - [ ] Verify tags display on event card and event page
 
+### 3.7 Teaser Video (optional)
+
+- [ ] Upload a ≤10s MP4/WebM → preview shows, URL fills, saves to `events.teaser_video_url`
+- [ ] Try a video > 10s → rejected with a clear message before upload
+- [ ] Try a video > 50 MB → rejected with a clear message
+- [ ] Leave it empty → event saves fine, card shows the photo (teaser is optional)
+- [ ] Same field on **edit** — replace/remove the teaser and verify it persists
+
+### 3.8 Poster Crop Tool
+
+- [ ] Upload a Card poster → crop modal opens locked to **3:4** → drag to center + zoom → Apply → uploads cropped JPEG
+- [ ] Upload a Banner poster → crop modal locked to **16:9**
+- [ ] Cancel the crop → nothing uploads, field stays empty
+- [ ] Re-select the same file → cropper re-opens
+- [ ] Crop a very large source → cropped output still respects the 1.5 MB limit (or a size error shows)
+- [ ] "or paste an image URL" still works as a no-crop fallback
+- [ ] Same crop behavior on the **edit** form
+
  *
 
 ## 4\. Event Discovery (Public Pages)
@@ -164,6 +182,15 @@
 - [ ] Verify reviews + ratings section (if reviews exist)
 - [ ] Verify social links (Instagram, YouTube, X, Facebook, LinkedIn)
 
+### 4.4 Teaser Video Card
+
+- [ ] An upcoming event with a teaser → its card autoplays the video **muted** inline when scrolled into view
+- [ ] Scroll it out of view → video pauses; scroll back → resumes
+- [ ] Tapping the card still opens the event page (no video controls block the link)
+- [ ] Poster image shows as the instant/fallback visual before the video buffers
+- [ ] A past or cancelled event → photo card only (no video), even if a teaser was set
+- [ ] After the event ends, the `cleanup-teasers` cron deletes the file from `event-media` and clears `teaser_video_url`
+
  *
 
 ## 5\. Booking & Tickets
@@ -206,6 +233,16 @@
 - [ ] Click a ticket → verify expandable modal with large QR
 - [ ] Verify check-in time displayed (if checked in)
 - [ ] Verify download button works
+
+### 5.6 Waitlist & FIFO
+
+- [ ] Sell out a tier → "Join Waitlist" appears → User C joins, gets a position
+- [ ] Same user re-joins → returns existing entry (idempotent, no duplicate)
+- [ ] Two users join → positions assigned in arrival order (1, 2 …)
+- [ ] Free a ticket (organizer rejects/cancels an order) → lowest-position WAITING user gets `WAITLIST_OFFER` notification + 24h `expires_at`
+- [ ] OFFERED user books within 24h → order confirms; their waitlist row is cleared (no re-offer later)
+- [ ] OFFERED user lets 24h lapse → `expire-waitlist-offers` cron re-queues them to the END and offers the next person
+- [ ] Burst join (many users at once) → no two users share a position
 
  *
 
@@ -682,6 +719,13 @@
 - [ ] Verify the previous review note is cleared
 - [ ] As the organizer, verify new “Organizer Verified!” notification appears
 
+### 16.13 Event Fee Lock (post-start)
+
+- [ ] Admin → `/admin/events` → find an **upcoming** paid event → commission/fee form is editable → change values → saves + audit row written
+- [ ] Find a **live/past** (started) event → fee area is a read-only summary ("locked — event started"), no form
+- [ ] Try to bypass via a crafted request → `adminUpdateEventFeesAction` returns "Event has already started — fees are locked."
+- [ ] Verify Edit/Feature/Cancel/Publish/Delete are all hidden on a started event (whole card view-only)
+
  *
 
 ## 17\. Notifications
@@ -877,12 +921,13 @@ npx next build
 ### 25.1 Admin Mobile Navigation (hamburger)
 
 - [ ] On a mobile viewport (<1024px) open any `/admin/*` page
-- [ ] Verify a slim sticky bar sits under the global navbar with a **hamburger on the top-left** + “Admin” label
-- [ ] Tap hamburger → left drawer slides in listing all admin options
+- [ ] Verify a **hamburger in the global header top-left** (before the logo), mobile-only
+- [ ] Tap hamburger → left drawer slides in over the page listing all admin options
 - [ ] Tap **outside** (backdrop) → drawer closes
 - [ ] Tap a link → navigates and drawer closes
 - [ ] Press `Escape` → drawer closes
 - [ ] Verify current page is highlighted in the drawer
+- [ ] Hamburger is hidden on non-admin pages and on desktop (≥1024px shows the sidebar)
 - [ ] On desktop (≥1024px) the hamburger is hidden and the left sidebar shows instead
 
 ### 25.2 General Mobile Layout
@@ -891,7 +936,74 @@ npx next build
 - [ ] No horizontal scroll; bottom nav / sticky elements don’t overlap content
 - [ ] Global navbar hamburger/menu works on mobile
 
- *
+## 26\. Concurrency, Money & Inventory Edge Cases
+
+### 26.1 Burst Booking (no oversell)
+
+- [ ] Open the same event in many tabs/browsers, hit "Book" simultaneously
+- [ ] If tickets ≥ demand → **all** orders succeed (each becomes RESERVED), inventory decrements per order
+- [ ] If tickets < demand → orders fill capacity exactly; extras get "Not enough tickets" + waitlist option — **never** over-sold
+- [ ] Confirm `quantity_sold` never exceeds `quantity` in the DB
+
+### 26.2 Reservation Window (Razorpay)
+
+- [ ] Reserve an order, don't pay → inventory held 15 min then released by `expire-reservations` cron
+- [ ] Reserved seats count against availability (sold + reserved) while held
+- [ ] After expiry → seats free up, tier no longer shows sold-out
+
+### 26.3 Idempotency & Double-Confirm
+
+- [ ] Trigger both the Razorpay callback and the webhook for the same order → order confirms once, single set of tickets (no dup mint)
+- [ ] Re-run `confirm_razorpay_order` on a CONFIRMED order → returns existing tickets, no error
+- [ ] `fail_razorpay_order` on a non-RESERVED order → no-op, no crash
+
+### 26.4 Double-Booking Guard
+
+- [ ] A user with an active order (CONFIRMED/RESERVED/PENDING) tries to book the same event again → blocked
+- [ ] Two users booking the last seat concurrently → exactly one succeeds
+
+### 26.5 Money Math — every path
+
+- [ ] **Online paid:** buyer pays `subtotal + convenience_fee`; organizer gets `subtotal − commission`; platform keeps `commission + convenience_fee`
+- [ ] **Free:** ₹0 everywhere; no fees; ticket still mints
+- [ ] **Manual UPI / box office / walk-in:** convenience fee ₹0, commission still applies
+- [ ] **`fee_payer = USER` vs `ORGANIZER`:** verify which side absorbs the fee per event setting
+- [ ] **Refund on cancel/postpone:** refund math + `payment_ledger` rows correct; check who bears the fee
+- [ ] Reject a pending order → inventory/payment state consistent
+
+### 26.6 Inventory Restoration
+
+- [ ] Reject a RESERVED order → reserved released
+- [ ] Let a reservation expire → released
+- [ ] Cancel a confirmed order → sold decremented, ticket freed for waitlist offer
+
+## 27\. Security & Authorization
+
+### 27.1 Role Boundaries (RLS + guards)
+
+- [ ] Regular user → `/admin/*`, `/organizer/*` → blocked/redirected
+- [ ] Non-admin calls a `requireAdmin` action → rejected
+- [ ] Organizer A reads Organizer B's event/orders → blocked by RLS
+- [ ] Unauthenticated → any protected route/action → auth error or redirect
+
+### 27.2 RPC / Action Abuse
+
+- [ ] Call `create_*_order` with qty > remaining → rejected, no partial write
+- [ ] Call `create_*_order` for a paid tier via the free path → rejected
+- [ ] Replay a payment/confirm action → idempotent (no dup tickets/orders)
+- [ ] Non-staff calls `approve_order`/`reject_order` → `is_event_staff` blocks it
+
+### 27.3 PIN & Rate Limiting
+
+- [ ] Wrong scanner/box-office PIN repeatedly → rate-limited / denied
+- [ ] Revoked PIN → immediately unusable
+- [ ] PIN never returned/stored in plaintext (hashed)
+
+### 27.4 Input Validation & XSS
+
+- [ ] Submit event/booking forms with `<script>`/HTML in title, bio, description → stored/escaped, no XSS render
+- [ ] Oversized/invalid inputs → Zod validation errors, no crash
+- [ ] SQL-injection-style strings in search/filters → safe (parameterized)
 
 ## Test Execution Checklist
 
@@ -899,9 +1011,9 @@ npx next build
 | --- | --- | --- |
 | Auth & Profile | 1.1–1.2 | ☐ |
 | Organizer Onboarding | 2.1–2.3 | ☐ |
-| Event Creation | 3.1–3.6 | ☐ |
-| Event Discovery | 4.1–4.3 | ☐ |
-| Booking & Tickets | 5.1–5.5 | ☐ |
+| Event Creation | 3.1–3.8 | ☐ |
+| Event Discovery | 4.1–4.4 | ☐ |
+| Booking & Tickets | 5.1–5.6 | ☐ |
 | Update Me Subscriptions | 6.1–6.4 | ☐ |
 | Follow/Unfollow | 7.1–7.3 | ☐ |
 | Collaboration | 8.1–8.11 | ☐ |
@@ -912,7 +1024,7 @@ npx next build
 | Boosting | 13.1–13.2 | ☐ |
 | Clubs & Crews | 14.1–14.3 | ☐ |
 | Reviews & Ratings | 15.1–15.2 | ☐ |
-| Admin Dashboard | 16.1–16.12 | ☐ |
+| Admin Dashboard | 16.1–16.13 | ☐ |
 | Notifications | 17.1–17.2 | ☐ |
 | Legal & Info Pages | 18.1–18.3 | ☐ |
 | Loading States | 19.1 | ☐ |
@@ -922,3 +1034,5 @@ npx next build
 | Box Office | 23.1–23.4 | ☐ |
 | Offline Scan & Sync | 24.1–24.2 | ☐ |
 | Mobile & Navigation | 25.1–25.2 | ☐ |
+| Concurrency & Money | 26.1–26.6 | ☐ |
+| Security & Auth | 27.1–27.4 | ☐ |

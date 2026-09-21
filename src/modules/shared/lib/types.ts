@@ -156,6 +156,7 @@ export interface EventSummary {
   endsAt?: string | null;
   cardPosterUrl: string | null;
   bannerPosterUrl: string | null;
+  teaserVideoUrl: string | null;
   minPricePaise: number;
   isFeatured: boolean;
   registrationsCount: number;

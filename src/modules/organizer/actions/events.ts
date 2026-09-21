@@ -39,6 +39,7 @@ export interface CreateEventState {
     organizerTerms: boolean;
     cardPosterUrl: string;
     bannerPosterUrl: string;
+    teaserVideoUrl: string;
     photoUrls: string[];
     contactEmail: string;
     contactPhone: string;
@@ -118,6 +119,7 @@ function extractFormValues(formData: FormData): CreateEventState["values"] {
     organizerTerms: formData.get("organizerTerms") === "on",
     cardPosterUrl: String(formData.get("cardPosterUrl") ?? ""),
     bannerPosterUrl: String(formData.get("bannerPosterUrl") ?? ""),
+    teaserVideoUrl: String(formData.get("teaserVideoUrl") ?? ""),
     photoUrls: formData.getAll("photoUrls").map(String).filter(Boolean),
     contactEmail: String(formData.get("contactEmail") ?? ""),
     contactPhone: String(formData.get("contactPhone") ?? ""),
@@ -339,6 +341,7 @@ export async function createEventAction(
       endsAt: endsAt ? istToUTC(endsAt) : null,
       cardPosterUrl: String(formData.get("cardPosterUrl") ?? "") || null,
       bannerPosterUrl: String(formData.get("bannerPosterUrl") ?? "") || null,
+      teaserVideoUrl: String(formData.get("teaserVideoUrl") ?? "") || null,
       feePayer: String(formData.get("feePayer") ?? "BUYER") as FeePayer,
       needsDoorStaff,
       waitlistEnabled: formData.get("waitlistEnabled") === "on" || formData.get("waitlistEnabled") === "true",
@@ -539,6 +542,7 @@ export async function updateEventAction(
       terms: String(formData.get("terms") ?? "").split("\n").map((s) => s.trim()).filter(Boolean),
       cardPosterUrl: String(formData.get("cardPosterUrl") ?? "") || null,
       bannerPosterUrl: String(formData.get("bannerPosterUrl") ?? "") || null,
+      teaserVideoUrl: String(formData.get("teaserVideoUrl") ?? "") || null,
       linkedPastEventIds: formData.getAll("linkedPastEventIds").map(String).filter(Boolean),
     });
   } catch (error) {

@@ -67,6 +67,7 @@ export async function listPublicOrganizerEvents(
       startsAt: event.starts_at,
       cardPosterUrl: event.card_poster_url,
       bannerPosterUrl: event.banner_poster_url,
+      teaserVideoUrl: (event as { teaser_video_url?: string | null }).teaser_video_url ?? null,
       minPricePaise: prices.length ? Math.min(...prices) : 0,
       isFeatured: event.is_featured,
       registrationsCount: event.registrations_count,

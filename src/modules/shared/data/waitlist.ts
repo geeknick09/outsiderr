@@ -24,27 +24,11 @@ export async function joinWaitlist(
   tierId: string,
 ): Promise<WaitlistEntry> {
   const supabase = await createClient();
-  const { data: existing } = await supabase
-    .from("waitlist")
-    .select("*")
-    .eq("tier_id", tierId)
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (existing) return toEntry(existing);
 
-  const { data: count } = await supabase
-    .from("waitlist")
-    .select("id", { count: "exact", head: true })
-    .eq("tier_id", tierId)
-    .eq("status", "WAITING");
-
-  const position = ((count as unknown as { count: number } | null)?.count ?? 0) + 1;
-
+  // Atomic RPC: locks the tier row and assigns position = max(position)+1 in one
+  // serialized step, so concurrent joins can't collide. Idempotent per user+tier.
   const { data, error } = await supabase
-    .from("waitlist")
-    .insert({ event_id: eventId, tier_id: tierId, user_id: user.id, position })
-    .select("*")
-    .single();
+    .rpc("join_waitlist", { p_event_id: eventId, p_tier_id: tierId });
   if (error) throw error;
   return toEntry(data);
 }
@@ -127,7 +111,9 @@ export async function autoOfferWaitlist(tierId: string): Promise<void> {
 
 /**
  * Expire any OFFERED waitlist entries whose expiry has passed.
- * Moves them back to WAITING (at the end of the queue) and triggers auto-offer for the next person.
+ * Re-queues them to the END of the queue (via the atomic requeue_waitlist_entry
+ * RPC, which assigns position = max(position)+1 under the tier lock) and then
+ * auto-offers the ticket to the next person in line.
  */
 export async function expireWaitlistOffers(): Promise<void> {
   const supabase = await createClient();
@@ -143,11 +129,9 @@ export async function expireWaitlistOffers(): Promise<void> {
   if (!expired || expired.length === 0) return;
 
   for (const entry of expired) {
-    // Move back to WAITING (they keep their position but go to end)
+    // Move back to WAITING at the END of the queue (new position = max+1)
     const { error } = await supabase
-      .from("waitlist")
-      .update({ status: "WAITING", offered_at: null, expires_at: null })
-      .eq("id", entry.id);
+      .rpc("requeue_waitlist_entry", { p_entry_id: entry.id });
     if (error) continue;
 
     // Auto-offer to the next person

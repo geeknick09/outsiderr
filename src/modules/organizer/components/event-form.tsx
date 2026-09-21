@@ -513,6 +513,18 @@ export function EventForm({
         />
       </section>
 
+      {/* Optional teaser video — muted autoplay on the discovery card */}
+      <section className="glass rounded-3xl p-5">
+        <TeaserVideoField
+          name="teaserVideoUrl"
+          label="Teaser video"
+          organizerName={organizerName}
+          eventTitle={eventTitle}
+          subFolder="teasers"
+          initialValue={sv?.teaserVideoUrl ?? ""}
+        />
+      </section>
+
       {/* Waitlist toggle */}
       <section className="glass rounded-3xl p-5">
         <div className="flex items-center justify-between gap-4">
@@ -1431,6 +1443,120 @@ export function PosterField({
           onCancel={() => setPendingFile(null)}
         />
       ) : null}
+    </div>
+  );
+}
+
+export function TeaserVideoField({
+  name,
+  label,
+  organizerName,
+  eventTitle,
+  subFolder,
+  initialValue,
+}: {
+  name: string;
+  label: string;
+  organizerName: string;
+  eventTitle: string;
+  subFolder: string;
+  initialValue?: string;
+}) {
+  const [url, setUrl] = useState(initialValue ?? "");
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const safeOrg = organizerName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "organizer";
+  const safeTitle = eventTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "untitled-event";
+  const folder = `${safeOrg}/${safeTitle}/${subFolder}`;
+
+  const MAX_BYTES = 50 * 1024 * 1024; // 50 MB — ~40 Mbps at 10s, plenty for high quality
+  const MAX_SECONDS = 10;
+
+  function getDuration(file: File): Promise<number> {
+    return new Promise((resolve, reject) => {
+      const objectUrl = URL.createObjectURL(file);
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.onloadedmetadata = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(video.duration);
+      };
+      video.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error("Could not read video"));
+      };
+      video.src = objectUrl;
+    });
+  }
+
+  async function handleSelect(file: File | undefined) {
+    if (!file) return;
+    setError(null);
+    if (file.size > MAX_BYTES) {
+      setError(`Video too large (${(file.size / 1024 / 1024).toFixed(0)} MB). Max ${MAX_BYTES / 1024 / 1024} MB.`);
+      return;
+    }
+    try {
+      const duration = await getDuration(file);
+      if (duration > MAX_SECONDS) {
+        setError(`Teaser must be ${MAX_SECONDS} seconds or less — this one is ${Math.ceil(duration)}s.`);
+        return;
+      }
+    } catch {
+      setError("Couldn't read that video file. Try an MP4 or WebM.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const uploaded = await uploadPublicFile(file, folder);
+      if (uploaded) setUrl(uploaded);
+      else setError("Upload failed — paste a video URL instead.");
+    } catch {
+      setError("Upload failed — paste a video URL instead.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+        {label}
+      </span>
+      <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-zinc-300 px-4 py-4 text-sm text-muted hover:border-violet-neon dark:border-white/15">
+        <Upload className="h-4 w-4" />
+        {uploading ? "Uploading…" : url ? "Uploaded" : `Choose video (≤${MAX_SECONDS}s, ≤${MAX_BYTES / 1024 / 1024} MB)`}
+        <input
+          type="file"
+          accept="video/mp4,video/webm"
+          className="hidden"
+          onChange={(event) => {
+            void handleSelect(event.target.files?.[0]);
+            event.target.value = "";
+          }}
+        />
+      </label>
+      {url ? (
+        <video
+          src={url}
+          controls
+          muted
+          playsInline
+          className="aspect-[3/4] w-full max-w-[240px] rounded-2xl bg-black object-cover"
+        />
+      ) : null}
+      {error ? <p className="text-xs font-semibold text-red-500">{error}</p> : null}
+      <input
+        name={name}
+        value={url}
+        onChange={(event) => setUrl(event.target.value)}
+        placeholder="or paste a video URL"
+        className={INPUT}
+      />
+      <p className="text-xs text-muted">
+        Optional. Plays muted on the event card — keep it under {MAX_SECONDS}s. Vertical 3:4 looks best.
+      </p>
     </div>
   );
 }

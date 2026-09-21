@@ -85,6 +85,7 @@ export type EventRow = {
   ends_at: string | null;
   card_poster_url: string | null;
   banner_poster_url: string | null;
+  teaser_video_url: string | null;
   fee_payer: FeePayer;
   commission_bps: number;
   commission_enabled: boolean;
@@ -576,6 +577,14 @@ export type Database = {
       offer_waitlist_next: {
         Args: { p_tier_id: string };
         Returns: WaitlistRow;
+      };
+      join_waitlist: {
+        Args: { p_event_id: string; p_tier_id: string };
+        Returns: WaitlistRow;
+      };
+      requeue_waitlist_entry: {
+        Args: { p_entry_id: string };
+        Returns: void;
       };
       increment_club_member_count: {
         Args: { p_club_id: string };

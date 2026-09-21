@@ -661,6 +661,10 @@ begin
      set registrations_count = registrations_count + v_order.quantity
    where id = v_order.event_id;
 
+  -- Clear the user's waitlist entry for this tier — they got the ticket.
+  delete from public.waitlist
+   where tier_id = v_order.tier_id and user_id = v_order.user_id;
+
   return query
     insert into public.tickets (order_id, event_id, tier_id, user_id, qr_hash)
     select
@@ -1679,6 +1683,9 @@ begin
   update public.events
      set registrations_count = registrations_count + v_order.quantity
    where id = v_order.event_id;
+  -- Clear the user's waitlist entry for this tier — they got the ticket.
+  delete from public.waitlist
+   where tier_id = v_order.tier_id and user_id = v_order.user_id;
   return query
     insert into public.tickets (order_id, event_id, tier_id, user_id, qr_hash)
     select
@@ -2870,3 +2877,178 @@ do $$ begin
   alter publication supabase_realtime add table public.event_collaborators;
 exception when duplicate_object then null; when duplicate_table then null;
 end $$;
+
+-- Event teaser video (optional short clip, autoplayed muted on the discovery card).
+alter table public.events add column if not exists teaser_video_url text;
+
+-- ---------------------------------------------------------------------------
+-- Waitlist FIFO tightening
+--  - offer_waitlist_next: created_at tiebreaker for legacy duplicate positions
+--  - join_waitlist: atomic position = max(position)+1 under the tier row lock
+--  - requeue_waitlist_entry: expired offers go to the true end of the queue
+-- ---------------------------------------------------------------------------
+
+create or replace function public.offer_waitlist_next(p_tier_id uuid)
+returns public.waitlist
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_next public.waitlist;
+begin
+  select * into v_next
+    from public.waitlist
+   where tier_id = p_tier_id and status = 'WAITING'
+   order by position asc, created_at asc
+   limit 1
+     for update;
+
+  if not found then return null; end if;
+
+  update public.waitlist
+     set status     = 'OFFERED',
+         offered_at = now(),
+         expires_at = now() + interval '24 hours'
+   where id = v_next.id
+  returning * into v_next;
+
+  return v_next;
+end;
+$$;
+
+create or replace function public.join_waitlist(p_event_id uuid, p_tier_id uuid)
+returns public.waitlist
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_entry public.waitlist;
+begin
+  select * into v_entry
+    from public.waitlist
+   where tier_id = p_tier_id and user_id = auth.uid();
+  if found then return v_entry; end if;
+
+  perform 1 from public.ticket_tiers where id = p_tier_id for update;
+
+  insert into public.waitlist (event_id, tier_id, user_id, position)
+  values (
+    p_event_id, p_tier_id, auth.uid(),
+    (select coalesce(max(position), 0) + 1 from public.waitlist where tier_id = p_tier_id)
+  )
+  on conflict (tier_id, user_id) do nothing
+  returning * into v_entry;
+
+  if not found then
+    select * into v_entry
+      from public.waitlist
+     where tier_id = p_tier_id and user_id = auth.uid();
+  end if;
+
+  return v_entry;
+end;
+$$;
+
+create or replace function public.requeue_waitlist_entry(p_entry_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_tier uuid;
+begin
+  select tier_id into v_tier from public.waitlist where id = p_entry_id for update;
+  if not found then return; end if;
+
+  perform 1 from public.ticket_tiers where id = v_tier for update;
+
+  update public.waitlist
+     set status     = 'WAITING',
+         offered_at = null,
+         expires_at = null,
+         position   = (select coalesce(max(position), 0) + 1
+                         from public.waitlist
+                        where tier_id = v_tier)
+   where id = p_entry_id;
+end;
+$$;
+
+-- Clear a waitlisted user's entry when their order confirms (avoids re-offer spam).
+-- Applied to free + paid confirm paths.
+
+create or replace function public.create_free_order(
+  p_event_id uuid,
+  p_tier_id  uuid,
+  p_quantity integer,
+  p_buyer_name   text default null,
+  p_buyer_phone  text default null,
+  p_buyer_email  text default null,
+  p_buyer_gender text default null
+)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order   public.orders;
+  v_tier    public.ticket_tiers;
+  v_event   public.events;
+begin
+  select * into v_tier from public.ticket_tiers where id = p_tier_id for update;
+  if not found then
+    raise exception 'Ticket tier not found';
+  end if;
+  if v_tier.price_paise <> 0 then
+    raise exception 'This function is for free tickets only';
+  end if;
+  if v_tier.quantity - v_tier.quantity_sold < p_quantity then
+    raise exception 'Not enough tickets left';
+  end if;
+
+  select * into v_event from public.events where id = p_event_id;
+  if not found then
+    raise exception 'Event not found';
+  end if;
+
+  insert into public.orders (
+    event_id, tier_id, user_id, quantity,
+    unit_price_paise, subtotal_paise, platform_fee_paise, total_paise,
+    fee_payer, status, buyer_name, buyer_phone, buyer_email, buyer_gender
+  ) values (
+    p_event_id, p_tier_id, auth.uid(), p_quantity,
+    0, 0, 0, 0,
+    v_event.fee_payer, 'CONFIRMED', p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender
+  )
+  returning * into v_order;
+
+  insert into public.tickets (order_id, event_id, tier_id, user_id, qr_hash)
+  select
+    v_order.id,
+    p_event_id,
+    p_tier_id,
+    auth.uid(),
+    encode(
+      sha256((v_order.id::text || ':' || g::text || ':' || gen_random_uuid()::text)::bytea),
+      'hex'
+    )
+  from generate_series(1, p_quantity) g;
+
+  update public.ticket_tiers
+     set quantity_sold = quantity_sold + p_quantity
+   where id = p_tier_id;
+
+  update public.events
+     set registrations_count = registrations_count + p_quantity
+   where id = p_event_id;
+
+  -- Clear the user's waitlist entry for this tier — they got the ticket.
+  delete from public.waitlist
+   where tier_id = p_tier_id and user_id = auth.uid();
+
+  return v_order;
+end;
+$$;

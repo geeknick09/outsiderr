@@ -8,7 +8,7 @@ import { MapPin, Plus, Trash2 } from "lucide-react";
 import { updateEventAction, type UpdateEventState } from "../actions/events";
 import { GalleryUploader } from "./gallery-uploader";
 import { PosterGuidelines } from "./poster-guidelines";
-import { PosterField, TagPicker } from "./event-form";
+import { PosterField, TagPicker, TeaserVideoField } from "./event-form";
 import { Button } from "@/modules/shared";
 import { PhoneInput } from "@/modules/shared";
 import { CATEGORIES, CITIES } from "@/modules/shared";
@@ -467,6 +467,18 @@ export function EditEventForm({ event, pastEvents = [] }: { event: EventDetail; 
           subFolder="banner-posters"
           initialValue={event.bannerPosterUrl ?? ""}
           aspect={16 / 9}
+        />
+      </div>
+
+      {/* Optional teaser video — muted autoplay on the discovery card */}
+      <div className="glass rounded-3xl p-5">
+        <TeaserVideoField
+          name="teaserVideoUrl"
+          label="Teaser video"
+          organizerName={event.organizer.name}
+          eventTitle={event.title}
+          subFolder="teasers"
+          initialValue={event.teaserVideoUrl ?? ""}
         />
       </div>
 

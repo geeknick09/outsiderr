@@ -1,7 +1,9 @@
 import "server-only";
 
 import { MAX_FEATURED_EVENTS } from "../lib/constants";
+import { STORAGE_BUCKET } from "../auth/config";
 import { createClient } from "../auth/server";
+import { createServiceClient } from "../auth/service";
 import type {
   EventRow,
   OrganizerRow,
@@ -78,6 +80,7 @@ function toSummary(row: EventRow, tiers: TicketTier[]): EventSummary {
     startsAt: row.starts_at,
     cardPosterUrl: row.card_poster_url,
     bannerPosterUrl: row.banner_poster_url,
+    teaserVideoUrl: row.teaser_video_url,
     minPricePaise: minPrice(tiers),
     isFeatured: row.is_featured,
     registrationsCount: row.registrations_count,
@@ -277,4 +280,45 @@ export async function getLinkedPastEvents(
       };
     })
     .filter((e): e is NonNullable<typeof e> => e !== null);
+}
+
+/**
+ * Delete teaser videos for events that are over (or cancelled), freeing the
+ * event-media bucket. Parses the storage path out of the public URL so pasted
+ * external URLs only get the column cleared. Returns the number cleaned.
+ */
+export async function cleanupExpiredTeasers(): Promise<number> {
+  const supabase = createServiceClient();
+  const now = new Date().toISOString();
+
+  const { data: events, error } = await supabase
+    .from("events")
+    .select("id, teaser_video_url, status, starts_at, ends_at")
+    .not("teaser_video_url", "is", null)
+    .or(`status.eq.CANCELLED,ends_at.lt.${now},and(ends_at.is.null,starts_at.lt.${now})`);
+
+  if (error || !events || events.length === 0) {
+    if (error) console.error("[cleanup-teasers] fetch failed:", error.message);
+    return 0;
+  }
+
+  const marker = `/object/public/${STORAGE_BUCKET}/`;
+  let cleaned = 0;
+
+  for (const event of events as { id: string; teaser_video_url: string | null }[]) {
+    const url = event.teaser_video_url;
+    if (url && url.includes(marker)) {
+      const path = url.substring(url.indexOf(marker) + marker.length);
+      const { error: rmErr } = await supabase.storage.from(STORAGE_BUCKET).remove([path]);
+      if (rmErr) console.error(`[cleanup-teasers] remove ${path}:`, rmErr.message);
+    }
+    const { error: upErr } = await supabase
+      .from("events")
+      .update({ teaser_video_url: null })
+      .eq("id", event.id);
+    if (!upErr) cleaned++;
+    else console.error(`[cleanup-teasers] clear ${event.id}:`, upErr.message);
+  }
+
+  return cleaned;
 }

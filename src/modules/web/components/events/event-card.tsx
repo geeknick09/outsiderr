@@ -4,9 +4,10 @@ import { MapPin } from "lucide-react";
 
 import { Badge } from "@/modules/shared";
 import { CATEGORY_LABELS } from "@/modules/shared";
-import { formatDateBadge, formatPriceTag } from "@/modules/shared";
+import { formatDateBadge, formatPriceTag, isPast } from "@/modules/shared";
 import type { EventSummary } from "@/modules/shared";
 import { cn } from "@/modules/shared";
+import { CardTeaserVideo } from "./card-teaser-video";
 
 export function EventCard({
   event,
@@ -40,6 +41,12 @@ export function EventCard({
         ) : (
           <div className="h-full w-full bg-neon-gradient opacity-70" />
         )}
+
+        {/* Teaser video — muted autoplay over the poster for upcoming events.
+            Past/cancelled events keep the photo card. */}
+        {event.teaserVideoUrl && !isPast(event.startsAt) && event.status !== "CANCELLED" ? (
+          <CardTeaserVideo src={event.teaserVideoUrl} poster={event.cardPosterUrl} />
+        ) : null}
 
         <div className="absolute left-3 top-3 flex flex-col items-center rounded-2xl bg-black/70 px-2.5 py-1.5 text-white backdrop-blur-md">
           <span className="text-base font-black leading-none">{date.day}</span>

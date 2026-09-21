@@ -33,6 +33,7 @@ export interface CreateEventInput {
   endsAt: string | null;
   cardPosterUrl: string | null;
   bannerPosterUrl: string | null;
+  teaserVideoUrl: string | null;
   feePayer: FeePayer;
   needsDoorStaff: boolean;
   waitlistEnabled?: boolean;
@@ -89,6 +90,7 @@ export async function listOrganizerEvents(
       endsAt: (event as { ends_at?: string | null }).ends_at ?? null,
       cardPosterUrl: event.card_poster_url,
       bannerPosterUrl: event.banner_poster_url,
+      teaserVideoUrl: (event as { teaser_video_url?: string | null }).teaser_video_url ?? null,
       minPricePaise: prices.length ? Math.min(...prices) : 0,
       isFeatured: event.is_featured,
       registrationsCount: event.registrations_count,
@@ -155,6 +157,7 @@ export async function listCollaboratedEvents(
       endsAt: (event as { ends_at?: string | null }).ends_at ?? null,
       cardPosterUrl: event.card_poster_url,
       bannerPosterUrl: event.banner_poster_url,
+      teaserVideoUrl: (event as { teaser_video_url?: string | null }).teaser_video_url ?? null,
       minPricePaise: prices.length ? Math.min(...prices) : 0,
       isFeatured: event.is_featured,
       registrationsCount: event.registrations_count,
@@ -200,6 +203,7 @@ export async function createEvent(
       ends_at: input.endsAt,
       card_poster_url: input.cardPosterUrl,
       banner_poster_url: input.bannerPosterUrl,
+      teaser_video_url: input.teaserVideoUrl,
       fee_payer: input.feePayer,
       needs_door_staff: input.needsDoorStaff,
       waitlist_enabled: input.waitlistEnabled ?? true,
@@ -414,6 +418,7 @@ export interface UpdateEventInput {
   terms?: string[];
   cardPosterUrl?: string | null;
   bannerPosterUrl?: string | null;
+  teaserVideoUrl?: string | null;
   linkedPastEventIds?: string[];
 }
 
@@ -474,6 +479,7 @@ export async function updateEvent(
       ...(input.terms !== undefined ? { terms: input.terms } : {}),
       ...(input.cardPosterUrl !== undefined ? { card_poster_url: input.cardPosterUrl } : {}),
       ...(input.bannerPosterUrl !== undefined ? { banner_poster_url: input.bannerPosterUrl } : {}),
+      ...(input.teaserVideoUrl !== undefined ? { teaser_video_url: input.teaserVideoUrl } : {}),
       ...(input.linkedPastEventIds !== undefined ? { linked_past_event_ids: input.linkedPastEventIds } : {}),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)

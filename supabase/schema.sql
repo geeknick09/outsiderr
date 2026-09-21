@@ -224,6 +224,7 @@ create table if not exists public.events (
   ends_at             timestamptz,
   card_poster_url     text,
   banner_poster_url   text,
+  teaser_video_url    text,
   fee_payer           fee_payer       not null default 'BUYER',
   status              event_status    not null default 'PUBLISHED',
   is_featured         boolean         not null default false,
@@ -1318,6 +1319,10 @@ begin
      set registrations_count = registrations_count + v_order.quantity
    where id = v_order.event_id;
 
+  -- Clear the user's waitlist entry for this tier — they got the ticket.
+  delete from public.waitlist
+   where tier_id = v_order.tier_id and user_id = v_order.user_id;
+
   return query
     insert into public.tickets (order_id, event_id, tier_id, user_id, qr_hash)
     select
@@ -1439,6 +1444,10 @@ begin
   update public.events
      set registrations_count = registrations_count + p_quantity
    where id = p_event_id;
+
+  -- Clear the user's waitlist entry for this tier — they got the ticket.
+  delete from public.waitlist
+   where tier_id = p_tier_id and user_id = auth.uid();
 
   return v_order;
 end;
@@ -1693,6 +1702,7 @@ end;
 $$;
 
 -- Offer the next person on a tier's waitlist.
+-- created_at breaks position ties so arrival order wins for any legacy dup positions.
 create or replace function public.offer_waitlist_next(p_tier_id uuid)
 returns public.waitlist
 language plpgsql
@@ -1705,7 +1715,7 @@ begin
   select * into v_next
     from public.waitlist
    where tier_id = p_tier_id and status = 'WAITING'
-   order by position asc
+   order by position asc, created_at asc
    limit 1
      for update;
 
@@ -1719,6 +1729,76 @@ begin
   returning * into v_next;
 
   return v_next;
+end;
+$$;
+
+-- Join a tier's waitlist with a strictly-FIFO position.
+-- Serializes on the tier row lock so concurrent joins can't collide on position,
+-- and assigns position = max(position)+1 so freed/removed slots never reuse a
+-- number that already exists further up the queue. Idempotent per user+tier.
+create or replace function public.join_waitlist(p_event_id uuid, p_tier_id uuid)
+returns public.waitlist
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_entry public.waitlist;
+begin
+  -- Idempotent: already waitlisted → return the existing entry.
+  select * into v_entry
+    from public.waitlist
+   where tier_id = p_tier_id and user_id = auth.uid();
+  if found then return v_entry; end if;
+
+  -- Serialize joins per tier so concurrent inserts can't read the same max(position).
+  perform 1 from public.ticket_tiers where id = p_tier_id for update;
+
+  insert into public.waitlist (event_id, tier_id, user_id, position)
+  values (
+    p_event_id, p_tier_id, auth.uid(),
+    (select coalesce(max(position), 0) + 1 from public.waitlist where tier_id = p_tier_id)
+  )
+  on conflict (tier_id, user_id) do nothing
+  returning * into v_entry;
+
+  -- Lost a concurrent-insert race on (tier_id, user_id) → return the existing row.
+  if not found then
+    select * into v_entry
+      from public.waitlist
+     where tier_id = p_tier_id and user_id = auth.uid();
+  end if;
+
+  return v_entry;
+end;
+$$;
+
+-- Re-queue an expired OFFERED entry to the BACK of the tier's waitlist.
+-- Serializes on the tier lock and assigns position = max(position)+1 so the
+-- user genuinely goes to the end rather than keeping their old front position.
+create or replace function public.requeue_waitlist_entry(p_entry_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_tier uuid;
+begin
+  select tier_id into v_tier from public.waitlist where id = p_entry_id for update;
+  if not found then return; end if;
+
+  -- Serialize against joins/other requeues on this tier.
+  perform 1 from public.ticket_tiers where id = v_tier for update;
+
+  update public.waitlist
+     set status     = 'WAITING',
+         offered_at = null,
+         expires_at = null,
+         position   = (select coalesce(max(position), 0) + 1
+                         from public.waitlist
+                        where tier_id = v_tier)
+   where id = p_entry_id;
 end;
 $$;
 
@@ -2240,6 +2320,10 @@ begin
   update public.events
      set registrations_count = registrations_count + v_order.quantity
    where id = v_order.event_id;
+
+  -- Clear the user's waitlist entry for this tier — they got the ticket.
+  delete from public.waitlist
+   where tier_id = v_order.tier_id and user_id = v_order.user_id;
 
   -- Mint tickets with unique SHA-256 QR hashes
   return query

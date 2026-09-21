@@ -4,6 +4,7 @@
 export * from "./components/checkout/checkout-form";
 export * from "./components/checkout/upi-qr-code";
 export * from "./components/events/category-filter";
+export * from "./components/events/card-teaser-video";
 export * from "./components/events/event-card";
 export * from "./components/events/event-realtime-wrapper";
 export * from "./components/events/event-reviews";
