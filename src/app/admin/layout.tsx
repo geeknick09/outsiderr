@@ -4,7 +4,7 @@ import { ShieldCheck } from "lucide-react";
 
 import { getCurrentUser } from "@/modules/shared/server";
 import { createClient } from "@/modules/shared/server";
-import { AdminMobileNav, ADMIN_NAV } from "@/modules/admin";
+import { ADMIN_NAV } from "@/modules/admin";
 
 async function checkAdminAccess(): Promise<boolean> {
   const user = await getCurrentUser();
@@ -29,32 +29,21 @@ export default async function AdminLayout({
   if (!isAdmin) redirect("/");
 
   return (
-    <div className="min-h-[calc(100vh-4rem)]">
-      {/* Mobile top bar: hamburger + title (hidden on desktop) */}
-      <div className="sticky top-16 z-30 flex items-center gap-3 border-b border-zinc-200 bg-zinc-50/90 px-4 py-3 backdrop-blur-xl dark:border-white/10 dark:bg-ink/90 lg:hidden">
-        <AdminMobileNav />
-        <span className="flex items-center gap-2 text-sm font-bold text-muted">
-          <ShieldCheck className="h-4 w-4 text-violet-neon" />
-          Admin
-        </span>
-      </div>
-
-      <div className="flex gap-0 lg:gap-6">
-        {/* Sidebar (desktop) */}
-        <nav className="hidden w-52 shrink-0 pt-6 lg:block">
-          <div className="sticky top-24 space-y-1">
-            <div className="mb-4 flex items-center gap-2 px-3 text-sm font-bold text-muted">
-              <ShieldCheck className="h-4 w-4 text-violet-neon" />
-              Admin
-            </div>
-            {ADMIN_NAV.map((item) => (
-              <NavItem key={item.href} {...item} />
-            ))}
+    <div className="flex min-h-[calc(100vh-4rem)] gap-0 lg:gap-6">
+      {/* Sidebar (desktop) */}
+      <nav className="hidden w-52 shrink-0 pt-6 lg:block">
+        <div className="sticky top-24 space-y-1">
+          <div className="mb-4 flex items-center gap-2 px-3 text-sm font-bold text-muted">
+            <ShieldCheck className="h-4 w-4 text-violet-neon" />
+            Admin
           </div>
-        </nav>
+          {ADMIN_NAV.map((item) => (
+            <NavItem key={item.href} {...item} />
+          ))}
+        </div>
+      </nav>
 
-        <main className="flex-1 py-6">{children}</main>
-      </div>
+      <main className="flex-1 py-6">{children}</main>
     </div>
   );
 }

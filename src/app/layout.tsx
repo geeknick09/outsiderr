@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 
 import { Footer } from "@/modules/shared";
 import { Navbar } from "@/modules/shared/server";
+import { AdminMobileNav } from "@/modules/admin";
 import { NavigationProgress } from "@/modules/shared";
 import { ServiceWorkerRegister } from "@/modules/shared";
 import { ThemeProvider } from "@/modules/shared";
@@ -69,7 +70,7 @@ export default async function RootLayout({
       <body className="min-h-dvh bg-zinc-50 font-sans text-zinc-900 antialiased dark:bg-ink dark:text-white">
         <ThemeProvider>
           <NavigationProgress />
-          <Navbar />
+          <Navbar mobileNav={<AdminMobileNav />} />
           <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-6">{children}</main>
           <Footer isOrganizer={isOrganizer} tagline={footerTagline} />
           <ServiceWorkerRegister />

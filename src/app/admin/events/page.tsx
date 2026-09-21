@@ -213,8 +213,20 @@ export default async function AdminEventsPage({
               readOnly={readOnly}
             />
 
-            {/* Commission + convenience fee controls */}
+            {/* Commission + convenience fee — editable until the event starts;
+                once it has started/completed it is view-only. */}
             {event.pricingMode !== "FREE" ? (
+              readOnly ? (
+                <div className="flex flex-wrap items-center gap-4 rounded-2xl bg-black/5 p-3 text-xs dark:bg-white/5">
+                  <span className="font-semibold text-muted">Fees (locked — event started)</span>
+                  <span className="text-muted">
+                    Commission: <span className="font-semibold text-zinc-700 dark:text-zinc-200">{event.commissionEnabled ? `${(event.commissionBps / 100).toFixed(2)}%` : "off"}</span>
+                  </span>
+                  <span className="text-muted">
+                    Convenience fee: <span className="font-semibold text-zinc-700 dark:text-zinc-200">{event.convenienceFeeEnabled ? `${(event.convenienceFeeBps / 100).toFixed(2)}%` : "off"}</span>
+                  </span>
+                </div>
+              ) : (
               <form action={async (formData: FormData) => {
                 "use server";
                 await adminUpdateEventFeesAction(event.id, {
@@ -278,6 +290,7 @@ export default async function AdminEventsPage({
                   Save fees
                 </ActionButton>
               </form>
+              )
             ) : null}
           </div>
           );

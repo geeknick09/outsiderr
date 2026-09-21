@@ -18,7 +18,7 @@ import {
 import { getOrganizerAccessState } from "../../lib/organizer-eligibility";
 import { createClient } from "../../auth/server";
 
-export async function Navbar() {
+export async function Navbar({ mobileNav }: { mobileNav?: React.ReactNode } = {}) {
   const user = await getCurrentUser();
 
   let isAdmin = false;
@@ -64,9 +64,12 @@ export async function Navbar() {
   return (
     <header className="sticky top-0 z-40 border-b border-zinc-200 bg-zinc-50/80 backdrop-blur-xl dark:border-white/10 dark:bg-ink/80 [padding-top:env(safe-area-inset-top)]">
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4 sm:gap-3">
-        <Link href="/" className="flex items-center gap-2">
-          <ThemeLogo width={140} height={32} />
-        </Link>
+        <div className="flex min-w-0 items-center gap-2">
+          {mobileNav}
+          <Link href="/" className="flex items-center gap-2">
+            <ThemeLogo width={140} height={32} />
+          </Link>
+        </div>
 
         <div className="flex items-center gap-2">
           <Suspense fallback={<div className="glass h-10 w-10 rounded-full sm:w-28" />}>

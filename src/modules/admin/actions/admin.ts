@@ -183,12 +183,17 @@ export async function adminUpdateEventFeesAction(
     const user = await requireAdmin();
     const supabase = await createClient();
 
-    // Fetch current values for audit log
+    // Fetch current values for audit log + lock-out check
     const { data: current } = await supabase
       .from("events")
-      .select("commission_bps, commission_enabled, convenience_fee_bps, convenience_fee_enabled")
+      .select("commission_bps, commission_enabled, convenience_fee_bps, convenience_fee_enabled, starts_at")
       .eq("id", eventId)
       .maybeSingle();
+
+    // Lock fees once the event has started/completed — view-only from then on.
+    if (current?.starts_at && new Date(current.starts_at).getTime() <= Date.now()) {
+      return { error: "Event has already started — fees are locked." };
+    }
 
     // Build update object
     const update: Record<string, number | boolean> = {};
