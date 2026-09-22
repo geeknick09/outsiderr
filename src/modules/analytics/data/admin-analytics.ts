@@ -1,8 +1,54 @@
 import "server-only";
 
 import { createClient } from "../../shared/auth/server";
+import { createServiceClient } from "../../shared/auth/service";
 import { getCurrentUser } from "../../shared/auth/auth";
 import type { EventAnalytics } from "../../shared";
+
+type DailyMetricRow = {
+  day: string;
+  signups: number;
+  new_organizers: number;
+  dau: number;
+  orders_created: number;
+  orders_confirmed: number;
+  gross_paise: number;
+  buyer_paid_paise: number;
+  commission_paise: number;
+  convenience_fee_paise: number;
+  platform_fee_paise: number;
+  organizer_payout_paise: number;
+};
+
+type TotalsRow = {
+  total_payments: number;
+  confirmed_payments: number;
+  total_volume_paise: number;
+  avg_order_value_paise: number;
+  active_users: number;
+  returning_users: number;
+  non_returning_users: number;
+  mau: number;
+  payment_methods: { method: string; count: number; volumePaise: number }[];
+};
+
+type OrganizerRollupRow = {
+  organizer_id: string;
+  event_count: number;
+  confirmed_revenue_paise: number;
+};
+
+type EventRollupRow = {
+  event_id: string;
+  organizer_id: string;
+  confirmed_orders: number;
+  gross_paise: number;
+  buyer_paid_paise: number;
+  commission_paise: number;
+  convenience_fee_paise: number;
+  platform_fee_paise: number;
+  organizer_payout_paise: number;
+};
 
 async function requireAdminUser(): Promise<void> {
   const user = await getCurrentUser();
@@ -14,6 +60,29 @@ async function requireAdminUser(): Promise<void> {
     .eq("id", user.id)
     .maybeSingle();
   if (!profile?.is_admin) throw new Error("Admin access required.");
+}
+
+/** Last n days of rollups, padded with zeros for missing days. */
+function padDaily(
+  rows: DailyMetricRow[],
+  days: number,
+): DailyMetricRow[] {
+  const byDay = new Map(rows.map((r) => [r.day, r]));
+  const now = new Date();
+  const out: DailyMetricRow[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+    const day = d.toISOString().slice(0, 10);
+    out.push(
+      byDay.get(day) ?? {
+        day, signups: 0, new_organizers: 0, dau: 0,
+        orders_created: 0, orders_confirmed: 0,
+        gross_paise: 0, buyer_paid_paise: 0, commission_paise: 0,
+        convenience_fee_paise: 0, platform_fee_paise: 0, organizer_payout_paise: 0,
+      },
+    );
+  }
+  return out;
 }
 
 export interface UserAnalytics {
@@ -36,97 +105,51 @@ export interface UserAnalytics {
 export async function getUserAnalytics(): Promise<UserAnalytics> {
   await requireAdminUser();
   const supabase = await createClient();
+  const service = createServiceClient();
 
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
   const [
     { count: totalUsers },
     { count: organizersCount },
     { count: newUsersThisMonth },
     { count: newUsersToday },
-    { data: orders },
+    { data: totalsRow },
+    { data: dailyRows },
+    { data: todayOrders },
   ] = await Promise.all([
     supabase.from("profiles").select("*", { count: "exact", head: true }),
     supabase.from("organizers").select("*", { count: "exact", head: true }),
     supabase.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", monthStart),
     supabase.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", todayStart),
-    supabase.from("orders").select("user_id, created_at, status").order("created_at", { ascending: false }),
+    service.from("analytics_totals_v").select("*").eq("id", 1).maybeSingle(),
+    service.from("analytics_daily_metrics_v").select("*").gte("day", thirtyDaysAgo),
+    // Live partial for today (rollup refreshes hourly)
+    supabase.from("orders").select("user_id").gte("created_at", todayStart),
   ]);
 
-  const ords = orders ?? [];
+  const totals = (totalsRow ?? {}) as Partial<TotalsRow>;
+  const daily = padDaily((dailyRows ?? []) as DailyMetricRow[], 30);
 
-  // Active users = users with at least 1 confirmed order
-  const confirmedOrders = ords.filter((o) => o.status === "CONFIRMED");
-  const activeUserIds = new Set(confirmedOrders.map((o) => o.user_id));
-
-  // DAU = distinct users with any order activity today
-  const dauIds = new Set(ords.filter((o) => o.created_at >= todayStart).map((o) => o.user_id));
-
-  // MAU = distinct users with any order activity in last 30 days
-  const mauIds = new Set(ords.filter((o) => o.created_at >= thirtyDaysAgo).map((o) => o.user_id));
-
-  // Returning vs non-returning: users with 2+ confirmed orders vs 1
-  const orderCountByUser = new Map<string, number>();
-  for (const o of confirmedOrders) {
-    orderCountByUser.set(o.user_id, (orderCountByUser.get(o.user_id) ?? 0) + 1);
-  }
-  let returningUsers = 0;
-  let nonReturningUsers = 0;
-  for (const count of orderCountByUser.values()) {
-    if (count >= 2) returningUsers++;
-    else nonReturningUsers++;
-  }
-
-  // Daily signups for last 30 days
-  const { data: recentProfiles } = await supabase
-    .from("profiles")
-    .select("created_at")
-    .gte("created_at", thirtyDaysAgo)
-    .order("created_at", { ascending: true });
-
-  const signupMap = new Map<string, number>();
-  for (const p of recentProfiles ?? []) {
-    const day = p.created_at.slice(0, 10);
-    signupMap.set(day, (signupMap.get(day) ?? 0) + 1);
-  }
-
-  const dailySignups: { date: string; count: number }[] = [];
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-    const day = d.toISOString().slice(0, 10);
-    dailySignups.push({ date: day, count: signupMap.get(day) ?? 0 });
-  }
-
-  // Daily active users for last 30 days
-  const activeMap = new Map<string, Set<string>>();
-  for (const o of ords) {
-    const day = o.created_at.slice(0, 10);
-    if (!activeMap.has(day)) activeMap.set(day, new Set());
-    activeMap.get(day)!.add(o.user_id);
-  }
-
-  const dailyActive: { date: string; count: number }[] = [];
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-    const day = d.toISOString().slice(0, 10);
-    dailyActive.push({ date: day, count: activeMap.get(day)?.size ?? 0 });
-  }
+  // DAU: merge the live today-bucket with the rollup (whichever is fresher).
+  const liveDau = new Set((todayOrders ?? []).map((o) => o.user_id)).size;
+  const rollupTodayDau = daily[daily.length - 1]?.dau ?? 0;
 
   return {
     totalUsers: totalUsers ?? 0,
-    activeUsers: activeUserIds.size,
+    activeUsers: totals.active_users ?? 0,
     organizersCount: organizersCount ?? 0,
     newUsersThisMonth: newUsersThisMonth ?? 0,
     newUsersToday: newUsersToday ?? 0,
-    dau: dauIds.size,
-    mau: mauIds.size,
-    returningUsers,
-    nonReturningUsers,
-    dailySignups,
-    dailyActive,
+    dau: Math.max(liveDau, rollupTodayDau),
+    mau: totals.mau ?? 0,
+    returningUsers: totals.returning_users ?? 0,
+    nonReturningUsers: totals.non_returning_users ?? 0,
+    dailySignups: daily.map((d) => ({ date: d.day, count: d.signups })),
+    dailyActive: daily.map((d) => ({ date: d.day, count: d.dau })),
   };
 }
 
@@ -144,60 +167,31 @@ export interface PaymentAnalytics {
 
 export async function getPaymentAnalytics(): Promise<PaymentAnalytics> {
   await requireAdminUser();
-  const supabase = await createClient();
+  const service = createServiceClient();
 
-  const { data: orders } = await supabase
-    .from("orders")
-    .select("status, total_paise, created_at, payment_method")
-    .order("created_at", { ascending: false });
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const [{ data: totalsRow }, { data: dailyRows }] = await Promise.all([
+    service.from("analytics_totals_v").select("*").eq("id", 1).maybeSingle(),
+    service.from("analytics_daily_metrics_v").select("*").gte("day", thirtyDaysAgo),
+  ]);
 
-  const ords = orders ?? [];
-  const confirmed = ords.filter((o) => o.status === "CONFIRMED");
-  const totalVolumePaise = confirmed.reduce((s, o) => s + (o.total_paise ?? 0), 0);
-
-  // Daily revenue for last 30 days
-  const revenueMap = new Map<string, { revenuePaise: number; orderCount: number }>();
-  for (const o of confirmed) {
-    const day = o.created_at.slice(0, 10);
-    const existing = revenueMap.get(day) ?? { revenuePaise: 0, orderCount: 0 };
-    existing.revenuePaise += o.total_paise ?? 0;
-    existing.orderCount += 1;
-    revenueMap.set(day, existing);
-  }
-
-  const now = new Date();
-  const dailyRevenue: { date: string; revenuePaise: number; orderCount: number }[] = [];
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-    const day = d.toISOString().slice(0, 10);
-    const entry = revenueMap.get(day);
-    dailyRevenue.push({
-      date: day,
-      revenuePaise: entry?.revenuePaise ?? 0,
-      orderCount: entry?.orderCount ?? 0,
-    });
-  }
-
-  // Payment method breakdown
-  const methodMap = new Map<string, { count: number; volumePaise: number }>();
-  for (const o of confirmed) {
-    const method = o.payment_method ?? "unknown";
-    const existing = methodMap.get(method) ?? { count: 0, volumePaise: 0 };
-    existing.count += 1;
-    existing.volumePaise += o.total_paise ?? 0;
-    methodMap.set(method, existing);
-  }
+  const totals = (totalsRow ?? {}) as Partial<TotalsRow>;
+  const daily = padDaily((dailyRows ?? []) as DailyMetricRow[], 30);
 
   return {
-    totalPayments: ords.length,
-    confirmedPayments: confirmed.length,
-    totalVolumePaise,
-    avgOrderValuePaise: confirmed.length > 0 ? Math.round(totalVolumePaise / confirmed.length) : 0,
-    dailyRevenue,
-    paymentMethods: Array.from(methodMap.entries()).map(([method, v]) => ({
-      method,
-      count: v.count,
-      volumePaise: v.volumePaise,
+    totalPayments: totals.total_payments ?? 0,
+    confirmedPayments: totals.confirmed_payments ?? 0,
+    totalVolumePaise: totals.total_volume_paise ?? 0,
+    avgOrderValuePaise: totals.avg_order_value_paise ?? 0,
+    dailyRevenue: daily.map((d) => ({
+      date: d.day,
+      revenuePaise: d.buyer_paid_paise,
+      orderCount: d.orders_confirmed,
+    })),
+    paymentMethods: (totals.payment_methods ?? []).map((m) => ({
+      method: m.method,
+      count: m.count,
+      volumePaise: m.volumePaise,
     })),
   };
 }
@@ -216,69 +210,39 @@ export interface OrganizerAnalytics {
 export async function getOrganizerAnalytics(): Promise<OrganizerAnalytics> {
   await requireAdminUser();
   const supabase = await createClient();
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const service = createServiceClient();
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
   const [
     { count: totalOrganizers },
     { count: verifiedOrganizers },
     { count: totalEvents },
-    { data: organizers },
-    { data: events },
-    { data: orders },
+    { data: dailyRows },
+    { data: rollup },
   ] = await Promise.all([
     supabase.from("organizers").select("*", { count: "exact", head: true }),
     supabase.from("organizers").select("*", { count: "exact", head: true }).eq("verified", true),
     supabase.from("events").select("*", { count: "exact", head: true }),
-    supabase.from("organizers").select("id, name, created_at").gte("created_at", thirtyDaysAgo).order("created_at", { ascending: true }),
-    supabase.from("events").select("id, organizer_id"),
-    supabase.from("orders").select("event_id, total_paise, subtotal_paise, status").eq("status", "CONFIRMED"),
+    service.from("analytics_daily_metrics_v").select("*").gte("day", thirtyDaysAgo),
+    service.from("analytics_organizer_rollup_v").select("*").order("confirmed_revenue_paise", { ascending: false }).limit(10),
   ]);
 
-  // Daily new organizers
-  const orgMap = new Map<string, number>();
-  for (const o of organizers ?? []) {
-    const day = o.created_at.slice(0, 10);
-    orgMap.set(day, (orgMap.get(day) ?? 0) + 1);
-  }
+  const daily = padDaily((dailyRows ?? []) as DailyMetricRow[], 30);
+  const dailyNewOrganizers = daily.map((d) => ({ date: d.day, count: d.new_organizers }));
 
-  const now = new Date();
-  const dailyNewOrganizers: { date: string; count: number }[] = [];
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-    const day = d.toISOString().slice(0, 10);
-    dailyNewOrganizers.push({ date: day, count: orgMap.get(day) ?? 0 });
-  }
+  const rollups = (rollup ?? []) as OrganizerRollupRow[];
+  const orgIds = rollups.map((r) => r.organizer_id);
+  const { data: orgRows } = orgIds.length
+    ? await supabase.from("organizers").select("id, name").in("id", orgIds)
+    : { data: [] as { id: string; name: string }[] };
+  const orgNameMap = Object.fromEntries((orgRows ?? []).map((o) => [o.id, o.name]));
 
-  // Top organizers by revenue
-  const eventToOrg = new Map<string, string>();
-  for (const e of events ?? []) {
-    eventToOrg.set(e.id, e.organizer_id);
-  }
-
-  const orgRevenue = new Map<string, number>();
-  const orgEventCount = new Map<string, Set<string>>();
-  for (const o of orders ?? []) {
-    const orgId = eventToOrg.get(o.event_id);
-    if (!orgId) continue;
-    orgRevenue.set(orgId, (orgRevenue.get(orgId) ?? 0) + (o.subtotal_paise ?? 0));
-    if (!orgEventCount.has(orgId)) orgEventCount.set(orgId, new Set());
-    orgEventCount.get(orgId)!.add(o.event_id);
-  }
-
-  const orgNameMap = Object.fromEntries((organizers ?? []).map((o) => [o.id, o.name]));
-  // Also fetch all organizers for name lookup
-  const { data: allOrgs } = await supabase.from("organizers").select("id, name");
-  for (const o of allOrgs ?? []) orgNameMap[o.id] = o.name;
-
-  const topOrganizers = Array.from(orgRevenue.entries())
-    .map(([organizerId, revenuePaise]) => ({
-      organizerId,
-      name: orgNameMap[organizerId] ?? "Unknown",
-      eventCount: orgEventCount.get(organizerId)?.size ?? 0,
-      revenuePaise,
-    }))
-    .sort((a, b) => b.revenuePaise - a.revenuePaise)
-    .slice(0, 10);
+  const topOrganizers = rollups.map((r) => ({
+    organizerId: r.organizer_id,
+    name: orgNameMap[r.organizer_id] ?? "Unknown",
+    eventCount: r.event_count,
+    revenuePaise: r.confirmed_revenue_paise,
+  }));
 
   return {
     totalOrganizers: totalOrganizers ?? 0,
@@ -361,75 +325,50 @@ export interface RevenueAnalytics {
 export async function getRevenueAnalytics(): Promise<RevenueAnalytics> {
   await requireAdminUser();
   const supabase = await createClient();
-  const { data: orders } = await supabase
-    .from("orders")
-    .select("event_id, total_paise, subtotal_paise, commission_paise, convenience_fee_paise, platform_fee_paise, organizer_payout_paise, status")
-    .eq("status", "CONFIRMED")
-    .order("created_at", { ascending: false });
-  if (!orders || orders.length === 0) {
+  const service = createServiceClient();
+
+  const { data: rollups } = await service.from("analytics_event_rollup_v").select("*");
+  const rows = (rollups ?? []) as EventRollupRow[];
+  if (rows.length === 0) {
     return {
-      totalBuyerPaidPaise: 0,
-      totalGrossPaise: 0,
-      totalCommissionPaise: 0,
-      totalConvenienceFeePaise: 0,
-      totalPlatformFeePaise: 0,
-      totalNetPayoutPaise: 0,
+      totalBuyerPaidPaise: 0, totalGrossPaise: 0, totalCommissionPaise: 0,
+      totalConvenienceFeePaise: 0, totalPlatformFeePaise: 0, totalNetPayoutPaise: 0,
       perEvent: [],
     };
   }
-  const eventIds = [...new Set(orders.map((o) => o.event_id))];
+
+  const eventIds = rows.map((r) => r.event_id);
+  const orgIds = [...new Set(rows.map((r) => r.organizer_id))];
   const [{ data: events }, { data: organizers }] = await Promise.all([
-    supabase.from("events").select("id, title, organizer_id").in("id", eventIds),
-    supabase.from("organizers").select("id, name"),
+    supabase.from("events").select("id, title").in("id", eventIds),
+    supabase.from("organizers").select("id, name").in("id", orgIds),
   ]);
   const eventMap = Object.fromEntries((events ?? []).map((e) => [e.id, e]));
   const orgMap = Object.fromEntries((organizers ?? []).map((o) => [o.id, o.name]));
 
-  const perEventMap = new Map<string, {
-    eventId: string;
-    eventTitle: string;
-    organizerName: string;
-    confirmedOrders: number;
-    buyerPaidPaise: number;
-    grossPaise: number;
-    commissionPaise: number;
-    convenienceFeePaise: number;
-    platformFeePaise: number;
-    netPayoutPaise: number;
-  }>();
-
   let totalBuyerPaid = 0, totalGross = 0, totalCommission = 0, totalConvenience = 0, totalFee = 0, totalPayout = 0;
-  for (const o of orders) {
-    const evt = eventMap[o.event_id];
-    const key = o.event_id;
-    const entry = perEventMap.get(key) ?? {
-      eventId: o.event_id,
+  const perEvent = rows.map((r) => {
+    const evt = eventMap[r.event_id];
+    totalBuyerPaid += r.buyer_paid_paise;
+    totalGross += r.gross_paise;
+    totalCommission += r.commission_paise;
+    totalConvenience += r.convenience_fee_paise;
+    totalFee += r.platform_fee_paise;
+    totalPayout += r.organizer_payout_paise;
+    return {
+      eventId: r.event_id,
       eventTitle: evt?.title ?? "Event",
-      organizerName: evt ? (orgMap[evt.organizer_id] ?? "Organizer") : "Organizer",
-      confirmedOrders: 0,
-      buyerPaidPaise: 0,
-      grossPaise: 0,
-      commissionPaise: 0,
-      convenienceFeePaise: 0,
-      platformFeePaise: 0,
-      netPayoutPaise: 0,
+      organizerName: orgMap[r.organizer_id] ?? "Organizer",
+      confirmedOrders: r.confirmed_orders,
+      buyerPaidPaise: r.buyer_paid_paise,
+      grossPaise: r.gross_paise,
+      commissionPaise: r.commission_paise,
+      convenienceFeePaise: r.convenience_fee_paise,
+      platformFeePaise: r.platform_fee_paise,
+      netPayoutPaise: r.organizer_payout_paise,
     };
-    entry.confirmedOrders++;
-    entry.buyerPaidPaise += o.total_paise ?? 0;
-    entry.grossPaise += o.subtotal_paise ?? 0;
-    entry.commissionPaise += o.commission_paise ?? 0;
-    entry.convenienceFeePaise += o.convenience_fee_paise ?? 0;
-    entry.platformFeePaise += o.platform_fee_paise ?? 0;
-    entry.netPayoutPaise += o.organizer_payout_paise ?? 0;
-    perEventMap.set(key, entry);
+  }).sort((a, b) => b.grossPaise - a.grossPaise);
 
-    totalBuyerPaid += o.total_paise ?? 0;
-    totalGross += o.subtotal_paise ?? 0;
-    totalCommission += o.commission_paise ?? 0;
-    totalConvenience += o.convenience_fee_paise ?? 0;
-    totalFee += o.platform_fee_paise ?? 0;
-    totalPayout += o.organizer_payout_paise ?? 0;
-  }
   return {
     totalBuyerPaidPaise: totalBuyerPaid,
     totalGrossPaise: totalGross,
@@ -437,6 +376,6 @@ export async function getRevenueAnalytics(): Promise<RevenueAnalytics> {
     totalConvenienceFeePaise: totalConvenience,
     totalPlatformFeePaise: totalFee,
     totalNetPayoutPaise: totalPayout,
-    perEvent: [...perEventMap.values()].sort((a, b) => b.grossPaise - a.grossPaise),
+    perEvent,
   };
 }

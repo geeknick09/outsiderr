@@ -109,3 +109,4 @@ Last updated: 2025-09-22
 - **`create or replace` keeps old overloads** — always `drop function` the old signature first.
 - **approve_order mints tickets** (`generate_series` + sha256 qr_hash) — a refactor once dropped this; regression caught by E2E `tickets=0` check.
 - **E2E fixtures** — seed/e2e resolve DEVTEST events by `ilike 'DEVTEST%'` oldest-first (J1 renames the event); reset must delete `payment_ledger`+`refunds` before `orders` (FK).
+- **Outbox:** `sendNotification` enqueues `notification_outbox` rows for push/email/whatsapp — the table is dormant (cron returns `skipped`) until a provider env exists; rows expire at 24h. When wiring Expo/FCM, implement the delivery call in `src/app/api/cron/drain-notifications/route.ts`, not in sendNotification.

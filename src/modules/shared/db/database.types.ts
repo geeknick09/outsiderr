@@ -441,6 +441,23 @@ export type EventNotificationRow = {
   created_at: string;
 }
 
+export type NotificationOutboxRow = {
+  id: string;
+  user_id: string;
+  event_id: string | null;
+  type: string;
+  title: string | null;
+  message: string;
+  channel: "push" | "email" | "whatsapp";
+  payload: Record<string, unknown>;
+  status: "PENDING" | "SENDING" | "SENT" | "FAILED" | "EXPIRED";
+  attempts: number;
+  next_attempt_at: string;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type EventSubscriptionRow = {
   id: string;
   event_id: string;
@@ -496,6 +513,7 @@ export type Database = {
       club_members: Table<ClubMemberRow, "club_id" | "user_id" | "status">;
       refunds: Table<RefundRow, "order_id" | "event_id" | "user_id" | "amount_paise" | "platform_fee_paise" | "status" | "reason" | "initiated_at">;
       event_notifications: Table<EventNotificationRow, "event_id" | "user_id" | "type" | "message">;
+      notification_outbox: Table<NotificationOutboxRow, "type" | "message" | "channel" | "user_id">;
       platform_settings: Table<PlatformSettingRow, "key" | "value">;
       event_terms_acceptances: Table<EventTermsAcceptanceRow, "organizer_id" | "terms_version">;
       door_staff_orders: Table<DoorStaffOrderRow, "event_id" | "organizer_id" | "number_of_staff" | "service_amount_paise">;
@@ -533,6 +551,81 @@ export type Database = {
           upi_qr_url: string | null;
           verified: boolean;
           created_at: string;
+        };
+        Relationships: [];
+      };
+      // Analytics rollup views (service-role only; backed by the analytics schema)
+      analytics_daily_metrics_v: {
+        Row: {
+          day: string;
+          signups: number;
+          new_organizers: number;
+          dau: number;
+          orders_created: number;
+          orders_confirmed: number;
+          gross_paise: number;
+          buyer_paid_paise: number;
+          commission_paise: number;
+          convenience_fee_paise: number;
+          platform_fee_paise: number;
+          organizer_payout_paise: number;
+          refreshed_at: string;
+        };
+        Relationships: [];
+      };
+      analytics_totals_v: {
+        Row: {
+          id: number;
+          total_payments: number;
+          confirmed_payments: number;
+          total_volume_paise: number;
+          avg_order_value_paise: number;
+          active_users: number;
+          returning_users: number;
+          non_returning_users: number;
+          mau: number;
+          payment_methods: { method: string; count: number; volumePaise: number }[];
+          refreshed_at: string;
+        };
+        Relationships: [];
+      };
+      analytics_organizer_rollup_v: {
+        Row: {
+          organizer_id: string;
+          event_count: number;
+          confirmed_revenue_paise: number;
+          refreshed_at: string;
+        };
+        Relationships: [];
+      };
+      analytics_event_rollup_v: {
+        Row: {
+          event_id: string;
+          organizer_id: string;
+          confirmed_orders: number;
+          gross_paise: number;
+          buyer_paid_paise: number;
+          commission_paise: number;
+          convenience_fee_paise: number;
+          platform_fee_paise: number;
+          organizer_payout_paise: number;
+          refreshed_at: string;
+        };
+        Relationships: [];
+      };
+      analytics_user_stats_v: {
+        Row: {
+          user_id: string;
+          confirmed_orders: number;
+          last_order_day: string | null;
+          refreshed_at: string;
+        };
+        Relationships: [];
+      };
+      analytics_user_activity_v: {
+        Row: {
+          day: string;
+          user_id: string;
         };
         Relationships: [];
       };
@@ -691,6 +784,30 @@ export type Database = {
       };
       submit_kyc: {
         Args: { p_organizer_id: string };
+        Returns: void;
+      };
+      refresh_analytics_rollups: {
+        Args: { p_days: number; p_full?: boolean };
+        Returns: void;
+      };
+      enqueue_notification_outbox: {
+        Args: {
+          p_user_id: string;
+          p_event_id: string | null;
+          p_type: string;
+          p_title: string | null;
+          p_message: string;
+          p_channel: string;
+          p_payload?: Record<string, unknown>;
+        };
+        Returns: string;
+      };
+      claim_notification_outbox: {
+        Args: { p_batch: number };
+        Returns: NotificationOutboxRow[];
+      };
+      complete_notification_outbox: {
+        Args: { p_id: string; p_success: boolean; p_error?: string | null };
         Returns: void;
       };
       set_razorpay_order_id: {

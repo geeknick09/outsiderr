@@ -3,10 +3,12 @@ name: Outsiderr Cron Jobs
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/5 * * * *'     # every 5 min  — expire-reservations, expire-waitlist-offers
+    - cron: '*/5 * * * *'     # every 5 min  — expire-reservations, expire-waitlist-offers, drain-notifications
     - cron: '0 2 * * *'       # daily 02:00  — daily-backup
     - cron: '30 2 * * *'      # daily 02:30  — cleanup-teasers
     - cron: '0 3 * * 0'       # weekly Sun 03:00 — weekly-backup
+    - cron: '15 * * * *'      # hourly       — refresh-analytics
+    - cron: '45 3 * * 0'      # weekly Sun 03:45 — refresh-analytics (full rebuild)
 
 jobs:
   expire-reservations:
@@ -48,6 +50,26 @@ jobs:
           curl -fsS \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             "${{ secrets.APP_URL }}/api/cron/cleanup-teasers"
+
+  drain-notifications:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/5 * * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Drain notification outbox
+        run: |
+          curl -fsS \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/drain-notifications"
+
+  refresh-analytics:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '15 * * * *' || github.event.schedule == '45 3 * * 0'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refresh analytics rollups
+        run: |
+          curl -fsS \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/refresh-analytics${{ github.event.schedule == '45 3 * * 0' && '?full=1' || '' }}"
 
   weekly-backup:
     if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 3 * * 0'

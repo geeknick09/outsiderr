@@ -152,6 +152,26 @@ web ✗ organizer · web ✗ admin · admin ✗ organizer
 - **pgcrypto:** Supabase installs it in the `extensions` schema — `security definer` functions need `set search_path = public, extensions` to see `digest()`. All 4 PIN RPCs carry this; keep it when adding new ones.
 - **`.upsert()` + RLS:** `onConflict` emits `ON CONFLICT DO UPDATE` → needs an UPDATE policy. For write-once join rows (`event_subscriptions`, `organizer_follows`) use `ignoreDuplicates: true` instead.
 
+### 6a. Analytics schema (`analytics.*`)
+
+- Rollups live in a dedicated `analytics` schema — NOT `public`. Keeps PostgREST's public surface clean and marks the seam for the future analytics-service split (and OLAP).
+- Tables: `daily_metrics`, `user_activity_days`, `user_order_stats`, `organizer_rollup`, `event_rollup`, `totals` (singleton).
+- Written by `public.refresh_analytics_rollups(p_days, p_full)` (security definer, service-role only) — **incremental**: a watermark (`analytics.refresh_state`) on orders' change timestamps (created/confirmed/reviewed/refund-initiated) selects dirty entities; their rollup rows are re-aggregated wholesale so status flips (CONFIRMED→REFUNDED) stay correct. `p_full=true` forces a full rebuild (weekly safety net).
+- Read via `public.analytics_*_v` views, `grant select` to `service_role` only — admin data files read them through `createServiceClient()` AFTER `requireAdmin()`. No public/anon access.
+- Refreshed hourly by `/api/cron/refresh-analytics` (GH Actions cron; `?full=1` weekly). Dashboards show data ≤1h stale; "today" DAU is merged with a live query.
+- **Why not a separate DB yet:** schema separation gives the boundary at zero ops cost; when raw event telemetry (campaign clicks/impressions — Phase 4) lands, CDC/ETL from Postgres → ClickHouse/BigQuery replaces the rollup path. OLTP stays in Supabase.
+
+### 6b. WAL & CDC map
+
+WAL (write-ahead log) underpins more of this app than is obvious — document what's on it and what flips on when:
+
+- **Already on:** Postgres durability (every payment RPC commits order+tickets+ledger+in-app notification atomically — WAL is what makes that crash-safe) and **Supabase Realtime** (`supabase_realtime` publication = logical replication over WAL: orders, tickets, events, tiers, notifications, staff, reviews, subscriptions, follows, collabs, PINs).
+- **Notification outbox** (`notification_outbox` + `enqueue/claim/complete_notification_outbox` RPCs, service-role only): durable intent for *external* channels (push/email/whatsapp). `sendNotification` enqueues; `/api/cron/drain-notifications` claims (SKIP LOCKED), delivers, retries with attempts² backoff, expires rows >24h. Dormant until a provider env (`EXPO_ACCESS_TOKEN`/`FCM_SERVER_KEY`/`WEB_PUSH_PRIVATE_KEY`) exists.
+- **PITR** (Supabase paid add-on): point-in-time recovery for the financial tables. **Enable when the first real paid order flows** — daily cron backups alone leave up-to-24h of ledger state at risk.
+- **CDC → OLAP** (Phase 4+): logical replication slot → consumer → ClickHouse/BigQuery for campaign click/impression streams. Trigger = ad-telemetry volume. The `analytics` schema is the read seam; rollups stay Postgres until then.
+- **Read replica** (paid add-on): only if analytics/OLTP contention is measured — rollups should delay this for a long time.
+- **Not WAL's job:** business audit — `admin_change_log` + `payment_ledger` are the audit trail; WAL is replay, not audit.
+
 ## 7. Caching & realtime
 
 - Home page: ISR `revalidate = 60`; event mutations call `revalidateTag("events")`.

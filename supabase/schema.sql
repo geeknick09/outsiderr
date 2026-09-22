@@ -4663,3 +4663,564 @@ begin
 end;
 $$;
 grant execute on function public.request_postponement_refund(uuid, uuid) to authenticated, service_role;
+
+-- ============================================================================
+-- STEP 27 · Analytics schema separation
+-- ============================================================================
+-- Analytics reads previously pulled the whole orders/profiles tables into
+-- memory per dashboard request. Rollups now live in a dedicated `analytics`
+-- schema (keeps the module boundary for the future service split and keeps
+-- PostgREST's public surface clean). A cron-called RPC refreshes them; admin
+-- reads go through service-role-only public views.
+-- OLAP (ClickHouse/BigQuery) can later consume the same rollup/event data via
+-- CDC or scheduled ETL — this schema is the seam.
+
+create schema if not exists analytics;
+revoke all on schema analytics from public, anon, authenticated;
+grant usage on schema analytics to service_role;
+
+-- One row per UTC calendar day.
+create table if not exists analytics.daily_metrics (
+  day                      date primary key,
+  signups                  integer not null default 0,
+  new_organizers           integer not null default 0,
+  dau                      integer not null default 0,   -- distinct users with order activity
+  orders_created           integer not null default 0,
+  orders_confirmed         integer not null default 0,
+  gross_paise              bigint  not null default 0,   -- confirmed subtotal
+  buyer_paid_paise         bigint  not null default 0,   -- confirmed total
+  commission_paise         bigint  not null default 0,
+  convenience_fee_paise    bigint  not null default 0,
+  platform_fee_paise       bigint  not null default 0,
+  organizer_payout_paise   bigint  not null default 0,
+  refreshed_at             timestamptz not null default now()
+);
+
+-- Fact table for DAU/MAU: one row per (day, user) with any order activity.
+create table if not exists analytics.user_activity_days (
+  day      date not null,
+  user_id  uuid not null,
+  primary key (day, user_id)
+);
+
+-- Per-user order stats (all-time) — returning vs non-returning, active users.
+create table if not exists analytics.user_order_stats (
+  user_id          uuid primary key,
+  confirmed_orders integer not null default 0,
+  last_order_day   date,
+  refreshed_at     timestamptz not null default now()
+);
+
+-- Per-organizer rollup (all-time) — top-organizers widget.
+create table if not exists analytics.organizer_rollup (
+  organizer_id             uuid primary key references public.organizers(id) on delete cascade,
+  event_count              integer not null default 0,
+  confirmed_revenue_paise  bigint  not null default 0,  -- confirmed subtotal (organizer gross)
+  refreshed_at             timestamptz not null default now()
+);
+
+-- Per-event rollup (all-time) — admin revenue table, organizer dashboards.
+create table if not exists analytics.event_rollup (
+  event_id                  uuid primary key references public.events(id) on delete cascade,
+  organizer_id              uuid not null,
+  confirmed_orders          integer not null default 0,
+  gross_paise               bigint not null default 0,
+  buyer_paid_paise          bigint not null default 0,
+  commission_paise          bigint not null default 0,
+  convenience_fee_paise     bigint not null default 0,
+  platform_fee_paise        bigint not null default 0,
+  organizer_payout_paise    bigint not null default 0,
+  refreshed_at              timestamptz not null default now()
+);
+
+-- Singleton all-time totals row (id always 1).
+create table if not exists analytics.totals (
+  id                      smallint primary key default 1 check (id = 1),
+  total_payments          integer not null default 0,
+  confirmed_payments      integer not null default 0,
+  total_volume_paise      bigint  not null default 0,
+  avg_order_value_paise   bigint  not null default 0,
+  active_users            integer not null default 0,   -- users with ≥1 confirmed order
+  returning_users         integer not null default 0,   -- ≥2 confirmed orders
+  non_returning_users     integer not null default 0,   -- exactly 1 confirmed order
+  mau                     integer not null default 0,   -- distinct users active last 30d
+  payment_methods         jsonb   not null default '[]'::jsonb,
+  refreshed_at            timestamptz not null default now()
+);
+insert into analytics.totals (id) values (1) on conflict (id) do nothing;
+
+revoke all on all tables in schema analytics from public, anon, authenticated;
+grant select, insert, update, delete on all tables in schema analytics to service_role;
+
+-- Public views for PostgREST reads — service-role only, so dashboards hit
+-- these via the service client after requireAdmin() (authz in app code).
+create or replace view public.analytics_daily_metrics_v  as select * from analytics.daily_metrics;
+create or replace view public.analytics_user_stats_v     as select * from analytics.user_order_stats;
+create or replace view public.analytics_user_activity_v  as select * from analytics.user_activity_days;
+create or replace view public.analytics_organizer_rollup_v as select * from analytics.organizer_rollup;
+create or replace view public.analytics_event_rollup_v   as select * from analytics.event_rollup;
+create or replace view public.analytics_totals_v         as select * from analytics.totals;
+
+revoke all on public.analytics_daily_metrics_v      from public, anon, authenticated;
+revoke all on public.analytics_user_stats_v         from public, anon, authenticated;
+revoke all on public.analytics_user_activity_v      from public, anon, authenticated;
+revoke all on public.analytics_organizer_rollup_v   from public, anon, authenticated;
+revoke all on public.analytics_event_rollup_v       from public, anon, authenticated;
+revoke all on public.analytics_totals_v             from public, anon, authenticated;
+grant select on public.analytics_daily_metrics_v      to service_role;
+grant select on public.analytics_user_stats_v         to service_role;
+grant select on public.analytics_user_activity_v      to service_role;
+grant select on public.analytics_organizer_rollup_v   to service_role;
+grant select on public.analytics_event_rollup_v       to service_role;
+grant select on public.analytics_totals_v             to service_role;
+
+-- ---- refresh_analytics_rollups ------------------------------------------------
+-- Recomputes the last p_days of daily buckets plus all-time per-user /
+-- per-organizer / per-event / totals rollups. Idempotent — safe to re-run.
+-- Called by /api/cron/refresh-analytics (service role only).
+
+create or replace function public.refresh_analytics_rollups(p_days integer default 90)
+returns void
+language plpgsql
+security definer
+set search_path = public, analytics
+as $$
+begin
+  -- Daily metrics for the trailing window (incl. today's partial day).
+  delete from analytics.daily_metrics where day >= current_date - p_days;
+  insert into analytics.daily_metrics (
+    day, signups, new_organizers, dau,
+    orders_created, orders_confirmed,
+    gross_paise, buyer_paid_paise, commission_paise,
+    convenience_fee_paise, platform_fee_paise, organizer_payout_paise,
+    refreshed_at
+  )
+  select
+    d.day,
+    coalesce(s.cnt, 0), coalesce(o.cnt, 0), coalesce(a.dau, 0),
+    coalesce(oc.cnt, 0), coalesce(cn.cnt, 0),
+    coalesce(cn.gross, 0), coalesce(cn.paid, 0), coalesce(cn.comm, 0),
+    coalesce(cn.conv, 0), coalesce(cn.fee, 0), coalesce(cn.payout, 0),
+    now()
+  from generate_series(current_date - p_days, current_date, '1 day'::interval) d(day)
+  left join (
+    select created_at::date as day, count(*) cnt from public.profiles group by 1
+  ) s on s.day = d.day
+  left join (
+    select created_at::date as day, count(*) cnt from public.organizers group by 1
+  ) o on o.day = d.day
+  left join (
+    select created_at::date as day, count(distinct user_id) dau
+      from public.orders where user_id is not null group by 1
+  ) a on a.day = d.day
+  left join (
+    select created_at::date as day, count(*) cnt from public.orders group by 1
+  ) oc on oc.day = d.day
+  left join (
+    select created_at::date as day,
+           count(*) cnt,
+           sum(subtotal_paise) gross,
+           sum(total_paise) paid,
+           sum(commission_paise) comm,
+           sum(convenience_fee_paise) conv,
+           sum(platform_fee_paise) fee,
+           sum(organizer_payout_paise) payout
+      from public.orders where status = 'CONFIRMED' group by 1
+  ) cn on cn.day = d.day;
+
+  -- User-activity fact rows for the window.
+  delete from analytics.user_activity_days where day >= current_date - p_days;
+  insert into analytics.user_activity_days (day, user_id)
+  select distinct created_at::date, user_id
+    from public.orders
+   where user_id is not null and created_at::date >= current_date - p_days;
+
+  -- All-time per-user order stats.
+  truncate analytics.user_order_stats;
+  insert into analytics.user_order_stats (user_id, confirmed_orders, last_order_day, refreshed_at)
+  select user_id, count(*) filter (where status = 'CONFIRMED'),
+         max(created_at)::date, now()
+    from public.orders
+   where user_id is not null
+   group by user_id;
+
+  -- All-time per-organizer rollup.
+  truncate analytics.organizer_rollup;
+  insert into analytics.organizer_rollup (organizer_id, event_count, confirmed_revenue_paise, refreshed_at)
+  select e.organizer_id,
+         count(distinct o.event_id),
+         coalesce(sum(o.subtotal_paise), 0),
+         now()
+    from public.orders o
+    join public.events e on e.id = o.event_id
+   where o.status = 'CONFIRMED'
+   group by e.organizer_id;
+
+  -- All-time per-event rollup.
+  truncate analytics.event_rollup;
+  insert into analytics.event_rollup (
+    event_id, organizer_id, confirmed_orders, gross_paise, buyer_paid_paise,
+    commission_paise, convenience_fee_paise, platform_fee_paise,
+    organizer_payout_paise, refreshed_at
+  )
+  select o.event_id, e.organizer_id,
+         count(*),
+         sum(o.subtotal_paise), sum(o.total_paise),
+         sum(o.commission_paise), sum(o.convenience_fee_paise),
+         sum(o.platform_fee_paise), sum(o.organizer_payout_paise),
+         now()
+    from public.orders o
+    join public.events e on e.id = o.event_id
+   where o.status = 'CONFIRMED'
+   group by o.event_id, e.organizer_id;
+
+  -- Singleton totals.
+  update analytics.totals set
+    total_payments        = (select count(*) from public.orders),
+    confirmed_payments    = (select count(*) from public.orders where status = 'CONFIRMED'),
+    total_volume_paise    = (select coalesce(sum(total_paise),0) from public.orders where status = 'CONFIRMED'),
+    avg_order_value_paise = (select coalesce(round(avg(total_paise)),0) from public.orders where status = 'CONFIRMED'),
+    active_users          = (select count(*) from analytics.user_order_stats where confirmed_orders >= 1),
+    returning_users       = (select count(*) from analytics.user_order_stats where confirmed_orders >= 2),
+    non_returning_users   = (select count(*) from analytics.user_order_stats where confirmed_orders = 1),
+    mau                   = (select count(distinct user_id) from analytics.user_activity_days where day >= current_date - 30),
+    payment_methods       = coalesce((
+      select jsonb_agg(jsonb_build_object('method', coalesce(payment_method,'unknown'), 'count', cnt, 'volumePaise', vol))
+        from (select payment_method, count(*) cnt, sum(total_paise) vol
+                from public.orders where status = 'CONFIRMED' group by payment_method) m
+    ), '[]'::jsonb),
+    refreshed_at          = now()
+  where id = 1;
+end;
+$$;
+
+revoke all on function public.refresh_analytics_rollups(integer) from public, anon, authenticated;
+grant execute on function public.refresh_analytics_rollups(integer) to service_role;
+
+-- ============================================================================
+-- STEP 28 · Incremental analytics refresh (watermark)
+-- ============================================================================
+-- The STEP-27 refresh rebuilt every rollup from a full scan each run. Correct,
+-- but wasteful once orders grow. Now: a watermark on orders' change timestamps
+-- (created_at / confirmed_at / reviewed_at / refund initiated_at) selects only
+-- "dirty" entities; their rollup rows are recomputed wholesale (per-entity
+-- re-aggregation → status flips like CONFIRMED→REFUNDED still correct).
+-- p_full=true forces a complete rebuild (weekly cron safety net).
+
+create table if not exists analytics.refresh_state (
+  key        text primary key,
+  watermark  timestamptz not null default '1970-01-01'::timestamptz
+);
+insert into analytics.refresh_state (key, watermark) values ('orders', '1970-01-01')
+on conflict (key) do nothing;
+
+drop function if exists public.refresh_analytics_rollups(integer);
+
+create or replace function public.refresh_analytics_rollups(
+  p_days integer default 90,
+  p_full boolean default false
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, analytics
+as $$
+declare
+  v_watermark timestamptz;
+  v_new_watermark timestamptz;
+begin
+  v_watermark := case when p_full then '1970-01-01'::timestamptz
+                      else (select watermark from analytics.refresh_state where key = 'orders') end;
+
+  -- Snapshot of changed orders since the watermark. Confirmed_at and
+  -- reviewed_at capture post-creation status flips; refunds.initiated_at
+  -- catches CONFIRMED→REFUNDED.
+  create temp table _dirty_orders on commit drop as
+  select o.* from public.orders o
+   where greatest(
+           o.created_at,
+           coalesce(o.confirmed_at, o.created_at),
+           coalesce(o.reviewed_at,  o.created_at)
+         ) > v_watermark
+  union
+  select o.* from public.orders o
+    join public.refunds r on r.order_id = o.id
+   where r.initiated_at > v_watermark;
+
+  select max(ts) into v_new_watermark from (
+    select greatest(created_at, coalesce(confirmed_at, created_at), coalesce(reviewed_at, created_at)) ts
+      from _dirty_orders
+    union all
+    select r.initiated_at from public.refunds r where r.initiated_at > v_watermark
+  ) t;
+  v_new_watermark := coalesce(v_new_watermark, v_watermark);
+
+  -- ---- daily_metrics: rebuild only touched days (+ always today) ----------
+  create temp table _dirty_days on commit drop as
+  select distinct d::date as day from (
+    select created_at from _dirty_orders
+    union all select confirmed_at from _dirty_orders where confirmed_at is not null
+    union all select reviewed_at  from _dirty_orders where reviewed_at  is not null
+  ) x(d)
+  union select current_date;  -- always refresh today's partial bucket
+
+  delete from analytics.daily_metrics
+   where day in (select day from _dirty_days);
+
+  insert into analytics.daily_metrics (
+    day, signups, new_organizers, dau,
+    orders_created, orders_confirmed,
+    gross_paise, buyer_paid_paise, commission_paise,
+    convenience_fee_paise, platform_fee_paise, organizer_payout_paise,
+    refreshed_at
+  )
+  select
+    dd.day,
+    coalesce(s.cnt, 0), coalesce(o.cnt, 0), coalesce(a.dau, 0),
+    coalesce(oc.cnt, 0), coalesce(cn.cnt, 0),
+    coalesce(cn.gross, 0), coalesce(cn.paid, 0), coalesce(cn.comm, 0),
+    coalesce(cn.conv, 0), coalesce(cn.fee, 0), coalesce(cn.payout, 0),
+    now()
+  from _dirty_days dd
+  left join (
+    select created_at::date as day, count(*) cnt from public.profiles group by 1
+  ) s on s.day = dd.day
+  left join (
+    select created_at::date as day, count(*) cnt from public.organizers group by 1
+  ) o on o.day = dd.day
+  left join (
+    select created_at::date as day, count(distinct user_id) dau
+      from public.orders where user_id is not null group by 1
+  ) a on a.day = dd.day
+  left join (
+    select created_at::date as day, count(*) cnt from public.orders group by 1
+  ) oc on oc.day = dd.day
+  left join (
+    select created_at::date as day,
+           count(*) cnt,
+           sum(subtotal_paise) gross,
+           sum(total_paise) paid,
+           sum(commission_paise) comm,
+           sum(convenience_fee_paise) conv,
+           sum(platform_fee_paise) fee,
+           sum(organizer_payout_paise) payout
+      from public.orders where status = 'CONFIRMED' group by 1
+  ) cn on cn.day = dd.day;
+
+  -- ---- user_activity_days: rebuild touched days --------------------------
+  delete from analytics.user_activity_days
+   where day in (select day from _dirty_days);
+  insert into analytics.user_activity_days (day, user_id)
+  select distinct created_at::date, user_id
+    from public.orders
+   where user_id is not null
+     and created_at::date in (select day from _dirty_days);
+
+  -- ---- per-user stats: recompute only users with changed orders ----------
+  create temp table _dirty_users on commit drop as
+    select distinct user_id from _dirty_orders where user_id is not null;
+
+  delete from analytics.user_order_stats where user_id in (select user_id from _dirty_users);
+  insert into analytics.user_order_stats (user_id, confirmed_orders, last_order_day, refreshed_at)
+  select user_id, count(*) filter (where status = 'CONFIRMED'),
+         max(created_at)::date, now()
+    from public.orders
+   where user_id in (select user_id from _dirty_users)
+   group by user_id;
+
+  -- ---- per-event / per-organizer: recompute only touched entities --------
+  create temp table _dirty_events on commit drop as
+    select distinct event_id from _dirty_orders;
+  create temp table _dirty_orgs on commit drop as
+    select distinct e.organizer_id
+      from _dirty_events de join public.events e on e.id = de.event_id;
+
+  delete from analytics.event_rollup where event_id in (select event_id from _dirty_events);
+  insert into analytics.event_rollup (
+    event_id, organizer_id, confirmed_orders, gross_paise, buyer_paid_paise,
+    commission_paise, convenience_fee_paise, platform_fee_paise,
+    organizer_payout_paise, refreshed_at
+  )
+  select o.event_id, e.organizer_id,
+         count(*) filter (where o.status = 'CONFIRMED'),
+         coalesce(sum(o.subtotal_paise)          filter (where o.status='CONFIRMED'), 0),
+         coalesce(sum(o.total_paise)             filter (where o.status='CONFIRMED'), 0),
+         coalesce(sum(o.commission_paise)        filter (where o.status='CONFIRMED'), 0),
+         coalesce(sum(o.convenience_fee_paise)   filter (where o.status='CONFIRMED'), 0),
+         coalesce(sum(o.platform_fee_paise)      filter (where o.status='CONFIRMED'), 0),
+         coalesce(sum(o.organizer_payout_paise)  filter (where o.status='CONFIRMED'), 0),
+         now()
+    from public.orders o
+    join public.events e on e.id = o.event_id
+   where o.event_id in (select event_id from _dirty_events)
+   group by o.event_id, e.organizer_id;
+
+  delete from analytics.organizer_rollup where organizer_id in (select organizer_id from _dirty_orgs);
+  insert into analytics.organizer_rollup (organizer_id, event_count, confirmed_revenue_paise, refreshed_at)
+  select e.organizer_id,
+         count(distinct o.event_id) filter (where o.status = 'CONFIRMED'),
+         coalesce(sum(o.subtotal_paise) filter (where o.status = 'CONFIRMED'), 0),
+         now()
+    from public.orders o
+    join public.events e on e.id = o.event_id
+   where e.organizer_id in (select organizer_id from _dirty_orgs)
+   group by e.organizer_id;
+
+  -- ---- totals: always recompute (5 aggregate queries — cheap) ------------
+  update analytics.totals set
+    total_payments        = (select count(*) from public.orders),
+    confirmed_payments    = (select count(*) from public.orders where status = 'CONFIRMED'),
+    total_volume_paise    = (select coalesce(sum(total_paise),0) from public.orders where status = 'CONFIRMED'),
+    avg_order_value_paise = (select coalesce(round(avg(total_paise)),0) from public.orders where status = 'CONFIRMED'),
+    active_users          = (select count(*) from analytics.user_order_stats where confirmed_orders >= 1),
+    returning_users       = (select count(*) from analytics.user_order_stats where confirmed_orders >= 2),
+    non_returning_users   = (select count(*) from analytics.user_order_stats where confirmed_orders = 1),
+    mau                   = (select count(distinct user_id) from analytics.user_activity_days where day >= current_date - 30),
+    payment_methods       = coalesce((
+      select jsonb_agg(jsonb_build_object('method', coalesce(payment_method,'unknown'), 'count', cnt, 'volumePaise', vol))
+        from (select payment_method, count(*) cnt, sum(total_paise) vol
+                from public.orders where status = 'CONFIRMED' group by payment_method) m
+    ), '[]'::jsonb),
+    refreshed_at          = now()
+  where id = 1;
+
+  update analytics.refresh_state set watermark = v_new_watermark where key = 'orders';
+end;
+$$;
+
+revoke all on function public.refresh_analytics_rollups(integer, boolean) from public, anon, authenticated;
+grant execute on function public.refresh_analytics_rollups(integer, boolean) to service_role;
+
+-- ============================================================================
+-- STEP 29 · Notification outbox (transactional external delivery seam)
+-- ============================================================================
+-- In-app notifications are already atomic — definer RPCs insert
+-- event_notifications rows inside the payment/order transaction. External
+-- channels (push/email/whatsapp) would otherwise fire post-commit from app
+-- code and can be lost on crash. The outbox makes them durable:
+-- sendNotification enqueues a row (same abstraction), a cron-called drain
+-- claims batches and delivers. Rows self-expire after 24h so enabling a push
+-- provider months later doesn't blast stale notifications.
+
+create table if not exists public.notification_outbox (
+  id              uuid primary key default gen_random_uuid(),
+  user_id         uuid not null,
+  event_id        uuid references public.events(id) on delete set null,
+  type            text not null,
+  title           text,
+  message         text not null,
+  channel         text not null check (channel in ('push','email','whatsapp')),
+  payload         jsonb not null default '{}'::jsonb,
+  status          text not null default 'PENDING'
+                  check (status in ('PENDING','SENDING','SENT','FAILED','EXPIRED')),
+  attempts        integer not null default 0,
+  next_attempt_at timestamptz not null default now(),
+  last_error      text,
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now()
+);
+create index if not exists notification_outbox_due_idx
+  on public.notification_outbox (status, next_attempt_at) where status = 'PENDING';
+
+alter table public.notification_outbox enable row level security;
+revoke all on public.notification_outbox from public, anon, authenticated;
+grant all on public.notification_outbox to service_role;
+
+-- Enqueue one external-channel delivery. Called by sendNotification when a
+-- non-in-app channel is requested. Service-role only.
+create or replace function public.enqueue_notification_outbox(
+  p_user_id  uuid,
+  p_event_id uuid,
+  p_type     text,
+  p_title    text,
+  p_message  text,
+  p_channel  text,
+  p_payload  jsonb default '{}'::jsonb
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_id uuid;
+begin
+  insert into public.notification_outbox
+    (user_id, event_id, type, title, message, channel, payload)
+  values (p_user_id, p_event_id, p_type, p_title, p_message, p_channel, coalesce(p_payload, '{}'::jsonb))
+  returning id into v_id;
+  return v_id;
+end;
+$$;
+revoke all on function public.enqueue_notification_outbox(uuid, uuid, text, text, text, text, jsonb) from public, anon, authenticated;
+grant execute on function public.enqueue_notification_outbox(uuid, uuid, text, text, text, text, jsonb) to service_role;
+
+-- Atomically claim a batch of due notifications for delivery.
+-- SKIP LOCKED lets multiple drainers run without double-delivery.
+create or replace function public.claim_notification_outbox(p_batch integer default 50)
+returns setof public.notification_outbox
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  -- Anything undelivered after 24h is stale — expire it.
+  update public.notification_outbox
+     set status = 'EXPIRED', updated_at = now()
+   where status in ('PENDING','SENDING')
+     and created_at < now() - interval '24 hours';
+
+  return query
+    update public.notification_outbox o
+       set status = 'SENDING', attempts = o.attempts + 1, updated_at = now()
+     where o.id in (
+       select id from public.notification_outbox
+        where status = 'PENDING' and next_attempt_at <= now()
+        order by created_at
+        limit p_batch
+        for update skip locked
+     )
+    returning o.*;
+end;
+$$;
+revoke all on function public.claim_notification_outbox(integer) from public, anon, authenticated;
+grant execute on function public.claim_notification_outbox(integer) to service_role;
+
+-- Complete a claimed row. Success → SENT. Failure → back to PENDING with
+-- quadratic backoff (attempts² minutes); FAILED permanently after 5 attempts.
+create or replace function public.complete_notification_outbox(
+  p_id      uuid,
+  p_success boolean,
+  p_error   text default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_attempts integer;
+begin
+  select attempts into v_attempts from public.notification_outbox where id = p_id;
+  if not found then return; end if;
+
+  if p_success then
+    update public.notification_outbox
+       set status = 'SENT', last_error = null, updated_at = now()
+     where id = p_id;
+  elsif v_attempts >= 5 then
+    update public.notification_outbox
+       set status = 'FAILED', last_error = p_error, updated_at = now()
+     where id = p_id;
+  else
+    update public.notification_outbox
+       set status = 'PENDING',
+           last_error = p_error,
+           next_attempt_at = now() + (v_attempts * v_attempts || ' minutes')::interval,
+           updated_at = now()
+     where id = p_id;
+  end if;
+end;
+$$;
+revoke all on function public.complete_notification_outbox(uuid, boolean, text) from public, anon, authenticated;
+grant execute on function public.complete_notification_outbox(uuid, boolean, text) to service_role;

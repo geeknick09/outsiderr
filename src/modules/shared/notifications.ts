@@ -12,13 +12,14 @@ import { logger } from "./lib/logger";
  * Business code calls sendNotification()/sendNotifications() — it does NOT
  * insert into event_notifications directly. Channels:
  *   - "in-app"   → event_notifications row (the bell) — implemented
- *   - "push"     → push_subscriptions + provider send — scaffolded, needs a
- *                  provider (Expo Push / FCM / web-push) before it delivers
- *   - "email"    → provider adapter stub (Resend/SES — not configured yet)
- *   - "whatsapp" → provider adapter stub (not configured yet)
+ *   - "push"     → notification_outbox row → drained by /api/cron/drain-notifications
+ *                  to the provider (Expo Push / FCM — adapter lands with M3)
+ *   - "email"    → notification_outbox row → provider adapter pending
+ *   - "whatsapp" → notification_outbox row → provider adapter pending
  *
- * Adding native push for the React Native apps = implementing the push adapter
- * here; call sites don't change.
+ * The outbox makes external delivery crash-safe: the row is written durably
+ * and a cron drainer retries with backoff. Rows expire after 24h so enabling
+ * a provider later doesn't blast stale notifications.
  *
  * Notifications are best-effort by design: failures are logged, never thrown —
  * a notification must not break the primary transaction (booking, KYC, etc.).
@@ -62,33 +63,23 @@ async function deliverInApp(
   if (error) logger.warn({ error: error.message }, "notifications: in-app insert failed");
 }
 
-/** Push channel scaffold — resolves subscriptions; provider send is a TODO. */
-async function deliverPush(
-  supabase: Client,
+/** External channels: enqueue a durable outbox row; the drain cron delivers.
+ * Uses the service client — the outbox is service-role only. */
+async function enqueueOutbox(
   input: SendNotificationInput,
+  channel: "push" | "email" | "whatsapp",
 ): Promise<void> {
-  const { data: subs, error } = await supabase
-    .from("push_subscriptions")
-    .select("endpoint")
-    .eq("user_id", input.userId);
-
-  if (error) {
-    logger.warn({ error: error.message }, "notifications: push subscription lookup failed");
-    return;
-  }
-  if (!subs?.length) return;
-
-  // TODO(mobile): send via web-push now / Expo Push + FCM when the native apps
-  // land. The subscription rows already exist; only the provider call is missing.
-  logger.debug(
-    { userId: input.userId, subscriptions: subs.length, type: input.type },
-    "notifications: push delivery not configured (subscriptions exist)",
-  );
-}
-
-/** Email/WhatsApp stubs — provider adapters land with the messaging work. */
-async function deliverExternal(channel: "email" | "whatsapp", input: SendNotificationInput): Promise<void> {
-  logger.debug({ userId: input.userId, type: input.type }, `notifications: ${channel} delivery not configured`);
+  const { createServiceClient } = await import("./auth/service");
+  const { error } = await createServiceClient().rpc("enqueue_notification_outbox", {
+    p_user_id: input.userId,
+    p_event_id: input.eventId ?? null,
+    p_type: input.type,
+    p_title: null,
+    p_message: input.message,
+    p_channel: channel,
+    p_payload: {},
+  });
+  if (error) logger.warn({ error: error.message, channel }, "notifications: outbox enqueue failed");
 }
 
 /** Send one notification to one user across the requested channels. */
@@ -108,10 +99,8 @@ export async function sendNotification(
             return deliverInApp(supabase, [
               { user_id: input.userId, type: input.type, message: input.message, event_id: input.eventId ?? null },
             ]);
-          case "push":
-            return deliverPush(supabase, input);
           default:
-            return deliverExternal(channel, input);
+            return enqueueOutbox(input, channel);
         }
       }),
     );
@@ -147,7 +136,7 @@ export async function sendNotifications(
     for (const input of otherChannelInputs) {
       for (const channel of input.channels ?? []) {
         if (channel === "in-app") continue;
-        tasks.push(channel === "push" ? deliverPush(supabase, input) : deliverExternal(channel, input));
+        tasks.push(enqueueOutbox(input, channel));
       }
     }
     await Promise.all(tasks);

@@ -751,6 +751,17 @@
 - [ ] KYC rejected → verify KYC\_REJECTED notification (with rejection reason)
 - [ ] KYC clarification → verify KYC\_CLARIFICATION notification (“An Outsiderr team member will contact you”)
 
+### 17.3 Notification Outbox (external delivery seam)
+
+- [ ] `sendNotification(..., channels: ["push"])` → row appears in `notification_outbox` (status PENDING, channel push)
+- [ ] `claim_notification_outbox(10)` via service → returns rows, flips to SENDING, attempts +1
+- [ ] `complete_notification_outbox(id, false)` → row back to PENDING with `next_attempt_at` in the future (attempts² backoff); ≥5 attempts → FAILED
+- [ ] `complete_notification_outbox(id, true)` → SENT
+- [ ] Rows older than 24h → marked EXPIRED on next claim (no stale blast when a provider is enabled later)
+- [ ] `GET /api/cron/drain-notifications` with bad secret → 401; with `CRON_SECRET` → 200 `{status:"skipped"}` while no provider env (EXPO_ACCESS_TOKEN / FCM_SERVER_KEY / WEB_PUSH_PRIVATE_KEY)
+- [ ] `notification_outbox` not readable/writable by anon or authenticated roles (service-role only)
+- [ ] `node scripts/_test_analytics_rollup.mjs` → T17–T21 cover this end-to-end
+
  *
 
 ## 18\. Legal & Info Pages
@@ -1055,7 +1066,7 @@ npx next build
 | Clubs & Crews | 14.1–14.3 | ☐ |
 | Reviews & Ratings | 15.1–15.2 | ☐ |
 | Admin Dashboard | 16.1–16.13 | ☐ |
-| Notifications | 17.1–17.2 | ☐ |
+| Notifications | 17.1–17.3 | ☐ |
 | Legal & Info Pages | 18.1–18.3 | ☐ |
 | Loading States | 19.1 | ☐ |
 | Error Handling | 20.1–20.4 | ☐ |
