@@ -857,14 +857,31 @@
 npx vitest run
 ```
 
-- [ ] Verify 6 test files pass
-- [ ] Verify 108 tests pass
+- [ ] Verify 7 test files pass
+- [ ] Verify 113 tests pass
 - [ ] Verify financial tests (19) — canonical 10×₹450 example
 - [ ] Verify validation tests (35) — Zod schemas
 - [ ] Verify rate-limit tests (10) — sliding window
 - [ ] Verify fixture tests (38) — data integrity
+- [ ] Verify api-auth tests (5) — bearer/ALS context
 
-### 22.2 Build
+### 22.2 E2E API Suite (seeded roles)
+
+```bash
+npx next build && npx next start -p 3124   # production build — dev-mode
+# compiles stall long enough to expire the test JWTs; don't run against next dev
+node scripts/_seed_dev_test.mjs
+node scripts/_e2e_dev_test.mjs            # default base http://localhost:3124
+```
+
+- [ ] Verify 72 assertions pass (auth, free/manual orders, approve/reject,
+      subscribe/follow, waitlist FIFO, scanner, box-office, event lifecycle,
+      burst no-oversell, reviews, cancel/refund, collab, clubs, postponement)
+- [ ] Seed users: `dev.{user,user2,user3,organizer,organizer2,admin}@outsiderr.test` (pw `DevTest#1234`)
+- [ ] `/dev-login` page = one-click sign-in in dev; hard-404s in production
+- [ ] Re-runnable: the suite resets its state at the start of each run
+
+### 22.3 Build
 
 ```bash
 npx next build
@@ -964,6 +981,7 @@ npx next build
 
 ### 26.5 Money Math — every path
 
+- [ ] **Server is authoritative:** order RPCs recompute all paise fields from tier price + event fee config — caller-supplied amounts are ignored (verify via a manipulated RPC call: stored row ≠ submitted values)
 - [ ] **Online paid:** buyer pays `subtotal + convenience_fee`; organizer gets `subtotal − commission`; platform keeps `commission + convenience_fee`
 - [ ] **Free:** ₹0 everywhere; no fees; ticket still mints
 - [ ] **Manual UPI / box office / walk-in:** convenience fee ₹0, commission still applies
@@ -991,7 +1009,7 @@ npx next build
 - [ ] Call `create_*_order` with qty > remaining → rejected, no partial write
 - [ ] Call `create_*_order` for a paid tier via the free path → rejected
 - [ ] Replay a payment/confirm action → idempotent (no dup tickets/orders)
-- [ ] Non-staff calls `approve_order`/`reject_order` → `is_event_staff` blocks it
+- [ ] Non-staff calls `approve_order`/`reject_order` → `is_event_manager` blocks it (door staff cannot approve; only owner/admin/FULL collaborator)
 
 ### 27.3 PIN & Rate Limiting
 
@@ -1004,6 +1022,18 @@ npx next build
 - [ ] Submit event/booking forms with `<script>`/HTML in title, bio, description → stored/escaped, no XSS render
 - [ ] Oversized/invalid inputs → Zod validation errors, no crash
 - [ ] SQL-injection-style strings in search/filters → safe (parameterized)
+
+### 27.5 Privilege & Money Integrity (added post-hardening)
+
+- [ ] `confirm_razorpay_order` / `fail_razorpay_order` / `create_walkin_order` / `update_walkin_order` / `offer_waitlist_next` called with the **anon key** → permission denied (service-role only)
+- [ ] `create_reserved_order` / `create_paid_order` called with fake paise params (`total=1`, `payout=999999`) → order rows contain **server-recomputed** amounts (tier price × qty + bps fees), caller values ignored
+- [ ] Direct `PATCH profiles` with `is_admin: true` → column privilege error (not updatable)
+- [ ] Direct `PATCH organizers` with `kyc_status: APPROVED` / `verified: true` / `commission_*` → column privilege error; KYC data fields (pan/gst/bank/docs) still updatable by owner
+- [ ] Direct `PATCH events` with `status` / `organizer_id` → column privilege error; status changes only via `set_event_status` RPC / `cancel_event` / `postpone_event`
+- [ ] `GET /rest/v1/organizers` as anon → returns nothing sensitive; `organizers_public` view exposes only safe columns (no PAN/bank/KYC) and still includes `upi_id`
+- [ ] `organizers` INSERT with `kyc_status='APPROVED'`/`verified=true` → policy rejects; legit insert starts `NOT_SUBMITTED`
+- [ ] `PATCH /api/v1/organizer` with a partial body → only sent fields change (omitted fields not wiped to "" / null)
+- [ ] Razorpay webhook: `payment.captured` event with `x-razorpay-event-id` header → processes; unknown order id → falls back to hero-boost activation; replay → idempotent
 
 ## Test Execution Checklist
 
@@ -1030,9 +1060,9 @@ npx next build
 | Loading States | 19.1 | ☐ |
 | Error Handling | 20.1–20.4 | ☐ |
 | PWA & Branding | 21.1–21.2 | ☐ |
-| Automated Tests | 22.1–22.2 | ☐ |
+| Automated Tests | 22.1–22.3 | ☐ |
 | Box Office | 23.1–23.4 | ☐ |
 | Offline Scan & Sync | 24.1–24.2 | ☐ |
 | Mobile & Navigation | 25.1–25.2 | ☐ |
 | Concurrency & Money | 26.1–26.6 | ☐ |
-| Security & Auth | 27.1–27.4 | ☐ |
+| Security & Auth | 27.1–27.5 | ☐ |
