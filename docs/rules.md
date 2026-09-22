@@ -36,6 +36,18 @@ Last updated: 2025-09-20
 - Errors: use `logger` (pino, auto-redacts) — never `console.*` in critical paths, never log secrets.
 - Keep it compact; match surrounding style; no drive-by refactors.
 
+## 4a. API & orchestration rules (mobile-ready)
+
+- **`/api/v1/*` is the client API** (future React Native apps). Bearer JWT (`Authorization: Bearer <supabase-access-token>`) for user/organizer routes; PIN-in-body for scanner/box-office. Response envelope: `{ ok: true, data }` | `{ ok: false, error }`.
+- **Never write business logic in a route handler or server component.** Routes validate (zod) + call a data fn / service / action + map to `{ok}` — that's it.
+- **Orchestration lives in `shared/services/*`** (e.g. `runCheckout`, `runVerifyPayment`) — plain fns taking `(user, input)`, called by BOTH the server action (FormData) and the API route (JSON). Money/payment logic must never be duplicated between the two surfaces.
+- **Bearer auth plumbing:** routes wrap in `withApiUser(request, handler)` (401 + AsyncLocalStorage context). `createClient()` resolves the bearer token from context automatically — all data fns/RPCs/`getCurrentUser()` just work. Don't create clients manually in routes.
+- **Secrets stay server-side:** Razorpay keys, service-role client only in actions/services/routes — never returned in a response or logged.
+- **Thin RPC calls need no route** — mobile calls `supabase.rpc`/`supabase.from` directly for RLS-guarded reads and atomic ops (waitlist join, etc.). Routes exist for secret-bearing or multi-step work.
+- **Notifications go through `sendNotification()`/`sendNotifications()`** (`shared/notifications.ts`) — never insert into `event_notifications` directly. Channels: `in-app` (implemented) + `push`/`email`/`whatsapp` (adapter stubs). Never throws.
+- **Every new user-facing mutation gets a `/api/v1` route** when a mobile app will need it — same zod validation rules as the action.
+- **Update `openapi.json`** when adding/changing a route.
+
 ## 5. Use / Don't use
 
 | ✅ Use | ❌ Don't use |

@@ -2,7 +2,26 @@
 
 One-sentence purpose: append-only knowledge so agents never re-derive a past fix — check here before debugging.
 Format: `Date · Area · What happened/decision → Fix/rule · Files`. Newest entries go on top.
-Last updated: 2025-09-20
+Last updated: 2025-09-22
+
+## 2025-09-22 — E2E harness + production bugs surfaced
+
+- **E2E harness** — `scripts/_seed_dev_test.mjs` (4 dev users + org + events + PINs via service role; password `DevTest#1234`), `/dev-login` page (404 in prod — real `signInWithPassword` sessions, no auth bypass), `scripts/_e2e_dev_test.mjs` (48 assertions vs live server; idempotent — wipes test state each run). Rule learned: `admin.from().delete()` returns a thenable **without `.catch`** — wrap in try/catch.
+- **Browser client in server actions (real prod bug)** — `engagement.ts`, `reviews.ts`, `hero-boosts.ts` imported `createClient` from `../auth/client` (browser/anon, singleton) → in server actions `auth.uid()` is null → subscribe/follow/review/hero-boost RLS writes silently failed **on web too**. Fixed → `../auth/server`. Rule: server-side files must never import `auth/client`.
+- **`.upsert()` + RLS** — `upsert(onConflict)` emits `ON CONFLICT DO UPDATE` → requires an UPDATE policy; `event_subscriptions`/`organizer_follows` have insert+delete only → every subscribe/follow was rejected. Fix: `ignoreDuplicates: true` (DO NOTHING). Alternative: add UPDATE policies. Prefer ignoreDuplicates for write-once join rows.
+- **pgcrypto schema visibility** — extension lives in `extensions` schema (Supabase convention), so `security definer` fns with `set search_path = public` can't see `digest()` → all `verify_*_pin`/`generate_*_pins` RPCs were broken on DBs built via fix_all. Fix: `set search_path = public, extensions`. (`check_in_ticket_with_pin` survived because it compares plaintext `pin_code`.)
+- **`reject_order` was dangerous** — allowed rejecting CONFIRMED orders (real money!) via a bare status flip, never restored `quantity_sold`, and fired a waitlist offer for a seat that wasn't free. Now: RPC-restricted to `PENDING_VERIFICATION`; `rejectOrder` data fn uses the RPC again.
+- **`offer_waitlist_next` capacity guard** — it offered regardless of stock → phantom offers. Now locks the tier row and returns null unless `quantity - sold - reserved > 0`. Also: PostgREST serializes a `returns table_type` null as `{id:null,...}`, not literal `null`.
+- **GoTrue rate-limit flakiness** — every API route did `auth.getUser()` → `/auth/v1/user` per request; rapid bursts → intermittent 401s. Fix: bearer-identity cache in `getCurrentUser` (keyed by JWT, TTL ≤ token exp — PostgREST still signature-verifies every query, so it's only an identity fast-path).
+
+## 2025-09-21 — Phase M1/M2/M4/M5 (mobile-ready API surface)
+
+- **Bearer auth via AsyncLocalStorage (decision)** — `/api/v1/*` routes wrap handlers in `withApiUser(request, fn)` which stores `Authorization: Bearer <supabase-jwt>` in an ALS context (`shared/auth/api-context.ts`). `createClient()` checks that context first and returns a bearer-scoped supabase-js client (`auth/bearer.ts`) — so every data fn, `getCurrentUser()`, RLS policy, and `auth.uid()` RPC behaves exactly like a cookie session with ZERO refactor of the data layer. Cookie path is the fallback (web unchanged).
+- **Server actions callable from routes** — plain-arg, non-redirecting actions (subscribe/follow/collab/pins/staff/check-in) are invoked directly inside `withApiContext` — the bearer context resolves `getCurrentUser()` inside them. FormData/redirect actions are NOT callable from routes — their orchestration was extracted to `shared/services/orders.ts` (runCheckout/runVerifyPayment/runPaymentFailure/runManualCheckout/runPostponementRefund) shared by both surfaces.
+- **Envelope** — `{ ok: true, data }` | `{ ok: false, error }` via `shared/lib/api.ts` (`apiOk`/`apiError`/`readJson`/`withApiUser`/`withApi`).
+- **sendNotification abstraction** — `shared/notifications.ts`; channels in-app (event_notifications) + push/email/whatsapp stubs. Never throws. All raw `event_notifications` inserts migrated (kyc ×3, collab ×2, waitlist offer, event-update bulk).
+- **api-client seed** — `shared/api/client.ts` (`createOutsiderrClient`), pure TS no next imports → future `packages/api-client` for the RN apps.
+- **pgcrypto gap found via smoke test** — `digest()` missing on incremental DBs (extension was in `schema.sql` but not `fix_all.sql`) → PIN verify RPCs failed. Added `create extension if not exists pgcrypto` to `fix_all.sql`.
 
 ## 2025-09-20 — Phase R (domain-module restructure)
 

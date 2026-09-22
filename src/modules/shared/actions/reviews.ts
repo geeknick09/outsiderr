@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { createClient } from "../auth/client";
+import { createClient } from "../auth/server";
 import { getCurrentUser } from "../auth/auth";
 import { logger } from "../lib/logger";
 
@@ -77,6 +77,18 @@ export async function submitReview(
 
   if (!usedTicket) {
     return { success: false, error: "You must check in at the event before reviewing." };
+  }
+
+  // Pre-check: the RLS insert policy silently swallows the unique constraint
+  // (its `not exists` fires first) — check explicitly for a friendly error.
+  const { data: existing } = await supabase
+    .from("event_reviews")
+    .select("id")
+    .eq("event_id", eventId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (existing) {
+    return { success: false, error: "You have already reviewed this event." };
   }
 
   // Get the organizer_id for this event

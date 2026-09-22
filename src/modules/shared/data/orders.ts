@@ -456,7 +456,7 @@ export async function approveOrder(orderId: string): Promise<void> {
 }
 
 export async function rejectOrder(orderId: string, reason: string): Promise<void> {
-  // Direct Supabase implementation — avoids RPC is_event_staff issues
+  // Security-definer RPC — enforces is_event_staff + PENDING_VERIFICATION-only
   const supabase = await createClient();
 
   // Get the tier_id before rejecting (for waitlist auto-offer)
@@ -466,14 +466,7 @@ export async function rejectOrder(orderId: string, reason: string): Promise<void
     .eq("id", orderId)
     .maybeSingle();
 
-  const { error } = await supabase
-    .from("orders")
-    .update({
-      status: "REJECTED",
-      rejection_reason: reason || null,
-      reviewed_at: new Date().toISOString(),
-    })
-    .eq("id", orderId);
+  const { error } = await supabase.rpc("reject_order", { p_order_id: orderId, p_reason: reason || null });
   if (error) throw new Error(error.message);
 
   // Auto-offer to next waitlisted user if a tier was freed

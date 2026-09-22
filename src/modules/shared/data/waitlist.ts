@@ -95,18 +95,16 @@ export async function autoOfferWaitlist(tierId: string): Promise<void> {
   if (!entry) return; // No one on the waitlist
 
   // Create an in-app notification
-  const { error: notifError } = await supabase
-    .from("event_notifications")
-    .insert({
-      event_id: entry.event_id,
-      user_id: entry.user_id,
+  const { sendNotification } = await import("../notifications");
+  await sendNotification(
+    {
+      userId: entry.user_id,
+      eventId: entry.event_id,
       type: "WAITLIST_OFFER",
       message: "A ticket just became available! You have 24 hours to book before it goes to the next person.",
-    });
-
-  if (notifError) {
-    console.error("autoOfferWaitlist: failed to create notification", notifError);
-  }
+    },
+    supabase,
+  );
 }
 
 /**

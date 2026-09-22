@@ -534,16 +534,18 @@ export async function updateEvent(
       const userIds = [...new Set([...ticketHolderIds, ...subscriberIds])];
 
       if (userIds.length > 0) {
-        const notifications = userIds.flatMap((userId) =>
-          changes.map((change) => ({
-            event_id: eventId,
-            user_id: userId,
-            type: change.type as "CANCELLATION" | "POSTPONEMENT" | "RESCHEDULE" | "WAITLIST_OFFER" | "VENUE_CHANGE" | "CITY_CHANGE" | "TIME_CHANGE",
-            message: change.message,
-          })),
+        const { sendNotifications } = await import("@/modules/shared/server");
+        await sendNotifications(
+          userIds.flatMap((userId) =>
+            changes.map((change) => ({
+              eventId,
+              userId,
+              type: change.type,
+              message: change.message,
+            })),
+          ),
+          supabase,
         );
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await supabase.from("event_notifications").insert(notifications as any);
       }
     }
   }

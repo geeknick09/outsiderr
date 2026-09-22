@@ -34,6 +34,9 @@ export * from "./lib/upload";
 export { createClient } from "./auth/client";
 export * from "./auth/config";
 
+// ---- portable /api/v1 client (pure TS — future packages/api-client) ----
+export * from "./api/client";
+
 // ---- hooks ----
 export * from "./hooks/use-realtime";
 

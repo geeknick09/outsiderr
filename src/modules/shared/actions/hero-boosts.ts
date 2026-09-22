@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "../auth/auth";
 import { activateHeroBoost, cancelHeroBoost, cancelHeroBoostsForEvent, createHeroBoost, getHeroBoostForEvent, submitHeroBoostUtr } from "../data/hero-boosts";
 import { getHeroBoostDurationDays, getHeroBoostPrice } from "../data/platform-settings";
-import { createClient } from "../auth/client";
+import { createClient } from "../auth/server";
 import { getRazorpay, getPublicKeyId, isRazorpayConfigured } from "../lib/razorpay";
 import { verifyRazorpayPaymentSignature } from "../lib/razorpay-verify";
 import { CheckoutSession } from "../lib/types";

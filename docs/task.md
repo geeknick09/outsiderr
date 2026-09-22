@@ -57,10 +57,10 @@ Grouped by domain. Full detail was in `BACKLOG.md` (now superseded); test cases 
 |---|---|---|---|
 | Custom domain + Vercel DNS/SSL | Not started | domain purchase + DNS access | `vercel.json` currently `{}` |
 | Phone + OTP auth | Not started | Supabase phone provider config | replaces email/password |
-| `sendNotification(user,type,data)` abstraction | Not started | — | P11/P12/P13 base |
+| `sendNotification(user,type,data)` abstraction | Done | — | `shared/notifications.ts`; in-app channel live, push/email/whatsapp stubbed |
 | Email/SMS/WhatsApp providers | Not started | provider accounts | behind abstraction |
 | Staging env (E11) | Not started | manual Supabase+Vercel setup | steps preserved below |
-| Vercel cron config | Not started | domain/cron secret | `/api/cron/expire-reservations` (1/min), `/api/cron/backup` |
+| GitHub Actions cron config | Partial | repo secrets `CRON_SECRET` + `APP_URL` | `.github/workflows/cron.yml` — reservations+waitlist `*/5min`, backups daily/weekly, teaser cleanup daily |
 | Production hardening & QA pass | In progress | — | run `docs/reference/test-scenarios.md` |
 
 ## Phase 3 — Post-launch
@@ -92,6 +92,23 @@ Grouped by domain. Full detail was in `BACKLOG.md` (now superseded); test cases 
 
 Scene graph model · experience types beyond events (cyphers/sessions/battles/jams) · artist/rider profiles · Outsider Score reputation · crew-vs-crew · crew content/history · places as first-class objects + discovery · culture feed (scene-linked, NOT generic social) · experience-linked content + clips (+ video embeds, video cards need media pipeline) · scene-based home screen + "Happening Now" · organizer identity types (crew/artist/venue/brand) · Outsiderr Originals · battle mechanics + challenges · follow-everything + participation history · sponsorship/campaign framework · merch & drops · premium organizer SaaS · keep categories narrow (authenticity over scale).
 
+## Phase M — Mobile apps (3 native: Outsiderr / Organizer / Scanner; admin stays web)
+
+**Done — M1/M2/M4/M5 implemented; M3 skipped (email-only auth for now).** Full doc: `docs/mobile.md`.
+
+- **M1 `/api/v1` REST surface (32 routes)** — `src/app/api/v1/*`. Bearer JWT via `withApiUser` (AsyncLocalStorage context → `createClient()` resolves bearer transparently — all data fns/RPCs/`getCurrentUser()` work unchanged); PIN-in-body for scanner/box-office. Envelope `{ ok, data|error }`. Payment/event orchestration extracted to `shared/services/orders.ts` (shared by actions + routes). Full contract in `GET /api/openapi.json`.
+- **M2 `sendNotification()`** — `shared/notifications.ts`, channels `in-app|push|email|whatsapp` (in-app implemented; push/email/whatsapp = adapter stubs). All insert sites migrated. Never throws.
+- **M4 conventions** — `docs/rules.md` §4a.
+- **M5 api client** — `shared/api/client.ts` (`createOutsiderrClient`) — pure TS, RN-portable, seed of `packages/api-client`.
+
+Sequencing when mobile lands: Scanner → Outsiderr → Organizer. React Native/Expo (Capacitor rejected).
+
+**Open follow-ups:**
+- Wire a push provider (`sendNotification` `push` channel resolves subscriptions but doesn't send — needs Expo Push/FCM when apps exist).
+- Razorpay live-payment E2E is unverified — `/checkout` returns "not configured" without keys; verify `create_reserved_order → confirm_razorpay_order → webhook` end-to-end once `rzp_test_` keys are set (staging first).
+- M3 (phone OTP + `outsiderr://` deep-link scheme) deferred — email-only auth for now.
+- Sole-waiter edge: a lone waitlisted user whose offer lapses gets re-queued and immediately re-offered (notification spam each cycle) — cap re-offers or add a permanent `EXPIRED` state if it becomes noisy.
+
 ---
 
 ## Known issues / action required
@@ -99,8 +116,11 @@ Scene graph model · experience types beyond events (cyphers/sessions/battles/ja
 - **Migrations:** all pending SQL lives in `supabase/migrations/fix_all.sql` — run `node scripts/_apply_fix_all.mjs`. Last applied to live DB: 2025-09-20 (includes scanner `staff_email`/`staff_phone`, `organizers.kyc_*`, KYC notification enum values, `event_notifications.event_id` now nullable, `generate_scanner_pins` 4-arg signature — old 2-arg overload was dropped).
 - **Env vars to set:** `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `NEXT_PUBLIC_RAZORPAY_KEY_ID`, `CRON_SECRET`, `SUPABASE_SERVICE_ROLE_KEY` (`.env.example`).
 - **Razorpay webhook:** `https://<domain>/api/razorpay/webhook`, subscribe `payment.captured`, `order.paid`, `payment.failed`, `refund.processed`, `refund.failed`.
-- **Vercel cron:** `GET /api/cron/expire-reservations` w/ `Authorization: Bearer <CRON_SECRET>` every minute. **`GET /api/cron/cleanup-teasers`** (same auth) — run **daily**; deletes teaser videos for ended/cancelled events and clears `events.teaser_video_url`. **`GET /api/cron/expire-waitlist-offers`** (same auth) — run every **5–15 min**; re-queues lapsed 24h waitlist offers to the back and auto-offers the next in line.
+- **Cron — GitHub Actions** (`.github/workflows/cron.yml`, free): needs repo secrets `CRON_SECRET` + `APP_URL`. Jobs (each gated to its own schedule): `expire-reservations` + `expire-waitlist-offers` every 5 min, `backup?type=daily` at 02:00, `cleanup-teasers` at 02:30, `backup?type=weekly` Sun 03:00.
 - **Waitlist FIFO:** `join_waitlist` RPC assigns `position = max(position)+1` under the tier row lock (no collisions under concurrent joins); `requeue_waitlist_entry` sends expired offers to the true end; `offer_waitlist_next` orders by `position, created_at`; booking confirm clears the user's waitlist row.
+- **`pgcrypto` — FIXED & applied (2025-09-22):** was in `schema.sql` but missing from `fix_all.sql`, and Supabase installs it to the `extensions` schema → PIN RPCs' `search_path = public` couldn't see `digest()`. Fix_all now creates the extension and all 4 PIN fns use `search_path = public, extensions`. Applied to live DB.
+- **E2E harness (dev):** `node scripts/_seed_dev_test.mjs` seeds 4 users (`dev.{user,user2,organizer,admin}@outsiderr.test`, pw `DevTest#1234`) + org (KYC approved) + 4 events + tiers + PINs (scanner `123456`, box-office `654321`). `/dev-login` = one-click role login (404 in production). `node scripts/_e2e_dev_test.mjs [baseUrl]` runs 48 assertions end-to-end (idempotent — resets state). Last run: **48/48 green** (auth, free+manual orders, approve/reject, subscribe/follow, waitlist FIFO, scanner check-in, box-office, event lifecycle, burst no-oversell, reviews).
+- **E2E-found bugs fixed (2025-09-22):** (a) `pgcrypto` missing from `fix_all.sql` + installed to `extensions` schema → PIN RPCs' `search_path=public` couldn't see `digest()` — added `, extensions` to the 4 PIN fns' search_path. (b) `engagement.ts`/`reviews.ts`/`hero-boosts.ts` imported the **browser** client in server actions → `auth.uid()` null → subscribe/follow/review/hero-boost inserts were silently broken on web too — switched to `../auth/server`. (c) `.upsert()` on `event_subscriptions`/`organizer_follows` needed an UPDATE policy that doesn't exist → `ignoreDuplicates: true`. (d) `reject_order` allowed rejecting CONFIRMED orders + never restored inventory → restricted to PENDING_VERIFICATION; `rejectOrder` data fn back on the RPC. (e) `offer_waitlist_next` had no capacity check → phantom waitlist offers — added tier-lock + availability check. (f) `getCurrentUser` did a GoTrue roundtrip per API call → rate-limit flakiness — added bearer-identity cache (TTL ≤ token exp).
 - **New column:** `events.teaser_video_url text` (optional organizer teaser, ≤10s, muted-autoplay on the discovery `EventCard`; cleared by `cleanup-teasers` after the event ends). Migration already appended to `fix_all.sql`.
 - `wipe_all.sql` exists for clean resets (seeds commission tiers + auto-promote-first-admin trigger).
 - Pre-existing build warnings (non-blocking): unused vars in `admin/events/page.tsx`, `organizer/events/[id]/page.tsx` (door-staff leftovers), `event-form.tsx`, `ticket-tiers.tsx` (`feeBps`); `useCallback` deps in `analytics-charts.tsx`; Sentry config deprecations.

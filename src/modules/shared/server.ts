@@ -14,6 +14,8 @@ export { createClient } from "./auth/server";
 export { createServiceClient } from "./auth/service";
 export { getCurrentUser } from "./auth/auth";
 export type { CurrentUser } from "./auth/auth";
+export { createBearerClient } from "./auth/bearer";
+export { withApiContext, extractBearerToken, getApiContextToken } from "./auth/api-context";
 
 // ---- data access (all files carry `import "server-only"`) ----
 export * from "./data/boosts";
@@ -34,6 +36,7 @@ export * from "./data/reviews";
 export * from "./data/scanner-pins";
 export * from "./data/tickets";
 export * from "./data/waitlist";
+export * from "./notifications";
 
 // ---- server infra ----
 export * from "./lib/logger";
@@ -42,6 +45,10 @@ export * from "./lib/backup";
 export * from "./lib/cron";
 export * from "./lib/razorpay";
 export * from "./lib/razorpay-verify";
+export * from "./lib/api";
+
+// ---- orchestration services (shared by server actions + /api/v1 routes) ----
+export * from "./services/orders";
 
 // ---- server-only components ----
 export { Navbar } from "./ui/layout/navbar";

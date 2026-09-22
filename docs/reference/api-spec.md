@@ -68,7 +68,7 @@ window has elapsed. Releases reserved inventory back to the tier pool.
 | Runtime | `nodejs` |
 | Auth | Bearer token via `Authorization: Bearer <CRON_SECRET>` header |
 | Security | Timing-safe comparison to prevent timing attacks |
-| Schedule | Every 1 minute (Vercel Cron or external scheduler) |
+| Schedule | Every 5 minutes (GitHub Actions — `.github/workflows/cron.yml`) |
 
 **Responses:**
 

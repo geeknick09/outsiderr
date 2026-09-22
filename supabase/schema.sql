@@ -1008,7 +1008,7 @@ returns table (
 )
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_pin public.scanner_pins;
@@ -1049,7 +1049,7 @@ create or replace function public.generate_scanner_pins(
 returns table (pin_code text, staff_name text)
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_organizer_id uuid;
@@ -1126,7 +1126,7 @@ returns table (
 )
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_pin public.box_office_pins;
@@ -1162,7 +1162,7 @@ create or replace function public.generate_box_office_pins(
 returns table (pin_code text, staff_name text)
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_organizer_id uuid;
@@ -1358,6 +1358,12 @@ begin
   -- Authorization: only event staff (organizer or admin) can reject
   if not public.is_event_staff(v_order.event_id) then
     raise exception 'Not authorised to reject orders for this event';
+  end if;
+
+  -- Reject is for unverified payments only — CONFIRMED orders carry real
+  -- money and must go through the refund flow (not a bare status flip).
+  if v_order.status <> 'PENDING_VERIFICATION' then
+    raise exception 'Only orders awaiting payment verification can be rejected (status is %)', v_order.status;
   end if;
 
   update public.orders
@@ -1711,7 +1717,16 @@ set search_path = public
 as $$
 declare
   v_next public.waitlist;
+  v_tier public.ticket_tiers;
 begin
+  -- Lock the tier row and only offer when a seat is actually free —
+  -- serializes against concurrent bookings; prevents phantom offers.
+  select * into v_tier from public.ticket_tiers where id = p_tier_id for update;
+  if not found then return null; end if;
+  if v_tier.quantity - v_tier.quantity_sold - coalesce(v_tier.quantity_reserved, 0) <= 0 then
+    return null;
+  end if;
+
   select * into v_next
     from public.waitlist
    where tier_id = p_tier_id and status = 'WAITING'

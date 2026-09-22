@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { getCurrentUser } from "@/modules/shared/server";
-import { createClient } from "@/modules/shared/server";
+import { createClient, sendNotification } from "@/modules/shared/server";
 
 export interface KycReviewResult {
   error: string | null;
@@ -62,15 +62,14 @@ export async function approveKycAction(organizerId: string): Promise<KycReviewRe
 
   if (org?.owner_id) {
     // Insert notification
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase.from("event_notifications") as any).insert({
-      user_id: org.owner_id,
-      type: "KYC_APPROVED",
-      message: `Congratulations! Your organizer profile has been approved. You can now publish events and manage your dashboard.`,
-      event_id: null,
-      read: false,
-      created_at: new Date().toISOString(),
-    });
+    await sendNotification(
+      {
+        userId: org.owner_id,
+        type: "KYC_APPROVED",
+        message: `Congratulations! Your organizer profile has been approved. You can now publish events and manage your dashboard.`,
+      },
+      supabase,
+    );
   }
 
   revalidatePath("/admin/kyc", "page");
@@ -121,15 +120,14 @@ export async function rejectKycAction(organizerId: string, note: string): Promis
     .maybeSingle();
 
   if (org?.owner_id) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase.from("event_notifications") as any).insert({
-      user_id: org.owner_id,
-      type: "KYC_REJECTED",
-      message: `Your organizer application was not approved. Reason: ${note.trim()}`,
-      event_id: null,
-      read: false,
-      created_at: new Date().toISOString(),
-    });
+    await sendNotification(
+      {
+        userId: org.owner_id,
+        type: "KYC_REJECTED",
+        message: `Your organizer application was not approved. Reason: ${note.trim()}`,
+      },
+      supabase,
+    );
   }
 
   revalidatePath("/admin/kyc", "page");
@@ -170,15 +168,14 @@ export async function requestClarificationAction(organizerId: string, note: stri
     .maybeSingle();
 
   if (org?.owner_id) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase.from("event_notifications") as any).insert({
-      user_id: org.owner_id,
-      type: "KYC_CLARIFICATION",
-      message: `Before your organizer application can be approved, we need some clarification. An Outsiderr team member will contact you shortly. Note: ${note.trim()}`,
-      event_id: null,
-      read: false,
-      created_at: new Date().toISOString(),
-    });
+    await sendNotification(
+      {
+        userId: org.owner_id,
+        type: "KYC_CLARIFICATION",
+        message: `Before your organizer application can be approved, we need some clarification. An Outsiderr team member will contact you shortly. Note: ${note.trim()}`,
+      },
+      supabase,
+    );
   }
 
   revalidatePath("/admin/kyc", "page");

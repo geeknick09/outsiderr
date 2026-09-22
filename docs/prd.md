@@ -89,7 +89,7 @@ Mainstream event platforms (BookMyShow, District) optimize for search→checkout
 | 4 | Online events (WhatsApp/Zoom/Teams meeting link) | Not started | |
 | 5 | Guest checkout | Not started | |
 | 6 | Event analytics (views, conversion, sales-over-time) | Not started | analytics module |
-| 7 | Cron jobs (venue/event reminders, media cleanup, refund checks) | Partial | only `/api/cron/expire-reservations` + `/api/cron/backup` exist; Vercel cron not configured |
+| 7 | Cron jobs (venue/event reminders, media cleanup, refund checks) | Partial | `expire-reservations`, `expire-waitlist-offers`, `cleanup-teasers`, `backup` exist; scheduled via GitHub Actions (`.github/workflows/cron.yml`) |
 | 8 | Audit log table | Not started | `audit.ts` helper exists, table deferred |
 | 9 | Refund fee-bearer choice + organizer settlement dues | Designed | full spec migrated into task.md Phase 3 |
 | 10 | Data archival (3-month retention), media cleanup | Not started | |

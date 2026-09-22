@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { getCurrentUser } from "../auth/auth";
-import { createClient } from "../auth/client";
+import { createClient } from "../auth/server";
 
 // ================================================================
 // Event Subscriptions ("Update Me")
@@ -35,7 +35,7 @@ export async function subscribeToEventAction(eventId: string): Promise<{ error: 
 
   const { error } = await supabase
     .from("event_subscriptions")
-    .upsert({ event_id: eventId, user_id: user.id }, { onConflict: "event_id,user_id" });
+    .upsert({ event_id: eventId, user_id: user.id }, { onConflict: "event_id,user_id", ignoreDuplicates: true });
 
   if (error) return { error: error.message };
 
@@ -89,7 +89,7 @@ export async function followOrganizerAction(organizerId: string): Promise<{ erro
 
   const { error } = await supabase
     .from("organizer_follows")
-    .upsert({ organizer_id: organizerId, follower_id: user.id }, { onConflict: "organizer_id,follower_id" });
+    .upsert({ organizer_id: organizerId, follower_id: user.id }, { onConflict: "organizer_id,follower_id", ignoreDuplicates: true });
 
   if (error) return { error: error.message };
 
@@ -234,12 +234,16 @@ export async function inviteCollaboratorAction(
     .maybeSingle();
 
   if (invitedOrg?.owner_id && eventDetails?.title) {
-    await supabase.from("event_notifications").insert({
-      event_id: eventId,
-      user_id: invitedOrg.owner_id,
-      type: "COLLAB_INVITE",
-      message: `You've been invited to co-host "${eventDetails.title}".`,
-    });
+    const { sendNotification } = await import("../notifications");
+    await sendNotification(
+      {
+        eventId,
+        userId: invitedOrg.owner_id,
+        type: "COLLAB_INVITE",
+        message: `You've been invited to co-host "${eventDetails.title}".`,
+      },
+      supabase,
+    );
   }
 
   revalidatePath(`/organizer/events/${eventId}`);
@@ -300,12 +304,16 @@ export async function acceptCollaborationAction(
       .maybeSingle();
 
     if (inviterOrg?.owner_id) {
-      await supabase.from("event_notifications").insert({
-        event_id: eventId,
-        user_id: inviterOrg.owner_id,
-        type: "COLLAB_ACCEPTED",
-        message: `${myOrg.name ?? "An organizer"} accepted your collaboration invite for "${eventDetails.title}".`,
-      });
+      const { sendNotification } = await import("../notifications");
+      await sendNotification(
+        {
+          eventId,
+          userId: inviterOrg.owner_id,
+          type: "COLLAB_ACCEPTED",
+          message: `${myOrg.name ?? "An organizer"} accepted your collaboration invite for "${eventDetails.title}".`,
+        },
+        supabase,
+      );
     }
   }
 
