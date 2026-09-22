@@ -125,6 +125,18 @@ Sequencing when mobile lands: Scanner → Outsiderr → Organizer. React Native/
 - `wipe_all.sql` exists for clean resets (seeds commission tiers + auto-promote-first-admin trigger).
 - Pre-existing build warnings (non-blocking): unused vars in `admin/events/page.tsx`, `organizer/events/[id]/page.tsx` (door-staff leftovers), `event-form.tsx`, `ticket-tiers.tsx` (`feeBps`); `useCallback` deps in `analytics-charts.tsx`; Sentry config deprecations.
 
+## Production launch checklist (outsiderr.in)
+
+1. **Vercel** — New Project → import `geeknick09/outsiderr` → set env vars (below) → Deploy. `vercel.json` stays `{}`; domain already in `serverActions.allowedOrigins`.
+2. **Domain** — Vercel → Domains → add `outsiderr.in` + `www.outsiderr.in`. DNS at registrar: `A @ → 76.76.21.21`, `CNAME www → cname.vercel-dns.com`.
+3. **Env vars (Vercel Production):** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_APP_URL=https://outsiderr.in`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `NEXT_PUBLIC_RAZORPAY_KEY_ID`, `CRON_SECRET`, `SENTRY_DSN`/`NEXT_PUBLIC_SENTRY_DSN` (optional). (`SUPABASE_DB_PASSWORD` is script-only — not needed.)
+4. **Supabase** — Dashboard → Authentication → URL Configuration: Site URL `https://outsiderr.in`; add redirect URLs `https://outsiderr.in/**` + `https://www.outsiderr.in/**` (keep `http://localhost:3000/**` for dev). Google OAuth callback stays `https://<project>.supabase.co/auth/v1/callback` — no Google-side change.
+5. **Razorpay** — needs live keys (`rzp_live_*`, requires activated/KYC'd Razorpay account). Webhook → `https://outsiderr.in/api/razorpay/webhook`, events: `payment.captured`, `order.paid`, `payment.failed`, `refund.processed`, `refund.failed`; secret = `RAZORPAY_WEBHOOK_SECRET`.
+6. **GitHub repo secrets** — `CRON_SECRET` (same value as Vercel) + `APP_URL=https://outsiderr.in` → cron jobs go live (`.github/workflows/cron.yml`).
+7. **First admin** — after your real account signs up once: `update profiles set is_admin = true where id = '<your-user-id>';`
+8. **Cleanup** — DEVTEST seed data lives in the prod DB (4 users, 4 events, 2 PINs); remove before public launch or leave — they're clearly labeled.
+9. **Post-deploy smoke** — `GET /api/health` → 200 · magic-link login roundtrip · one real checkout (small amount) → ticket in wallet · `workflow_dispatch` the cron once → check runs green.
+
 ## Staging setup (E11) — summary
 
 Create `outsiderr-staging` Supabase project (same region) → run `schema.sql` + `fix_all.sql` → seed (`scripts/reseed.mjs` or manual) → Vercel Preview env vars pointing at staging + `rzp_test_` Razorpay keys → test webhook + separate `CRON_SECRET` → verify end-to-end → document promote path (merge→main→deploy→migrate prod).
