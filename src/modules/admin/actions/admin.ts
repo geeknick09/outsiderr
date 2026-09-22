@@ -10,7 +10,7 @@ import { updateSlotPrice } from "@/modules/shared/server";
 import { approveBoost, rejectBoost } from "@/modules/shared/server";
 import { setClubVerified } from "@/modules/shared/server";
 import { approveOrder, rejectOrder } from "@/modules/shared/server";
-import { createClient } from "@/modules/shared/server";
+import { createClient, createServiceClient } from "@/modules/shared/server";
 import { isEventReadOnly } from "@/modules/shared";
 import type { EventStatus } from "@/modules/shared";
 
@@ -355,29 +355,35 @@ export async function adminInitiateRefundAction(
     };
   }
 
-  // Create refund record
-  await supabase.from("refunds").insert({
+  // Create refund record — service client: refunds insert policy is
+  // owner-only + the ledger has no user insert policy at all.
+  const service = createServiceClient();
+  const { error: refundInsertError } = await service.from("refunds").insert({
     order_id: orderId,
     event_id: order.event_id,
     user_id: order.user_id,
     amount_paise: refundAmount,
     platform_fee_paise: 0,
-    status: "PENDING",
+    status: "INITIATED",
     reason: reason ?? "Admin initiated refund",
     initiated_at: new Date().toISOString(),
+    initiated_by: user.id,
     razorpay_payment_id: order.razorpay_payment_id,
     razorpay_refund_id: razorpayRefundId,
     refund_type: refundAmount === order.total_paise ? "FULL" : "PARTIAL",
   });
+  if (refundInsertError) {
+    logger.error({ orderId, error: refundInsertError.message }, "refund record insert failed — Razorpay already moved money, reconcile manually");
+  }
 
   // Update order status to REFUNDED (for full refunds)
   if (refundAmount === order.total_paise) {
-    await supabase
+    await service
       .from("orders")
       .update({ status: "REFUNDED" })
       .eq("id", orderId);
     // Void tickets
-    await supabase
+    await service
       .from("tickets")
       .update({ status: "CANCELLED" })
       .eq("order_id", orderId);
@@ -388,7 +394,7 @@ export async function adminInitiateRefundAction(
 
   // Insert payment_ledger REFUND entry
   try {
-    await supabase.from("payment_ledger").insert({
+    await service.from("payment_ledger").insert({
       order_id: orderId,
       event_id: order.event_id,
       organizer_id: null,
@@ -435,7 +441,7 @@ export async function adminRecordPayoutAction(
   const { createClient } = await import("@/modules/shared/server");
   const supabase = await createClient();
 
-  const { error } = await supabase.from("payout_records").insert({
+  const { error } = await createServiceClient().from("payout_records").insert({
     organizer_id: organizerId,
     event_id: eventId ?? null,
     amount_paise: amountPaise,
@@ -451,8 +457,8 @@ export async function adminRecordPayoutAction(
     return { success: false, error: error.message };
   }
 
-  // Insert ledger entry
-  await supabase.from("payment_ledger").insert({
+  // Insert ledger entry — service client (no user insert policy on payment_ledger)
+  await createServiceClient().from("payment_ledger").insert({
     order_id: null,
     organizer_id: organizerId,
     event_id: eventId ?? null,

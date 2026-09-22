@@ -32,7 +32,30 @@ const createSchema = z.object({
   agreedToTerms: z.boolean().refine((v) => v === true, "You must accept the organizer terms."),
 });
 
-const updateSchema = createSchema.partial().omit({ agreedToTerms: true });
+const updateSchema = z.object({
+  name: z.string().min(2, "Organizer name is required.").max(100).optional(),
+  bio: z.string().max(2000).optional(),
+  description: z.string().max(5000).optional(),
+  organizerIntent: z.string().max(1000).optional(),
+  upiId: z.string().min(3).max(100).optional(),
+  avatarUrl: z.string().url().optional().nullable(),
+  coverUrl: z.string().url().optional().nullable(),
+  instagramUrl: z.string().optional().nullable(),
+  youtubeUrl: z.string().optional().nullable(),
+  xUrl: z.string().optional().nullable(),
+  facebookUrl: z.string().optional().nullable(),
+  linkedinUrl: z.string().optional().nullable(),
+  panNumber: z.string().max(20).optional(),
+  panName: z.string().max(200).optional(),
+  panDocumentUrl: z.string().url().optional().nullable(),
+  gstNumber: z.string().max(20).optional(),
+  gstBusinessName: z.string().max(200).optional(),
+  bankAccountNumber: z.string().max(30).optional(),
+  bankIfsc: z.string().max(15).optional(),
+  bankAccountName: z.string().max(200).optional(),
+  bankAccountType: z.string().max(20).optional(),
+  bankDocumentUrl: z.string().url().optional().nullable(),
+});
 
 /**
  * POST /api/v1/organizer — create an organizer profile (KYC submission).
@@ -76,30 +99,9 @@ export async function PATCH(request: Request) {
     if ("response" in parsed) return parsed.response;
 
     try {
-      await updateOrganizerProfile(user, {
-        name: parsed.data.name ?? "",
-        bio: parsed.data.bio ?? "",
-        description: parsed.data.description,
-        organizerIntent: parsed.data.organizerIntent,
-        upiId: parsed.data.upiId ?? "",
-        avatarUrl: parsed.data.avatarUrl ?? null,
-        coverUrl: parsed.data.coverUrl ?? null,
-        instagramUrl: parsed.data.instagramUrl ?? null,
-        youtubeUrl: parsed.data.youtubeUrl ?? null,
-        xUrl: parsed.data.xUrl ?? null,
-        facebookUrl: parsed.data.facebookUrl ?? null,
-        linkedinUrl: parsed.data.linkedinUrl ?? null,
-        panNumber: parsed.data.panNumber,
-        panName: parsed.data.panName,
-        panDocumentUrl: parsed.data.panDocumentUrl ?? null,
-        gstNumber: parsed.data.gstNumber,
-        gstBusinessName: parsed.data.gstBusinessName,
-        bankAccountNumber: parsed.data.bankAccountNumber,
-        bankIfsc: parsed.data.bankIfsc,
-        bankAccountName: parsed.data.bankAccountName,
-        bankAccountType: parsed.data.bankAccountType,
-        bankDocumentUrl: parsed.data.bankDocumentUrl ?? null,
-      });
+      // Partial update: only defined fields are written — omitted fields keep
+      // their existing values (prevents wiping name/upiId on partial PATCH).
+      await updateOrganizerProfile(user, parsed.data);
       revalidatePath("/organizer");
       return apiOk({ updated: true });
     } catch (error) {

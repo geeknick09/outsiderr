@@ -693,7 +693,9 @@ export async function setRazorpayOrderId(
   razorpayOrderId: string,
   client?: SupabaseClient,
 ): Promise<void> {
-  const supabase = client ?? (await createClient());
+  // Service role: the RPC is revoked from anon/authenticated (it can relink
+  // orders to arbitrary Razorpay ids). Callers must verify upstream.
+  const supabase = client ?? createServiceClient();
   const { error } = await supabase.rpc("set_razorpay_order_id", {
     p_order_id: orderId,
     p_razorpay_order_id: razorpayOrderId,
@@ -713,7 +715,9 @@ export async function confirmRazorpayOrder(
   paymentMethod: string | null,
   client?: SupabaseClient,
 ): Promise<void> {
-  const supabase = client ?? (await createClient());
+  // Service role: the RPC is revoked from anon/authenticated — it mints
+  // tickets, so it must only run after signature/webhook verification.
+  const supabase = client ?? createServiceClient();
   const { error } = await supabase.rpc("confirm_razorpay_order", {
     p_order_id: orderId,
     p_razorpay_payment_id: razorpayPaymentId,
@@ -731,7 +735,8 @@ export async function failRazorpayOrder(
   orderId: string,
   client?: SupabaseClient,
 ): Promise<void> {
-  const supabase = client ?? (await createClient());
+  // Service role: revoked from anon/authenticated (griefing vector).
+  const supabase = client ?? createServiceClient();
   const { error } = await supabase.rpc("fail_razorpay_order", { p_order_id: orderId });
   if (error) throw new Error(error.message || "Failed to mark order as failed.");
 }

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "../auth/server";
+import { createServiceClient } from "../auth/service";
 import type { CurrentUser } from "../auth/auth";
 import type { Boost, BoostSlotPrice, BoostStatus, BoostWithEvent } from "../lib/types";
 
@@ -73,14 +74,25 @@ export async function requestBoost(
   _user: CurrentUser,
   input: RequestBoostInput,
 ): Promise<Boost> {
+  const supabase = await createClient();
+
+  // Verify the event belongs to this organizer — the insert policy only
+  // checks organizer_id, so a caller could otherwise boost anyone's event.
+  const { data: eventRow } = await supabase
+    .from("events")
+    .select("id")
+    .eq("id", input.eventId)
+    .eq("organizer_id", input.organizerId)
+    .maybeSingle();
+  if (!eventRow) throw new Error("Event not found or not owned by you.");
+
   // Check slot is free before creating
   const occupied = await listOccupiedSlots();
   if (occupied.includes(input.slot)) {
     throw new Error("This slot is already taken. Pick another slot.");
   }
 
-  const supabase = await createClient();
-  // Insert boost as ACTIVE (auto-approved)
+  // Insert as PENDING — admin verifies the UTR payment before it goes live.
   const { data, error } = await supabase
     .from("boosts")
     .insert({
@@ -88,17 +100,11 @@ export async function requestBoost(
       slot: input.slot, amount_paid_paise: input.amountPaidPaise,
       starts_at: input.startsAt, ends_at: input.endsAt,
       utr_reference: input.utrReference,
-      status: "ACTIVE",
-      reviewed_at: new Date().toISOString(),
+      status: "PENDING",
     })
     .select("*")
     .single();
   if (error) throw error;
-  // Mark the event as featured
-  await supabase
-    .from("events")
-    .update({ is_featured: true })
-    .eq("id", input.eventId);
   return toBoost(data);
 }
 
@@ -123,7 +129,9 @@ export async function listPendingBoosts(): Promise<BoostWithEvent[]> {
 }
 
 export async function approveBoost(boostId: string): Promise<void> {
-  const supabase = await createClient();
+  // Service client — admin-verified upstream; also flips is_featured which
+  // is a privileged column (revoked from authenticated UPDATE).
+  const supabase = createServiceClient();
   // Set boost to ACTIVE
   const { data: boost } = await supabase
     .from("boosts")
@@ -141,7 +149,7 @@ export async function approveBoost(boostId: string): Promise<void> {
 }
 
 export async function rejectBoost(boostId: string): Promise<void> {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   await supabase
     .from("boosts")
     .update({ status: "REJECTED", reviewed_at: new Date().toISOString() })

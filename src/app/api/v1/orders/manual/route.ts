@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { apiError, apiOk, readJson, runManualCheckout, withApiUser } from "@/modules/shared/server";
+import { MAX_TICKETS_PER_ORDER } from "@/modules/shared";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,7 +9,7 @@ export const dynamic = "force-dynamic";
 const bodySchema = z.object({
   eventId: z.string().uuid(),
   tierId: z.string().uuid(),
-  quantity: z.number().int().min(1).max(50),
+  quantity: z.number().int().min(1).max(MAX_TICKETS_PER_ORDER),
   isFree: z.boolean().default(false),
   buyerName: z.string().max(200).optional().nullable(),
   buyerPhone: z.string().max(20).optional().nullable(),
@@ -29,6 +30,6 @@ export async function POST(request: Request) {
 
     const result = await runManualCheckout(user, parsed.data);
     if (result.error) return apiError(result.error, 400);
-    return apiOk({ submitted: true });
+    return apiOk({ submitted: true, orderId: result.orderId ?? null });
   });
 }

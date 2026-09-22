@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { getCurrentUser } from "@/modules/shared/server";
-import { createClient, sendNotification } from "@/modules/shared/server";
+import { createClient, createServiceClient, sendNotification } from "@/modules/shared/server";
 
 export interface KycReviewResult {
   error: string | null;
@@ -38,10 +38,11 @@ export async function approveKycAction(organizerId: string): Promise<KycReviewRe
   }
 
   const supabase = await createClient();
+  const service = createServiceClient();
 
   // Update organizer KYC status
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: updateError } = await (supabase.from("organizers") as any)
+  const { error: updateError } = await (service.from("organizers") as any)
     .update({
       kyc_status: "APPROVED",
       kyc_reviewed_at: new Date().toISOString(),
@@ -91,6 +92,7 @@ export async function rejectKycAction(organizerId: string, note: string): Promis
   if (!note.trim()) return { error: "Please provide a reason for rejection.", success: false };
 
   const supabase = await createClient();
+  const service = createServiceClient();
 
   const { data: organizer } = await supabase
     .from("organizers")
@@ -101,7 +103,7 @@ export async function rejectKycAction(organizerId: string, note: string): Promis
   const nextRejectionCount = Math.max(0, Number(organizer?.rejection_count ?? 0) + 1);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: updateError } = await (supabase.from("organizers") as any)
+  const { error: updateError } = await (service.from("organizers") as any)
     .update({
       kyc_status: "REJECTED",
       kyc_reviewed_at: new Date().toISOString(),
@@ -149,9 +151,10 @@ export async function requestClarificationAction(organizerId: string, note: stri
   if (!note.trim()) return { error: "Please provide what clarification is needed.", success: false };
 
   const supabase = await createClient();
+  const service = createServiceClient();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: updateError } = await (supabase.from("organizers") as any)
+  const { error: updateError } = await (service.from("organizers") as any)
     .update({
       kyc_status: "CLARIFICATION_NEEDED",
       kyc_reviewed_at: new Date().toISOString(),

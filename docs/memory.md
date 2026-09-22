@@ -94,3 +94,18 @@ Last updated: 2025-09-22
 - Dynamic `import("@/components/...")` string paths don't get caught by simple import rewrites — grep `import(` after moves.
 - Supabase `create or replace function` never drops the old signature (see overload trap above).
 - `.env` keys for scripts: `SUPABASE_DB_PASSWORD`, `SUPABASE_DB_URL` — NOT `DATABASE_URL`.
+
+## QA hardening pass (STEP 21-26 in fix_all.sql + schema.sql)
+
+- **Column-level privileges replace broad UPDATE grants** — `profiles`, `organizers`, `events` now grant UPDATE only on safe columns; privileged writes (`is_admin`, `kyc_status`, `verified`, `rejection_count`, `status`, `organizer_id`) go through security-definer RPCs (`submit_kyc`, `set_event_status`) or service client (admin paths, after `requireAdmin`).
+- **`organizers` base table is no longer public** — public reads go through `organizers_public` view (includes `upi_id` for manual-checkout display; excludes PAN/bank/KYC). Owner/admin read the base table via policies.
+- **Money fields are recomputed server-side** — `create_paid_order`/`create_reserved_order` ignore caller-supplied paise values and compute from tier price + event fee config (`commission_bps`, `convenience_fee_bps`). Never trust client money params.
+- **Priv-RPC revocations** — `confirm_razorpay_order`, `fail_razorpay_order`, `create_walkin_order`, `update_walkin_order`, `approve_order`/`reject_order` + others are service-role-only; `approve_order`/`reject_order` keep `authenticated` grant but enforce `is_event_manager` inside. Legit callers in `data/orders.ts` etc. use `createServiceClient()` AFTER app-level authz (signature/PIN verified first).
+- **`is_event_manager` vs `is_event_staff`** — manager = owner/admin/FULL collaborator; staff (door) can't approve/reject orders or change event state.
+- **RLS gotcha — unqualified outer refs**: `exists (select 1 from organizers o where o.id = owner_id ...)` resolves `owner_id` to `o.owner_id` when the inner table has that column — silently wrong (broke clubs insert for everyone). Always qualify outer refs (`clubs.owner_id`).
+- **`sendNotification` inserts via service client** — cross-user notifications (invitee→inviter) fail the organizer-only insert policy otherwise; callers authorize before calling. Skips null `user_id` (walk-in orders).
+- **Postgres enum drift** — `event_notification_type` was missing `ORDER_CONFIRMED`/`ORDER_REJECTED`/`HERO_BOOST` → approve/reject RPCs rolled back at the notify step. Add enum values when adding notification types.
+- **plpgsql OUT params shadow columns** — `RETURNS TABLE (order_id ...)` makes `where order_id = ...` ambiguous; qualify (`t.order_id`).
+- **`create or replace` keeps old overloads** — always `drop function` the old signature first.
+- **approve_order mints tickets** (`generate_series` + sha256 qr_hash) — a refactor once dropped this; regression caught by E2E `tickets=0` check.
+- **E2E fixtures** — seed/e2e resolve DEVTEST events by `ilike 'DEVTEST%'` oldest-first (J1 renames the event); reset must delete `payment_ledger`+`refunds` before `orders` (FK).

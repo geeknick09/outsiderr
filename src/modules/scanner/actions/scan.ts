@@ -10,6 +10,8 @@ export async function verifyScannerPinAction(
 ): Promise<{
   error: string | null;
   success: boolean;
+  /** "RATE_LIMITED" when the PIN-verify limit tripped — routes map to 429. */
+  code?: "RATE_LIMITED";
   event?: {
     id: string;
     title: string;
@@ -30,7 +32,7 @@ export async function verifyScannerPinAction(
   const identifier = `pin-verify:${getRateLimitIdentifier(h)}`;
   const rl = rateLimit(identifier, RATE_LIMITS.PIN_VERIFY);
   if (rl.limited) {
-    return { error: "Too many attempts. Please try again in a minute.", success: false };
+    return { error: "Too many attempts. Please try again in a minute.", success: false, code: "RATE_LIMITED" };
   }
 
   const supabase = await createClient();

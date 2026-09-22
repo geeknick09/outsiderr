@@ -58,10 +58,10 @@ async function main() {
   console.log(`E2E vs ${BASE} · ${new URL(SB_URL).host}\n`);
 
   const U = {};
-  for (const [k, email] of Object.entries({ u1: "dev.user@outsiderr.test", u2: "dev.user2@outsiderr.test", org: "dev.organizer@outsiderr.test", adm: "dev.admin@outsiderr.test" })) {
+  for (const [k, email] of Object.entries({ u1: "dev.user@outsiderr.test", u2: "dev.user2@outsiderr.test", org: "dev.organizer@outsiderr.test", org2: "dev.organizer2@outsiderr.test", adm: "dev.admin@outsiderr.test" })) {
     U[k] = await signIn(email);
   }
-  report("A1. all 4 roles sign in (real JWT)", true);
+  report("A1. all 5 roles sign in (real JWT)", true);
 
   const me = await api("/me", { method: "GET", token: U.u1.token });
   report("A2. GET /me returns user", me.status === 200 && me.ok && me.data?.user?.email === "dev.user@outsiderr.test", JSON.stringify(me.data?.user?.email ?? me.error));
@@ -69,7 +69,7 @@ async function main() {
   report("A3. /me no auth → 401", meNoAuth.status === 401 && meNoAuth.ok === false);
 
   // ── fixtures + reset ──────────────────────────────────────────────
-  const { data: ev } = await admin.from("events").select("id,title,organizer_id").ilike("title", "DEVTEST%");
+  const { data: ev } = await admin.from("events").select("id,title,organizer_id,created_at").ilike("title", "DEVTEST%").order("created_at");
   const paid = ev.find((e) => e.title.startsWith("DEVTEST Paid Jam"));
   const free = ev.find((e) => e.title.startsWith("DEVTEST Free Session"));
   const tiny = ev.find((e) => e.title.startsWith("DEVTEST Tiny Event"));
@@ -86,17 +86,30 @@ async function main() {
 
   // reset: wipe all test-generated state on the seeded events/users
   const testEventIds = [paid.id, free.id, tiny.id, draft.id];
-  const testUids = [U.u1.uid, U.u2.uid, U.org.uid, U.adm.uid];
+  const testUids = [U.u1.uid, U.u2.uid, U.org.uid, U.org2.uid, U.adm.uid];
   const testOrderIds = (await admin.from("orders").select("id").in("event_id", testEventIds)).data?.map((o) => o.id) ?? [];
   if (testOrderIds.length) await admin.from("tickets").delete().in("order_id", testOrderIds);
   try { await admin.from("tickets").delete().in("event_id", testEventIds).is("order_id", null); } catch {}
-  await admin.from("orders").delete().in("event_id", testEventIds);
+  // ledger + refunds FK-reference orders — clear them first or the delete silently no-ops
+  try { await admin.from("payment_ledger").delete().in("event_id", testEventIds); } catch {}
+  try { if (testOrderIds.length) await admin.from("payment_ledger").delete().in("order_id", testOrderIds); } catch {}
+  try { await admin.from("refunds").delete().in("event_id", testEventIds); } catch {}
+  const ordDel = await admin.from("orders").delete().in("event_id", testEventIds);
+  if (ordDel.error) console.log("reset: orders delete failed:", ordDel.error.message);
   await admin.from("waitlist").delete().in("event_id", testEventIds);
   await admin.from("event_subscriptions").delete().in("event_id", testEventIds);
   await admin.from("organizer_follows").delete().eq("organizer_id", paid.organizer_id);
   await admin.from("event_notifications").delete().in("event_id", testEventIds);
   await admin.from("event_notifications").delete().in("user_id", testUids);
   try { await admin.from("event_reviews").delete().in("event_id", testEventIds); } catch {}
+  try { await admin.from("event_collaborators").delete().in("event_id", testEventIds); } catch {}
+  try {
+    const clubIds = (await admin.from("clubs").select("id").ilike("name", "DEVTEST%")).data?.map((c) => c.id) ?? [];
+    if (clubIds.length) {
+      await admin.from("club_members").delete().in("club_id", clubIds);
+      await admin.from("clubs").delete().in("id", clubIds);
+    }
+  } catch {}
   await admin.from("ticket_tiers").update({ quantity_sold: 0, quantity_reserved: 0 }).in("event_id", testEventIds);
   await admin.from("events").update({ status: "PUBLISHED", title: "DEVTEST Paid Jam" }).eq("id", paid.id);
   await admin.from("events").update({ status: "PUBLISHED" }).eq("id", free.id);
@@ -208,6 +221,19 @@ async function main() {
     report("G5. freed seat → waitlist OFFERED (FIFO)", offer?.user_id === U.adm.uid && wlAfter?.status === "OFFERED", `status=${wlAfter?.status}`);
     const expiryOk = wlAfter?.expires_at && (new Date(wlAfter.expires_at) - new Date(wlAfter.offered_at)) === 86400000;
     report("G6. offer carries 24h expiry window", expiryOk === true, `expires=${wlAfter?.expires_at}`);
+
+    // ── waitlist FIFO ordering (2 waiters) ──
+    const { data: wl2 } = await userClient(U.u2.token).rpc("join_waitlist", { p_event_id: tiny.id, p_tier_id: tinyTier.id });
+    report("G7. second waiter joins → position 2", wl2?.position === 2 && wl2?.status === "WAITING", `pos=${wl2?.position} status=${wl2?.status}`);
+    // expire u3's offer → requeue to true back of queue
+    await admin.from("waitlist").update({ expires_at: new Date(Date.now() - 3600e3).toISOString() }).eq("id", wl.id);
+    // requeue_waitlist_entry is service-role only after the RPC lockdown
+    await admin.rpc("requeue_waitlist_entry", { p_entry_id: wl.id });
+    const u3After = (await admin.from("waitlist").select("status,position").eq("id", wl.id).single()).data;
+    report("G8. lapsed offer re-queued to back", u3After?.status === "WAITING" && u3After?.position > wl2.position, `u3 pos=${u3After?.position}`);
+    // next offer goes to u2 (earlier position), not the re-queued u3
+    const { data: offer2 } = await orgC.rpc("offer_waitlist_next", { p_tier_id: tinyTier.id });
+    report("G9. freed seat offers earlier waiter (FIFO)", offer2?.user_id === U.u2.uid && offer2?.status === "OFFERED", `offered=${offer2?.user_id}`);
   } else {
     report("G5-G6. no confirmed order to free", false);
   }
@@ -298,6 +324,118 @@ async function main() {
   report("L1. review by checked-in user", rev.ok === true, JSON.stringify(rev.error ?? rev.data));
   const revBad = await api("/reviews", { token: U.u1.token, body: { eventId: paid.id, rating: 5 } });
   report("L2. review by non-attendee blocked", revBad.ok === false, JSON.stringify(revBad.error ?? ""));
+  const revDup = await api("/reviews", { token: U.u2.token, body: { eventId: paid.id, rating: 4 } });
+  report("L3. duplicate review → friendly error", revDup.ok === false && /already reviewed/i.test(revDup.error ?? ""), JSON.stringify(revDup.error ?? ""));
+  const revRange = await api("/reviews", { token: U.u2.token, body: { eventId: paid.id, rating: 9 } });
+  report("L4. rating out of range → 400", revRange.status === 400 && revRange.ok === false);
+
+  // ── M: input validation / envelope ────────────────────────────────
+  const badJson = await fetch(`${BASE}/api/v1/checkout`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${U.u1.token}` }, body: "{not json" });
+  const badJsonRes = await badJson.json();
+  report("M1. invalid JSON → 400 envelope", badJson.status === 400 && badJsonRes.ok === false && typeof badJsonRes.error === "string");
+  const badUuid = await api("/orders/manual", { token: U.u1.token, body: { eventId: "not-a-uuid", tierId: freeTier.id, quantity: 1 } });
+  report("M2. bad uuid → 400", badUuid.status === 400 && badUuid.ok === false);
+  const missingField = await api("/orders/manual", { token: U.u1.token, body: { eventId: free.id } });
+  report("M3. missing required field → 400", missingField.status === 400 && missingField.ok === false);
+  const negQty = await api("/orders/manual", { token: U.u1.token, body: { eventId: free.id, tierId: freeTier.id, quantity: -3, isFree: true } });
+  report("M4. negative quantity rejected", negQty.ok === false, JSON.stringify(negQty.error ?? ""));
+  const createAsUser = await api("/events", { token: U.u1.token, body: { title: "x", startsAt: new Date(Date.now() + 864e5).toISOString() } });
+  report("M5. non-organizer create event blocked", createAsUser.ok === false, JSON.stringify(createAsUser.error ?? ""));
+
+  // ── N: event create via API ───────────────────────────────────────
+  const created = await api("/events", { token: U.org.token, body: {
+    title: "DEVTEST API-Created Event", description: "via api", venueName: "V", venueAddress: "A",
+    googleMapsLink: "https://maps.google.com/?q=x", startsAt: new Date(Date.now() + 9 * 864e5).toISOString(),
+    endsAt: new Date(Date.now() + 9.25 * 864e5).toISOString(), pricingMode: "PAID",
+    tiers: [{ name: "GA", pricePaise: 25000, quantity: 10, perks: [] }], isDraft: true,
+  } });
+  const createdId = created.data?.eventId;
+  const createdRow = createdId ? (await admin.from("events").select("status").eq("id", createdId).single()).data : null;
+  report("N1. organizer creates draft event via API", created.ok === true && createdRow?.status === "DRAFT", `id=${createdId} status=${createdRow?.status}`);
+  const createdNoTitle = await api("/events", { token: U.org.token, body: { isDraft: true } });
+  report("N2. create without title → 400", createdNoTitle.status === 400 && createdNoTitle.ok === false);
+  if (createdId) {
+    await admin.from("ticket_tiers").delete().eq("event_id", createdId);
+    await admin.from("events").delete().eq("id", createdId);
+  }
+
+  // ── O: money math verification ────────────────────────────────────
+  const paidEventFull = (await admin.from("events").select("commission_bps,convenience_fee_bps,commission_enabled,convenience_fee_enabled").eq("id", paid.id).single()).data;
+  const moFull = (await admin.from("orders").select("*").eq("id", mo.id).single()).data;
+  if (moFull && paidEventFull) {
+    const expCommission = Math.round(moFull.subtotal_paise * (paidEventFull.commission_enabled ? paidEventFull.commission_bps : 0) / 10000);
+    const expConv = Math.round(moFull.subtotal_paise * (paidEventFull.convenience_fee_enabled ? paidEventFull.convenience_fee_bps : 0) / 10000);
+    const mathOk =
+      moFull.subtotal_paise === moFull.unit_price_paise * moFull.quantity &&
+      moFull.commission_paise === expCommission &&
+      moFull.convenience_fee_paise === expConv &&
+      moFull.platform_fee_paise === moFull.commission_paise + moFull.convenience_fee_paise &&
+      moFull.total_paise === moFull.subtotal_paise + moFull.convenience_fee_paise &&
+      moFull.organizer_payout_paise === moFull.subtotal_paise - moFull.commission_paise;
+    report("O1. order money math (bps formulas)", mathOk, `subtotal=${moFull.subtotal_paise} comm=${moFull.commission_paise} exp=${expCommission} conv=${moFull.convenience_fee_paise} total=${moFull.total_paise} payout=${moFull.organizer_payout_paise}`);
+  } else {
+    report("O1. order money math", false, "order/event row missing");
+  }
+
+  // ── P: cancel event with confirmed order → refund/void/restore ────
+  const { data: cancelEv } = await admin.from("events").insert({
+    organizer_id: paid.organizer_id, title: `DEVTEST Cancel ${Date.now()}`, description: "c",
+    category: "JAM_GIG", categories: ["JAM_GIG"], city: "KOLKATA", venue_name: "V", venue_address: "",
+    google_maps_link: "https://maps.google.com/?q=x", starts_at: new Date(Date.now() + 7 * 864e5).toISOString(),
+    ends_at: new Date(Date.now() + 7.25 * 864e5).toISOString(), pricing_mode: "PAID", status: "PUBLISHED",
+  }).select("id").single();
+  const { data: cancelTier } = await admin.from("ticket_tiers").insert({ event_id: cancelEv.id, name: "GA", price_paise: 50000, quantity: 5, perks: [] }).select("id").single();
+  const cOrder = await api("/orders/manual", { token: U.u2.token, body: { eventId: cancelEv.id, tierId: cancelTier.id, quantity: 1, isFree: false, buyerName: "Cancel Victim", buyerPhone: "+919000000099" } });
+  const cOrderRow = (await getOrders(cancelEv.id)).pop();
+  if (cOrderRow) await api(`/orders/${cOrderRow.id}/approve`, { token: U.org.token });
+  const cancelRes = await api(`/events/${cancelEv.id}/cancel`, { token: U.org.token, body: { reason: "E2E cancel test" } });
+  const cancelEvAfter = (await admin.from("events").select("status").eq("id", cancelEv.id).single()).data;
+  const cOrderAfter = cOrderRow ? (await admin.from("orders").select("status").eq("id", cOrderRow.id).single()).data : null;
+  const cTicketAfter = cOrderRow ? (await admin.from("tickets").select("status").eq("order_id", cOrderRow.id).maybeSingle()).data : null;
+  const cancelTierAfter = await getTier(cancelTier.id);
+  report("P1. cancel → event CANCELLED", cancelRes.ok === true && cancelEvAfter?.status === "CANCELLED", `status=${cancelEvAfter?.status} err=${cancelRes.error ?? ""}`);
+  report("P2. cancel → order refunded/cancelled", ["REFUNDED", "CANCELLED"].includes(cOrderAfter?.status), `order=${cOrderAfter?.status}`);
+  report("P3. cancel → ticket voided", ["VOID", "CANCELLED"].includes(cTicketAfter?.status), `ticket=${cTicketAfter?.status}`);
+  report("P4. cancel → inventory restored", cancelTierAfter.quantity_sold === 0, `sold=${cancelTierAfter.quantity_sold}`);
+  // cleanup cancel fixtures
+  await admin.from("tickets").delete().eq("event_id", cancelEv.id);
+  await admin.from("orders").delete().eq("event_id", cancelEv.id);
+  try { await admin.from("payment_ledger").delete().eq("event_id", cancelEv.id); } catch {}
+  await admin.from("ticket_tiers").delete().eq("event_id", cancelEv.id);
+  await admin.from("events").delete().eq("id", cancelEv.id);
+
+  // ── Q: collab invite → accept ─────────────────────────────────────
+  const org2Row = (await admin.from("organizers").select("id").eq("owner_id", U.org2.uid).maybeSingle()).data;
+  if (org2Row) {
+    const invite = await api("/collab/invite", { token: U.org.token, body: { eventId: paid.id, organizerId: org2Row.id, permissionLevel: "SCAN" } });
+    const collabRow = (await admin.from("event_collaborators").select("*").eq("event_id", paid.id).eq("organizer_id", org2Row.id).maybeSingle()).data;
+    report("Q1. collab invite sent", invite.ok === true && !!collabRow, JSON.stringify(invite.error ?? ""));
+    const accept = await api("/collab/respond", { token: U.org2.token, body: { eventId: paid.id, collaboratorId: collabRow?.id, accept: true } });
+    const collabAfter = (await admin.from("event_collaborators").select("status").eq("id", collabRow?.id).single()).data;
+    report("Q2. collab accept → ACTIVE", accept.ok === true && ["ACCEPTED", "ACTIVE"].includes(collabAfter?.status), `status=${collabAfter?.status}`);
+    const inviteBad = await api("/collab/invite", { token: U.u1.token, body: { eventId: paid.id, organizerId: org2Row.id } });
+    report("Q3. non-owner invite blocked", inviteBad.ok === false, JSON.stringify(inviteBad.error ?? ""));
+  } else {
+    report("Q1-Q3. second organizer missing", false, "run seed");
+  }
+
+  // ── R: clubs ──────────────────────────────────────────────────────
+  const club = await api("/clubs", { token: U.org.token, body: { name: "DEVTEST E2E Club", bio: "e2e", type: "CLUB", city: "KOLKATA", membershipType: "FREE" } });
+  const clubId = club.data?.clubId;
+  report("R1. club created via API", club.ok === true && !!clubId, JSON.stringify(club.error ?? ""));
+  if (clubId) {
+    const join = await api(`/clubs/${clubId}/join`, { token: U.u1.token });
+    const memberRow = (await admin.from("club_members").select("id").eq("club_id", clubId).eq("user_id", U.u1.uid).maybeSingle()).data;
+    report("R2. user joins free club", join.ok === true && !!memberRow, JSON.stringify(join.error ?? ""));
+    const joinAgain = await api(`/clubs/${clubId}/join`, { token: U.u1.token });
+    const memberCount = (await admin.from("club_members").select("id").eq("club_id", clubId).eq("user_id", U.u1.uid)).data?.length;
+    report("R3. rejoin idempotent (1 member row)", joinAgain.ok !== undefined && memberCount === 1, `rows=${memberCount}`);
+  }
+
+  // ── S: postponement refund request (free event is POSTPONED) ──────
+  const refundReq = await api("/refunds/postponement", { token: U.u1.token, body: { eventId: free.id } });
+  const refundErr = refundReq.error ?? "";
+  report("S1. postponement refund on free order → handled gracefully", refundReq.status < 500, `ok=${refundReq.ok} err=${refundErr}`);
 
   // ── summary ───────────────────────────────────────────────────────
   const pass = results.filter((r) => r.ok).length;

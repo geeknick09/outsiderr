@@ -26,7 +26,16 @@ export interface EventQuery {
   search?: string;
 }
 
-function toOrganizer(row: OrganizerRow): Organizer {
+// Accepts either the full organizers row or the sanitized organizers_public
+// view row — toOrganizer only reads the shared (safe) columns.
+type PublicOrganizerRow = Pick<
+  OrganizerRow,
+  | "id" | "owner_id" | "name" | "bio" | "description" | "avatar_url"
+  | "cover_url" | "instagram_url" | "youtube_url" | "x_url" | "facebook_url"
+  | "linkedin_url" | "upi_id" | "upi_qr_url" | "verified" | "created_at"
+>;
+
+function toOrganizer(row: PublicOrganizerRow): Organizer {
   return {
     id: row.id,
     ownerId: (row as { owner_id?: string }).owner_id ?? "",
@@ -185,7 +194,8 @@ export async function getEvent(id: string): Promise<EventDetail | null> {
   if (!event) return null;
 
   const [{ data: organizer }, { data: tiers }] = await Promise.all([
-    supabase.from("organizers").select("*").eq("id", event.organizer_id).maybeSingle(),
+    // Public read path → sanitized view (base organizers table is owner/admin only)
+    supabase.from("organizers_public").select("*").eq("id", event.organizer_id).maybeSingle(),
     supabase
       .from("ticket_tiers")
       .select("*")

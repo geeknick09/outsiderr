@@ -513,7 +513,30 @@ export type Database = {
       organizer_follows: Table<OrganizerFollowRow, "organizer_id" | "follower_id">;
       event_collaborators: Table<EventCollaboratorRow, "event_id" | "organizer_id" | "invited_by">;
     };
-    Views: Record<string, never>;
+    Views: {
+      /** Sanitized public organizer projection — no PAN/bank/KYC columns. */
+      organizers_public: {
+        Row: {
+          id: string;
+          owner_id: string;
+          name: string;
+          bio: string | null;
+          description: string | null;
+          avatar_url: string | null;
+          cover_url: string | null;
+          instagram_url: string | null;
+          youtube_url: string | null;
+          x_url: string | null;
+          facebook_url: string | null;
+          linkedin_url: string | null;
+          upi_id: string | null;
+          upi_qr_url: string | null;
+          verified: boolean;
+          created_at: string;
+        };
+        Relationships: [];
+      };
+    };
     Functions: {
       approve_order: {
         Args: { p_order_id: string };
@@ -661,6 +684,14 @@ export type Database = {
       expire_reserved_orders: {
         Args: Record<string, never>;
         Returns: number;
+      };
+      set_event_status: {
+        Args: { p_event_id: string; p_status: string };
+        Returns: void;
+      };
+      submit_kyc: {
+        Args: { p_organizer_id: string };
+        Returns: void;
       };
       set_razorpay_order_id: {
         Args: { p_order_id: string; p_razorpay_order_id: string };

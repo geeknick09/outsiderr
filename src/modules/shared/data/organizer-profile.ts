@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "../auth/server";
+import { createServiceClient } from "../auth/service";
 import type { CurrentUser } from "../auth/auth";
 import { mergeOrganizerIntent } from "../lib/event-lifecycle";
 import type { Database } from "../db/database.types";
@@ -111,7 +112,9 @@ export async function createOrganizerProfile(
   // Only flip is_organizer flag if KYC is approved (or no KYC needed yet —
   // for backward compat, we still set it so existing organizers aren't locked out).
   // The dashboard will gate access behind kyc_status = APPROVED.
-  const { error: profileError } = await supabase
+  // is_organizer is a privileged column (revoked from authenticated UPDATE)
+  // — write via service role after the organizer row exists.
+  const { error: profileError } = await createServiceClient()
     .from("profiles")
     .update({ is_organizer: true })
     .eq("id", user.id);
@@ -124,12 +127,12 @@ export async function createOrganizerProfile(
 }
 
 export interface UpdateOrganizerInput {
-  name: string;
-  bio: string;
+  name?: string;
+  bio?: string;
   description?: string;
   organizerIntent?: string;
-  upiId: string;
-  avatarUrl: string | null;
+  upiId?: string;
+  avatarUrl?: string | null;
   coverUrl?: string | null;
   instagramUrl?: string | null;
   youtubeUrl?: string | null;
@@ -157,14 +160,17 @@ export async function updateOrganizerProfile(
   if (!organizer) throw new Error("No organizer profile found.");
 
   const supabase = await createClient();
-  const mergedDescription = mergeOrganizerIntent(input.description ?? "", input.organizerIntent ?? "");
-  const update: Database["public"]["Tables"]["organizers"]["Update"] = {
-    name: input.name,
-    bio: input.bio || null,
-    description: mergedDescription || null,
-    upi_id: input.upiId || null,
-    avatar_url: input.avatarUrl,
-  };
+  const mergedDescription = input.description !== undefined || input.organizerIntent !== undefined
+    ? mergeOrganizerIntent(input.description ?? "", input.organizerIntent ?? "")
+    : undefined;
+  // Partial update — only fields present in the input are written, so a PATCH
+  // that omits name/upiId can't wipe them.
+  const update: Database["public"]["Tables"]["organizers"]["Update"] = {};
+  if (input.name !== undefined) update.name = input.name;
+  if (input.bio !== undefined) update.bio = input.bio || null;
+  if (mergedDescription !== undefined) update.description = mergedDescription || null;
+  if (input.upiId !== undefined) update.upi_id = input.upiId || null;
+  if (input.avatarUrl !== undefined) update.avatar_url = input.avatarUrl;
   if (input.coverUrl !== undefined) update.cover_url = input.coverUrl;
   if (input.instagramUrl !== undefined) update.instagram_url = input.instagramUrl;
   if (input.youtubeUrl !== undefined) update.youtube_url = input.youtubeUrl;
@@ -188,6 +194,15 @@ export async function updateOrganizerProfile(
     .eq("id", organizer.id);
 
   if (error) throw error;
+
+  // If KYC data was provided, transition status via the RPC — kyc_status is
+  // a privileged column that only flips to PENDING through submit_kyc.
+  if (input.panNumber && input.bankAccountNumber) {
+    const { error: kycError } = await supabase.rpc("submit_kyc", {
+      p_organizer_id: organizer.id,
+    });
+    if (kycError) console.error("submit_kyc RPC failed:", kycError);
+  }
 }
 
 export interface CreateOrganizerInput {

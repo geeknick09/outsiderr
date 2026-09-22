@@ -6,7 +6,7 @@ import type { Organizer, EventSummary, EventCategory, PricingMode } from "../lib
 export async function getPublicOrganizer(id: string): Promise<Organizer | null> {
   const supabase = await createClient();
   const { data } = await supabase
-    .from("organizers")
+    .from("organizers_public")
     .select("id, name, bio, description, avatar_url, cover_url, instagram_url, youtube_url, x_url, facebook_url, linkedin_url, upi_id, upi_qr_url, verified, owner_id")
     .eq("id", id)
     .single();

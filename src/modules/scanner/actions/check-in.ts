@@ -80,7 +80,7 @@ export async function createWalkinOrderAction(formData: FormData): Promise<Walki
   const organizer = await getOrganizerProfile(user);
   if (!organizer) return { error: "No organizer profile.", success: false };
 
-  const { createClient } = await import("@/modules/shared/server");
+  const { createClient, createServiceClient } = await import("@/modules/shared/server");
   const supabase = await createClient();
   const { data: eventRow } = await supabase
     .from("events")
@@ -90,7 +90,8 @@ export async function createWalkinOrderAction(formData: FormData): Promise<Walki
     .maybeSingle();
   if (!eventRow) return { error: "Event not found or not owned by you.", success: false };
 
-  const { data: result, error } = await supabase.rpc("create_walkin_order", {
+  // create_walkin_order is service-role only — ownership verified above.
+  const { data: result, error } = await createServiceClient().rpc("create_walkin_order", {
     p_event_id: validEventId,
     p_buyer_name: validName,
     p_buyer_phone: validPhone,
@@ -100,6 +101,7 @@ export async function createWalkinOrderAction(formData: FormData): Promise<Walki
     p_mode: validMode,
     p_idempotency_key: crypto.randomUUID(),
   });
+
   if (error) return { error: error.message, success: false };
 
   const walkinResult = (result ?? {}) as { ticketId?: string; orderId?: string };
@@ -130,7 +132,7 @@ export async function updateWalkinOrderAction(formData: FormData): Promise<{ err
   const organizer = await getOrganizerProfile(user);
   if (!organizer) return { error: "No organizer profile.", success: false };
 
-  const { createClient } = await import("@/modules/shared/server");
+  const { createClient, createServiceClient } = await import("@/modules/shared/server");
   const supabase = await createClient();
   const { data: orderRow } = await supabase
     .from("orders")
@@ -147,7 +149,8 @@ export async function updateWalkinOrderAction(formData: FormData): Promise<{ err
     .maybeSingle();
   if (!eventRow) return { error: "Not authorized to edit this order.", success: false };
 
-  const { error } = await supabase.rpc("update_walkin_order", {
+  // update_walkin_order is service-role only — ownership verified above.
+  const { error } = await createServiceClient().rpc("update_walkin_order", {
     p_order_id: orderId,
     p_buyer_name: buyerName,
     p_buyer_phone: buyerPhone,

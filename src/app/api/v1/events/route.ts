@@ -41,7 +41,7 @@ const bodySchema = z.object({
   feePayer: z.enum(["BUYER", "ORGANIZER"]).default("BUYER"),
   needsDoorStaff: z.boolean().default(false),
   doorStaffCount: z.number().int().min(1).optional(),
-  doorStaffAmountPaise: z.number().int().min(0).optional(),
+  doorStaffTerms: z.boolean().default(false),
   waitlistEnabled: z.boolean().default(true),
   terms: z.array(z.string()).default([]),
   pricingMode: z.enum(["FREE", "FLAT", "PAID", "PHASED"]).default("PAID"),
@@ -72,16 +72,23 @@ export async function POST(request: Request) {
 
     if (!input.isDraft) {
       if (!input.startsAt) return apiError("Pick a start date and time.", 400);
-      if (new Date(input.startsAt).getTime() < Date.now()) {
+      const startsAtMs = new Date(input.startsAt).getTime();
+      if (Number.isNaN(startsAtMs)) return apiError("Invalid start date.", 400);
+      if (startsAtMs < Date.now()) {
         return apiError("Start date and time cannot be in the past.", 400);
       }
       if (!input.endsAt) return apiError("End date and time is required.", 400);
-      if (new Date(input.endsAt).getTime() <= new Date(input.startsAt).getTime()) {
+      const endsAtMs = new Date(input.endsAt).getTime();
+      if (Number.isNaN(endsAtMs)) return apiError("Invalid end date.", 400);
+      if (endsAtMs <= startsAtMs) {
         return apiError("End date and time must be after the start date and time.", 400);
       }
       if (input.tiers.length === 0) return apiError("Add at least one ticket tier.", 400);
       if (input.pricingMode !== "FREE" && input.tiers.some((t) => t.pricePaise < 100)) {
         return apiError("Each tier price must be at least ₹1.", 400);
+      }
+      if (input.needsDoorStaff && !input.doorStaffTerms) {
+        return apiError("Please accept the door staff terms & refund policy.", 400);
       }
       if (!input.venueTba) {
         if (!input.googleMapsLink) {
@@ -137,10 +144,11 @@ export async function POST(request: Request) {
       return apiError(error instanceof Error ? error.message : "Could not publish the event.", 400);
     }
 
-    // Door-staff order (best-effort — same as the web action)
+    // Door-staff order (best-effort — same as the web action).
+    // Price is derived server-side inside createDoorStaffOrder.
     if (input.needsDoorStaff) {
       try {
-        await createDoorStaffOrder(user, eventId, input.doorStaffCount ?? 1, input.doorStaffAmountPaise ?? 0);
+        await createDoorStaffOrder(user, eventId, input.doorStaffCount ?? 1);
       } catch {
         // Non-critical
       }

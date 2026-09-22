@@ -18,7 +18,7 @@ export default async function ScanPage() {
   // Get organizer names
   const organizerIds = [...new Set((events ?? []).map((e) => e.organizer_id))];
   const { data: organizers } = await supabase
-    .from("organizers")
+    .from("organizers_public")
     .select("id, name")
     .in("id", organizerIds);
   const orgMap = Object.fromEntries((organizers ?? []).map((o) => [o.id, o.name]));

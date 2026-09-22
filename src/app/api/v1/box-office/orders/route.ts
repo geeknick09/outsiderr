@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { headers } from "next/headers";
 
-import { apiError, apiOk, createClient, readJson, withApi } from "@/modules/shared/server";
+import { apiError, apiOk, createClient, createServiceClient, readJson, withApi } from "@/modules/shared/server";
 import { getRateLimitIdentifier, rateLimit, RATE_LIMITS } from "@/modules/shared";
 
 export const runtime = "nodejs";
@@ -45,7 +45,9 @@ export async function POST(request: Request) {
     }
 
     const idempotencyKey = parsed.data.idempotencyKey ?? crypto.randomUUID();
-    const { data: result, error } = await supabase.rpc("create_walkin_order", {
+    // create_walkin_order is service-role only — PIN verified above.
+    const service = createServiceClient();
+    const { data: result, error } = await service.rpc("create_walkin_order", {
       p_event_id: eventId,
       p_buyer_name: buyerName,
       p_buyer_phone: buyerPhone ?? "",

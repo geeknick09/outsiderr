@@ -32,7 +32,7 @@ export async function listClubs(city?: City): Promise<Club[]> {
 
   const ownerIds = [...new Set(data.map((r) => r.owner_id))];
   const { data: owners } = await supabase
-    .from("organizers")
+    .from("organizers_public")
     .select("id, name")
     .in("id", ownerIds);
   const ownerMap = Object.fromEntries((owners ?? []).map((o) => [o.id, o.name]));
@@ -64,7 +64,7 @@ export async function getClub(id: string): Promise<Club | null> {
   if (error || !data) return null;
 
   const { data: owner } = await supabase
-    .from("organizers")
+    .from("organizers_public")
     .select("name")
     .eq("id", data.owner_id)
     .single();
@@ -319,7 +319,7 @@ export async function listPendingClubs(): Promise<Club[]> {
 
   const ownerIds = [...new Set(data.map((r) => r.owner_id))];
   const { data: owners } = await supabase
-    .from("organizers")
+    .from("organizers_public")
     .select("id, name")
     .in("id", ownerIds);
   const ownerMap = Object.fromEntries((owners ?? []).map((o) => [o.id, o.name]));

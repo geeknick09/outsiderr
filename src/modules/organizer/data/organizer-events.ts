@@ -259,13 +259,14 @@ export async function updateEventStatus(
 ): Promise<void> {
   const organizer = await getOrganizerProfile(user);
   if (!organizer) throw new Error("No organizer profile.");
+  // `status` is a privileged column (revoked from authenticated UPDATE) —
+  // transitions go through the RPC, which re-verifies ownership inside.
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("events")
-    .update({ status })
-    .eq("id", eventId)
-    .eq("organizer_id", organizer.id);
-  if (error) throw error;
+  const { error } = await supabase.rpc("set_event_status", {
+    p_event_id: eventId,
+    p_status: status,
+  });
+  if (error) throw new Error(error.message);
 }
 
 export interface CancelEventResult {
@@ -449,7 +450,7 @@ export async function updateEvent(
     }
   }
 
-  const { error } = await supabase
+  const { data: updatedEvent, error } = await supabase
     .from("events")
     .update({
       title: input.title,
@@ -484,8 +485,11 @@ export async function updateEvent(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
     .eq("id", eventId)
-    .eq("organizer_id", organizer.id);
+    .eq("organizer_id", organizer.id)
+    .select("id")
+    .maybeSingle();
   if (error) throw error;
+  if (!updatedEvent) throw new Error("Event not found or not owned by you.");
 
   // Send notifications to ticket holders if key details changed
   if (currentEvent) {

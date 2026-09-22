@@ -34,7 +34,13 @@ export function withApiUser(
   return withApiContext(request, async () => {
     const user = await getCurrentUser();
     if (!user) return apiError("Unauthorized", 401);
-    return handler(user);
+    try {
+      return await handler(user);
+    } catch (error) {
+      // Unhandled throw → 500 envelope instead of a bare crash.
+      console.error("[api] unhandled error:", error);
+      return apiError("Internal server error", 500);
+    }
   });
 }
 
@@ -43,7 +49,14 @@ export function withApi(
   request: Request,
   handler: () => Promise<NextResponse>,
 ): Promise<NextResponse> {
-  return withApiContext(request, handler);
+  return withApiContext(request, async () => {
+    try {
+      return await handler();
+    } catch (error) {
+      console.error("[api] unhandled error:", error);
+      return apiError("Internal server error", 500);
+    }
+  });
 }
 
 /** Parse + validate a JSON body with a zod schema. Returns parsed data or a 400 response. */
@@ -53,10 +66,13 @@ export async function readJson<T>(
 ): Promise<{ data: T } | { response: NextResponse }> {
   let body: unknown;
   try {
-    body = await request.json();
+    const text = await request.text();
+    // Allow empty bodies on endpoints where every field is optional.
+    body = text === "" ? {} : JSON.parse(text);
   } catch {
     return { response: apiError("Invalid JSON body", 400) };
   }
+  if (body === null || body === undefined) body = {};
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
     const msg = parsed.error.issues[0]?.message ?? "Invalid request";

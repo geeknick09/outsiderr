@@ -16,16 +16,140 @@ import {
 import { getEvent } from "../data/events";
 import { addInterestedTags, updateUserProfile } from "../data/profile";
 import { createClient } from "../auth/server";
+import { createServiceClient } from "../auth/service";
 import { getPublicKeyId, getRazorpay, isRazorpayConfigured } from "../lib/razorpay";
 import { verifyRazorpayPaymentSignature } from "../lib/razorpay-verify";
 
 /**
- * Order/payment orchestration shared by the web server actions and the
- * /api/v1 routes. These functions take an already-resolved CurrentUser and use
- * createClient() internally — which resolves cookie or bearer auth depending
- * on the request context — so both surfaces share identical behavior.
+ * Post-cancellation sweep — shared by the web cancel action and the
+ * /api/v1/events/[id]/cancel route. The cancel_event RPC creates PENDING
+ * refund rows; this pushes them through Razorpay and journals the
+ * organizer-liability ADJUSTMENT. All writes use the service client —
+ * refund/ledger tables have no user-context write policies.
  */
+export async function runCancellationRefundSweep(input: {
+  eventId: string;
+  reason: string;
+  organizerOwesPaise: number;
+  cancellationChargePercent: number;
+  refundCount: number;
+}): Promise<{ refundSuccess: number; refundFail: number }> {
+  const { eventId, reason } = input;
+  let refundSuccess = 0;
+  let refundFail = 0;
 
+  try {
+    const supabase = createServiceClient();
+
+    const { data: pendingRefunds } = await supabase
+      .from("refunds")
+      .select("id, order_id, amount_paise, status")
+      .eq("event_id", eventId)
+      .eq("status", "PENDING");
+
+    if (isRazorpayConfigured() && pendingRefunds && pendingRefunds.length > 0) {
+      const razorpay = getRazorpay();
+      for (const refund of pendingRefunds) {
+        const { data: orderRow } = await supabase
+          .from("orders")
+          .select("razorpay_payment_id, id")
+          .eq("id", refund.order_id)
+          .maybeSingle();
+
+        if (!orderRow?.razorpay_payment_id) {
+          console.warn(`[cancel] Skipping refund ${refund.id}: no razorpay_payment_id on order ${refund.order_id}`);
+          continue;
+        }
+
+        try {
+          const razorpayRefund = await razorpay.payments.refund(orderRow.razorpay_payment_id, {
+            amount: refund.amount_paise,
+            notes: { order_id: orderRow.id, reason: reason || "Event cancelled" },
+          });
+
+          await supabase
+            .from("refunds")
+            .update({
+              razorpay_refund_id: razorpayRefund.id,
+              razorpay_payment_id: orderRow.razorpay_payment_id,
+              status: "INITIATED",
+            })
+            .eq("id", refund.id);
+
+          refundSuccess++;
+
+          try {
+            await supabase.from("payment_ledger").insert({
+              order_id: orderRow.id,
+              event_id: eventId,
+              organizer_id: null,
+              type: "REFUND",
+              gross_amount_paise: -refund.amount_paise,
+              commission_paise: 0,
+              convenience_fee_paise: 0,
+              razorpay_fee_paise: 0,
+              net_organizer_paise: 0,
+              net_platform_paise: -refund.amount_paise,
+              razorpay_payment_id: `refund_${razorpayRefund.id}`,
+              notes: `Event cancellation refund: ${reason || "Event cancelled"}`,
+              created_at: new Date().toISOString(),
+            });
+          } catch (ledgerErr) {
+            console.error("Cancel refund ledger insert failed:", ledgerErr);
+          }
+        } catch (refundErr) {
+          console.error(`[cancel] Razorpay refund failed for order ${orderRow.id}:`, refundErr);
+          refundFail++;
+          // The refund record stays PENDING — admin can process it manually.
+        }
+      }
+    }
+
+    // Organizer liability (convenience fee + cancellation charge) as an
+    // ADJUSTMENT so it shows up in payout calculations.
+    if (input.organizerOwesPaise > 0) {
+      try {
+        const { data: event } = await supabase
+          .from("events")
+          .select("organizer_id")
+          .eq("id", eventId)
+          .maybeSingle();
+
+        if (event?.organizer_id) {
+          await supabase.from("payment_ledger").insert({
+            order_id: null,
+            event_id: eventId,
+            organizer_id: event.organizer_id,
+            type: "ADJUSTMENT",
+            gross_amount_paise: 0,
+            commission_paise: 0,
+            convenience_fee_paise: 0,
+            razorpay_fee_paise: 0,
+            refund_amount_paise: 0,
+            net_organizer_paise: -input.organizerOwesPaise,
+            net_platform_paise: input.organizerOwesPaise,
+            notes: `Cancellation charge: ${input.cancellationChargePercent}% + platform fees. Refund count: ${input.refundCount}`,
+            created_at: new Date().toISOString(),
+          });
+        }
+      } catch (ledgerErr) {
+        console.error("[cancel] Organizer liability ledger insert failed:", ledgerErr);
+      }
+    }
+  } catch (sweepErr) {
+    // Don't fail the cancellation — refunds can be processed manually by admin.
+    console.error("[cancel] Auto-refund sweep failed:", sweepErr);
+  }
+
+  return { refundSuccess, refundFail };
+}
+
+/**
+ * Order/payment orchestration shared by the web server actions and the
+ * /api/v1 routes. Functions take an already-resolved CurrentUser and use
+ * createClient() internally (cookie or bearer auth) so both surfaces behave
+ * identically; money-moving writes go through the service client.
+ */
 export interface CheckoutInput {
   eventId: string;
   tierId: string;
@@ -73,7 +197,7 @@ async function postBookingSideEffects(user: CurrentUser, input: CheckoutInput): 
 export async function runManualCheckout(
   user: CurrentUser,
   input: CheckoutInput & { isFree: boolean },
-): Promise<{ error: string | null }> {
+): Promise<{ error: string | null; orderId?: string }> {
   const phoneError = validPhoneOrError(input.buyerPhone?.trim());
   if (phoneError) return { error: phoneError };
 
@@ -87,15 +211,18 @@ export async function runManualCheckout(
     buyerGender: input.buyerGender?.trim() || null,
   };
 
+  let orderId: string | undefined;
   try {
     if (input.isFree) {
-      await createFreeOrder(user, details);
+      const order = await createFreeOrder(user, details);
+      orderId = order.id;
     } else {
-      await createOrder(user, {
+      const order = await createOrder(user, {
         ...details,
         utrReference: input.utrReference?.trim() || null,
         paymentProofUrl: null,
       });
+      orderId = order.id;
     }
   } catch (error) {
     const msg =
@@ -114,7 +241,7 @@ export async function runManualCheckout(
   revalidatePath("/tickets");
   revalidatePath("/profile");
   revalidatePath(`/events/${input.eventId}`);
-  return { error: null };
+  return { error: null, orderId };
 }
 
 /** Reserve inventory + create a Razorpay order → CheckoutSession for the client. */
@@ -272,7 +399,7 @@ export async function runVerifyPayment(
 
   // Insert payment ledger entry (best-effort; webhook may already have)
   try {
-    const supabase = await createClient();
+    const supabase = createServiceClient(); // user ctx has no payment_ledger insert policy
     const { data: orderRow } = await supabase
       .from("orders")
       .select("event_id, commission_paise, convenience_fee_paise, organizer_payout_paise, subtotal_paise, platform_fee_paise, total_paise")
@@ -372,9 +499,15 @@ export async function runPostponementRefund(
     if (error) throw new Error(error.message);
 
     const row = data?.[0];
-    if (!row || !row.refund_created) {
-      console.warn(`[postponement-refund] RPC returned no refund: eventId=${eventId}, userId=${user.id}`);
+    if (!row) {
+      console.warn(`[postponement-refund] RPC returned no row: eventId=${eventId}, userId=${user.id}`);
       return { success: false, error: "Could not create refund request." };
+    }
+    if (!row.refund_created) {
+      // A pending/initiated refund already exists for this order — report success
+      // rather than erroring (idempotent retry path).
+      console.log(`[postponement-refund] refund already pending: orderId=${row.order_id}`);
+      return { success: true };
     }
 
     console.log(`[postponement-refund] Refund record created: orderId=${row.order_id}, totalPaise=${row.total_paise}, razorpayPaymentId=${row.razorpay_payment_id || "null"}`);
@@ -391,7 +524,9 @@ export async function runPostponementRefund(
             },
           });
 
-          await supabase
+          // Service client: refund/order/ledger writes are RLS-blocked under user ctx.
+          const service = createServiceClient();
+          await service
             .from("refunds")
             .update({
               razorpay_refund_id: refund.id,
@@ -401,7 +536,9 @@ export async function runPostponementRefund(
             .eq("order_id", row.order_id)
             .eq("status", "PENDING");
 
-          await supabase
+          // Razorpay accepted the refund — mark the order REFUNDED. If the
+          // refund later fails, the refund.failed webhook flips the refund row.
+          await service
             .from("orders")
             .update({ status: "REFUNDED" })
             .eq("id", row.order_id);
@@ -409,7 +546,7 @@ export async function runPostponementRefund(
           console.log(`[postponement-refund] Razorpay refund initiated: orderId=${row.order_id}, razorpayRefundId=${refund.id}, amount=${row.total_paise}paise`);
 
           try {
-            await supabase.from("payment_ledger").insert({
+            await service.from("payment_ledger").insert({
               order_id: row.order_id,
               event_id: eventId,
               organizer_id: null,

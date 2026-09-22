@@ -1,0 +1,78 @@
+E2E vs http://localhost:3124 · nlhwnoqgrnbyprksthfi.supabase.co
+
+✅ A1. all 5 roles sign in (real JWT)
+✅ A2. GET /me returns user — "dev.user@outsiderr.test"
+✅ A3. /me no auth → 401
+✅ A4. seeded fixtures found
+✅ A5. test state reset
+✅ B1. free RSVP → submitted — {"status":200,"ok":true,"data":{"submitted":true}}
+✅ B2. free order CONFIRMED + VALID ticket — order=CONFIRMED tickets=1
+✅ B3. double-booking blocked — "You have already booked a ticket for this event."
+✅ C1. manual UPI order submitted — {"status":200,"ok":true,"data":{"submitted":true}}
+✅ C2. manual order PENDING_VERIFICATION — status=PENDING_VERIFICATION
+✅ C3. non-staff approve blocked — "Not authorised to approve orders for this event"
+✅ C4. organizer approve → CONFIRMED + ticket — status=CONFIRMED tickets=1
+✅ C5. double-approve blocked (idempotent) — "Order is already CONFIRMED"
+✅ C6. reject PENDING order → REJECTED — status=REJECTED
+✅ C7. reject CONFIRMED blocked — err=Only orders awaiting payment verification can be rejected (status is CONFIRMED) status=CONFIRMED
+✅ D1. checkout w/o Razorpay keys → clean error — "Online payments are not configured yet. Please try again later."
+✅ E1. subscribe → row created — ""
+✅ E2. re-subscribe idempotent — ""
+✅ E3. unsubscribe removes row
+✅ E4. follow organizer → row — ""
+✅ E5. ticket-holder subscribe blocked — "You already have a ticket — you'll receive updates automatically."
+✅ F1. profile PATCH persists — Dev User Updated
+✅ F2. notifications mark-all-read
+✅ G1. tiny event sold out (2/2) — sold=2
+✅ G2. sold-out booking blocked — "Not enough tickets left in this tier."
+✅ G3. waitlist join → position 1 WAITING — {"id":"23ca0d98-99e3-4542-b5af-c5c793a7066e","event_id":"ea733c4d-7496-4b9d-9a0e-d8f994a11aeb","tier_id":"7c5048cd-4c54-4140-96a0-a61abd504347","user_id":"e8c724c9-e221-4a45-b35f-bc6dfc6b5e46","position":1,"status":"WAITING","offered_at":null,"expires_at":null,"created_at":"2026-09-22T09:02:02.251706+00:00"}
+✅ G4. offer while sold-out → no phantom offer — offer_id=null status=WAITING
+✅ G5. freed seat → waitlist OFFERED (FIFO) — status=OFFERED
+✅ G6. offer carries 24h expiry window — expires=2026-09-23T09:02:03.46153+00:00
+✅ G7. second waiter joins → position 2 — pos=2 status=WAITING
+✅ G8. lapsed offer re-queued to back — u3 pos=3
+✅ G9. freed seat offers earlier waiter (FIFO) — offered=afb46363-b295-4d6f-bc49-108a008a28d4
+✅ H1. scanner PIN login — "DEVTEST Paid Jam"
+✅ H2. wrong PIN → 401 — "Invalid PIN for this event."
+✅ H3. check-in VALID ticket — {"outcome":"VALID","message":"Checked in.","ticket":{"eventTitle":"DEVTEST Paid Jam","tierName":"GA","holderName":"User Two","holderEmail":null,"holderPhone":null,"quantity":1,"checkedInAt":"2026-09-22T09:03:02.035382+00:00"}}
+✅ H4. re-scan → already used — outcome=ALREADY_USED
+✅ H5. wrong-event scan rejected — outcome=INVALID
+✅ H6. forged QR rejected — outcome=INVALID
+✅ I1. box-office PIN login — "Dev BoxOffice"
+✅ I2. box-office order → ticket — {"ticketId":"624aacdf-855d-4966-be14-6fe643f51ae6","orderId":"60740106-ed05-40da-b7a8-d7ec4f380092"}
+✅ I3. walkin-instant ticket is USED — status=USED
+✅ I4. box-office idempotency (same key → same order) — o1=d4d92d33-d993-427b-b9d0-da243c72a1eb o2=d4d92d33-d993-427b-b9d0-da243c72a1eb
+✅ J1. PATCH event title persists — DEVTEST Paid Jam (edited) (err=none)
+✅ J2. publish draft — status=PUBLISHED err=none
+✅ J3. postpone → POSTPONED — status=POSTPONED err=none
+✅ J4. non-owner edit blocked — resp=400 title=DEVTEST Paid Jam (edited)
+✅ J5. generate scanner pin via API — "619523"
+✅ K1. burst: 5 buyers × qty-3 → ≤3 succeed — succeeded=3
+✅ K2. no oversell (reserved ≤ qty) — reserved=3
+✅ L1. review by checked-in user — {"reviewed":true}
+✅ L2. review by non-attendee blocked — "You must check in at the event before reviewing."
+✅ L3. duplicate review → friendly error — "You have already reviewed this event."
+✅ L4. rating out of range → 400
+✅ M1. invalid JSON → 400 envelope
+✅ M2. bad uuid → 400
+✅ M3. missing required field → 400
+✅ M4. negative quantity rejected — "Too small: expected number to be >=1"
+✅ M5. non-organizer create event blocked — "End date and time is required."
+✅ N1. organizer creates draft event via API — id=91051eda-ed4e-4581-ad16-878c71e8a6a6 status=DRAFT
+✅ N2. create without title → 400
+✅ O1. order money math (bps formulas) — subtotal=50000 comm=5000 exp=5000 conv=1000 total=51000 payout=45000
+✅ P1. cancel → event CANCELLED — status=CANCELLED err=
+✅ P2. cancel → order refunded/cancelled — order=REFUNDED
+❌ P3. cancel → ticket VOID — ticket=CANCELLED
+❌ P4. cancel → inventory restored — sold=1
+✅ Q1. collab invite sent — ""
+✅ Q2. collab accept → ACTIVE — status=ACCEPTED
+✅ Q3. non-owner invite blocked — "Only the event owner can invite collaborators."
+❌ R1. club created via API — "Could not create club."
+✅ S1. postponement refund on free order → handled gracefully — ok=false err=column reference "total_paise" is ambiguous
+
+=======================================================
+67/70 passed — FAILURES:
+  ❌ P3. cancel → ticket VOID: 
+  ❌ P4. cancel → inventory restored: 
+  ❌ R1. club created via API: 

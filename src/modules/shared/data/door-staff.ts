@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "../auth/server";
+import { createServiceClient } from "../auth/service";
 import type { CurrentUser } from "../auth/auth";
 import type { DoorStaffOrder, DoorStaffPaymentStatus, DoorStaffServiceStatus } from "../lib/types";
 
@@ -34,13 +35,29 @@ export async function createDoorStaffOrder(
   user: CurrentUser,
   eventId: string,
   numberOfStaff: number,
-  serviceAmountPaise: number,
 ): Promise<string | null> {
   const { getOrganizerProfile } = await import("./organizer-profile");
   const organizer = await getOrganizerProfile(user);
   if (!organizer) throw new Error("No organizer profile.");
 
+  // Verify the caller owns the event.
   const supabase = await createClient();
+  const { data: eventRow } = await supabase
+    .from("events")
+    .select("id")
+    .eq("id", eventId)
+    .eq("organizer_id", organizer.id)
+    .maybeSingle();
+  if (!eventRow) throw new Error("Event not found or not owned by you.");
+
+  // Price is derived server-side from platform settings — never trust the
+  // client's service_amount_paise (a caller could submit ₹0).
+  const { getDoorStaffPricing } = await import("./platform-settings");
+  const pricing = await getDoorStaffPricing();
+  const priceInr = pricing[String(numberOfStaff)];
+  if (priceInr == null) throw new Error(`No door-staff pricing configured for ${numberOfStaff} staff.`);
+  const serviceAmountPaise = Math.round(priceInr * 100);
+
   const { data, error } = await supabase
     .from("door_staff_orders")
     .insert({
@@ -72,12 +89,39 @@ export async function getDoorStaffOrder(
   return mapRow(data);
 }
 
+/**
+ * Organizer submits a UTR for their door-staff order. Records the reference
+ * only — payment_status stays PENDING until an admin verifies it
+ * (updateDoorStaffPaymentStatus). The organizer must own the order's event.
+ */
+export async function submitDoorStaffUtr(
+  orderId: string,
+  utrReference: string,
+): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("door_staff_orders")
+    .update({
+      utr_reference: utrReference,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", orderId)
+    .eq("payment_status", "PENDING");
+
+  if (error) throw error;
+}
+
+/**
+ * Admin-only: mark a door-staff order PAID/FAILED/REFUNDED. PAID also
+ * confirms the service. Runs under the service role — callers must verify
+ * admin before calling.
+ */
 export async function updateDoorStaffPaymentStatus(
   orderId: string,
   paymentStatus: DoorStaffPaymentStatus,
   utrReference?: string,
 ): Promise<void> {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const update: {
     payment_status: DoorStaffPaymentStatus;
     updated_at: string;

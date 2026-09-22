@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/modules/shared/server";
-import { createDoorStaffOrder, updateDoorStaffPaymentStatus } from "@/modules/shared/server";
+import { createDoorStaffOrder, submitDoorStaffUtr } from "@/modules/shared/server";
 
 export async function verifyDoorStaffPaymentAction(
   orderId: string,
@@ -17,11 +17,12 @@ export async function verifyDoorStaffPaymentAction(
   if (!utrReference.trim()) return { error: "Enter the UTR reference number." };
 
   try {
-    await updateDoorStaffPaymentStatus(orderId, "PAID", utrReference.trim());
+    // Records the UTR for admin verification — does NOT mark the order paid.
+    await submitDoorStaffUtr(orderId, utrReference.trim());
     revalidatePath("/organizer");
     return { error: null };
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Failed to verify payment." };
+    return { error: err instanceof Error ? err.message : "Failed to submit payment reference." };
   }
 }
 
@@ -37,7 +38,9 @@ export async function createDoorStaffOrderAction(
   if (!staffCount || staffCount < 1) return { error: "Select at least 1 staff member." };
 
   try {
-    await createDoorStaffOrder(user, eventId, staffCount, serviceAmountPaise);
+    // Price is derived server-side from door_staff_pricing — the client's
+    // serviceAmountPaise is ignored.
+    await createDoorStaffOrder(user, eventId, staffCount);
     revalidatePath(`/organizer/events/${eventId}`);
     return { error: null };
   } catch (err) {

@@ -113,7 +113,7 @@ export async function getEventCollaborators(eventId: string): Promise<EventColla
   // Fetch organizer details separately (avoids nested join type issues)
   const organizerIds = [...new Set(data.map((c) => c.organizer_id))];
   const { data: orgs } = await supabase
-    .from("organizers")
+    .from("organizers_public")
     .select("id, name, avatar_url")
     .in("id", organizerIds);
 
@@ -149,7 +149,7 @@ export async function getPendingCollaborationInvites(
 
   // Get the current user's organizer profile
   const { data: myOrg } = await supabase
-    .from("organizers")
+    .from("organizers_public")
     .select("id")
     .eq("owner_id", user.id)
     .maybeSingle();
@@ -171,7 +171,7 @@ export async function getPendingCollaborationInvites(
 
   const [eventsResult, invitersResult] = await Promise.all([
     supabase.from("events").select("id, title").in("id", eventIds),
-    supabase.from("organizers").select("id, name").in("id", inviterIds),
+    supabase.from("organizers_public").select("id, name").in("id", inviterIds),
   ]);
 
   const eventMap = new Map((eventsResult.data ?? []).map((e) => [e.id, e.title]));
@@ -216,7 +216,7 @@ export async function getEventCollaboratorsForOwner(
   if (!event) return [];
 
   const { data: myOrg } = await supabase
-    .from("organizers")
+    .from("organizers_public")
     .select("id")
     .eq("owner_id", user.id)
     .maybeSingle();
@@ -234,7 +234,7 @@ export async function getEventCollaboratorsForOwner(
   // Fetch organizer details separately
   const organizerIds = [...new Set(data.map((c) => c.organizer_id))];
   const { data: orgs } = await supabase
-    .from("organizers")
+    .from("organizers_public")
     .select("id, name, avatar_url")
     .in("id", organizerIds);
 
@@ -267,7 +267,7 @@ export async function getCollaboratedEvents(
   const supabase = await createClient();
 
   const { data: myOrg } = await supabase
-    .from("organizers")
+    .from("organizers_public")
     .select("id")
     .eq("owner_id", user.id)
     .maybeSingle();
@@ -297,7 +297,7 @@ export async function getCollaboratorPermission(
   const supabase = await createClient();
 
   const { data: myOrg } = await supabase
-    .from("organizers")
+    .from("organizers_public")
     .select("id")
     .eq("owner_id", user.id)
     .maybeSingle();
@@ -327,7 +327,7 @@ export async function getEventAccessLevel(
 
   // Check ownership first
   const { data: myOrg } = await supabase
-    .from("organizers")
+    .from("organizers_public")
     .select("id")
     .eq("owner_id", user.id)
     .maybeSingle();

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "../auth/server";
+import { createServiceClient } from "../auth/service";
 import type { CurrentUser } from "../auth/auth";
 import type {
   EventCategory,
@@ -85,10 +86,19 @@ export async function createHeroBoost(
   }
   if (existing) throw new Error("This event already has an active or pending Hero Boost.");
 
-  // Get organizer ID
+  // Get organizer ID + verify the event belongs to them (was missing —
+  // any organizer could boost someone else's event).
   const { getOrganizerProfile } = await import("./organizer-profile");
   const organizer = await getOrganizerProfile(user);
   if (!organizer) throw new Error("No organizer profile found.");
+
+  const { data: eventRow } = await supabase
+    .from("events")
+    .select("id")
+    .eq("id", eventId)
+    .eq("organizer_id", organizer.id)
+    .maybeSingle();
+  if (!eventRow) throw new Error("Event not found or not owned by you.");
 
   const { data, error } = await supabase
     .from("hero_boosts")
@@ -134,7 +144,9 @@ export async function submitHeroBoostUtr(
     throw new Error("Not authorised.");
   }
 
-  const { error } = await supabase
+  // No organizer UPDATE policy on hero_boosts — service client after the
+  // ownership check above.
+  const { error } = await createServiceClient()
     .from("hero_boosts")
     .update({ utr_reference: utrReference, updated_at: new Date().toISOString() })
     .eq("id", boostId);
@@ -152,7 +164,9 @@ export async function activateHeroBoost(
   boostId: string,
   durationDays: number,
 ): Promise<void> {
-  const supabase = await createClient();
+  // Service client — called from admin actions and the Razorpay webhook
+  // (no user context in the webhook path).
+  const supabase = createServiceClient();
   const { data: boost, error: boostError } = await supabase
     .from("hero_boosts")
     .select("*")
@@ -203,7 +217,7 @@ export async function activateHeroBoost(
  * Admin: cancel a hero boost.
  */
 export async function cancelHeroBoost(boostId: string): Promise<void> {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const { error } = await supabase
     .from("hero_boosts")
     .update({
@@ -222,7 +236,7 @@ export async function cancelHeroBoost(boostId: string): Promise<void> {
  * Cancel hero boosts for an event (called when event is cancelled).
  */
 export async function cancelHeroBoostsForEvent(eventId: string): Promise<void> {
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   await supabase
     .from("hero_boosts")
     .update({
@@ -321,8 +335,10 @@ export async function getHeroEvents(
   const now = Date.now();
   const nowIso = new Date(now).toISOString();
 
-  // Auto-expire stale ACTIVE boosts (expires_at < now) — frees up space
-  const supabase = await createClient();
+  // Auto-expire stale ACTIVE boosts (expires_at < now) — frees up space.
+  // Service client: this runs on public homepage reads (anon ctx) where the
+  // update would otherwise silently fail RLS.
+  const supabase = createServiceClient();
   await supabase
     .from("hero_boosts")
     .update({ status: "EXPIRED", expired_at: nowIso })

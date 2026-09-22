@@ -6,6 +6,7 @@ import { getCurrentUser } from "../auth/auth";
 import { activateHeroBoost, cancelHeroBoost, cancelHeroBoostsForEvent, createHeroBoost, getHeroBoostForEvent, submitHeroBoostUtr } from "../data/hero-boosts";
 import { getHeroBoostDurationDays, getHeroBoostPrice } from "../data/platform-settings";
 import { createClient } from "../auth/server";
+import { createServiceClient } from "../auth/service";
 import { getRazorpay, getPublicKeyId, isRazorpayConfigured } from "../lib/razorpay";
 import { verifyRazorpayPaymentSignature } from "../lib/razorpay-verify";
 import { CheckoutSession } from "../lib/types";
@@ -121,8 +122,22 @@ export async function cancelHeroBoostAction(boostId: string): Promise<{ error?: 
 
 /**
  * Called when an event is cancelled — removes it from Hero immediately.
+ * Verifies the caller owns the event (or is admin) before mutating boosts.
  */
 export async function onEventCancelled(eventId: string): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) return;
+  const { getOrganizerProfile } = await import("../data/organizer-profile");
+  const organizer = await getOrganizerProfile(user);
+  const supabase = await createClient();
+  const { data: eventRow } = await supabase
+    .from("events")
+    .select("id")
+    .eq("id", eventId)
+    .eq("organizer_id", organizer?.id ?? "")
+    .maybeSingle();
+  const admin = await checkAdmin();
+  if (!eventRow && !admin) return;
   await cancelHeroBoostsForEvent(eventId);
   revalidatePath("/");
 }
@@ -184,8 +199,9 @@ export async function createHeroBoostCheckoutAction(
     };
   }
 
-  // Link Razorpay order id to the boost — if this fails, the payment cannot be verified
-  const supabase = await createClient();
+  // Link Razorpay order id to the boost — if this fails, the payment cannot
+  // be verified. Service client: hero_boosts has no organizer UPDATE policy.
+  const supabase = createServiceClient();
   const { error: linkError } = await supabase
     .from("hero_boosts")
     .update({ razorpay_order_id: razorpayOrderId })
@@ -245,16 +261,24 @@ export async function verifyHeroBoostPaymentAction(input: {
   );
   if (!valid) return { success: false, error: "Payment signature verification failed." };
 
-  // Find the boost by razorpay_order_id
-  const supabase = await createClient();
+  // Find the boost by razorpay_order_id (service client — organizer has no
+  // update policy; signature already verified above proves the payment).
+  const supabase = createServiceClient();
   const { data: boost } = await supabase
     .from("hero_boosts")
-    .select("id, status, event_id")
+    .select("id, status, event_id, organizer_id")
     .eq("razorpay_order_id", input.razorpayOrderId)
     .maybeSingle();
 
   if (!boost) return { success: false, error: "Boost not found for this payment." };
   if (boost.status === "ACTIVE") return { success: true }; // idempotent
+
+  // Only the boost's own organizer can complete the payment.
+  const { getOrganizerProfile } = await import("../data/organizer-profile");
+  const callerOrg = await getOrganizerProfile(user);
+  if (!callerOrg || callerOrg.id !== boost.organizer_id) {
+    return { success: false, error: "This payment does not belong to your organizer account." };
+  }
 
   // Update boost with payment id + activate
   const durationDays = await getHeroBoostDurationDays();
@@ -317,7 +341,7 @@ export async function handleHeroBoostFailureAction(input: {
   const user = await getCurrentUser();
   if (!user) return { success: false, error: "Please sign in to continue." };
 
-  const supabase = await createClient();
+  const supabase = createServiceClient();
   const { data: boost } = await supabase
     .from("hero_boosts")
     .select("id, status, organizer_id")
@@ -332,6 +356,14 @@ export async function handleHeroBoostFailureAction(input: {
   // Only cancel if still PENDING — don't touch ACTIVE/CANCELLED boosts
   if (boost.status !== "PENDING") {
     return { success: true };
+  }
+
+  // Ownership: only the boost's organizer (or admin) can cancel it.
+  const { getOrganizerProfile } = await import("../data/organizer-profile");
+  const callerOrg = await getOrganizerProfile(user);
+  const admin = await checkAdmin();
+  if (!admin && (!callerOrg || callerOrg.id !== boost.organizer_id)) {
+    return { success: false, error: "Not authorised." };
   }
 
   try {

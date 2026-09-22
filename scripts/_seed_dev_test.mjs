@@ -30,6 +30,7 @@ const USERS = [
   { email: "dev.user@outsiderr.test", name: "Dev User", admin: false, organizer: false },
   { email: "dev.user2@outsiderr.test", name: "Dev User Two", admin: false, organizer: false },
   { email: "dev.organizer@outsiderr.test", name: "Dev Organizer", admin: false, organizer: true },
+  { email: "dev.organizer2@outsiderr.test", name: "Dev Organizer Two", admin: false, organizer: true },
   { email: "dev.admin@outsiderr.test", name: "Dev Admin", admin: true, organizer: false },
 ];
 
@@ -55,20 +56,23 @@ async function ensureUser({ email, name, admin: isAdmin, organizer: isOrg }) {
   return uid;
 }
 
-async function ensureOrganizer(ownerId) {
+async function ensureOrganizer(ownerId, orgName = "Dev Test Org") {
   const { data: existing } = await admin.from("organizers").select("id").eq("owner_id", ownerId).maybeSingle();
   if (existing) return existing.id;
   const { data, error } = await admin.from("organizers").insert({
-    owner_id: ownerId, name: "Dev Test Org", bio: "Seeded test organizer", upi_id: "devtest@upi",
+    owner_id: ownerId, name: orgName, bio: "Seeded test organizer", upi_id: "devtest@upi",
     kyc_submitted: true, kyc_status: "APPROVED",
   }).select("id").single();
   if (error) throw new Error(`organizer: ${error.message}`);
-  console.log(`  organizer → ${data.id}`);
+  console.log(`  organizer "${orgName}" → ${data.id}`);
   return data.id;
 }
 
 async function ensureEvent(orgId, title, opts) {
-  const { data: existing } = await admin.from("events").select("id").eq("title", title).maybeSingle();
+  // Prefix match — the E2E J-section renames the event ("...(edited)") and the
+  // A5 reset restores it; without this, every run would create a duplicate.
+  // Oldest match wins so duplicates resolve deterministically.
+  const { data: existing } = await admin.from("events").select("id").ilike("title", `${title}%`).order("created_at").limit(1).maybeSingle();
   if (existing) return existing.id;
   const { data, error } = await admin.from("events").insert({
     organizer_id: orgId, title, description: opts.description ?? "Seeded E2E test event",
@@ -109,6 +113,7 @@ async function main() {
   for (const u of USERS) ids[u.email] = await ensureUser(u);
 
   const orgId = await ensureOrganizer(ids["dev.organizer@outsiderr.test"]);
+  const org2Id = await ensureOrganizer(ids["dev.organizer2@outsiderr.test"], "Dev Test Org Two");
 
   // Events: paid (booking/orders), free (instant RSVP), tiny (capacity+waitlist), draft (publish flow)
   const paidEvent = await ensureEvent(orgId, "DEVTEST Paid Jam", { pricingMode: "PAID" });
@@ -125,7 +130,7 @@ async function main() {
 
   console.log("\n✅ Seed complete.");
   console.log(JSON.stringify({
-    users: ids, orgId, paidEvent, freeEvent, tinyEvent, draftEvent,
+    users: ids, orgId, org2Id, paidEvent, freeEvent, tinyEvent, draftEvent,
     paidTier, freeTier, tinyTier,
     scannerPin: "123456", boxOfficePin: "654321", password: DEV_PASSWORD,
   }, null, 2));

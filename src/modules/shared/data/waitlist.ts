@@ -1,6 +1,8 @@
 import "server-only";
 
 import { createClient } from "../auth/server";
+import { createServiceClient } from "../auth/service";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CurrentUser } from "../auth/auth";
 import type { WaitlistEntry, WaitlistStatus } from "../lib/types";
 
@@ -79,8 +81,9 @@ export async function listMyWaitlistEntries(user: CurrentUser): Promise<Waitlist
  * to prevent race conditions when multiple tickets free up simultaneously.
  * Sets status to OFFERED with a 24h expiry. Creates an in-app notification.
  */
-export async function autoOfferWaitlist(tierId: string): Promise<void> {
-  const supabase = await createClient();
+export async function autoOfferWaitlist(tierId: string, client?: SupabaseClient): Promise<void> {
+  // Callers pass their context; the cron path uses the service client.
+  const supabase = client ?? (await createClient());
 
   // Use the atomic RPC — it locks the waitlist row with SELECT FOR UPDATE,
   // picks the first WAITING entry, marks it OFFERED with 24h expiry, and
@@ -114,7 +117,9 @@ export async function autoOfferWaitlist(tierId: string): Promise<void> {
  * auto-offers the ticket to the next person in line.
  */
 export async function expireWaitlistOffers(): Promise<void> {
-  const supabase = await createClient();
+  // Service client — this runs under the cron route with no user session;
+  // an anon client sees zero rows through RLS and silently does nothing.
+  const supabase = createServiceClient();
   const now = new Date().toISOString();
 
   // Find expired OFFERED entries
@@ -133,7 +138,7 @@ export async function expireWaitlistOffers(): Promise<void> {
     if (error) continue;
 
     // Auto-offer to the next person
-    await autoOfferWaitlist(entry.tier_id);
+    await autoOfferWaitlist(entry.tier_id, supabase);
   }
 }
 

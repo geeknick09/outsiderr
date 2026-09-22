@@ -62,7 +62,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const input = parsed.data;
 
     if (!input.startsAt) return apiError("Pick a start date and time.", 400);
-    if (input.endsAt && new Date(input.endsAt).getTime() <= new Date(input.startsAt).getTime()) {
+    const startsAtMs = new Date(input.startsAt).getTime();
+    if (Number.isNaN(startsAtMs)) return apiError("Invalid start date.", 400);
+    if (input.endsAt && new Date(input.endsAt).getTime() <= startsAtMs) {
       return apiError("End date and time must be after the start date and time.", 400);
     }
     if (!input.venueTba && input.googleMapsLink && !isGoogleMapsLink(input.googleMapsLink)) {

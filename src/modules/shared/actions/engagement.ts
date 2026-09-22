@@ -78,7 +78,7 @@ export async function followOrganizerAction(organizerId: string): Promise<{ erro
 
   // Prevent following yourself
   const { data: organizer } = await supabase
-    .from("organizers")
+    .from("organizers_public")
     .select("owner_id")
     .eq("id", organizerId)
     .maybeSingle();
@@ -135,13 +135,13 @@ export async function searchOrganizersAction(
 
   // Get current user's organizer profile to exclude from results
   const { data: myOrg } = await supabase
-    .from("organizers")
+    .from("organizers_public")
     .select("id")
     .eq("owner_id", user.id)
     .maybeSingle();
 
   let queryBuilder = supabase
-    .from("organizers")
+    .from("organizers_public")
     .select("id, name, avatar_url")
     .ilike("name", `%${query}%`)
     .limit(10);
@@ -188,7 +188,7 @@ export async function inviteCollaboratorAction(
   if (!event) return { error: "Event not found." };
 
   const { data: myOrg } = await supabase
-    .from("organizers")
+    .from("organizers_public")
     .select("id")
     .eq("owner_id", user.id)
     .maybeSingle();
@@ -222,7 +222,7 @@ export async function inviteCollaboratorAction(
 
   // Send a notification to the invited organizer's owner
   const { data: invitedOrg } = await supabase
-    .from("organizers")
+    .from("organizers_public")
     .select("owner_id, name")
     .eq("id", organizerId)
     .maybeSingle();
@@ -265,7 +265,7 @@ export async function acceptCollaborationAction(
 
   // Verify the current user is the invited organizer
   const { data: myOrg } = await supabase
-    .from("organizers")
+    .from("organizers_public")
     .select("id, name")
     .eq("owner_id", user.id)
     .maybeSingle();
@@ -298,7 +298,7 @@ export async function acceptCollaborationAction(
 
   if (eventDetails && collab.invited_by) {
     const { data: inviterOrg } = await supabase
-      .from("organizers")
+      .from("organizers_public")
       .select("owner_id")
       .eq("id", collab.invited_by)
       .maybeSingle();
@@ -335,7 +335,7 @@ export async function rejectCollaborationAction(
   const supabase = await createClient();
 
   const { data: myOrg } = await supabase
-    .from("organizers")
+    .from("organizers_public")
     .select("id")
     .eq("owner_id", user.id)
     .maybeSingle();
@@ -377,7 +377,7 @@ export async function removeCollaboratorAction(
   if (!event) return { error: "Event not found." };
 
   const { data: myOrg } = await supabase
-    .from("organizers")
+    .from("organizers_public")
     .select("id")
     .eq("owner_id", user.id)
     .maybeSingle();
@@ -423,7 +423,7 @@ export async function changeCollaboratorPermissionAction(
   if (!event) return { error: "Event not found." };
 
   const { data: myOrg } = await supabase
-    .from("organizers")
+    .from("organizers_public")
     .select("id")
     .eq("owner_id", user.id)
     .maybeSingle();

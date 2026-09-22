@@ -363,10 +363,10 @@ export async function createEventAction(
     // Create door staff order if requested
     if (needsDoorStaff) {
       const doorStaffCount = Number(formData.get("doorStaffCount") ?? 1);
-      const doorStaffAmount = Number(formData.get("doorStaffAmount") ?? 0);
       try {
         const { createDoorStaffOrder } = await import("@/modules/shared/server");
-        await createDoorStaffOrder(user, eventId, doorStaffCount, doorStaffAmount * 100);
+        // Price is derived server-side from door_staff_pricing settings.
+        await createDoorStaffOrder(user, eventId, doorStaffCount);
       } catch {
         // Best-effort — don't fail event creation if door staff order fails
       }
@@ -583,126 +583,17 @@ export async function cancelEventAction(formData: FormData): Promise<void> {
   await cancelHeroBoostsForEvent(eventId);
   console.log(`[cancel] Hero boosts cancelled for eventId=${eventId}`);
 
-  // Process Razorpay refunds for all cancelled orders
-  // The cancel_event RPC created PENDING refund records; now we trigger the actual Razorpay refunds
-  let refundSuccessCount = 0;
-  let refundFailCount = 0;
-  try {
-    const { createClient } = await import("@/modules/shared/server");
-    const { getRazorpay, isRazorpayConfigured } = await import("@/modules/shared/server");
-    const supabase = await createClient();
-
-    // Get all refund records for this event that are PENDING
-    const { data: pendingRefunds } = await supabase
-      .from("refunds")
-      .select("id, order_id, amount_paise, status")
-      .eq("event_id", eventId)
-      .eq("status", "PENDING");
-
-    if (isRazorpayConfigured() && pendingRefunds && pendingRefunds.length > 0) {
-      console.log(`[cancel] Processing ${pendingRefunds.length} pending refunds for eventId=${eventId}`);
-      const razorpay = getRazorpay();
-      for (const refund of pendingRefunds) {
-        // Fetch the order's Razorpay payment ID
-        const { data: orderRow } = await supabase
-          .from("orders")
-          .select("razorpay_payment_id, id")
-          .eq("id", refund.order_id)
-          .maybeSingle();
-
-        if (!orderRow?.razorpay_payment_id) {
-          console.warn(`[cancel] Skipping refund ${refund.id}: no razorpay_payment_id on order ${refund.order_id}`);
-          continue;
-        }
-
-        try {
-          const razorpayRefund = await razorpay.payments.refund(orderRow.razorpay_payment_id, {
-            amount: refund.amount_paise,
-            notes: {
-              order_id: orderRow.id,
-              reason: reason || "Event cancelled",
-            },
-          });
-
-          // Update the refund record with the Razorpay refund ID
-          await supabase
-            .from("refunds")
-            .update({
-              razorpay_refund_id: razorpayRefund.id,
-              razorpay_payment_id: orderRow.razorpay_payment_id,
-              status: "INITIATED",
-            })
-            .eq("id", refund.id);
-
-          console.log(`[cancel] Refund initiated: refundId=${refund.id}, orderId=${orderRow.id}, razorpayRefundId=${razorpayRefund.id}, amount=${refund.amount_paise}paise`);
-          refundSuccessCount++;
-
-          // Insert payment_ledger REFUND entry
-          try {
-            await supabase.from("payment_ledger").insert({
-              order_id: orderRow.id,
-              event_id: eventId,
-              organizer_id: null,
-              type: "REFUND",
-              gross_amount_paise: -refund.amount_paise,
-              commission_paise: 0,
-              convenience_fee_paise: 0,
-              razorpay_fee_paise: 0,
-              net_organizer_paise: 0,
-              net_platform_paise: -refund.amount_paise,
-              razorpay_payment_id: `refund_${razorpayRefund.id}`,
-              notes: `Event cancellation refund: ${reason || "Event cancelled"}`,
-              created_at: new Date().toISOString(),
-            });
-          } catch (ledgerErr) {
-            console.error("Cancel refund ledger insert failed:", ledgerErr);
-          }
-        } catch (refundErr) {
-          console.error(`[cancel] Razorpay refund failed for order ${orderRow.id}:`, refundErr);
-          refundFailCount++;
-          // The refund record stays PENDING — admin can process it manually
-        }
-      }
-    }
-
-    // Record organizer liability in payment_ledger
-    // Organizer owes: convenience_fee + cancellation_charge
-    // This is recorded as an ADJUSTMENT so it's visible in payout calculations
-    if (result.organizerOwesPaise > 0) {
-      try {
-        const { data: event } = await supabase
-          .from("events")
-          .select("organizer_id")
-          .eq("id", eventId)
-          .maybeSingle();
-
-        if (event?.organizer_id) {
-          await supabase.from("payment_ledger").insert({
-            order_id: null,
-            event_id: eventId,
-            organizer_id: event.organizer_id,
-            type: "ADJUSTMENT",
-            gross_amount_paise: 0,
-            commission_paise: 0,
-            convenience_fee_paise: 0,
-            razorpay_fee_paise: 0,
-            refund_amount_paise: 0,
-            net_organizer_paise: -result.organizerOwesPaise,
-            net_platform_paise: result.organizerOwesPaise,
-            notes: `Cancellation charge: ${result.cancellationChargePercent}% + platform fees. Refund count: ${result.refundCount}`,
-            created_at: new Date().toISOString(),
-          });
-        }
-      } catch (ledgerErr) {
-        console.error("[cancel] Organizer liability ledger insert failed:", ledgerErr);
-      }
-    } else {
-      console.log(`[cancel] No pending refunds to process for eventId=${eventId}`);
-    }
-  } catch (refundError) {
-    console.error("[cancel] Auto-refund processing failed:", refundError);
-    // Don't fail the cancellation — refunds can be processed manually by admin
-  }
+  // Process Razorpay refunds for all cancelled orders — shared sweep used by
+  // both the web action and /api/v1/events/[id]/cancel.
+  const { runCancellationRefundSweep } = await import("@/modules/shared/services/orders");
+  const { refundSuccess: refundSuccessCount, refundFail: refundFailCount } =
+    await runCancellationRefundSweep({
+      eventId,
+      reason,
+      organizerOwesPaise: result.organizerOwesPaise,
+      cancellationChargePercent: result.cancellationChargePercent,
+      refundCount: result.refundCount,
+    });
 
   console.log(`[cancel] cancelEventAction complete: eventId=${eventId}, refundSuccess=${refundSuccessCount}, refundFail=${refundFailCount}, organizerOwes=${result.organizerOwesPaise}paise`);
 

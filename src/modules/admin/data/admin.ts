@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "../../shared/auth/server";
+import { createServiceClient } from "../../shared/auth/service";
 import { getCurrentUser } from "../../shared/auth/auth";
 import type { AdminEvent, AdminStats, AdminUser, EventCategory, EventStatus, Order, City, PricingMode } from "../../shared";
 
@@ -138,8 +139,13 @@ export async function adminUpdateEventStatus(
   eventId: string,
   status: EventStatus,
 ): Promise<void> {
+  // `status` is a privileged column — transitions go through the RPC
+  // (admin authz is verified inside).
   const supabase = await createClient();
-  const { error } = await supabase.from("events").update({ status }).eq("id", eventId);
+  const { error } = await supabase.rpc("set_event_status", {
+    p_event_id: eventId,
+    p_status: status,
+  });
   if (error) throw new Error(error.message);
 }
 
@@ -147,7 +153,9 @@ export async function adminToggleEventFeatured(
   eventId: string,
   featured: boolean,
 ): Promise<void> {
-  const supabase = await createClient();
+  // is_featured is a privileged column (revoked from authenticated UPDATE) —
+  // admin is verified upstream; write via service role.
+  const supabase = createServiceClient();
   const { error } = await supabase.from("events").update({ is_featured: featured }).eq("id", eventId);
   if (error) throw new Error(error.message);
 }
@@ -184,7 +192,8 @@ export async function adminToggleUserAdmin(
   userId: string,
   isAdmin: boolean,
 ): Promise<void> {
-  const supabase = await createClient();
+  // is_admin is a privileged column — admin verified upstream.
+  const supabase = createServiceClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await supabase.from("profiles").update({ is_admin: isAdmin } as any).eq("id", userId);
   if (error) throw new Error(error.message);

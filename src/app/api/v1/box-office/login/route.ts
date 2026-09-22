@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     if ("response" in parsed) return parsed.response;
 
     const res = await verifyBoxOfficePinAction(parsed.data.eventId, parsed.data.pin);
-    if (!res.success) return apiError(res.error ?? "Invalid PIN.", 401);
+    if (!res.success) return apiError(res.error ?? "Invalid PIN.", res.code === "RATE_LIMITED" ? 429 : 401);
     return apiOk({ event: res.event });
   });
 }

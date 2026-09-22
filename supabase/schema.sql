@@ -1813,7 +1813,7 @@ begin
          position   = (select coalesce(max(position), 0) + 1
                          from public.waitlist
                         where tier_id = v_tier)
-   where id = p_entry_id;
+   where id = p_entry_id and status = 'OFFERED';
 end;
 $$;
 
@@ -2658,7 +2658,7 @@ create policy "organizers can insert clubs" on public.clubs
   for insert with check (
     exists (
       select 1 from public.organizers o
-      where o.id = owner_id and o.owner_id = auth.uid()
+      where o.id = clubs.owner_id and o.owner_id = auth.uid()
     )
   );
 
@@ -2667,7 +2667,7 @@ create policy "organizers can update own clubs" on public.clubs
   for update using (
     exists (
       select 1 from public.organizers o
-      where o.id = owner_id and o.owner_id = auth.uid()
+      where o.id = clubs.owner_id and o.owner_id = auth.uid()
     )
   );
 
@@ -3272,3 +3272,1394 @@ exception when duplicate_object then null; end $$;
 do $$ begin
   alter publication supabase_realtime add table public.event_collaborators;
 exception when duplicate_object then null; end $$;
+-- STEP 21: Security hardening sweep (QA audit fixes, 2026-09-22)
+-- Fixes: RPC lockdown (free-ticket mints), privileged-column writes
+-- (self-admin / self-KYC / fee evasion), staff self-claim, collaborator
+-- escalation, refund races, missing inventory release, ledger gaps.
+-- ================================================================
+
+-- ---- 1. Missing columns (schema drift — code references them; never migrated)
+alter table public.clubs add column if not exists cover_url text;
+alter table public.organizers add column if not exists rejection_count integer not null default 0;
+
+-- ---- 2. is_event_manager(): event owner OR admin OR ACCEPTED FULL collaborator.
+-- is_event_staff() stays for scan/read surfaces; write surfaces upgrade to this.
+create or replace function public.is_event_manager(p_event_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.events e
+    join public.organizers o on o.id = e.organizer_id
+    where e.id = p_event_id and o.owner_id = auth.uid()
+  )
+  or public.is_current_user_admin()
+  or exists (
+    select 1
+    from public.event_collaborators c
+    join public.organizers o2 on o2.id = c.organizer_id
+    where c.event_id = p_event_id
+      and c.status = 'ACCEPTED'
+      and c.permission_level = 'FULL'
+      and o2.owner_id = auth.uid()
+  );
+$$;
+
+-- ---- 3. Privileged-RPC lockdown ------------------------------------------------
+-- These mint/confirm/refund or mutate money-critical state. They are invoked
+-- only by server code AFTER its own verification (Razorpay signature, PIN,
+-- CRON_SECRET, admin check) and now run under the service role only.
+revoke execute on function public.confirm_razorpay_order(uuid, text, text, text) from public, anon, authenticated;
+revoke execute on function public.fail_razorpay_order(uuid) from public, anon, authenticated;
+revoke execute on function public.create_walkin_order(uuid, text, text, uuid, text, integer, text, text) from public, anon, authenticated;
+revoke execute on function public.update_walkin_order(uuid, text, text, text, integer) from public, anon, authenticated;
+revoke execute on function public.expire_reserved_orders() from public, anon, authenticated;
+revoke execute on function public.set_razorpay_order_id(uuid, text) from public, anon, authenticated;
+revoke execute on function public.requeue_waitlist_entry(uuid) from public, anon, authenticated;
+revoke execute on function public.offer_waitlist_next(uuid) from public, anon;
+revoke execute on function public.increment_club_member_count(uuid) from public, anon;
+
+grant execute on function public.confirm_razorpay_order(uuid, text, text, text) to service_role;
+grant execute on function public.fail_razorpay_order(uuid) to service_role;
+grant execute on function public.create_walkin_order(uuid, text, text, uuid, text, integer, text, text) to service_role;
+grant execute on function public.update_walkin_order(uuid, text, text, text, integer) to service_role;
+grant execute on function public.update_walkin_order(uuid, text, text, text, integer) to service_role;
+grant execute on function public.expire_reserved_orders() to service_role;
+grant execute on function public.set_razorpay_order_id(uuid, text) to service_role;
+grant execute on function public.requeue_waitlist_entry(uuid) to service_role;
+grant execute on function public.offer_waitlist_next(uuid) to authenticated, service_role;
+grant execute on function public.increment_club_member_count(uuid) to authenticated, service_role;
+
+-- ---- 4. event_staff self-claim hardening ---------------------------------------
+-- The claim path may only fill user_id on an unresolved row; identity columns
+-- are pinned by trigger so a claimer can't retarget the row onto other events.
+create or replace function public.event_staff_pin_columns()
+returns trigger
+language plpgsql
+as $$
+begin
+  if auth.role() <> 'service_role' then
+    new.event_id := old.event_id;
+    new.organizer_id := old.organizer_id;
+    if old.user_id is not null and new.user_id is distinct from old.user_id then
+      raise exception 'Staff assignment cannot be transferred';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists event_staff_pin_columns_trg on public.event_staff;
+create trigger event_staff_pin_columns_trg
+  before update on public.event_staff
+  for each row execute function public.event_staff_pin_columns();
+
+drop policy if exists "staff update own user_id" on public.event_staff;
+create policy "staff update own user_id" on public.event_staff
+  for update using (user_id = auth.uid() or user_id is null)
+  with check (user_id = auth.uid());
+
+-- ---- 5. event_collaborators: invitee may only change status --------------------
+create or replace function public.event_collaborators_pin_columns()
+returns trigger
+language plpgsql
+as $$
+begin
+  if auth.role() <> 'service_role' then
+    new.event_id := old.event_id;
+    new.organizer_id := old.organizer_id;
+    new.invited_by := old.invited_by;
+    if not public.is_current_user_admin() then
+      new.permission_level := old.permission_level;
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists event_collaborators_pin_columns_trg on public.event_collaborators;
+create trigger event_collaborators_pin_columns_trg
+  before update on public.event_collaborators
+  for each row execute function public.event_collaborators_pin_columns();
+
+-- Event owner can also update the collaborator row (e.g. permission_level)
+drop policy if exists "event owner updates collaborators" on public.event_collaborators;
+create policy "event owner updates collaborators" on public.event_collaborators
+  for update using (
+    exists (
+      select 1 from public.events e
+      join public.organizers o on o.id = e.organizer_id
+      where e.id = event_collaborators.event_id and o.owner_id = auth.uid()
+    )
+  );
+
+-- ---- 6. event_reviews: pin user_id to the caller --------------------------------
+drop policy if exists "checked_in users can review" on public.event_reviews;
+create policy "checked_in users can review"
+  on public.event_reviews for insert
+  with check (
+    user_id = auth.uid()
+    and exists (
+      select 1 from public.tickets t
+      join public.orders o on o.id = t.order_id
+      where t.event_id = event_reviews.event_id
+        and o.user_id = auth.uid()
+        and t.status = 'USED'
+    )
+    and not exists (
+      select 1 from public.event_reviews er
+      where er.event_id = event_reviews.event_id
+        and er.user_id = auth.uid()
+    )
+  );
+
+-- ---- 7. orders: creation happens only via RPCs (they run as definer) ------------
+drop policy if exists "buyers create their own orders" on public.orders;
+
+-- Tighten organizer-side writes to managers (door staff no longer get order/tier/ticket writes)
+drop policy if exists "organizer updates orders" on public.orders;
+create policy "organizer updates orders" on public.orders
+  for update using (public.is_event_manager(event_id));
+
+drop policy if exists "tiers organizer insert" on public.ticket_tiers;
+create policy "tiers organizer insert" on public.ticket_tiers
+  for insert with check (public.is_event_manager(event_id));
+drop policy if exists "tiers organizer update" on public.ticket_tiers;
+create policy "tiers organizer update" on public.ticket_tiers
+  for update using (public.is_event_manager(event_id));
+drop policy if exists "tiers organizer delete" on public.ticket_tiers;
+create policy "tiers organizer delete" on public.ticket_tiers
+  for delete using (public.is_event_manager(event_id));
+
+drop policy if exists "organizer creates tickets" on public.tickets;
+create policy "organizer creates tickets" on public.tickets
+  for insert with check (public.is_event_manager(event_id));
+drop policy if exists "organizer updates tickets" on public.tickets;
+create policy "organizer updates tickets" on public.tickets
+  for update using (public.is_event_manager(event_id));
+
+-- ---- 8. Privileged column lockdown via column-level grants ---------------------
+-- Privileged writes (roles/KYC/status/fees/featured/counters) now only flow
+-- through security-definer RPCs or the service role. RLS stays on top.
+revoke update on public.profiles from anon, authenticated;
+grant update (full_name, phone, avatar_url, birth_date, gender, interested_tags,
+              instagram_url, youtube_url, x_url, facebook_url, linkedin_url,
+              theme_preference)
+  on public.profiles to authenticated;
+
+revoke update on public.organizers from anon, authenticated;
+-- Owners may update their own profile + KYC *data* fields; the *decision*
+-- fields (kyc_status, verified, rejection_count, kyc_reviewed_at,
+-- kyc_review_note, owner_id) are writable only via submit_kyc/admin paths.
+grant update (name, bio, description, avatar_url, cover_url, instagram_url, youtube_url,
+              x_url, facebook_url, linkedin_url, upi_id, upi_qr_url,
+              pan_number, pan_name, pan_document_url, gst_number, gst_business_name,
+              bank_account_number, bank_ifsc, bank_account_name, bank_account_type,
+              bank_document_url, kyc_response_note, kyc_response_document_url)
+  on public.organizers to authenticated;
+
+-- Pin the INSERT path too — an owner can't create an already-APPROVED row.
+drop policy if exists "organizers owner insert" on public.organizers;
+create policy "organizers owner insert" on public.organizers
+  for insert with check (
+    (auth.uid() = owner_id or public.is_current_user_admin())
+    and kyc_status in ('NOT_SUBMITTED', 'PENDING')
+    and verified = false
+    and coalesce(rejection_count, 0) = 0
+  );
+
+revoke update on public.events from anon, authenticated;
+grant update (title, description, things_to_know, tags, photo_urls, category, categories,
+              city, venue_name, venue_address, latitude, longitude, google_maps_link,
+              starts_at, ends_at, card_poster_url, banner_poster_url, teaser_video_url,
+              fee_payer, needs_door_staff, waitlist_enabled, allow_booking_during_event,
+              terms, pricing_mode, contact_email, contact_phone, instagram_url,
+              youtube_url, x_url, facebook_url, linkedin_url, linked_past_event_ids)
+  on public.events to authenticated;
+
+-- ---- 9. Sanitized public organizer view ----------------------------------------
+-- Base table select becomes owner/admin-only; public reads use this view.
+create or replace view public.organizers_public as
+  select id, owner_id, name, bio, description, avatar_url, cover_url,
+         instagram_url, youtube_url, x_url, facebook_url, linkedin_url,
+         upi_id, upi_qr_url, verified, created_at
+    from public.organizers;
+grant select on public.organizers_public to anon, authenticated;
+
+drop policy if exists "organizers are publicly readable" on public.organizers;
+drop policy if exists "organizers are public" on public.organizers;
+create policy "organizers owner/admin read" on public.organizers
+  for select using (owner_id = auth.uid() or public.is_current_user_admin());
+
+-- ---- 10. set_event_status RPC — owner (DRAFT/PUBLISHED) or admin (any non-refund
+-- transition). CANCELLED must go through cancel_event (refund pipeline).
+create or replace function public.set_event_status(p_event_id uuid, p_status text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_status not in ('DRAFT', 'PUBLISHED', 'POSTPONED', 'COMPLETED') then
+    raise exception 'Invalid status transition';
+  end if;
+  if not public.is_current_user_admin() and not exists (
+    select 1 from public.events e
+    join public.organizers o on o.id = e.organizer_id
+    where e.id = p_event_id and o.owner_id = auth.uid()
+  ) then
+    raise exception 'Not authorised to change this event status';
+  end if;
+  update public.events set status = p_status
+   where id = p_event_id;
+  if not found then raise exception 'Event not found'; end if;
+end;
+$$;
+grant execute on function public.set_event_status(uuid, text) to authenticated, service_role;
+
+-- ---- 11. submit_kyc RPC — owner submits own KYC; can only reach PENDING ---------
+create or replace function public.submit_kyc(p_organizer_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (
+    select 1 from public.organizers
+    where id = p_organizer_id and owner_id = auth.uid()
+  ) and not public.is_current_user_admin() then
+    raise exception 'Not authorised to submit KYC for this organizer';
+  end if;
+  update public.organizers
+     set kyc_submitted = true,
+         kyc_status = 'PENDING',
+         kyc_reviewed_at = null,
+         kyc_review_note = null
+   where id = p_organizer_id;
+end;
+$$;
+grant execute on function public.submit_kyc(uuid) to authenticated, service_role;
+
+-- ---- 12. request_postponement_refund — rewritten --------------------------------
+-- Fixes: caller could pass any p_user_id (forced refunds), no row lock
+-- (double-refund race), ambiguous column refs (function was broken outright),
+-- no idempotency, no inventory release.
+create or replace function public.request_postponement_refund(
+  p_event_id uuid,
+  p_user_id uuid
+)
+returns table (
+  order_id uuid,
+  total_paise integer,
+  razorpay_payment_id text,
+  refund_created boolean
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order record;
+  v_existing uuid;
+begin
+  -- A signed-in caller may only refund their own order; service role (admin/cron) may pass any user.
+  if auth.role() = 'authenticated' and auth.uid() is distinct from p_user_id then
+    raise exception 'Not authorised to request a refund for this user';
+  end if;
+
+  if not exists (select 1 from public.events where id = p_event_id and status = 'POSTPONED') then
+    raise exception 'Event is not postponed';
+  end if;
+
+  select o.id, o.total_paise, o.platform_fee_paise, o.tier_id, o.quantity,
+         o.status, o.razorpay_payment_id as rzp_payment_id
+    into v_order
+    from public.orders o
+   where o.event_id = p_event_id
+     and o.user_id = p_user_id
+     and o.status in ('CONFIRMED', 'REFUND_REQUESTED')
+   order by (o.status = 'CONFIRMED') desc
+   limit 1
+   for update of o;
+
+  if not found then
+    raise exception 'No confirmed order found for this event';
+  end if;
+
+  -- Idempotent: a pending/initiated refund already exists → return it.
+  select r.id into v_existing
+    from public.refunds r
+   where r.order_id = v_order.id and r.status in ('PENDING', 'INITIATED')
+   limit 1;
+  if v_existing is not null then
+    return query
+      select v_order.id, v_order.total_paise, v_order.rzp_payment_id, false;
+    return;
+  end if;
+
+  update public.orders set status = 'REFUND_REQUESTED' where id = v_order.id;
+  update public.tickets set status = 'CANCELLED' where order_id = v_order.id;
+
+  -- Release the seat back to the tier.
+  update public.ticket_tiers
+     set quantity_sold = greatest(quantity_sold - v_order.quantity, 0)
+   where id = v_order.tier_id;
+  update public.events
+     set registrations_count = greatest(registrations_count - v_order.quantity, 0)
+   where id = p_event_id;
+
+  insert into public.refunds (order_id, event_id, user_id, amount_paise, platform_fee_paise, status, reason, initiated_at, initiated_by)
+  values (v_order.id, p_event_id, p_user_id, v_order.total_paise, v_order.platform_fee_paise, 'PENDING', 'Postponement refund requested by user', now(), p_user_id);
+
+  insert into public.event_notifications (event_id, user_id, type, message)
+  values (p_event_id, p_user_id, 'REFUND_INITIATED', 'Your refund request for the postponed event has been submitted. You will receive your refund shortly.');
+
+  -- Offer the freed seat to the next waiter (no-op if none).
+  perform public.offer_waitlist_next(v_order.tier_id);
+
+  return query
+    select v_order.id, v_order.total_paise, v_order.rzp_payment_id, true;
+end;
+$$;
+
+-- ---- 13. approve_order — managers only, counts reservations, event-status guard,
+--      journals a TICKET_SALE ledger row, notifies the buyer.
+create or replace function public.approve_order(p_order_id uuid)
+returns setof public.tickets
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order  public.orders;
+  v_tier   public.ticket_tiers;
+  v_status text;
+begin
+  select * into v_order from public.orders where id = p_order_id for update;
+  if not found then
+    raise exception 'Order % not found', p_order_id;
+  end if;
+  if v_order.status <> 'PENDING_VERIFICATION' then
+    raise exception 'Order is already %', v_order.status;
+  end if;
+
+  -- Authorization: event owner, admin, or FULL collaborator (not door staff).
+  if not public.is_event_manager(v_order.event_id) then
+    raise exception 'Not authorised to approve orders for this event';
+  end if;
+
+  -- Never mint tickets for a cancelled/terminated event.
+  select status into v_status from public.events where id = v_order.event_id;
+  if v_status in ('CANCELLED', 'CANCELLATION_REQUESTED') then
+    raise exception 'Cannot approve orders for a cancelled event';
+  end if;
+
+  -- Stock check counts held reservations too.
+  select * into v_tier from public.ticket_tiers where id = v_order.tier_id for update;
+  if not found then
+    raise exception 'Ticket tier not found';
+  end if;
+  if v_tier.quantity - v_tier.quantity_sold - coalesce(v_tier.quantity_reserved, 0) < v_order.quantity then
+    raise exception 'Not enough tickets left in this tier (available: %, requested: %)',
+      v_tier.quantity - v_tier.quantity_sold - coalesce(v_tier.quantity_reserved, 0), v_order.quantity;
+  end if;
+
+  update public.ticket_tiers
+     set quantity_sold = quantity_sold + v_order.quantity
+   where id = v_order.tier_id;
+
+  update public.orders
+     set status = 'CONFIRMED', reviewed_by = auth.uid(), reviewed_at = now()
+   where id = p_order_id;
+
+  update public.events
+     set registrations_count = registrations_count + v_order.quantity
+   where id = v_order.event_id;
+
+  -- Journal the sale (manual-UPI path has no Razorpay payment id).
+  insert into public.payment_ledger (
+    order_id, event_id, organizer_id, type,
+    gross_amount_paise, commission_paise, convenience_fee_paise,
+    razorpay_fee_paise, net_organizer_paise, net_platform_paise, notes
+  )
+  select o.id, o.event_id, e.organizer_id, 'TICKET_SALE',
+         o.subtotal_paise, o.commission_paise, o.convenience_fee_paise,
+         0, o.organizer_payout_paise, o.platform_fee_paise,
+         'Manual UPI order approved'
+    from public.orders o
+    join public.events e on e.id = o.event_id
+   where o.id = p_order_id
+     and o.subtotal_paise > 0
+     and not exists (
+       select 1 from public.payment_ledger pl
+       where pl.order_id = o.id and pl.type = 'TICKET_SALE'
+     );
+
+  -- Notify the buyer.
+  insert into public.event_notifications (event_id, user_id, type, message)
+  select o.event_id, o.user_id, 'ORDER_CONFIRMED', 'Your payment was verified — your ticket is confirmed.'
+    from public.orders o
+   where o.id = p_order_id and o.user_id is not null;
+
+  -- Clear waitlist entry on confirm.
+  delete from public.waitlist
+   where tier_id = v_order.tier_id and user_id = v_order.user_id;
+
+  -- Mint the tickets (qr_hash per ticket, same scheme as confirm_razorpay_order).
+  return query
+    insert into public.tickets (order_id, event_id, tier_id, user_id, qr_hash)
+    select
+      v_order.id, v_order.event_id, v_order.tier_id, v_order.user_id,
+      encode(sha256((v_order.id::text || ':' || g::text || ':' || gen_random_uuid()::text)::bytea), 'hex')
+    from generate_series(1, v_order.quantity) g
+    returning *;
+end;
+$$;
+-- approve/reject stay callable by authenticated (is_event_manager enforced inside)
+
+-- ---- 14. reject_order — managers only + buyer notification.
+create or replace function public.reject_order(p_order_id uuid, p_reason text default null)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order public.orders;
+begin
+  select * into v_order from public.orders where id = p_order_id for update;
+  if not found then
+    raise exception 'Order % not found', p_order_id;
+  end if;
+  if not public.is_event_manager(v_order.event_id) then
+    raise exception 'Not authorised to reject orders for this event';
+  end if;
+  -- Reject is for unverified payments only — CONFIRMED orders carry real
+  -- money and must go through the refund flow (not a bare status flip).
+  if v_order.status <> 'PENDING_VERIFICATION' then
+    raise exception 'Only orders awaiting payment verification can be rejected (status is %)', v_order.status;
+  end if;
+
+  update public.orders
+     set status           = 'REJECTED',
+         rejection_reason = p_reason,
+         reviewed_by      = auth.uid(),
+         reviewed_at      = now()
+   where id = p_order_id
+  returning * into v_order;
+
+  insert into public.event_notifications (event_id, user_id, type, message)
+  select o.event_id, o.user_id, 'ORDER_REJECTED',
+         coalesce('Your payment could not be verified. ' || p_reason, 'Your payment could not be verified.')
+    from public.orders o
+   where o.id = p_order_id and o.user_id is not null;
+
+  return v_order;
+end;
+$$;
+
+-- ---- 15. Order-creation RPCs: event-status + tier↔event checks ------------------
+-- create_paid_order: also counts held reservations and blocks duplicate
+-- active orders (incl. RESERVED).
+create or replace function public.create_paid_order(
+  p_event_id        uuid,
+  p_tier_id         uuid,
+  p_quantity        integer,
+  p_unit_price_paise   integer,
+  p_subtotal_paise     integer,
+  p_platform_fee_paise integer,
+  p_total_paise        integer,
+  p_fee_payer          text,
+  p_utr_reference      text,
+  p_payment_proof_url  text,
+  p_buyer_name         text default null,
+  p_buyer_phone        text default null,
+  p_buyer_email        text default null,
+  p_buyer_gender       text default null,
+  p_commission_paise      integer default 0,
+  p_convenience_fee_paise integer default 0,
+  p_organizer_payout_paise integer default 0
+)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order   public.orders;
+  v_tier    public.ticket_tiers;
+  v_event   public.events;
+  v_existing_count integer;
+begin
+  select * into v_event from public.events where id = p_event_id;
+  if not found then
+    raise exception 'Event not found';
+  end if;
+  if v_event.status not in ('PUBLISHED', 'POSTPONED') then
+    raise exception 'This event is not open for booking';
+  end if;
+
+  -- Lock the tier row to prevent concurrent overbooking
+  select * into v_tier from public.ticket_tiers where id = p_tier_id for update;
+  if not found then
+    raise exception 'Ticket tier not found';
+  end if;
+  if v_tier.event_id <> p_event_id then
+    raise exception 'Ticket tier does not belong to this event';
+  end if;
+  if v_tier.price_paise = 0 then
+    raise exception 'This function is for paid tickets only';
+  end if;
+  if v_tier.quantity - v_tier.quantity_sold - coalesce(v_tier.quantity_reserved, 0) < p_quantity then
+    raise exception 'Not enough tickets left in this tier';
+  end if;
+
+  -- Prevent double booking: active orders include held Razorpay reservations.
+  select count(*) into v_existing_count
+  from public.orders
+  where event_id = p_event_id
+    and user_id = auth.uid()
+    and status in ('CONFIRMED', 'PENDING_VERIFICATION', 'RESERVED');
+  if v_existing_count > 0 then
+    raise exception 'You have already booked a ticket for this event';
+  end if;
+
+  insert into public.orders (
+    event_id, tier_id, user_id, quantity,
+    unit_price_paise, subtotal_paise, platform_fee_paise, total_paise,
+    fee_payer, status, utr_reference, payment_proof_url,
+    buyer_name, buyer_phone, buyer_email, buyer_gender,
+    commission_paise, convenience_fee_paise, organizer_payout_paise
+  ) values (
+    p_event_id, p_tier_id, auth.uid(), p_quantity,
+    p_unit_price_paise, p_subtotal_paise, p_platform_fee_paise, p_total_paise,
+    p_fee_payer, 'PENDING_VERIFICATION', p_utr_reference, p_payment_proof_url,
+    p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender,
+    p_commission_paise, p_convenience_fee_paise, p_organizer_payout_paise
+  )
+  returning * into v_order;
+
+  return v_order;
+end;
+$$;
+
+-- create_free_order: same guards + duplicate check inside the RPC under the
+-- tier lock (was previously a racy JS-level count).
+create or replace function public.create_free_order(
+  p_event_id uuid,
+  p_tier_id  uuid,
+  p_quantity integer,
+  p_buyer_name   text default null,
+  p_buyer_phone  text default null,
+  p_buyer_email  text default null,
+  p_buyer_gender text default null
+)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order   public.orders;
+  v_tier    public.ticket_tiers;
+  v_event   public.events;
+  v_existing_count integer;
+begin
+  select * into v_event from public.events where id = p_event_id;
+  if not found then
+    raise exception 'Event not found';
+  end if;
+  if v_event.status not in ('PUBLISHED', 'POSTPONED') then
+    raise exception 'This event is not open for booking';
+  end if;
+
+  select * into v_tier from public.ticket_tiers where id = p_tier_id for update;
+  if not found then
+    raise exception 'Ticket tier not found';
+  end if;
+  if v_tier.event_id <> p_event_id then
+    raise exception 'Ticket tier does not belong to this event';
+  end if;
+  if v_tier.price_paise <> 0 then
+    raise exception 'This function is for free tickets only';
+  end if;
+  if v_tier.quantity - v_tier.quantity_sold - coalesce(v_tier.quantity_reserved, 0) < p_quantity then
+    raise exception 'Not enough tickets left';
+  end if;
+
+  select count(*) into v_existing_count
+  from public.orders
+  where event_id = p_event_id
+    and user_id = auth.uid()
+    and status in ('CONFIRMED', 'PENDING_VERIFICATION', 'RESERVED');
+  if v_existing_count > 0 then
+    raise exception 'You have already booked a ticket for this event';
+  end if;
+
+  insert into public.orders (
+    event_id, tier_id, user_id, quantity,
+    unit_price_paise, subtotal_paise, platform_fee_paise, total_paise,
+    fee_payer, status, buyer_name, buyer_phone, buyer_email, buyer_gender
+  ) values (
+    p_event_id, p_tier_id, auth.uid(), p_quantity,
+    0, 0, 0, 0,
+    v_event.fee_payer, 'CONFIRMED', p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender
+  )
+  returning * into v_order;
+
+  insert into public.tickets (order_id, event_id, tier_id, user_id, qr_hash)
+  select
+    v_order.id,
+    p_event_id,
+    p_tier_id,
+    auth.uid(),
+    encode(
+      sha256((v_order.id::text || ':' || g::text || ':' || gen_random_uuid()::text)::bytea),
+      'hex'
+    )
+  from generate_series(1, p_quantity) g;
+
+  update public.ticket_tiers
+     set quantity_sold = quantity_sold + p_quantity
+   where id = p_tier_id;
+
+  update public.events
+     set registrations_count = registrations_count + p_quantity
+   where id = p_event_id;
+
+  delete from public.waitlist
+   where tier_id = p_tier_id and user_id = auth.uid();
+
+  return v_order;
+end;
+$$;
+
+-- ---- 16. confirm_razorpay_order — late-capture safety net -----------------------
+-- If a payment lands on a FAILED/EXPIRED/CANCELLED order (async UPI capture,
+-- retry after expiry), do NOT mint tickets — instead flip to REFUND_REQUESTED
+-- with a refunds row so the money is never silently kept.
+create or replace function public.confirm_razorpay_order(
+  p_order_id            uuid,
+  p_razorpay_payment_id text,
+  p_razorpay_signature  text default null,
+  p_payment_method      text default null
+)
+returns setof public.tickets
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order    public.orders;
+  v_tier     public.ticket_tiers;
+  v_invoice  text;
+begin
+  select * into v_order from public.orders where id = p_order_id for update;
+  if not found then raise exception 'Order not found'; end if;
+  if v_order.status = 'CONFIRMED' then
+    return query select * from public.tickets where order_id = p_order_id;
+    return;
+  end if;
+  if v_order.status <> 'RESERVED' then
+    -- Late capture on a dead order: money arrived but inventory is gone → refund.
+    if v_order.status in ('FAILED', 'EXPIRED', 'CANCELLED') and p_razorpay_payment_id is not null then
+      update public.orders
+         set status = 'REFUND_REQUESTED', razorpay_payment_id = p_razorpay_payment_id
+       where id = p_order_id;
+      insert into public.refunds (order_id, event_id, user_id, amount_paise, platform_fee_paise, status, reason, initiated_at)
+      values (v_order.id, v_order.event_id, v_order.user_id, v_order.total_paise, v_order.platform_fee_paise,
+              'PENDING', 'Payment captured after order ' || lower(v_order.status) || ' — auto-refund', now());
+      insert into public.event_notifications (event_id, user_id, type, message)
+      values (v_order.event_id, v_order.user_id, 'REFUND_INITIATED',
+              'Your payment was received after the booking window closed — a refund has been initiated automatically.');
+      return;
+    end if;
+    raise exception 'Order is %, cannot confirm', v_order.status;
+  end if;
+  select * into v_tier from public.ticket_tiers where id = v_order.tier_id for update;
+  update public.ticket_tiers
+     set quantity_reserved = greatest(quantity_reserved - v_order.quantity, 0),
+         quantity_sold = quantity_sold + v_order.quantity
+   where id = v_order.tier_id;
+  v_invoice := 'OUT-' || to_char(now(), 'YYYYMM') || '-' || nextval('invoice_number_seq');
+  update public.orders
+     set status = 'CONFIRMED',
+         razorpay_payment_id = p_razorpay_payment_id,
+         razorpay_signature = p_razorpay_signature,
+         payment_method = p_payment_method,
+         confirmed_at = now(),
+         invoice_number = v_invoice
+   where id = p_order_id;
+  update public.events
+     set registrations_count = registrations_count + v_order.quantity
+   where id = v_order.event_id;
+  delete from public.waitlist
+   where tier_id = v_order.tier_id and user_id = v_order.user_id;
+  insert into public.event_notifications (event_id, user_id, type, message)
+  values (v_order.event_id, v_order.user_id, 'ORDER_CONFIRMED', 'Payment confirmed — your ticket is ready.');
+  return query
+    insert into public.tickets (order_id, event_id, tier_id, user_id, qr_hash)
+    select
+      v_order.id, v_order.event_id, v_order.tier_id, v_order.user_id,
+      encode(sha256((v_order.id::text || ':' || g::text || ':' || gen_random_uuid()::text)::bytea), 'hex')
+    from generate_series(1, v_order.quantity) g
+    returning *;
+end;
+$$;
+
+-- ---- 17. cancel_event — also reject pending-verification orders -----------------
+-- and release sold inventory so counts stay honest.
+create or replace function public.cancel_event(
+  p_event_id uuid,
+  p_reason text,
+  p_cancellation_charge_percent integer default 20
+)
+returns table (
+  refund_count integer,
+  total_refund_paise bigint,
+  total_platform_fee_paise bigint,
+  cancellation_charge_paise bigint,
+  organizer_owes_paise bigint
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_organizer_id uuid;
+  v_order record;
+  v_refund_count integer := 0;
+  v_total_refund bigint := 0;
+  v_total_fee bigint := 0;
+  v_cancel_charge bigint;
+begin
+  select e.organizer_id into v_organizer_id
+    from public.events e
+    join public.organizers o on o.id = e.organizer_id
+   where e.id = p_event_id and o.owner_id = auth.uid();
+  if not found then
+    if not public.is_current_user_admin() then
+      raise exception 'Not authorised to cancel this event';
+    end if;
+    select e.organizer_id into v_organizer_id from public.events e where e.id = p_event_id;
+    if not found then raise exception 'Event not found'; end if;
+  end if;
+
+  update public.events set status = 'CANCELLATION_REQUESTED'
+   where id = p_event_id and organizer_id = v_organizer_id;
+
+  -- Release held reservations.
+  for v_order in
+    select id, tier_id, quantity
+      from public.orders
+     where event_id = p_event_id and status = 'RESERVED'
+  loop
+    update public.orders set status = 'CANCELLED' where id = v_order.id;
+    update public.ticket_tiers
+       set quantity_reserved = greatest(quantity_reserved - v_order.quantity, 0)
+     where id = v_order.tier_id;
+  end loop;
+
+  -- Reject orders still awaiting manual verification (not chargeable).
+  update public.orders
+     set status = 'REJECTED', rejection_reason = 'Event cancelled', reviewed_at = now()
+   where event_id = p_event_id and status = 'PENDING_VERIFICATION';
+
+  for v_order in
+    select id, user_id, tier_id, quantity, total_paise, platform_fee_paise
+      from public.orders
+     where event_id = p_event_id and status = 'CONFIRMED'
+  loop
+    update public.orders set status = 'REFUNDED' where id = v_order.id;
+    update public.tickets set status = 'CANCELLED' where order_id = v_order.id;
+    -- Release the seats (keeps sold/registrations honest for analytics).
+    update public.ticket_tiers
+       set quantity_sold = greatest(quantity_sold - v_order.quantity, 0)
+     where id = v_order.tier_id;
+    update public.events
+       set registrations_count = greatest(registrations_count - v_order.quantity, 0)
+     where id = p_event_id;
+    insert into public.refunds (order_id, event_id, user_id, amount_paise, platform_fee_paise, status, reason, initiated_at)
+    values (v_order.id, p_event_id, v_order.user_id, v_order.total_paise, v_order.platform_fee_paise, 'PENDING', p_reason, now());
+    insert into public.event_notifications (event_id, user_id, type, message)
+    values (p_event_id, v_order.user_id, 'CANCELLATION', p_reason || ' You will receive a full refund.');
+    v_refund_count := v_refund_count + 1;
+    v_total_refund := v_total_refund + v_order.total_paise;
+    v_total_fee := v_total_fee + v_order.platform_fee_paise;
+  end loop;
+
+  -- Notify subscribers (Update-Me) too, not just ticket holders.
+  insert into public.event_notifications (event_id, user_id, type, message)
+  select p_event_id, s.user_id, 'CANCELLATION', p_reason
+    from public.event_subscriptions s
+   where s.event_id = p_event_id
+     and s.user_id not in (
+       select o.user_id from public.orders o
+       where o.event_id = p_event_id and o.status = 'REFUNDED' and o.user_id is not null
+     );
+
+  update public.events set status = 'CANCELLED'
+   where id = p_event_id and organizer_id = v_organizer_id;
+
+  update public.hero_boosts
+     set status = 'CANCELLED', cancelled_at = now(), updated_at = now()
+   where event_id = p_event_id and status = 'ACTIVE';
+
+  v_cancel_charge := round(v_total_refund * p_cancellation_charge_percent / 100);
+
+  return query select
+    v_refund_count,
+    v_total_refund,
+    v_total_fee,
+    v_cancel_charge,
+    v_total_refund + v_total_fee + v_cancel_charge;
+end;
+$$;
+
+-- ---- 18. payment_ledger: unique payment-ref index (double-write guard) ---------
+create unique index if not exists payment_ledger_payment_uidx
+  on public.payment_ledger (razorpay_payment_id)
+  where razorpay_payment_id is not null;
+
+-- ---- 19. event_notifications: admins can also insert (KYC outcomes etc.) -------
+drop policy if exists "admins insert notifications" on public.event_notifications;
+create policy "admins insert notifications" on public.event_notifications
+  for insert with check (public.is_current_user_admin());
+
+-- ---- 20. refunds: admins (not just event owner) can insert refund rows ----------
+drop policy if exists "admins insert refunds" on public.refunds;
+create policy "admins insert refunds" on public.refunds
+  for insert with check (public.is_current_user_admin());
+
+
+-- ---- 21. set_razorpay_order_id — raise when the order is not linkable --------
+-- (was a silent no-op: a status race would leave the order unmatchable).
+create or replace function public.set_razorpay_order_id(
+  p_order_id          uuid,
+  p_razorpay_order_id text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.orders
+     set razorpay_order_id = p_razorpay_order_id
+   where id = p_order_id and status = 'RESERVED';
+  if not found then raise exception 'Order is not reservable'; end if;
+end;
+$$;
+
+-- ---- 22. boosts: organizer can only insert PENDING; only admin flips status ----
+-- Previously the organizer UPDATE policy let an organizer self-activate.
+drop policy if exists "boosts organizer insert" on public.boosts;
+create policy "boosts organizer insert" on public.boosts
+  for insert with check (
+    status = 'PENDING'
+    and exists (
+      select 1 from public.organizers o
+      where o.id = organizer_id and o.owner_id = auth.uid()
+    )
+  );
+drop policy if exists "boosts organizer update" on public.boosts;
+drop policy if exists "boosts admin update" on public.boosts;
+create policy "boosts admin update" on public.boosts
+  for update using (public.is_current_user_admin());
+
+-- ---- 23. hero_boosts: pin status on organizer insert ----------------------------
+drop policy if exists "organizer insert hero boosts" on public.hero_boosts;
+create policy "organizer insert hero boosts" on public.hero_boosts
+  for insert with check (
+    status = 'PENDING'
+    and exists (
+      select 1 from public.organizers o
+      where o.id = organizer_id and o.owner_id = auth.uid()
+    )
+  );
+
+-- ---- 24. join_waitlist: validate the tier belongs to the event + waitlist on ---
+create or replace function public.join_waitlist(
+  p_event_id uuid,
+  p_tier_id  uuid
+)
+returns public.waitlist
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_entry public.waitlist;
+  v_pos   integer;
+begin
+  if auth.uid() is null then
+    raise exception 'Sign in to join the waitlist';
+  end if;
+
+  -- Lock the tier row to serialize position assignment
+  perform 1 from public.ticket_tiers where id = p_tier_id for update;
+  if not found then
+    raise exception 'Ticket tier not found';
+  end if;
+  if not exists (select 1 from public.ticket_tiers where id = p_tier_id and event_id = p_event_id) then
+    raise exception 'Ticket tier does not belong to this event';
+  end if;
+  if not exists (select 1 from public.events where id = p_event_id and waitlist_enabled) then
+    raise exception 'Waitlist is not enabled for this event';
+  end if;
+
+  -- Idempotent: already on the waitlist → return existing row
+  select * into v_entry
+    from public.waitlist
+   where tier_id = p_tier_id and user_id = auth.uid();
+  if found then
+    return v_entry;
+  end if;
+
+  select coalesce(max(position), 0) + 1 into v_pos
+    from public.waitlist where tier_id = p_tier_id;
+
+  insert into public.waitlist (event_id, tier_id, user_id, position)
+  values (p_event_id, p_tier_id, auth.uid(), v_pos)
+  on conflict (tier_id, user_id) do nothing
+  returning * into v_entry;
+
+  if v_entry.id is null then
+    select * into v_entry
+      from public.waitlist
+     where tier_id = p_tier_id and user_id = auth.uid();
+  end if;
+
+  return v_entry;
+end;
+$$;
+
+-- ---- 25. Money integrity: create_paid_order / create_reserved_order ----------
+-- Previously every paise field was caller-supplied — anyone could book a ₹500
+-- ticket with total_paise=1 or set organizer_payout_paise arbitrarily.
+-- Both functions now recompute ALL money fields from the tier row and the
+-- event's fee config. The caller's p_*_paise params are kept for signature
+-- compatibility but ignored.
+
+create or replace function public.create_paid_order(
+  p_event_id        uuid,
+  p_tier_id         uuid,
+  p_quantity        integer,
+  p_unit_price_paise   integer,
+  p_subtotal_paise     integer,
+  p_platform_fee_paise integer,
+  p_total_paise        integer,
+  p_fee_payer          text,
+  p_utr_reference      text,
+  p_payment_proof_url  text,
+  p_buyer_name         text default null,
+  p_buyer_phone        text default null,
+  p_buyer_email        text default null,
+  p_buyer_gender       text default null,
+  p_commission_paise      integer default 0,
+  p_convenience_fee_paise integer default 0,
+  p_organizer_payout_paise integer default 0
+)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order   public.orders;
+  v_tier    public.ticket_tiers;
+  v_event   public.events;
+  v_existing_count integer;
+  v_subtotal integer;
+  v_commission integer;
+  v_convenience integer;
+  v_platform_fee integer;
+  v_total integer;
+  v_payout integer;
+begin
+  if auth.uid() is null then raise exception 'Sign in to book tickets'; end if;
+  if p_quantity is null or p_quantity < 1 then raise exception 'Quantity must be at least 1'; end if;
+
+  select * into v_event from public.events where id = p_event_id;
+  if not found then
+    raise exception 'Event not found';
+  end if;
+  if v_event.status not in ('PUBLISHED', 'POSTPONED') then
+    raise exception 'This event is not open for booking';
+  end if;
+
+  -- Booking cutoff: event start, or event end when organizer allows during-event booking
+  if (case when coalesce(v_event.allow_booking_during_event, false)
+           then coalesce(v_event.ends_at, v_event.starts_at)
+           else v_event.starts_at end) <= now() then
+    raise exception 'Online booking is closed for this event';
+  end if;
+
+  -- Lock the tier row to prevent concurrent overbooking
+  select * into v_tier from public.ticket_tiers where id = p_tier_id for update;
+  if not found then
+    raise exception 'Ticket tier not found';
+  end if;
+  if v_tier.event_id <> p_event_id then
+    raise exception 'Ticket tier does not belong to this event';
+  end if;
+  if v_tier.price_paise = 0 then
+    raise exception 'This function is for paid tickets only';
+  end if;
+  if v_tier.quantity - v_tier.quantity_sold - coalesce(v_tier.quantity_reserved, 0) < p_quantity then
+    raise exception 'Not enough tickets left in this tier';
+  end if;
+
+  -- Prevent double booking: active orders include held Razorpay reservations.
+  select count(*) into v_existing_count
+  from public.orders
+  where event_id = p_event_id
+    and user_id = auth.uid()
+    and status in ('CONFIRMED', 'PENDING_VERIFICATION', 'RESERVED');
+  if v_existing_count > 0 then
+    raise exception 'You have already booked a ticket for this event';
+  end if;
+
+  -- Money: recompute server-side from tier price + event fee config.
+  -- Caller-supplied paise params are ignored (kept for signature compat).
+  v_subtotal    := v_tier.price_paise * p_quantity;
+  v_commission  := case when coalesce(v_event.commission_enabled, true)
+                        then round(v_subtotal * coalesce(v_event.commission_bps, 1000) / 10000.0)
+                        else 0 end;
+  v_convenience := case when coalesce(v_event.convenience_fee_enabled, true)
+                        then round(v_subtotal * coalesce(v_event.convenience_fee_bps, 200) / 10000.0)
+                        else 0 end;
+  v_platform_fee := v_commission + v_convenience;
+  v_total       := v_subtotal + v_convenience;
+  v_payout      := v_subtotal - v_commission;
+
+  insert into public.orders (
+    event_id, tier_id, user_id, quantity,
+    unit_price_paise, subtotal_paise, platform_fee_paise, total_paise,
+    fee_payer, status, utr_reference, payment_proof_url,
+    buyer_name, buyer_phone, buyer_email, buyer_gender,
+    commission_paise, convenience_fee_paise, organizer_payout_paise
+  ) values (
+    p_event_id, p_tier_id, auth.uid(), p_quantity,
+    v_tier.price_paise, v_subtotal, v_platform_fee, v_total,
+    coalesce(v_event.fee_payer, 'BUYER'), 'PENDING_VERIFICATION', p_utr_reference, p_payment_proof_url,
+    p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender,
+    v_commission, v_convenience, v_payout
+  )
+  returning * into v_order;
+
+  return v_order;
+end;
+$$;
+
+create or replace function public.create_reserved_order(
+  p_event_id              uuid,
+  p_tier_id               uuid,
+  p_quantity              integer,
+  p_unit_price_paise      integer,
+  p_subtotal_paise        integer,
+  p_platform_fee_paise    integer,
+  p_commission_paise      integer,
+  p_convenience_fee_paise integer,
+  p_organizer_payout_paise integer,
+  p_total_paise           integer,
+  p_fee_payer             text,
+  p_buyer_name            text default null,
+  p_buyer_phone           text default null,
+  p_buyer_email           text default null,
+  p_buyer_gender          text default null
+)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order   public.orders;
+  v_tier    public.ticket_tiers;
+  v_event   public.events;
+  v_existing_count integer;
+  v_subtotal integer;
+  v_commission integer;
+  v_convenience integer;
+  v_platform_fee integer;
+  v_total integer;
+  v_payout integer;
+begin
+  if auth.uid() is null then raise exception 'Sign in to book tickets'; end if;
+  if p_quantity is null or p_quantity < 1 then raise exception 'Quantity must be at least 1'; end if;
+
+  select * into v_event from public.events where id = p_event_id;
+  if not found then raise exception 'Event not found'; end if;
+  if v_event.status not in ('PUBLISHED', 'POSTPONED') then
+    raise exception 'This event is not open for booking';
+  end if;
+
+  -- Booking cutoff
+  if (case when coalesce(v_event.allow_booking_during_event, false)
+           then coalesce(v_event.ends_at, v_event.starts_at)
+           else v_event.starts_at end) <= now() then
+    raise exception 'Online booking is closed for this event';
+  end if;
+
+  select * into v_tier from public.ticket_tiers where id = p_tier_id for update;
+  if not found then raise exception 'Ticket tier not found'; end if;
+  if v_tier.event_id <> p_event_id then raise exception 'Ticket tier does not belong to this event'; end if;
+  if v_tier.price_paise = 0 then raise exception 'Use the free order flow for free tickets'; end if;
+  if v_tier.quantity - v_tier.quantity_sold - coalesce(v_tier.quantity_reserved, 0) < p_quantity then
+    raise exception 'Not enough tickets available';
+  end if;
+
+  select count(*) into v_existing_count
+  from public.orders
+  where event_id = p_event_id and user_id = auth.uid()
+    and status in ('CONFIRMED', 'RESERVED', 'PENDING_VERIFICATION');
+  if v_existing_count > 0 then
+    raise exception 'You already have an active booking for this event';
+  end if;
+
+  -- Money: recompute server-side (caller amounts ignored).
+  v_subtotal    := v_tier.price_paise * p_quantity;
+  v_commission  := case when coalesce(v_event.commission_enabled, true)
+                        then round(v_subtotal * coalesce(v_event.commission_bps, 1000) / 10000.0)
+                        else 0 end;
+  v_convenience := case when coalesce(v_event.convenience_fee_enabled, true)
+                        then round(v_subtotal * coalesce(v_event.convenience_fee_bps, 200) / 10000.0)
+                        else 0 end;
+  v_platform_fee := v_commission + v_convenience;
+  v_total       := v_subtotal + v_convenience;
+  v_payout      := v_subtotal - v_commission;
+
+  update public.ticket_tiers
+     set quantity_reserved = quantity_reserved + p_quantity
+   where id = p_tier_id;
+  insert into public.orders (
+    event_id, tier_id, user_id, quantity,
+    unit_price_paise, subtotal_paise, platform_fee_paise,
+    commission_paise, convenience_fee_paise, organizer_payout_paise,
+    total_paise, fee_payer, status,
+    buyer_name, buyer_phone, buyer_email, buyer_gender,
+    reserved_at, reservation_expires_at
+  ) values (
+    p_event_id, p_tier_id, auth.uid(), p_quantity,
+    v_tier.price_paise, v_subtotal, v_platform_fee,
+    v_commission, v_convenience, v_payout,
+    v_total, coalesce(v_event.fee_payer, 'BUYER'), 'RESERVED',
+    p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender,
+    now(), now() + interval '15 minutes'
+  )
+  returning * into v_order;
+  return v_order;
+end;
+$$;
+
+-- create_free_order: same guards (auth, qty, cutoff). Keeps the ticket
+-- minting + waitlist cleanup from the earlier version.
+create or replace function public.create_free_order(
+  p_event_id uuid,
+  p_tier_id  uuid,
+  p_quantity integer,
+  p_buyer_name   text default null,
+  p_buyer_phone  text default null,
+  p_buyer_email  text default null,
+  p_buyer_gender text default null
+)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order   public.orders;
+  v_tier    public.ticket_tiers;
+  v_event   public.events;
+  v_existing_count integer;
+begin
+  if auth.uid() is null then raise exception 'Sign in to RSVP'; end if;
+  if p_quantity is null or p_quantity < 1 then raise exception 'Quantity must be at least 1'; end if;
+
+  select * into v_event from public.events where id = p_event_id;
+  if not found then raise exception 'Event not found'; end if;
+  if v_event.status not in ('PUBLISHED', 'POSTPONED') then
+    raise exception 'This event is not open for booking';
+  end if;
+  if (case when coalesce(v_event.allow_booking_during_event, false)
+           then coalesce(v_event.ends_at, v_event.starts_at)
+           else v_event.starts_at end) <= now() then
+    raise exception 'Online booking is closed for this event';
+  end if;
+
+  select * into v_tier from public.ticket_tiers where id = p_tier_id for update;
+  if not found then raise exception 'Ticket tier not found'; end if;
+  if v_tier.event_id <> p_event_id then raise exception 'Ticket tier does not belong to this event'; end if;
+  if v_tier.price_paise <> 0 then raise exception 'This function is for free tickets only'; end if;
+  if v_tier.quantity - v_tier.quantity_sold - coalesce(v_tier.quantity_reserved, 0) < p_quantity then
+    raise exception 'Not enough tickets left';
+  end if;
+
+  select count(*) into v_existing_count
+  from public.orders
+  where event_id = p_event_id
+    and user_id = auth.uid()
+    and status in ('CONFIRMED', 'PENDING_VERIFICATION', 'RESERVED');
+  if v_existing_count > 0 then
+    raise exception 'You have already booked a ticket for this event';
+  end if;
+
+  insert into public.orders (
+    event_id, tier_id, user_id, quantity,
+    unit_price_paise, subtotal_paise, platform_fee_paise, total_paise,
+    fee_payer, status, buyer_name, buyer_phone, buyer_email, buyer_gender
+  ) values (
+    p_event_id, p_tier_id, auth.uid(), p_quantity,
+    0, 0, 0, 0,
+    v_event.fee_payer, 'CONFIRMED', p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender
+  )
+  returning * into v_order;
+
+  insert into public.tickets (order_id, event_id, tier_id, user_id, qr_hash)
+  select
+    v_order.id,
+    p_event_id,
+    p_tier_id,
+    auth.uid(),
+    encode(
+      sha256((v_order.id::text || ':' || g::text || ':' || gen_random_uuid()::text)::bytea),
+      'hex'
+    )
+  from generate_series(1, p_quantity) g;
+
+  update public.ticket_tiers
+     set quantity_sold = quantity_sold + p_quantity
+   where id = p_tier_id;
+
+  update public.events
+     set registrations_count = registrations_count + p_quantity
+   where id = p_event_id;
+
+  delete from public.waitlist
+   where tier_id = p_tier_id and user_id = auth.uid();
+
+  return v_order;
+end;
+$$;
+
+-- ---- 26. Post-STEP-21 fixes ----------------------------------------------------
+-- a) Missing enum values — approve/reject-order and hero-boost notifications
+--    were silently failing (sendNotification swallows insert errors).
+do $$ begin alter type public.event_notification_type add value if not exists 'ORDER_CONFIRMED'; exception when others then null; end $$;
+do $$ begin alter type public.event_notification_type add value if not exists 'ORDER_REJECTED'; exception when others then null; end $$;
+do $$ begin alter type public.event_notification_type add value if not exists 'HERO_BOOST'; exception when others then null; end $$;
+
+-- b) set_event_status: p_status is text → cast to the event_status enum.
+create or replace function public.set_event_status(
+  p_event_id uuid,
+  p_status   text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_event_manager(p_event_id) then
+    raise exception 'Not authorised to change this event status';
+  end if;
+  if p_status not in ('DRAFT','PUBLISHED','POSTPONED','CANCELLED','COMPLETED','SOLD_OUT') then
+    raise exception 'Invalid status: %', p_status;
+  end if;
+  if p_status = 'CANCELLED' then
+    raise exception 'Use cancel_event() — direct cancellation skips refunds and notifications';
+  end if;
+  update public.events set status = p_status::public.event_status
+   where id = p_event_id;
+  if not found then raise exception 'Event not found'; end if;
+end;
+$$;
+grant execute on function public.set_event_status(uuid, text) to authenticated, service_role;
+
+-- c) request_postponement_refund: qualify tickets.order_id — the OUT param
+--    `order_id` (RETURNS TABLE) shadows the column → "ambiguous" on every call.
+create or replace function public.request_postponement_refund(
+  p_event_id uuid,
+  p_user_id uuid
+)
+returns table (
+  order_id uuid,
+  total_paise integer,
+  razorpay_payment_id text,
+  refund_created boolean
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order record;
+  v_existing uuid;
+begin
+  -- A signed-in caller may only refund their own order; service role (admin/cron) may pass any user.
+  if auth.role() = 'authenticated' and auth.uid() is distinct from p_user_id then
+    raise exception 'Not authorised to request a refund for this user';
+  end if;
+
+  if not exists (select 1 from public.events where id = p_event_id and status = 'POSTPONED') then
+    raise exception 'Event is not postponed';
+  end if;
+
+  select o.id, o.total_paise, o.platform_fee_paise, o.tier_id, o.quantity,
+         o.status, o.razorpay_payment_id as rzp_payment_id
+    into v_order
+    from public.orders o
+   where o.event_id = p_event_id
+     and o.user_id = p_user_id
+     and o.status in ('CONFIRMED', 'REFUND_REQUESTED')
+   order by (o.status = 'CONFIRMED') desc
+   limit 1
+   for update of o;
+
+  if not found then
+    raise exception 'No confirmed order found for this event';
+  end if;
+
+  -- Idempotent: a pending/initiated refund already exists → return it.
+  select r.id into v_existing
+    from public.refunds r
+   where r.order_id = v_order.id and r.status in ('PENDING', 'INITIATED')
+   limit 1;
+  if v_existing is not null then
+    return query
+      select v_order.id, v_order.total_paise, v_order.rzp_payment_id, false;
+    return;
+  end if;
+
+  update public.orders set status = 'REFUND_REQUESTED' where id = v_order.id;
+  update public.tickets t set status = 'CANCELLED' where t.order_id = v_order.id;
+
+  -- Release the seat back to the tier.
+  update public.ticket_tiers
+     set quantity_sold = greatest(quantity_sold - v_order.quantity, 0)
+   where id = v_order.tier_id;
+  update public.events
+     set registrations_count = greatest(registrations_count - v_order.quantity, 0)
+   where id = p_event_id;
+
+  insert into public.refunds (order_id, event_id, user_id, amount_paise, platform_fee_paise, status, reason, initiated_at, initiated_by)
+  values (v_order.id, p_event_id, p_user_id, v_order.total_paise, v_order.platform_fee_paise, 'PENDING', 'Postponement refund requested by user', now(), p_user_id);
+
+  insert into public.event_notifications (event_id, user_id, type, message)
+  values (p_event_id, p_user_id, 'REFUND_INITIATED', 'Your refund request for the postponed event has been submitted. You will receive your refund shortly.');
+
+  -- Offer the freed seat to the next waiter (no-op if none).
+  perform public.offer_waitlist_next(v_order.tier_id);
+
+  return query
+    select v_order.id, v_order.total_paise, v_order.rzp_payment_id, true;
+end;
+$$;
+grant execute on function public.request_postponement_refund(uuid, uuid) to authenticated, service_role;

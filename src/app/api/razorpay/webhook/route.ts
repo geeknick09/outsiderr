@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
   confirmRazorpayOrder,
@@ -57,11 +58,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const eventId = payload.event?.id ?? "";
-  const eventType = payload.event?.entity ?? "";
+  // Razorpay sends `event` as a top-level string (e.g. "payment.captured")
+  // and the unique event id in the X-Razorpay-Event-Id header.
+  const eventType = typeof payload.event === "string" ? payload.event : "";
+  const eventId = request.headers.get("x-razorpay-event-id") ?? "";
 
-  if (!eventId) {
-    logger.error("webhook missing event id");
+  if (!eventId || !eventType) {
+    logger.error({ eventType, hasEventId: !!eventId }, "webhook missing event id/type");
     return NextResponse.json({ error: "Missing event id" }, { status: 400 });
   }
 
@@ -124,6 +127,12 @@ export async function POST(request: Request) {
       case "payment.captured":
       case "order.paid": {
         if (!internalOrderId || !paymentEntity) {
+          // Not a ticket order — check if it's a Hero Boost payment.
+          const boostHandled = await tryConfirmHeroBoost(supabase, razorpayOrderId, paymentEntity);
+          if (boostHandled) {
+            processed = true;
+            break;
+          }
           errorMessage = "Missing order id or payment entity";
           logger.warn({ eventId, eventType }, "missing order/payment for payment.captured");
           break;
@@ -314,15 +323,84 @@ export async function POST(request: Request) {
   });
 }
 
+/**
+ * payment.captured fallback: when no ticket order matches the Razorpay order
+ * id, check hero_boosts — the boost checkout links razorpay_order_id there.
+ * Records the payment id + activates the boost; idempotent.
+ */
+async function tryConfirmHeroBoost(
+  supabase: SupabaseClient,
+  razorpayOrderId: string,
+  paymentEntity: { id: string; method?: string } | undefined,
+): Promise<boolean> {
+  if (!razorpayOrderId || !paymentEntity) return false;
+  const { data: boost } = await supabase
+    .from("hero_boosts")
+    .select("id, status")
+    .eq("razorpay_order_id", razorpayOrderId)
+    .maybeSingle();
+  if (!boost) return false;
+  if (boost.status === "ACTIVE") return true; // already activated — idempotent
+  if (boost.status !== "PENDING") return true; // cancelled/expired — nothing to do
+
+  await supabase
+    .from("hero_boosts")
+    .update({ razorpay_payment_id: paymentEntity.id })
+    .eq("id", boost.id);
+
+  const { getHeroBoostDurationDays, activateHeroBoost } = await import("@/modules/shared/server");
+  const durationDays = await getHeroBoostDurationDays();
+  try {
+    await activateHeroBoost(boost.id, durationDays);
+  } catch (err) {
+    logger.error({ boostId: boost.id, error: err instanceof Error ? err.message : String(err) }, "hero boost activation via webhook failed");
+  }
+
+  // Ledger: boost revenue is platform revenue.
+  try {
+    const { data: boostRow } = await supabase
+      .from("hero_boosts")
+      .select("amount_paise, organizer_id, event_id")
+      .eq("id", boost.id)
+      .maybeSingle();
+    if (boostRow) {
+      const { data: existingLedger } = await supabase
+        .from("payment_ledger")
+        .select("id")
+        .eq("razorpay_payment_id", paymentEntity.id)
+        .maybeSingle();
+      if (!existingLedger) {
+        await supabase.from("payment_ledger").insert({
+          order_id: null,
+          event_id: boostRow.event_id,
+          organizer_id: boostRow.organizer_id,
+          type: "BOOST_SALE",
+          gross_amount_paise: boostRow.amount_paise,
+          commission_paise: boostRow.amount_paise,
+          convenience_fee_paise: 0,
+          net_organizer_paise: 0,
+          net_platform_paise: boostRow.amount_paise,
+          razorpay_payment_id: paymentEntity.id,
+          notes: "Hero Boost purchase (webhook)",
+          created_at: new Date().toISOString(),
+        });
+      }
+    }
+  } catch (ledgerErr) {
+    logger.error({ boostId: boost.id, error: ledgerErr instanceof Error ? ledgerErr.message : String(ledgerErr) }, "hero boost ledger insert failed");
+  }
+
+  logger.info({ boostId: boost.id, paymentId: paymentEntity.id }, "hero boost confirmed via webhook");
+  return true;
+}
+
 // Type definitions for the Razorpay webhook payload (subset)
 interface RazorpayWebhookPayload {
   entity?: string;
-  event?: {
-    id: string;
-    entity: string;
-    account_id?: string;
-    created_at?: number;
-  };
+  account_id?: string;
+  /** Top-level string, e.g. "payment.captured" (not an object). */
+  event?: string;
+  created_at?: number;
   payload?: {
     payment?: {
       entity: {

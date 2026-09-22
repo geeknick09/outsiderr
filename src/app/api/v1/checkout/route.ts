@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 import { apiError, apiOk, readJson, runCheckout, withApiUser } from "@/modules/shared/server";
+import { MAX_TICKETS_PER_ORDER, getRateLimitIdentifier, rateLimit, RATE_LIMITS } from "@/modules/shared";
+import { headers } from "next/headers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,7 +10,7 @@ export const dynamic = "force-dynamic";
 const bodySchema = z.object({
   eventId: z.string().uuid(),
   tierId: z.string().uuid(),
-  quantity: z.number().int().min(1).max(50),
+  quantity: z.number().int().min(1).max(MAX_TICKETS_PER_ORDER),
   buyerName: z.string().max(200).optional().nullable(),
   buyerPhone: z.string().max(20).optional().nullable(),
   buyerEmail: z.string().email().max(200).optional().nullable(),
@@ -22,6 +24,10 @@ const bodySchema = z.object({
  */
 export async function POST(request: Request) {
   return withApiUser(request, async (user) => {
+    const h = await headers();
+    const rl = rateLimit(`checkout:${getRateLimitIdentifier(h)}`, RATE_LIMITS.CHECKOUT);
+    if (rl.limited) return apiError("Too many checkout attempts. Please slow down.", 429);
+
     const parsed = await readJson(request, bodySchema);
     if ("response" in parsed) return parsed.response;
 

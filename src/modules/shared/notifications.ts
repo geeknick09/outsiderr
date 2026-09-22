@@ -45,12 +45,18 @@ async function resolveClient(client?: Client): Promise<Client> {
   return client ?? ((await createClient()) as Client);
 }
 
-/** In-app channel: event_notifications insert (the bell). */
+/** In-app channel: event_notifications insert (the bell).
+ * Uses the service client — sendNotification is a trusted server-side
+ * abstraction (callers authorize before calling), and the insert policy only
+ * allows the event organizer; cross-user notifications (e.g. invitee →
+ * inviter) would otherwise be silently dropped. */
 async function deliverInApp(
   supabase: Client,
   rows: { user_id: string; type: string; message: string; event_id: string | null }[],
 ): Promise<void> {
-  const { error } = await supabase
+  void supabase;
+  const { createServiceClient } = await import("./auth/service");
+  const { error } = await createServiceClient()
     .from("event_notifications")
     .insert(rows as never);
   if (error) logger.warn({ error: error.message }, "notifications: in-app insert failed");
@@ -90,6 +96,8 @@ export async function sendNotification(
   input: SendNotificationInput,
   client?: Client,
 ): Promise<void> {
+  // Some order types (walk-in / box-office) have no buyer account — nothing to notify.
+  if (!input.userId) return;
   const channels = input.channels ?? ["in-app"];
   try {
     const supabase = await resolveClient(client);
@@ -121,6 +129,8 @@ export async function sendNotifications(
   inputs: SendNotificationInput[],
   client?: Client,
 ): Promise<void> {
+  // Drop rows without a recipient (walk-in/box-office orders have no user_id).
+  inputs = inputs.filter((i) => i.userId);
   if (inputs.length === 0) return;
   try {
     const supabase = await resolveClient(client);
