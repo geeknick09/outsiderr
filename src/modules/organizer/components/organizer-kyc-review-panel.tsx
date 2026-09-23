@@ -1,33 +1,53 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertCircle, CheckCircle2, Clock3, MessageSquareText, Paperclip, Upload } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { AlertCircle, CheckCircle2, Clock3, MessageSquareText, Paperclip, Upload, XCircle } from "lucide-react";
 
-import { updateOrganizerAction } from "../actions/organizer";
+import { updateOrganizerAction, withdrawOrganizerApplication } from "../actions/organizer";
 import { ImageUploadWithCrop } from "@/modules/shared";
 import { uploadPublicFile } from "@/modules/shared";
 import type { Organizer } from "@/modules/shared";
 
 const INPUT = "w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white";
 
+const MAX_DOC_MB = 1;
+
 export function OrganizerKycReviewPanel({ organizer }: { organizer: Organizer }) {
+  const router = useRouter();
   const [note, setNote] = useState(organizer.kycResponseNote ?? "");
   const [panDocumentUrl, setPanDocumentUrl] = useState(organizer.panDocumentUrl ?? "");
   const [bankDocumentUrl, setBankDocumentUrl] = useState(organizer.bankDocumentUrl ?? "");
   const [uploadingPan, setUploadingPan] = useState(false);
   const [uploadingBank, setUploadingBank] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [confirmWithdraw, setConfirmWithdraw] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  const isRejected = organizer.kycStatus === "REJECTED";
   const isClarification = organizer.kycStatus === "CLARIFICATION_NEEDED";
   const statusLabel = useMemo(() => {
     if (organizer.kycStatus === "CLARIFICATION_NEEDED") return "Clarification requested";
     if (organizer.kycStatus === "PENDING") return "Application under review";
+    if (organizer.kycStatus === "REJECTED") return "Application not approved";
     return "Verification in progress";
   }, [organizer.kycStatus]);
 
+  const statusIcon = isRejected ? XCircle : Clock3;
+  const StatusIcon = statusIcon;
+  const bannerClass = isRejected
+    ? "border-red-300 bg-red-500/5"
+    : "border-amber-300 bg-amber-500/5";
+  const iconClass = isRejected ? "text-red-500" : "text-amber-500";
+  const heading = isRejected ? "Organizer application not approved" : "Organizer verification in progress";
+
   async function handleUpload(file: File | undefined, kind: "pan" | "bank") {
     if (!file) return;
+    if (file.size > MAX_DOC_MB * 1024 * 1024) {
+      setMessage(`File too large — documents must be under ${MAX_DOC_MB} MB.`);
+      return;
+    }
     const setter = kind === "pan" ? setUploadingPan : setUploadingBank;
     setter(true);
     try {
@@ -39,6 +59,25 @@ export function OrganizerKycReviewPanel({ organizer }: { organizer: Organizer })
       setMessage(err instanceof Error ? err.message : "Upload failed.");
     } finally {
       setter(false);
+    }
+  }
+
+  async function handleWithdraw() {
+    setWithdrawing(true);
+    setMessage(null);
+    try {
+      const result = await withdrawOrganizerApplication();
+      if (result.error) {
+        setMessage(result.error);
+        setWithdrawing(false);
+        setConfirmWithdraw(false);
+      }
+      // success → server action revalidates + we bounce to a fresh state
+      router.refresh();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Could not withdraw the application.");
+      setWithdrawing(false);
+      setConfirmWithdraw(false);
     }
   }
 
@@ -82,13 +121,15 @@ export function OrganizerKycReviewPanel({ organizer }: { organizer: Organizer })
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div className="glass rounded-3xl border border-amber-300 bg-amber-500/5 p-5">
+      <div className={`glass rounded-3xl border p-5 ${bannerClass}`}>
         <div className="flex items-start gap-3">
-          <Clock3 className="mt-0.5 h-6 w-6 text-amber-500" />
+          <StatusIcon className={`mt-0.5 h-6 w-6 ${iconClass}`} />
           <div>
-            <h1 className="text-2xl font-black tracking-tight">Organizer verification in progress</h1>
+            <h1 className="text-2xl font-black tracking-tight">{heading}</h1>
             <p className="mt-1 text-sm text-muted">
-              {statusLabel}. Our team reviews each organizer application manually. You’ll receive a notification when it is approved or when more details are needed.
+              {statusLabel}. {isRejected
+                ? "You can update your details below and resubmit, or withdraw the application entirely."
+                : "Our team reviews each organizer application manually. You’ll receive a notification when it is approved or when more details are needed."}
             </p>
           </div>
         </div>
@@ -108,7 +149,7 @@ export function OrganizerKycReviewPanel({ organizer }: { organizer: Organizer })
           <div className="rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
             <div className="mb-3 flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wide text-muted">PAN card upload</span>
-              <span className="text-[10px] text-muted">Optional</span>
+              <span className="text-[10px] text-muted">Optional · under 1 MB</span>
             </div>
             <div className="space-y-3">
               {panDocumentUrl ? (
@@ -133,7 +174,7 @@ export function OrganizerKycReviewPanel({ organizer }: { organizer: Organizer })
           <div className="rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
             <div className="mb-3 flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wide text-muted">Bank proof upload</span>
-              <span className="text-[10px] text-muted">Optional</span>
+              <span className="text-[10px] text-muted">Optional · under 1 MB</span>
             </div>
             <div className="space-y-3">
               {bankDocumentUrl ? (
@@ -185,7 +226,37 @@ export function OrganizerKycReviewPanel({ organizer }: { organizer: Organizer })
           </div>
         ) : null}
 
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            {confirmWithdraw ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted">Withdraw your organizer application?</span>
+                <button
+                  type="button"
+                  onClick={handleWithdraw}
+                  disabled={withdrawing}
+                  className="rounded-xl bg-red-500 px-3 py-2 text-xs font-bold text-white hover:bg-red-600 disabled:opacity-60"
+                >
+                  {withdrawing ? "Withdrawing…" : "Yes, withdraw"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmWithdraw(false)}
+                  className="rounded-xl border border-zinc-200 px-3 py-2 text-xs font-semibold text-muted hover:border-violet-neon dark:border-white/10"
+                >
+                  Keep it
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmWithdraw(true)}
+                className="text-xs font-semibold text-red-500 hover:underline"
+              >
+                Withdraw application
+              </button>
+            )}
+          </div>
           <button
             type="button"
             onClick={handleSubmit}

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/modules/shared/server";
-import { createDoorStaffOrder, submitDoorStaffUtr } from "@/modules/shared/server";
+import { createDoorStaffOrder, submitDoorStaffUtr, notifyAdmins } from "@/modules/shared/server";
 
 export async function verifyDoorStaffPaymentAction(
   orderId: string,
@@ -19,6 +19,10 @@ export async function verifyDoorStaffPaymentAction(
   try {
     // Records the UTR for admin verification — does NOT mark the order paid.
     await submitDoorStaffUtr(orderId, utrReference.trim());
+    await notifyAdmins({
+      type: "DOOR_STAFF_REQUESTED",
+      message: `Door staff payment submitted (UTR ${utrReference.trim()}) — pending verification.`,
+    });
     revalidatePath("/organizer");
     return { error: null };
   } catch (err) {

@@ -49,11 +49,30 @@
 
 - [ ] Navigate to organizer verification flow
 - [ ] Step 1: Profile details
-- [ ] Step 2: PAN number (validate format `ABCDE1234F`)
+- [ ] Step 2: PAN number (validate format `ABCDE1234F`) + optional PAN card photo (JPG/PNG under 1 MB — oversized file shows error, doesn't upload)
 - [ ] Step 3: GST (optional — skip should work)
-- [ ] Step 4: Bank account + IFSC (validate format `ABCD0123456`)
+- [ ] Step 4: Bank account + IFSC (validate format `ABCD0123456`) + optional bank proof (cancelled cheque/passbook, under 1 MB)
 - [ ] Step 5: Agreement acceptance
-- [ ] Verify all KYC fields saved to organizer profile
+- [ ] Verify all KYC fields saved to organizer profile (incl. `pan_document_url` / `bank_document_url`)
+
+### 2.3 KYC Review States
+
+- [ ] While PENDING → dashboard shows "Organizer verification in progress" (amber)
+- [ ] Admin rejects → bell gets "Application Rejected" notification live (no reload) + page refreshes to red "application not approved" panel
+- [ ] Admin requests clarification → "Clarification Needed" notification + blue banner
+- [ ] Admin approves → "Organizer Verified!" notification + dashboard unlocks
+- [ ] Organizer replies + re-uploads docs → "Submit response" persists `kyc_response_note` + doc URLs (verify in admin review card)
+- [ ] Resubmit → `kyc_status` back to PENDING
+- [ ] "Withdraw application" → confirm → organizers row deleted + `is_organizer=false` → lands on become-organizer form
+- [ ] Withdrawal blocked if APPROVED or if events exist (error message shown)
+
+### 2.4 Admin Notifications (pending-review queues)
+
+- [ ] New organizer submits KYC → every admin's bell shows "KYC Submitted" live
+- [ ] Organizer resubmits after rejection → admins notified again
+- [ ] Organizer requests a boost slot → "Boost Request" notification to admins (₹ + UTR in message)
+- [ ] Organizer submits hero-boost UTR → "Boost Request" notification to admins
+- [ ] Organizer submits door-staff payment UTR → "Door Staff Payment" notification to admins
 
 ### 2.3 Organizer Profile Edit
 
@@ -1051,7 +1070,7 @@ npx next build
 | Module | Scenarios | Status |
 | --- | --- | --- |
 | Auth & Profile | 1.1–1.2 | ☐ |
-| Organizer Onboarding | 2.1–2.3 | ☐ |
+| Organizer Onboarding | 2.1–2.4 | ☐ |
 | Event Creation | 3.1–3.8 | ☐ |
 | Event Discovery | 4.1–4.4 | ☐ |
 | Booking & Tickets | 5.1–5.6 | ☐ |

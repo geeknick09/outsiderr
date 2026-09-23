@@ -5032,3 +5032,13 @@ end;
 $$;
 revoke all on function public.complete_notification_outbox(uuid, boolean, text) from public, anon, authenticated;
 grant execute on function public.complete_notification_outbox(uuid, boolean, text) to service_role;
+
+-- ============================================================================
+-- STEP 30 · Admin notification types
+-- ============================================================================
+-- Admin-facing notification types so pending queues (KYC submissions, boost
+-- requests, door-staff payments) surface in the bell for every admin.
+
+do $$ begin alter type public.event_notification_type add value if not exists 'KYC_SUBMITTED'; exception when others then null; end $$;
+do $$ begin alter type public.event_notification_type add value if not exists 'BOOST_REQUESTED'; exception when others then null; end $$;
+do $$ begin alter type public.event_notification_type add value if not exists 'DOOR_STAFF_REQUESTED'; exception when others then null; end $$;

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/modules/shared/server";
-import { createOrganizerProfile, updateOrganizerProfile } from "@/modules/shared/server";
+import { createOrganizerProfile, updateOrganizerProfile, notifyAdmins } from "@/modules/shared/server";
 import { mergeOrganizerIntent } from "@/modules/shared";
 
 export interface CreateOrganizerState {
@@ -33,6 +33,8 @@ export async function createOrganizerAction(
   const instagramUrl = String(formData.get("instagramUrl") ?? "").trim() || null;
   const panNumber = String(formData.get("panNumber") ?? "").trim().toUpperCase();
   const panName = String(formData.get("panName") ?? "").trim();
+  const panDocumentUrl = String(formData.get("panDocumentUrl") ?? "").trim() || null;
+  const bankDocumentUrl = String(formData.get("bankDocumentUrl") ?? "").trim() || null;
   const gstNumber = String(formData.get("gstNumber") ?? "").trim().toUpperCase();
   const gstBusinessName = String(formData.get("gstBusinessName") ?? "").trim();
   const bankAccountNumber = String(formData.get("bankAccountNumber") ?? "").trim();
@@ -74,9 +76,10 @@ export async function createOrganizerAction(
       xUrl: String(formData.get("xUrl") ?? "").trim() || null,
       facebookUrl: String(formData.get("facebookUrl") ?? "").trim() || null,
       linkedinUrl: String(formData.get("linkedinUrl") ?? "").trim() || null,
-      panNumber, panName,
+      panNumber, panName, panDocumentUrl,
       gstNumber, gstBusinessName,
       bankAccountNumber, bankIfsc, bankAccountName, bankAccountType,
+      bankDocumentUrl,
       agreedToTerms,
     });
   } catch (error) {
@@ -85,10 +88,17 @@ export async function createOrganizerAction(
     };
   }
 
+  // Alert admins — new KYC submission needs review
+  await notifyAdmins({
+    type: "KYC_SUBMITTED",
+    message: `New organizer application: ${name}. KYC pending review.`,
+  });
+
   // Revalidate the organizer page so the route refreshes and shows the
   // verification banner instead of leaving the user on the submission form.
   revalidatePath("/", "layout");
   revalidatePath("/organizer");
+  revalidatePath("/admin/kyc");
   return { error: null, success: true };
 }
 
@@ -119,6 +129,10 @@ export async function updateOrganizerAction(
   const bankIfsc = String(formData.get("bankIfsc") ?? "").trim() || undefined;
   const bankAccountName = String(formData.get("bankAccountName") ?? "").trim() || undefined;
   const bankAccountType = String(formData.get("bankAccountType") ?? "").trim() || undefined;
+  const panDocumentUrl = String(formData.get("panDocumentUrl") ?? "").trim() || undefined;
+  const bankDocumentUrl = String(formData.get("bankDocumentUrl") ?? "").trim() || undefined;
+  const kycResponseNote = String(formData.get("kycResponseNote") ?? "").trim() || undefined;
+  const kycResponseDocumentUrl = String(formData.get("kycResponseDocumentUrl") ?? "").trim() || undefined;
 
   if (!name) return { error: "Enter your organizer name." };
   if (!upiId) return { error: "Enter a UPI ID so attendees can pay you." };
@@ -148,9 +162,13 @@ export async function updateOrganizerAction(
       linkedinUrl,
       panNumber,
       panName,
+      panDocumentUrl,
       gstNumber,
       gstBusinessName,
       bankAccountNumber, bankIfsc, bankAccountName, bankAccountType,
+      bankDocumentUrl,
+      kycResponseNote,
+      kycResponseDocumentUrl,
     });
   } catch (error) {
     return {
@@ -158,6 +176,51 @@ export async function updateOrganizerAction(
     };
   }
 
+  revalidatePath("/organizer");
+  return { error: null };
+}
+
+/**
+ * Withdraw the organizer application — deletes the organizers row and clears
+ * profiles.is_organizer so the user lands back on the become-organizer form.
+ * Only allowed while the application is pending/rejected/clarification AND
+ * the organizer has no events (approved organizers with data can't withdraw —
+ * that would orphan events/orders).
+ */
+export async function withdrawOrganizerApplication(): Promise<{ error: string | null }> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?next=%2Forganizer");
+
+  const { createClient, createServiceClient } = await import("@/modules/shared/server");
+  const supabase = await createClient();
+  const service = createServiceClient();
+
+  const { data: org } = await supabase
+    .from("organizers")
+    .select("id, kyc_status")
+    .eq("owner_id", user.id)
+    .maybeSingle();
+  if (!org) return { error: "No organizer application found." };
+
+  if (org.kyc_status === "APPROVED") {
+    return { error: "Approved organizers can't withdraw — contact support to deactivate." };
+  }
+
+  const { count: eventCount } = await supabase
+    .from("events")
+    .select("id", { count: "exact", head: true })
+    .eq("organizer_id", org.id);
+  if ((eventCount ?? 0) > 0) {
+    return { error: "This application has events attached — contact support to withdraw." };
+  }
+
+  // Service role: organizers delete + is_organizer write are privileged.
+  const { error: delErr } = await service.from("organizers").delete().eq("id", org.id);
+  if (delErr) return { error: delErr.message };
+
+  await service.from("profiles").update({ is_organizer: false }).eq("id", user.id);
+
+  revalidatePath("/", "layout");
   revalidatePath("/organizer");
   return { error: null };
 }

@@ -144,3 +144,27 @@ export async function sendNotifications(
     logger.warn({ error: String(error) }, "notifications: batch send failed");
   }
 }
+
+/**
+ * Notify every admin user (in-app bell). Used for pending-review queues:
+ * KYC submissions, boost requests, door-staff payments. Best-effort.
+ */
+export async function notifyAdmins(
+  input: Omit<SendNotificationInput, "userId">,
+): Promise<void> {
+  try {
+    const { createServiceClient } = await import("./auth/service");
+    const service = createServiceClient();
+    const { data: admins } = await service
+      .from("profiles")
+      .select("id")
+      .eq("is_admin", true);
+    if (!admins?.length) return;
+    await sendNotifications(
+      admins.map((a) => ({ ...input, userId: a.id })),
+      service as unknown as Client,
+    );
+  } catch (error) {
+    logger.warn({ error: String(error), type: input.type }, "notifications: admin notify failed");
+  }
+}

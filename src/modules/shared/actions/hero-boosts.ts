@@ -63,6 +63,11 @@ export async function submitHeroBoostUtrAction(
 
   try {
     await submitHeroBoostUtr(user, boostId, utrReference.trim());
+    const { notifyAdmins } = await import("../notifications");
+    await notifyAdmins({
+      type: "BOOST_REQUESTED",
+      message: `Hero Boost payment submitted (UTR ${utrReference.trim()}) — pending verification.`,
+    });
     revalidatePath("/organizer");
     return {};
   } catch (err) {

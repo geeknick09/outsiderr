@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/modules/shared/server";
-import { requestBoost } from "@/modules/shared/server";
+import { requestBoost, notifyAdmins } from "@/modules/shared/server";
 import { getOrganizerProfile } from "@/modules/shared/server";
 
 export interface RequestBoostInput {
@@ -35,6 +35,11 @@ export async function requestBoostAction(input: RequestBoostInput): Promise<void
     startsAt: input.startsAt,
     endsAt: input.endsAt,
     utrReference: input.utrReference.trim(),
+  });
+
+  await notifyAdmins({
+    type: "BOOST_REQUESTED",
+    message: `Boost request: ${organizer.name} — slot ${input.slot}, ₹${Math.round(input.amountPaidPaise / 100)} (UTR ${input.utrReference.trim()}). Pending verification.`,
   });
 
   revalidatePath("/organizer/boost");

@@ -90,6 +90,7 @@ export default async function OrganizerPage({
 
     return (
       <div className="space-y-6 py-6">
+        <OrganizerKycRealtimeRefresher userId={user.id} />
         <OrganizerKycReviewPanel organizer={organizerProfile} />
       </div>
     );

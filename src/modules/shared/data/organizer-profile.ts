@@ -149,6 +149,8 @@ export interface UpdateOrganizerInput {
   bankAccountName?: string;
   bankAccountType?: string;
   bankDocumentUrl?: string | null;
+  kycResponseNote?: string | null;
+  kycResponseDocumentUrl?: string | null;
 }
 
 /** Updates an organizer's profile (name, bio, UPI ID, avatar, cover, social, KYC). */
@@ -187,6 +189,8 @@ export async function updateOrganizerProfile(
   if (input.bankAccountName !== undefined) update.bank_account_name = input.bankAccountName;
   if (input.bankAccountType !== undefined) update.bank_account_type = input.bankAccountType;
   if (input.bankDocumentUrl !== undefined) update.bank_document_url = input.bankDocumentUrl;
+  if (input.kycResponseNote !== undefined) update.kyc_response_note = input.kycResponseNote;
+  if (input.kycResponseDocumentUrl !== undefined) update.kyc_response_document_url = input.kycResponseDocumentUrl;
 
   const { error } = await supabase
     .from("organizers")
@@ -201,7 +205,16 @@ export async function updateOrganizerProfile(
     const { error: kycError } = await supabase.rpc("submit_kyc", {
       p_organizer_id: organizer.id,
     });
-    if (kycError) console.error("submit_kyc RPC failed:", kycError);
+    if (kycError) {
+      console.error("submit_kyc RPC failed:", kycError);
+    } else {
+      // (Re)submission → admins need to review again
+      const { notifyAdmins } = await import("../notifications");
+      await notifyAdmins({
+        type: "KYC_SUBMITTED",
+        message: `Organizer "${organizer.name}" (re)submitted KYC details — pending review.`,
+      });
+    }
   }
 }
 

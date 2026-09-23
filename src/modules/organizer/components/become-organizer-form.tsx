@@ -61,6 +61,8 @@ export function BecomeOrganizerForm() {
   // Step 2 — PAN
   const [panNumber, setPanNumber] = useState("");
   const [panName, setPanName] = useState("");
+  const [panDocumentUrl, setPanDocumentUrl] = useState("");
+  const [uploadingPan, setUploadingPan] = useState(false);
 
   // Step 3 — GST (optional)
   const [gstNumber, setGstNumber] = useState("");
@@ -72,6 +74,8 @@ export function BecomeOrganizerForm() {
   const [bankIfsc, setBankIfsc] = useState("");
   const [bankAccountName, setBankAccountName] = useState("");
   const [bankAccountType, setBankAccountType] = useState<"SAVINGS" | "CURRENT">("SAVINGS");
+  const [bankDocumentUrl, setBankDocumentUrl] = useState("");
+  const [uploadingBank, setUploadingBank] = useState(false);
 
   // Step 5 — Agreement
   const [agreed, setAgreed] = useState(false);
@@ -99,6 +103,26 @@ export function BecomeOrganizerForm() {
       setUploadError(err instanceof Error ? err.message : "Upload failed.");
     } finally {
       setUploading(false);
+    }
+  }
+
+  const MAX_DOC_MB = 1;
+  async function handleDocUpload(file: File | undefined, kind: "pan" | "bank") {
+    if (!file) return;
+    if (file.size > MAX_DOC_MB * 1024 * 1024) {
+      setUploadError(`Document too large — keep it under ${MAX_DOC_MB} MB.`);
+      return;
+    }
+    const setter = kind === "pan" ? setUploadingPan : setUploadingBank;
+    setter(true);
+    setUploadError(null);
+    try {
+      const url = await uploadPublicFile(file, `organizer-kyc/${kind}`);
+      if (url) (kind === "pan" ? setPanDocumentUrl : setBankDocumentUrl)(url);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setter(false);
     }
   }
 
@@ -203,6 +227,8 @@ export function BecomeOrganizerForm() {
             <input type="hidden" name="facebookUrl" value={facebookUrl} />
             <input type="hidden" name="panNumber" value={panNumber.toUpperCase()} />
             <input type="hidden" name="panName" value={panName} />
+            <input type="hidden" name="panDocumentUrl" value={panDocumentUrl} />
+            <input type="hidden" name="bankDocumentUrl" value={bankDocumentUrl} />
             <input type="hidden" name="gstNumber" value={gstNumber.toUpperCase()} />
             <input type="hidden" name="gstBusinessName" value={gstBusinessName} />
             <input type="hidden" name="upiId" value={upiId} />
@@ -368,6 +394,24 @@ export function BecomeOrganizerForm() {
                     <span className="text-xs text-muted">Enter exactly as printed on the PAN card.</span>
                   </label>
 
+                  <div className="space-y-1.5">
+                    <span className={LABEL_TEXT}>PAN card photo <span className="normal-case text-zinc-400">(optional — JPG/PNG under 1 MB)</span></span>
+                    {panDocumentUrl ? (
+                      <p className="text-xs text-emerald-500">PAN document attached ✓</p>
+                    ) : null}
+                    <ImageUploadWithCrop
+                      onCropped={(file) => handleDocUpload(file, "pan")}
+                      aspect={1.6}
+                      label={
+                        <span className="flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-3 text-sm text-muted hover:border-violet-neon dark:border-white/15">
+                          <Upload className="h-4 w-4" />
+                          {uploadingPan ? "Uploading…" : panDocumentUrl ? "Replace PAN photo" : "Upload PAN card photo"}
+                        </span>
+                      }
+                    />
+                    <p className="text-[10px] text-muted">A clear photo helps the team verify your details faster.</p>
+                  </div>
+
                   <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-600 dark:text-amber-400">
                     Your PAN details are stored securely and used only for tax compliance. They are never shared publicly.
                   </div>
@@ -488,6 +532,23 @@ export function BecomeOrganizerForm() {
                         </button>
                       ))}
                     </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <span className={LABEL_TEXT}>Bank proof <span className="normal-case text-zinc-400">(optional — cancelled cheque/passbook, JPG/PNG under 1 MB)</span></span>
+                    {bankDocumentUrl ? (
+                      <p className="text-xs text-emerald-500">Bank proof attached ✓</p>
+                    ) : null}
+                    <ImageUploadWithCrop
+                      onCropped={(file) => handleDocUpload(file, "bank")}
+                      aspect={1.6}
+                      label={
+                        <span className="flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-3 text-sm text-muted hover:border-violet-neon dark:border-white/15">
+                          <Upload className="h-4 w-4" />
+                          {uploadingBank ? "Uploading…" : bankDocumentUrl ? "Replace bank proof" : "Upload cancelled cheque / passbook"}
+                        </span>
+                      }
+                    />
                   </div>
                 </div>
               )}
