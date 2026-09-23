@@ -168,3 +168,29 @@ export async function notifyAdmins(
     logger.warn({ error: String(error), type: input.type }, "notifications: admin notify failed");
   }
 }
+
+/**
+ * Append a message to an organizer's KYC thread (kyc_messages).
+ * Callers must have already authorized the sender (admin action or the
+ * organizer's own resubmit). Best-effort — never throws.
+ */
+export async function addKycMessage(
+  organizerId: string,
+  senderRole: "admin" | "organizer" | "system",
+  senderEmail: string | null,
+  message: string,
+): Promise<void> {
+  if (!message.trim()) return;
+  try {
+    const { createServiceClient } = await import("./auth/service");
+    const { error } = await createServiceClient().from("kyc_messages").insert({
+      organizer_id: organizerId,
+      sender_role: senderRole,
+      sender_email: senderEmail,
+      message: message.trim(),
+    });
+    if (error) logger.warn({ error: error.message }, "kyc_messages: insert failed");
+  } catch (error) {
+    logger.warn({ error: String(error) }, "kyc_messages: insert failed");
+  }
+}

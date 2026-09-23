@@ -23,10 +23,21 @@ export interface KycSubmission {
   bankAccountName: string | null;
   bankAccountType: string | null;
   upiId: string | null;
+  panDocumentUrl: string | null;
+  bankDocumentUrl: string | null;
+  kycResponseNote: string | null;
   kycStatus: string;
   kycSubmitted: boolean;
   kycReviewedAt: string | null;
   kycReviewNote: string | null;
+  thread: KycThreadMessage[];
+  createdAt: string;
+}
+
+export interface KycThreadMessage {
+  senderRole: "admin" | "organizer" | "system";
+  senderEmail: string | null;
+  message: string;
   createdAt: string;
 }
 
@@ -69,6 +80,9 @@ export async function listKycSubmissions(statusFilter?: string): Promise<KycSubm
       bank_ifsc,
       bank_account_name,
       bank_account_type,
+      pan_document_url,
+      bank_document_url,
+      kyc_response_note,
       kyc_submitted,
       kyc_status,
       kyc_reviewed_at,
@@ -96,6 +110,25 @@ export async function listKycSubmissions(statusFilter?: string): Promise<KycSubm
     .in("id", ownerIds);
   const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
 
+  // KYC message threads for all listed organizers (one batched query)
+  const orgIds = data.map((o) => o.id);
+  const { data: msgRows } = await supabase
+    .from("kyc_messages")
+    .select("organizer_id, sender_role, sender_email, message, created_at")
+    .in("organizer_id", orgIds)
+    .order("created_at", { ascending: true });
+  const threadMap = new Map<string, KycThreadMessage[]>();
+  for (const m of msgRows ?? []) {
+    const list = threadMap.get(m.organizer_id) ?? [];
+    list.push({
+      senderRole: m.sender_role,
+      senderEmail: m.sender_email,
+      message: m.message,
+      createdAt: m.created_at,
+    });
+    threadMap.set(m.organizer_id, list);
+  }
+
   return data.map((row) => {
     const profile = profileMap.get(row.owner_id);
     const { aboutText, organizerIntent } = splitOrganizerProfileDescription(row.description ?? null);
@@ -118,10 +151,14 @@ export async function listKycSubmissions(statusFilter?: string): Promise<KycSubm
       bankAccountName: row.bank_account_name,
       bankAccountType: row.bank_account_type,
       upiId: row.upi_id,
+      panDocumentUrl: row.pan_document_url ?? null,
+      bankDocumentUrl: row.bank_document_url ?? null,
+      kycResponseNote: row.kyc_response_note ?? null,
       kycStatus: row.kyc_status ?? "NOT_SUBMITTED",
       kycSubmitted: row.kyc_submitted ?? false,
       kycReviewedAt: row.kyc_reviewed_at,
       kycReviewNote: row.kyc_review_note,
+      thread: threadMap.get(row.id) ?? [],
       createdAt: row.created_at,
     };
   });
@@ -149,6 +186,9 @@ export async function getKycSubmission(organizerId: string): Promise<KycSubmissi
       bank_ifsc,
       bank_account_name,
       bank_account_type,
+      pan_document_url,
+      bank_document_url,
+      kyc_response_note,
       kyc_submitted,
       kyc_status,
       kyc_reviewed_at,
@@ -169,6 +209,18 @@ export async function getKycSubmission(organizerId: string): Promise<KycSubmissi
 
   const { aboutText, organizerIntent } = splitOrganizerProfileDescription(data.description ?? null);
 
+  const { data: msgRows } = await supabase
+    .from("kyc_messages")
+    .select("sender_role, sender_email, message, created_at")
+    .eq("organizer_id", organizerId)
+    .order("created_at", { ascending: true });
+  const thread: KycThreadMessage[] = (msgRows ?? []).map((m) => ({
+    senderRole: m.sender_role,
+    senderEmail: m.sender_email,
+    message: m.message,
+    createdAt: m.created_at,
+  }));
+
   return {
     id: data.id,
     organizerName: data.name,
@@ -188,12 +240,31 @@ export async function getKycSubmission(organizerId: string): Promise<KycSubmissi
     bankAccountName: data.bank_account_name,
     bankAccountType: data.bank_account_type,
     upiId: data.upi_id,
+    panDocumentUrl: data.pan_document_url ?? null,
+    bankDocumentUrl: data.bank_document_url ?? null,
+    kycResponseNote: data.kyc_response_note ?? null,
     kycStatus: data.kyc_status ?? "NOT_SUBMITTED",
     kycSubmitted: data.kyc_submitted ?? false,
     kycReviewedAt: data.kyc_reviewed_at,
     kycReviewNote: data.kyc_review_note,
+    thread,
     createdAt: data.created_at,
   };
+}
+
+/** Per-status submission counts for the filter tabs. */
+export async function listKycCounts(): Promise<Record<string, number>> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("organizers")
+    .select("kyc_status");
+  const counts: Record<string, number> = { PENDING: 0, CLARIFICATION_NEEDED: 0, APPROVED: 0, REJECTED: 0 };
+  for (const row of data ?? []) {
+    const s = row.kyc_status ?? "NOT_SUBMITTED";
+    if (s in counts) counts[s]++;
+  }
+  counts.ALL = data?.length ?? 0;
+  return counts;
 }
 
 /**

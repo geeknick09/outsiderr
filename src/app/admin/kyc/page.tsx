@@ -1,4 +1,4 @@
-import { listKycSubmissions } from "@/modules/admin/server";
+import { listKycSubmissions, listKycCounts } from "@/modules/admin/server";
 import { KycReviewTable } from "@/modules/admin";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +11,10 @@ export default async function AdminKycPage({
   searchParams: Promise<{ status?: string }>;
 }) {
   const { status } = await searchParams;
-  const submissions = await listKycSubmissions(status);
+  const [submissions, counts] = await Promise.all([
+    listKycSubmissions(status),
+    listKycCounts(),
+  ]);
 
   const filters = [
     { label: "Pending", value: "PENDING" },
@@ -42,7 +45,7 @@ export default async function AdminKycPage({
                 : "border border-zinc-200 text-muted hover:border-violet-neon/50 dark:border-white/10"
             }`}
           >
-            {f.label}
+            {f.label} ({counts[f.value] ?? 0})
           </a>
         ))}
       </div>

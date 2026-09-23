@@ -1105,3 +1105,13 @@ npx next build
 | Mobile & Navigation | 25.1–25.2 | ☐ |
 | Concurrency & Money | 26.1–26.6 | ☐ |
 | Security & Auth | 27.1–27.5 | ☐ |
+### 2.5 KYC Polish & Thread
+
+- [ ] Doc uploads (PAN/bank) use a plain file picker — no cropper, accepts image + PDF
+- [ ] File >1 MB → inline red error under the upload button ("keep it under 1 MB"), nothing uploads
+- [ ] Page reload lands at the top of the page (no scroll-restore jump)
+- [ ] PENDING state → status banner + withdraw only (no response form until admin acts)
+- [ ] REJECTED/CLARIFICATION → "Update & resubmit" form visible, button reads "Resubmit application"
+- [ ] Admin KYC page: filter tabs show counts — Pending (n), Clarification Needed (n), Approved (n), Rejected (n), All (n)
+- [ ] Admin card shows PAN document + bank proof links, organizer's response note, and full communication thread with admin emails
+- [ ] Clarification message tells the organizer to respond in the dashboard (no "team member will contact you")

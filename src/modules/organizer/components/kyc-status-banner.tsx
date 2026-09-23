@@ -19,7 +19,7 @@ export function KycStatusBanner({ kycStatus }: { kycStatus: string }) {
     CLARIFICATION_NEEDED: {
       icon: HelpCircle,
       title: "Clarification Needed",
-      message: "We need some additional information before we can approve your application. An Outsiderr team member will contact you shortly.",
+      message: "We need some additional information before we can approve your application. Check the note below and respond right here.",
       className: "border-blue-300 bg-blue-50 dark:border-blue-500/30 dark:bg-blue-500/5",
     },
   };

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/modules/shared/server";
-import { createOrganizerProfile, updateOrganizerProfile, notifyAdmins } from "@/modules/shared/server";
+import { createOrganizerProfile, updateOrganizerProfile, notifyAdmins, addKycMessage } from "@/modules/shared/server";
 import { mergeOrganizerIntent } from "@/modules/shared";
 
 export interface CreateOrganizerState {
@@ -62,8 +62,9 @@ export async function createOrganizerAction(
     return { error: "IFSC code format is invalid. Expected: ABCD0123456" };
   }
 
+  let organizerId: string;
   try {
-    await createOrganizerProfile(user, {
+    organizerId = await createOrganizerProfile(user, {
       name,
       bio,
       description: mergeOrganizerIntent(description, organizerIntent),
@@ -93,6 +94,7 @@ export async function createOrganizerAction(
     type: "KYC_SUBMITTED",
     message: `New organizer application: ${name}. KYC pending review.`,
   });
+  await addKycMessage(organizerId, "organizer", user.email ?? null, "Application submitted for review.");
 
   // Revalidate the organizer page so the route refreshes and shows the
   // verification banner instead of leaving the user on the submission form.

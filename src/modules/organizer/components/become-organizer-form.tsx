@@ -63,6 +63,7 @@ export function BecomeOrganizerForm() {
   const [panName, setPanName] = useState("");
   const [panDocumentUrl, setPanDocumentUrl] = useState("");
   const [uploadingPan, setUploadingPan] = useState(false);
+  const [panDocError, setPanDocError] = useState<string | null>(null);
 
   // Step 3 — GST (optional)
   const [gstNumber, setGstNumber] = useState("");
@@ -76,6 +77,7 @@ export function BecomeOrganizerForm() {
   const [bankAccountType, setBankAccountType] = useState<"SAVINGS" | "CURRENT">("SAVINGS");
   const [bankDocumentUrl, setBankDocumentUrl] = useState("");
   const [uploadingBank, setUploadingBank] = useState(false);
+  const [bankDocError, setBankDocError] = useState<string | null>(null);
 
   // Step 5 — Agreement
   const [agreed, setAgreed] = useState(false);
@@ -109,18 +111,20 @@ export function BecomeOrganizerForm() {
   const MAX_DOC_MB = 1;
   async function handleDocUpload(file: File | undefined, kind: "pan" | "bank") {
     if (!file) return;
+    const setErr = kind === "pan" ? setPanDocError : setBankDocError;
     if (file.size > MAX_DOC_MB * 1024 * 1024) {
-      setUploadError(`Document too large — keep it under ${MAX_DOC_MB} MB.`);
+      setErr(`Document too large — keep it under ${MAX_DOC_MB} MB (${(file.size / 1024 / 1024).toFixed(1)} MB selected).`);
       return;
     }
+    setErr(null);
     const setter = kind === "pan" ? setUploadingPan : setUploadingBank;
     setter(true);
-    setUploadError(null);
     try {
       const url = await uploadPublicFile(file, `organizer-kyc/${kind}`);
       if (url) (kind === "pan" ? setPanDocumentUrl : setBankDocumentUrl)(url);
+      else setErr("Upload failed — try again.");
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : "Upload failed.");
+      setErr(err instanceof Error ? err.message : "Upload failed.");
     } finally {
       setter(false);
     }
@@ -395,20 +399,17 @@ export function BecomeOrganizerForm() {
                   </label>
 
                   <div className="space-y-1.5">
-                    <span className={LABEL_TEXT}>PAN card photo <span className="normal-case text-zinc-400">(optional — JPG/PNG under 1 MB)</span></span>
+                    <span className={LABEL_TEXT}>PAN card photo <span className="normal-case text-zinc-400">(optional — JPG/PNG/PDF under 1 MB)</span></span>
                     {panDocumentUrl ? (
                       <p className="text-xs text-emerald-500">PAN document attached ✓</p>
                     ) : null}
-                    <ImageUploadWithCrop
-                      onCropped={(file) => handleDocUpload(file, "pan")}
-                      aspect={1.6}
-                      label={
-                        <span className="flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-3 text-sm text-muted hover:border-violet-neon dark:border-white/15">
-                          <Upload className="h-4 w-4" />
-                          {uploadingPan ? "Uploading…" : panDocumentUrl ? "Replace PAN photo" : "Upload PAN card photo"}
-                        </span>
-                      }
+                    <DocFileInput
+                      uploading={uploadingPan}
+                      hasFile={!!panDocumentUrl}
+                      label="Upload PAN card photo"
+                      onFile={(f) => handleDocUpload(f, "pan")}
                     />
+                    {panDocError ? <p className="text-xs text-red-500">{panDocError}</p> : null}
                     <p className="text-[10px] text-muted">A clear photo helps the team verify your details faster.</p>
                   </div>
 
@@ -535,20 +536,17 @@ export function BecomeOrganizerForm() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <span className={LABEL_TEXT}>Bank proof <span className="normal-case text-zinc-400">(optional — cancelled cheque/passbook, JPG/PNG under 1 MB)</span></span>
+                    <span className={LABEL_TEXT}>Bank proof <span className="normal-case text-zinc-400">(optional — cancelled cheque/passbook, JPG/PNG/PDF under 1 MB)</span></span>
                     {bankDocumentUrl ? (
                       <p className="text-xs text-emerald-500">Bank proof attached ✓</p>
                     ) : null}
-                    <ImageUploadWithCrop
-                      onCropped={(file) => handleDocUpload(file, "bank")}
-                      aspect={1.6}
-                      label={
-                        <span className="flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-3 text-sm text-muted hover:border-violet-neon dark:border-white/15">
-                          <Upload className="h-4 w-4" />
-                          {uploadingBank ? "Uploading…" : bankDocumentUrl ? "Replace bank proof" : "Upload cancelled cheque / passbook"}
-                        </span>
-                      }
+                    <DocFileInput
+                      uploading={uploadingBank}
+                      hasFile={!!bankDocumentUrl}
+                      label="Upload cancelled cheque / passbook"
+                      onFile={(f) => handleDocUpload(f, "bank")}
                     />
+                    {bankDocError ? <p className="text-xs text-red-500">{bankDocError}</p> : null}
                   </div>
                 </div>
               )}
@@ -642,5 +640,43 @@ function StepHeader({ title, subtitle }: { title: string; subtitle: string }) {
       <h2 className="text-xl font-black tracking-tight">{title}</h2>
       <p className="mt-1 text-sm text-muted">{subtitle}</p>
     </div>
+  );
+}
+
+/** Plain document picker — no cropper (KYC docs need the full frame / PDF). */
+function DocFileInput({
+  uploading,
+  hasFile,
+  label,
+  onFile,
+}: {
+  uploading: boolean;
+  hasFile: boolean;
+  label: string;
+  onFile: (file: File | undefined) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*,application/pdf"
+        className="hidden"
+        onChange={(e) => {
+          onFile(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+      <button
+        type="button"
+        disabled={uploading}
+        onClick={() => inputRef.current?.click()}
+        className="flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-3 text-sm text-muted hover:border-violet-neon disabled:opacity-50 dark:border-white/15"
+      >
+        <Upload className="h-4 w-4" />
+        {uploading ? "Uploading…" : hasFile ? "Replace document" : label}
+      </button>
+    </>
   );
 }

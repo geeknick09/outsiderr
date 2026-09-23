@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { getCurrentUser } from "@/modules/shared/server";
-import { createClient, createServiceClient, sendNotification } from "@/modules/shared/server";
+import { createClient, createServiceClient, sendNotification, addKycMessage } from "@/modules/shared/server";
 
 export interface KycReviewResult {
   error: string | null;
@@ -31,8 +31,9 @@ async function requireAdmin() {
  * Sends a notification to the organizer.
  */
 export async function approveKycAction(organizerId: string): Promise<KycReviewResult> {
+  let admin: Awaited<ReturnType<typeof getCurrentUser>>;
   try {
-    await requireAdmin();
+    admin = await requireAdmin();
   } catch {
     return { error: "Admin access required.", success: false };
   }
@@ -72,6 +73,7 @@ export async function approveKycAction(organizerId: string): Promise<KycReviewRe
       supabase,
     );
   }
+  await addKycMessage(organizerId, "admin", admin?.email ?? null, "Application approved.");
 
   revalidatePath("/admin/kyc", "page");
   revalidatePath("/organizer", "page");
@@ -83,8 +85,9 @@ export async function approveKycAction(organizerId: string): Promise<KycReviewRe
  * Sends a notification with the review note.
  */
 export async function rejectKycAction(organizerId: string, note: string): Promise<KycReviewResult> {
+  let admin: Awaited<ReturnType<typeof getCurrentUser>>;
   try {
-    await requireAdmin();
+    admin = await requireAdmin();
   } catch {
     return { error: "Admin access required.", success: false };
   }
@@ -131,6 +134,7 @@ export async function rejectKycAction(organizerId: string, note: string): Promis
       supabase,
     );
   }
+  await addKycMessage(organizerId, "admin", admin?.email ?? null, `Rejected: ${note.trim()}`);
 
   revalidatePath("/admin/kyc", "page");
   revalidatePath("/organizer", "page");
@@ -142,8 +146,9 @@ export async function rejectKycAction(organizerId: string, note: string): Promis
  * Sends a notification telling the organizer an Outsiderr member will contact them.
  */
 export async function requestClarificationAction(organizerId: string, note: string): Promise<KycReviewResult> {
+  let admin: Awaited<ReturnType<typeof getCurrentUser>>;
   try {
-    await requireAdmin();
+    admin = await requireAdmin();
   } catch {
     return { error: "Admin access required.", success: false };
   }
@@ -175,11 +180,12 @@ export async function requestClarificationAction(organizerId: string, note: stri
       {
         userId: org.owner_id,
         type: "KYC_CLARIFICATION",
-        message: `Before your organizer application can be approved, we need some clarification. An Outsiderr team member will contact you shortly. Note: ${note.trim()}`,
+        message: `Your organizer application needs clarification. Please open your organizer dashboard and respond to the review note. Note: ${note.trim()}`,
       },
       supabase,
     );
   }
+  await addKycMessage(organizerId, "admin", admin?.email ?? null, `Clarification requested: ${note.trim()}`);
 
   revalidatePath("/admin/kyc", "page");
   revalidatePath("/organizer", "page");

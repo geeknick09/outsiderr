@@ -16,6 +16,7 @@ import { OrganizerKycRealtimeRefresher } from "@/modules/organizer";
 import { OrderMonitor } from "@/modules/organizer";
 import { getCurrentUser } from "@/modules/shared/server";
 import { getSettingInt } from "@/modules/shared/server";
+import { createClient } from "@/modules/shared/server";
 import { getPendingCollaborationInvites } from "@/modules/shared/server";
 import { getOrganizerAccessState } from "@/modules/shared";
 import { getOrganizerEventAnalytics, getOrganizerDailyRevenue } from "@/modules/analytics/server";
@@ -88,10 +89,24 @@ export default async function OrganizerPage({
       );
     }
 
+    // KYC thread — organizer sees the full admin↔organizer conversation
+    const supabase = await createClient();
+    const { data: threadRows } = await supabase
+      .from("kyc_messages")
+      .select("sender_role, sender_email, message, created_at")
+      .eq("organizer_id", organizerProfile.id)
+      .order("created_at", { ascending: true });
+    const thread = (threadRows ?? []).map((m) => ({
+      senderRole: m.sender_role,
+      senderEmail: m.sender_email,
+      message: m.message,
+      createdAt: m.created_at,
+    }));
+
     return (
       <div className="space-y-6 py-6">
         <OrganizerKycRealtimeRefresher userId={user.id} />
-        <OrganizerKycReviewPanel organizer={organizerProfile} />
+        <OrganizerKycReviewPanel organizer={organizerProfile} thread={thread} />
       </div>
     );
   }

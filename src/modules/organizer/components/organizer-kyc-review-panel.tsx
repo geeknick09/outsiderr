@@ -1,11 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, CheckCircle2, Clock3, MessageSquareText, Paperclip, Upload, XCircle } from "lucide-react";
+import { AlertCircle, Clock3, MessageSquareText, Paperclip, Upload, XCircle } from "lucide-react";
 
 import { updateOrganizerAction, withdrawOrganizerApplication } from "../actions/organizer";
-import { ImageUploadWithCrop } from "@/modules/shared";
 import { uploadPublicFile } from "@/modules/shared";
 import type { Organizer } from "@/modules/shared";
 
@@ -13,13 +12,63 @@ const INPUT = "w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text
 
 const MAX_DOC_MB = 1;
 
-export function OrganizerKycReviewPanel({ organizer }: { organizer: Organizer }) {
+export interface KycThreadMessage {
+  senderRole: string;
+  senderEmail: string | null;
+  message: string;
+  createdAt: string;
+}
+
+/** Plain document upload — no cropper (docs need full frame / PDF). */
+function DocUploadButton({
+  uploading,
+  hasFile,
+  label,
+  error,
+  onFile,
+}: {
+  uploading: boolean;
+  hasFile: boolean;
+  label: string;
+  error: string | null;
+  onFile: (file: File | undefined) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  return (
+    <div className="space-y-1.5">
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*,application/pdf"
+        className="hidden"
+        onChange={(e) => {
+          onFile(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+      <button
+        type="button"
+        disabled={uploading}
+        onClick={() => inputRef.current?.click()}
+        className="flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-3 py-2 text-sm text-muted hover:border-violet-neon disabled:opacity-50 dark:border-white/15"
+      >
+        <Upload className="h-4 w-4" />
+        {uploading ? "Uploading…" : hasFile ? "Replace document" : label}
+      </button>
+      {error ? <p className="text-xs text-red-500">{error}</p> : null}
+    </div>
+  );
+}
+
+export function OrganizerKycReviewPanel({ organizer, thread = [] }: { organizer: Organizer; thread?: KycThreadMessage[] }) {
   const router = useRouter();
   const [note, setNote] = useState(organizer.kycResponseNote ?? "");
   const [panDocumentUrl, setPanDocumentUrl] = useState(organizer.panDocumentUrl ?? "");
   const [bankDocumentUrl, setBankDocumentUrl] = useState(organizer.bankDocumentUrl ?? "");
   const [uploadingPan, setUploadingPan] = useState(false);
   const [uploadingBank, setUploadingBank] = useState(false);
+  const [panError, setPanError] = useState<string | null>(null);
+  const [bankError, setBankError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
   const [confirmWithdraw, setConfirmWithdraw] = useState(false);
@@ -27,6 +76,9 @@ export function OrganizerKycReviewPanel({ organizer }: { organizer: Organizer })
 
   const isRejected = organizer.kycStatus === "REJECTED";
   const isClarification = organizer.kycStatus === "CLARIFICATION_NEEDED";
+  // Response form only matters once the admin has acted — a fresh PENDING
+  // submission shows just the status banner.
+  const showResponseForm = isRejected || isClarification;
   const statusLabel = useMemo(() => {
     if (organizer.kycStatus === "CLARIFICATION_NEEDED") return "Clarification requested";
     if (organizer.kycStatus === "PENDING") return "Application under review";
@@ -44,10 +96,12 @@ export function OrganizerKycReviewPanel({ organizer }: { organizer: Organizer })
 
   async function handleUpload(file: File | undefined, kind: "pan" | "bank") {
     if (!file) return;
+    const setErr = kind === "pan" ? setPanError : setBankError;
     if (file.size > MAX_DOC_MB * 1024 * 1024) {
-      setMessage(`File too large — documents must be under ${MAX_DOC_MB} MB.`);
+      setErr(`File too large — keep it under ${MAX_DOC_MB} MB (${(file.size / 1024 / 1024).toFixed(1)} MB selected).`);
       return;
     }
+    setErr(null);
     const setter = kind === "pan" ? setUploadingPan : setUploadingBank;
     setter(true);
     try {
@@ -56,7 +110,7 @@ export function OrganizerKycReviewPanel({ organizer }: { organizer: Organizer })
       else setBankDocumentUrl(url ?? "");
       setMessage(null);
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Upload failed.");
+      setErr(err instanceof Error ? err.message : "Upload failed.");
     } finally {
       setter(false);
     }
@@ -135,10 +189,39 @@ export function OrganizerKycReviewPanel({ organizer }: { organizer: Organizer })
         </div>
       </div>
 
+      {thread.length > 0 ? (
+        <div className="glass rounded-3xl p-6 space-y-4">
+          <div className="flex items-center gap-2 text-sm font-bold text-violet-neon">
+            <MessageSquareText className="h-4 w-4" />
+            Review history
+          </div>
+          <div className="space-y-3">
+            {thread.map((m, i) => (
+              <div
+                key={i}
+                className={`rounded-2xl border p-3 text-sm ${
+                  m.senderRole === "admin"
+                    ? "border-blue-200 bg-blue-500/5 dark:border-blue-500/30"
+                    : "border-zinc-200 dark:border-white/10"
+                }`}
+              >
+                <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wide text-muted">
+                  {m.senderRole === "admin" ? `Review team${m.senderEmail ? ` · ${m.senderEmail}` : ""}` : "You"}
+                  {" · "}
+                  {new Date(m.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
+                </p>
+                <p className="text-muted">{m.message}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {showResponseForm ? (
       <div className="glass rounded-3xl p-6 space-y-5">
         <div className="flex items-center gap-2 text-sm font-bold text-violet-neon">
           <AlertCircle className="h-4 w-4" />
-          {isClarification ? "Clarification requested" : "Review checklist"}
+          {isClarification ? "Clarification requested" : "Update & resubmit"}
         </div>
 
         <div className="rounded-2xl border border-zinc-200 p-4 text-sm text-muted dark:border-white/10">
@@ -159,14 +242,12 @@ export function OrganizerKycReviewPanel({ organizer }: { organizer: Organizer })
               ) : (
                 <p className="text-sm text-muted">No PAN document uploaded yet.</p>
               )}
-              <ImageUploadWithCrop
-                onCropped={(file) => handleUpload(file, "pan")}
-                aspect={1.4}
-                label={
-                  <span className="flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-3 py-2 text-sm text-muted hover:border-violet-neon dark:border-white/15">
-                    <Upload className="h-4 w-4" /> {uploadingPan ? "Uploading…" : "Upload PAN card"}
-                  </span>
-                }
+              <DocUploadButton
+                uploading={uploadingPan}
+                hasFile={!!panDocumentUrl}
+                label="Upload PAN card"
+                error={panError}
+                onFile={(f) => handleUpload(f, "pan")}
               />
             </div>
           </div>
@@ -184,14 +265,12 @@ export function OrganizerKycReviewPanel({ organizer }: { organizer: Organizer })
               ) : (
                 <p className="text-sm text-muted">No bank proof uploaded yet.</p>
               )}
-              <ImageUploadWithCrop
-                onCropped={(file) => handleUpload(file, "bank")}
-                aspect={1.4}
-                label={
-                  <span className="flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-3 py-2 text-sm text-muted hover:border-violet-neon dark:border-white/15">
-                    <Upload className="h-4 w-4" /> {uploadingBank ? "Uploading…" : "Upload cancelled cheque / passbook"}
-                  </span>
-                }
+              <DocUploadButton
+                uploading={uploadingBank}
+                hasFile={!!bankDocumentUrl}
+                label="Upload cancelled cheque / passbook"
+                error={bankError}
+                onFile={(f) => handleUpload(f, "bank")}
               />
             </div>
           </div>
@@ -208,7 +287,7 @@ export function OrganizerKycReviewPanel({ organizer }: { organizer: Organizer })
               className={INPUT}
             />
           </label>
-          <p className="text-xs text-muted">You can reply here and attach documents above if the team asked for more information.</p>
+          <p className="text-xs text-muted">Respond to the note below — your reply and documents go straight to the review team.</p>
         </div>
 
         {organizer.kycReviewNote ? (
@@ -263,10 +342,45 @@ export function OrganizerKycReviewPanel({ organizer }: { organizer: Organizer })
             disabled={submitting}
             className="rounded-2xl bg-neon-gradient px-5 py-3 text-sm font-bold text-white shadow-glow-violet disabled:opacity-60"
           >
-            {submitting ? "Saving…" : "Submit response"}
+            {submitting ? "Saving…" : isRejected ? "Resubmit application" : "Submit response"}
           </button>
         </div>
       </div>
+      ) : (
+        <div className="flex items-center justify-between gap-3">
+          {confirmWithdraw ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted">Withdraw your organizer application?</span>
+              <button
+                type="button"
+                onClick={handleWithdraw}
+                disabled={withdrawing}
+                className="rounded-xl bg-red-500 px-3 py-2 text-xs font-bold text-white hover:bg-red-600 disabled:opacity-60"
+              >
+                {withdrawing ? "Withdrawing…" : "Yes, withdraw"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmWithdraw(false)}
+                className="rounded-xl border border-zinc-200 px-3 py-2 text-xs font-semibold text-muted hover:border-violet-neon dark:border-white/10"
+              >
+                Keep it
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmWithdraw(true)}
+              className="text-xs font-semibold text-red-500 hover:underline"
+            >
+              Withdraw application
+            </button>
+          )}
+          {message ? (
+            <p className="text-xs text-muted">{message}</p>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }

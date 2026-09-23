@@ -458,6 +458,15 @@ export type NotificationOutboxRow = {
   updated_at: string;
 }
 
+export type KycMessageRow = {
+  id: string;
+  organizer_id: string;
+  sender_role: "admin" | "organizer" | "system";
+  sender_email: string | null;
+  message: string;
+  created_at: string;
+}
+
 export type EventSubscriptionRow = {
   id: string;
   event_id: string;
@@ -514,6 +523,7 @@ export type Database = {
       refunds: Table<RefundRow, "order_id" | "event_id" | "user_id" | "amount_paise" | "platform_fee_paise" | "status" | "reason" | "initiated_at">;
       event_notifications: Table<EventNotificationRow, "event_id" | "user_id" | "type" | "message">;
       notification_outbox: Table<NotificationOutboxRow, "type" | "message" | "channel" | "user_id">;
+      kyc_messages: Table<KycMessageRow, "organizer_id" | "sender_role" | "message">;
       platform_settings: Table<PlatformSettingRow, "key" | "value">;
       event_terms_acceptances: Table<EventTermsAcceptanceRow, "organizer_id" | "terms_version">;
       door_staff_orders: Table<DoorStaffOrderRow, "event_id" | "organizer_id" | "number_of_staff" | "service_amount_paise">;

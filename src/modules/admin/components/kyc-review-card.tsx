@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, X, MessageSquareWarning, Loader2 } from "lucide-react";
+import { Check, X, MessageSquareWarning, Loader2, Paperclip } from "lucide-react";
 import {
   approveKycAction,
   rejectKycAction,
@@ -127,6 +127,13 @@ export function KycReviewCard({ submission }: { submission: KycSubmission }) {
           <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-muted">PAN</p>
           <p className="text-sm font-mono">{submission.panNumber ?? "—"}</p>
           {submission.panName ? <p className="text-xs text-muted">{submission.panName}</p> : null}
+          {submission.panDocumentUrl ? (
+            <a href={submission.panDocumentUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs text-violet-neon underline">
+              <Paperclip className="h-3 w-3" /> PAN document
+            </a>
+          ) : (
+            <p className="mt-1 text-[10px] text-muted">No PAN document</p>
+          )}
         </div>
         <div className="rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
           <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-muted">GST (optional)</p>
@@ -139,6 +146,13 @@ export function KycReviewCard({ submission }: { submission: KycSubmission }) {
           <p className="text-xs text-muted">
             {submission.bankAccountName ?? "—"} · {submission.bankIfsc ?? "—"} · {submission.bankAccountType ?? "—"}
           </p>
+          {submission.bankDocumentUrl ? (
+            <a href={submission.bankDocumentUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs text-violet-neon underline">
+              <Paperclip className="h-3 w-3" /> Bank proof
+            </a>
+          ) : (
+            <p className="mt-1 text-[10px] text-muted">No bank proof</p>
+          )}
         </div>
         <div className="rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
           <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-muted">UPI ID</p>
@@ -151,6 +165,35 @@ export function KycReviewCard({ submission }: { submission: KycSubmission }) {
         <div className="rounded-2xl bg-zinc-50 p-3 dark:bg-white/5">
           <p className="text-[10px] font-bold uppercase tracking-wide text-muted">Previous review note</p>
           <p className="text-sm text-muted">{submission.kycReviewNote}</p>
+        </div>
+      ) : null}
+
+      {/* Organizer's latest response */}
+      {submission.kycResponseNote ? (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-500/5 p-3 dark:border-emerald-500/30">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-muted">Organizer response</p>
+          <p className="text-sm text-muted">{submission.kycResponseNote}</p>
+        </div>
+      ) : null}
+
+      {/* Communication thread — admin ↔ organizer */}
+      {submission.thread.length > 0 ? (
+        <div className="rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-muted">Communication history</p>
+          <div className="space-y-2">
+            {submission.thread.map((m, i) => (
+              <div key={i} className="text-xs">
+                <span className="font-bold">
+                  {m.senderRole === "admin" ? `Admin${m.senderEmail ? ` (${m.senderEmail})` : ""}` : "Organizer"}
+                </span>
+                <span className="text-muted">
+                  {" · "}
+                  {new Date(m.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
+                </span>
+                <p className="text-muted">{m.message}</p>
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
 

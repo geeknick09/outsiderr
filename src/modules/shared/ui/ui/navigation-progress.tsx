@@ -32,10 +32,13 @@ export function NavigationProgress() {
 
   // Disable browser scroll restoration — it fights with Next.js and causes
   // the page to jump to a stale scroll position after server actions / redirects.
+  // scrollTo(0,0) on mount corrects the position the browser restores before
+  // hydration finishes (hard reload lands mid-page otherwise).
   useEffect(() => {
     if ("scrollRestoration" in history) {
       history.scrollRestoration = "manual";
     }
+    window.scrollTo(0, 0);
   }, []);
 
   function startProgress() {

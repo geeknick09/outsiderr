@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bell, Check, CheckCheck } from "lucide-react";
 
-import { markAllNotificationsReadAction, markNotificationReadAction } from "@/modules/shared/actions/notifications";
+import { markAllNotificationsReadAction, markNotificationReadAction, getNotificationsAction } from "@/modules/shared/actions/notifications";
 import { useRealtime } from "../../hooks/use-realtime";
 import type { UserNotification } from "../../data/notifications";
 import { formatDateTime } from "../../lib/format";
@@ -76,6 +76,16 @@ export function NotificationBell({
   const [notifications, setNotifications] = useState(initialNotifications);
   const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Refetch when the dropdown opens — covers realtime misses (dropped socket,
+  // backgrounded tab) so a delivered notification is never invisible.
+  useEffect(() => {
+    if (!open) return;
+    getNotificationsAction().then(({ notifications: fresh, unreadCount: freshCount }) => {
+      setNotifications(fresh);
+      setUnreadCount(freshCount);
+    }).catch(() => {});
+  }, [open]);
 
   // Realtime: live notification updates without page reload
   useRealtime({

@@ -209,11 +209,18 @@ export async function updateOrganizerProfile(
       console.error("submit_kyc RPC failed:", kycError);
     } else {
       // (Re)submission → admins need to review again
-      const { notifyAdmins } = await import("../notifications");
+      const { notifyAdmins, addKycMessage } = await import("../notifications");
       await notifyAdmins({
         type: "KYC_SUBMITTED",
         message: `Organizer "${organizer.name}" (re)submitted KYC details — pending review.`,
       });
+      const note = input.kycResponseNote?.trim();
+      await addKycMessage(
+        organizer.id,
+        "organizer",
+        user.email ?? null,
+        note ? `Resubmitted with a response: ${note}` : "Updated KYC details and resubmitted.",
+      );
     }
   }
 }
