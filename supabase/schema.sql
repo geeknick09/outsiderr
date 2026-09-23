@@ -4914,6 +4914,17 @@ create table if not exists analytics.refresh_state (
 insert into analytics.refresh_state (key, watermark) values ('orders', '1970-01-01')
 on conflict (key) do nothing;
 
+-- RLS on rollup tables — access already restricted to service_role via grants
+-- and the schema is not exposed in PostgREST; RLS is defense-in-depth in case
+-- the schema is ever added to db-schema or grants widen.
+alter table analytics.daily_metrics      enable row level security;
+alter table analytics.user_activity_days enable row level security;
+alter table analytics.user_order_stats   enable row level security;
+alter table analytics.organizer_rollup   enable row level security;
+alter table analytics.event_rollup       enable row level security;
+alter table analytics.totals             enable row level security;
+alter table analytics.refresh_state      enable row level security;
+
 drop function if exists public.refresh_analytics_rollups(integer);
 
 create or replace function public.refresh_analytics_rollups(
