@@ -66,6 +66,15 @@
 - [ ] "Withdraw application" → confirm → organizers row deleted + `is_organizer=false` → lands on become-organizer form
 - [ ] Withdrawal blocked if APPROVED or if events exist (error message shown)
 
+### 2.3b Rejection Limit & Menu States
+
+- [ ] REJECTED (any count) → navbar + footer show "List Your Event", NOT "Organizer Dashboard"
+- [ ] Only APPROVED organizers see "Organizer Dashboard" in user menu
+- [ ] Rejected below limit → `/list-your-event` still shows "Get Started" (→ resubmit panel)
+- [ ] Rejection count reaches `organizer_rejection_limit` (platform_settings, default 5) → `/list-your-event` shows "application rejected N times — contact support" instead of CTAs
+- [ ] Blocked user visiting `/organizer` directly → "Organizer access blocked" panel (no wizard, no dashboard)
+- [ ] Change `organizer_rejection_limit` in platform_settings → block threshold updates accordingly
+
 ### 2.4 Admin Notifications (pending-review queues)
 
 - [ ] New organizer submits KYC → every admin's bell shows "KYC Submitted" live

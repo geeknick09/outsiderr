@@ -34,19 +34,17 @@ export async function Navbar({ mobileNav }: { mobileNav?: React.ReactNode } = {}
       .eq("id", user.id)
       .maybeSingle();
     isAdmin = profile?.is_admin === true;
-    // Check is_organizer flag first, then fall back to organizers table lookup
-    // This handles cases where the flag wasn't set but the organizer profile exists
-    isOrganizer = profile?.is_organizer === true;
-    if (!isOrganizer) {
-      const organizer = await getOrganizerProfile(user);
-      if (organizer) {
-        const accessState = getOrganizerAccessState({
-          kycStatus: organizer.kycStatus,
-          rejectionCount: organizer.rejectionCount,
-          rejectionLimit: await getSettingInt("organizer_rejection_limit"),
-        });
-        isOrganizer = accessState.eligible;
-      }
+    // Organizer status is driven by the KYC access state — not the
+    // profiles.is_organizer flag (stays true while PENDING/REJECTED, which
+    // would incorrectly show "Organizer Dashboard" to rejected users).
+    const organizer = await getOrganizerProfile(user);
+    if (organizer) {
+      const accessState = getOrganizerAccessState({
+        kycStatus: organizer.kycStatus,
+        rejectionCount: organizer.rejectionCount,
+        rejectionLimit: await getSettingInt("organizer_rejection_limit"),
+      });
+      isOrganizer = accessState.eligible;
     }
     // Check if user is assigned as door staff for any event
     const { count: staffCount } = await supabase
