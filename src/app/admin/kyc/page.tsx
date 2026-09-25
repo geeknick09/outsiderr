@@ -1,4 +1,5 @@
 import { listKycSubmissions, listKycCounts } from "@/modules/admin/server";
+import { getCurrentUser } from "@/modules/shared/server";
 import { KycReviewTable } from "@/modules/admin";
 
 export const dynamic = "force-dynamic";
@@ -11,9 +12,10 @@ export default async function AdminKycPage({
   searchParams: Promise<{ status?: string }>;
 }) {
   const { status } = await searchParams;
-  const [submissions, counts] = await Promise.all([
+  const [submissions, counts, admin] = await Promise.all([
     listKycSubmissions(status),
     listKycCounts(),
+    getCurrentUser(),
   ]);
 
   const filters = [
@@ -56,7 +58,7 @@ export default async function AdminKycPage({
           <p className="text-sm text-muted">No submissions in this category.</p>
         </div>
       ) : (
-        <KycReviewTable submissions={submissions} />
+        <KycReviewTable submissions={submissions} adminEmail={admin?.email ?? null} />
       )}
     </div>
   );

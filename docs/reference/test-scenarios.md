@@ -1115,3 +1115,6 @@ npx next build
 - [ ] Admin KYC page: filter tabs show counts — Pending (n), Clarification Needed (n), Approved (n), Rejected (n), All (n)
 - [ ] Admin card shows PAN document + bank proof links, organizer's response note, and full communication thread with admin emails
 - [ ] Clarification message tells the organizer to respond in the dashboard (no "team member will contact you")
+- [ ] Admin clicks Review → modal previews submission; approve/reject/clarify each show a confirm-preview with acting admin email + exact notification text before sending
+- [ ] APPROVED/REJECTED rows: Review is read-only (no action buttons)
+- [ ] Admin A clarifies → Admin B rejects next round → thread shows both with their respective emails

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Eye, Loader2, MessageSquareWarning, X } from "lucide-react";
+import { Check, Eye, Loader2, MessageSquareWarning, Paperclip, X } from "lucide-react";
 
 import { approveKycAction, rejectKycAction, requestClarificationAction } from "../actions/kyc";
 import { Modal } from "@/modules/shared";
@@ -16,10 +16,30 @@ const STATUS_STYLES: Record<string, string> = {
   NOT_SUBMITTED: "bg-zinc-100 text-zinc-500 dark:bg-white/5 dark:text-muted",
 };
 
-export function KycReviewTable({ submissions }: { submissions: KycSubmission[] }) {
+type PendingAction = "approve" | "reject" | "clarify";
+
+const ACTION_META: Record<PendingAction, { label: string; status: string; color: string; button: string }> = {
+  approve: { label: "Approve application", status: "APPROVED", color: "text-emerald-500", button: "bg-emerald-500 hover:bg-emerald-600" },
+  reject: { label: "Reject application", status: "REJECTED", color: "text-red-500", button: "bg-red-500 hover:bg-red-600" },
+  clarify: { label: "Request clarification", status: "CLARIFICATION_NEEDED", color: "text-blue-500", button: "bg-blue-500 hover:bg-blue-600" },
+};
+
+function notificationPreview(action: PendingAction, note: string): string {
+  switch (action) {
+    case "approve":
+      return "Congratulations! Your organizer profile has been approved. You can now publish events and manage your dashboard.";
+    case "reject":
+      return `Your organizer application was not approved. Reason: ${note.trim()}`;
+    case "clarify":
+      return `Your organizer application needs clarification. Please open your organizer dashboard and respond to the review note. Note: ${note.trim()}`;
+  }
+}
+
+export function KycReviewTable({ submissions, adminEmail }: { submissions: KycSubmission[]; adminEmail: string | null }) {
   const router = useRouter();
   const [selected, setSelected] = useState<KycSubmission | null>(null);
-  const [mode, setMode] = useState<"idle" | "reject" | "clarify">("idle");
+  const [mode, setMode] = useState<"idle" | "compose" | "preview">("idle");
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,40 +49,52 @@ export function KycReviewTable({ submissions }: { submissions: KycSubmission[] }
     return selected.kycStatus.replace("_", " ");
   }, [selected]);
 
-  async function handleAction(action: "approve" | "reject" | "clarify") {
-    if (!selected) return;
+  function resetAction() {
+    setMode("idle");
+    setPendingAction(null);
+    setNote("");
+    setError(null);
+  }
+
+  function requestAction(action: PendingAction) {
+    setPendingAction(action);
+    setError(null);
     if (action === "approve") {
-      if (!confirm(`Approve ${selected.organizerName}? They will be notified and gain organizer access.`)) return;
-      setBusy(true);
-      setError(null);
-      const result = await approveKycAction(selected.id);
-      setBusy(false);
-      if (result.error) {
-        setError(result.error);
-      } else {
-        setSelected(null);
-        router.refresh();
-      }
-      return;
+      setNote("");
+      setMode("preview");
+    } else {
+      setMode("compose");
     }
+  }
 
+  function goToPreview() {
+    if (!pendingAction) return;
     if (!note.trim()) {
-      setError(action === "reject" ? "Please provide a rejection reason." : "Please describe what clarification is needed.");
+      setError(pendingAction === "reject" ? "Please provide a rejection reason." : "Please describe what clarification is needed.");
       return;
     }
+    setError(null);
+    setMode("preview");
+  }
 
+  async function confirmAction() {
+    if (!selected || !pendingAction) return;
     setBusy(true);
     setError(null);
-    const result = action === "reject"
-      ? await rejectKycAction(selected.id, note)
-      : await requestClarificationAction(selected.id, note);
+    const result =
+      pendingAction === "approve"
+        ? await approveKycAction(selected.id)
+        : pendingAction === "reject"
+          ? await rejectKycAction(selected.id, note)
+          : await requestClarificationAction(selected.id, note);
     setBusy(false);
 
     if (result.error) {
       setError(result.error);
+      // Go back so the admin can edit the note or cancel
+      setMode(pendingAction === "approve" ? "idle" : "compose");
     } else {
-      setMode("idle");
-      setNote("");
+      resetAction();
       setSelected(null);
       router.refresh();
     }
@@ -130,7 +162,7 @@ export function KycReviewTable({ submissions }: { submissions: KycSubmission[] }
       </div>
 
       {selected ? (
-        <Modal open={true} onClose={() => { setSelected(null); setMode("idle"); setNote(""); setError(null); }} title={`${selected.organizerName} review`}>
+        <Modal open={true} onClose={() => { setSelected(null); resetAction(); }} title={`${selected.organizerName} review`}>
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -147,9 +179,21 @@ export function KycReviewTable({ submissions }: { submissions: KycSubmission[] }
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <InfoCard label="PAN" value={selected.panNumber ?? "—"} detail={selected.panName ?? undefined} />
+              <InfoCard
+                label="PAN"
+                value={selected.panNumber ?? "—"}
+                detail={selected.panName ?? undefined}
+                docUrl={selected.panDocumentUrl}
+                docLabel="PAN document"
+              />
               <InfoCard label="GST" value={selected.gstNumber ?? "—"} detail={selected.gstBusinessName ?? undefined} />
-              <InfoCard label="Bank" value={selected.bankAccountNumber ?? "—"} detail={`${selected.bankAccountName ?? "—"} · ${selected.bankIfsc ?? "—"}`} />
+              <InfoCard
+                label="Bank"
+                value={selected.bankAccountNumber ?? "—"}
+                detail={`${selected.bankAccountName ?? "—"} · ${selected.bankIfsc ?? "—"}`}
+                docUrl={selected.bankDocumentUrl}
+                docLabel="Bank proof"
+              />
               <InfoCard label="UPI" value={selected.upiId ?? "—"} />
             </div>
 
@@ -168,46 +212,112 @@ export function KycReviewTable({ submissions }: { submissions: KycSubmission[] }
               </div>
             </div>
 
+            {selected.kycResponseNote ? (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-500/5 p-3 dark:border-emerald-500/30">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-muted">Organizer response</p>
+                <p className="text-sm text-muted">{selected.kycResponseNote}</p>
+              </div>
+            ) : null}
+
+            {selected.thread.length > 0 ? (
+              <div className="rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-muted">Communication history</p>
+                <div className="max-h-48 space-y-2 overflow-y-auto">
+                  {selected.thread.map((m, i) => (
+                    <div key={i} className="text-xs">
+                      <span className="font-bold">
+                        {m.senderRole === "admin" ? `Admin${m.senderEmail ? ` (${m.senderEmail})` : ""}` : "Organizer"}
+                      </span>
+                      <span className="text-muted">
+                        {" · "}
+                        {new Date(m.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
+                      </span>
+                      <p className="text-muted">{m.message}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
             {error ? <p className="text-sm text-red-500">{error}</p> : null}
 
-            {mode === "idle" ? (
+            {(selected.kycStatus === "PENDING" || selected.kycStatus === "CLARIFICATION_NEEDED") ? (
+              mode === "idle" ? (
               <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={() => handleAction("approve")} disabled={busy} className="flex items-center gap-1.5 rounded-full bg-emerald-500 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-600 disabled:opacity-50">
-                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                <button type="button" onClick={() => requestAction("approve")} disabled={busy} className="flex items-center gap-1.5 rounded-full bg-emerald-500 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-600 disabled:opacity-50">
+                  <Check className="h-4 w-4" />
                   Approve
                 </button>
-                <button type="button" onClick={() => { setMode("reject"); setError(null); }} disabled={busy} className="flex items-center gap-1.5 rounded-full bg-red-500 px-4 py-2 text-xs font-bold text-white hover:bg-red-600 disabled:opacity-50">
+                <button type="button" onClick={() => requestAction("reject")} disabled={busy} className="flex items-center gap-1.5 rounded-full bg-red-500 px-4 py-2 text-xs font-bold text-white hover:bg-red-600 disabled:opacity-50">
                   <X className="h-4 w-4" />
                   Reject
                 </button>
-                <button type="button" onClick={() => { setMode("clarify"); setError(null); }} disabled={busy} className="flex items-center gap-1.5 rounded-full bg-blue-500 px-4 py-2 text-xs font-bold text-white hover:bg-blue-600 disabled:opacity-50">
+                <button type="button" onClick={() => requestAction("clarify")} disabled={busy} className="flex items-center gap-1.5 rounded-full bg-blue-500 px-4 py-2 text-xs font-bold text-white hover:bg-blue-600 disabled:opacity-50">
                   <MessageSquareWarning className="h-4 w-4" />
                   Clarify
                 </button>
               </div>
-            ) : (
+            ) : mode === "compose" ? (
               <div className="space-y-3">
                 <label className="block text-xs font-semibold uppercase tracking-wide text-muted">
-                  {mode === "reject" ? "Reason for rejection" : "Clarification requested"}
+                  {pendingAction === "reject" ? "Reason for rejection" : "Clarification requested"}
                 </label>
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   rows={4}
                   className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white"
-                  placeholder={mode === "reject" ? "Mention the mismatch or issue to reject." : "Explain what supporting detail or correction is needed."}
+                  placeholder={pendingAction === "reject" ? "Mention the mismatch or issue to reject." : "Explain what supporting detail or correction is needed."}
                 />
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => handleAction(mode)} disabled={busy} className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold text-white disabled:opacity-60 ${mode === "reject" ? "bg-red-500 hover:bg-red-600" : "bg-blue-500 hover:bg-blue-600"}`}>
-                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                    {mode === "reject" ? "Confirm rejection" : "Send clarification"}
+                  <button type="button" onClick={goToPreview} disabled={busy} className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold text-white disabled:opacity-60 ${ACTION_META[pendingAction!].button}`}>
+                    Preview action
                   </button>
-                  <button type="button" onClick={() => { setMode("idle"); setNote(""); setError(null); }} disabled={busy} className="rounded-full border border-zinc-200 px-4 py-2 text-xs font-bold text-muted hover:bg-zinc-100 dark:border-white/10 dark:hover:bg-white/5">
+                  <button type="button" onClick={resetAction} disabled={busy} className="rounded-full border border-zinc-200 px-4 py-2 text-xs font-bold text-muted hover:bg-zinc-100 dark:border-white/10 dark:hover:bg-white/5">
                     Cancel
                   </button>
                 </div>
               </div>
-            )}
+            ) : (
+              <div className="space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-muted">Confirm — preview of what happens</p>
+                <div className="space-y-2 text-sm">
+                  <p>
+                    <span className="text-muted">Action: </span>
+                    <span className={`font-bold ${ACTION_META[pendingAction!].color}`}>{ACTION_META[pendingAction!].label}</span>
+                    <span className="text-muted"> → status becomes {ACTION_META[pendingAction!].status}</span>
+                  </p>
+                  <p><span className="text-muted">Acting as: </span><span className="font-semibold">{adminEmail ?? "admin"}</span></p>
+                  {note.trim() ? (
+                    <p><span className="text-muted">Your note: </span>{note.trim()}</p>
+                  ) : null}
+                  <div className="rounded-xl bg-zinc-50 p-3 text-xs text-muted dark:bg-white/5">
+                    <p className="mb-1 font-bold uppercase tracking-wide">Notification sent to organizer</p>
+                    <p>{notificationPreview(pendingAction!, note)}</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={confirmAction}
+                    disabled={busy}
+                    className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold text-white disabled:opacity-60 ${ACTION_META[pendingAction!].button}`}
+                  >
+                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Confirm & notify organizer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMode(pendingAction === "approve" ? "idle" : "compose")}
+                    disabled={busy}
+                    className="rounded-full border border-zinc-200 px-4 py-2 text-xs font-bold text-muted hover:bg-zinc-100 dark:border-white/10 dark:hover:bg-white/5"
+                  >
+                    Back
+                  </button>
+                </div>
+              </div>
+            )
+          ) : null}
           </div>
         </Modal>
       ) : null}
@@ -215,12 +325,17 @@ export function KycReviewTable({ submissions }: { submissions: KycSubmission[] }
   );
 }
 
-function InfoCard({ label, value, detail }: { label: string; value: string; detail?: string }) {
+function InfoCard({ label, value, detail, docUrl, docLabel }: { label: string; value: string; detail?: string; docUrl?: string | null; docLabel?: string }) {
   return (
     <div className="rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
       <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">{label}</p>
       <p className="font-mono text-sm">{value}</p>
       {detail ? <p className="mt-1 text-xs text-muted">{detail}</p> : null}
+      {docUrl ? (
+        <a href={docUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs text-violet-neon underline">
+          <Paperclip className="h-3 w-3" /> {docLabel ?? "View document"}
+        </a>
+      ) : null}
     </div>
   );
 }
