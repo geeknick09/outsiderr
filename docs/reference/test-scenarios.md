@@ -1118,3 +1118,5 @@ npx next build
 - [ ] Admin clicks Review → modal previews submission; approve/reject/clarify each show a confirm-preview with acting admin email + exact notification text before sending
 - [ ] APPROVED/REJECTED rows: Review is read-only (no action buttons)
 - [ ] Admin A clarifies → Admin B rejects next round → thread shows both with their respective emails
+- [ ] Search by organizer name → that organizer's events appear
+- [ ] Search with `%),(` or stray commas/quotes → returns results (no filter error)

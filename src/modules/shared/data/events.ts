@@ -4,6 +4,7 @@ import { MAX_FEATURED_EVENTS } from "../lib/constants";
 import { STORAGE_BUCKET } from "../auth/config";
 import { createClient } from "../auth/server";
 import { createServiceClient } from "../auth/service";
+import { sanitizeSearchTerm } from "./organizers";
 import type {
   EventRow,
   OrganizerRow,
@@ -151,7 +152,28 @@ export async function listEvents(query: EventQuery = {}): Promise<EventSummary[]
   // Filter by categories array (contains) — supports multi-category events
   if (query.category) request = request.contains("categories", [query.category]);
   if (search) {
-    request = request.or(`title.ilike.%${search}%,venue_name.ilike.%${search}%,description.ilike.%${search}%`);
+    // Strip PostgREST .or() metacharacters (,%()_.") and wildcards — a bare
+    // '%)' or 'x,y' in the input would otherwise corrupt the filter → error.
+    const safe = sanitizeSearchTerm(search);
+    if (safe) {
+      // Organizer names live on a related table — resolve matching organizer
+      // ids first, then include them in the OR filter.
+      const { data: orgRows } = await supabase
+        .from("organizers_public")
+        .select("id")
+        .ilike("name", `%${safe}%`)
+        .limit(50);
+      const orgIds = (orgRows ?? []).map((o) => o.id);
+      const filters = [
+        `title.ilike.%${safe}%`,
+        `venue_name.ilike.%${safe}%`,
+        `description.ilike.%${safe}%`,
+      ];
+      if (orgIds.length > 0) {
+        filters.push(`organizer_id.in.(${orgIds.join(",")})`);
+      }
+      request = request.or(filters.join(","));
+    }
   }
 
   const { data: events, error } = await request;

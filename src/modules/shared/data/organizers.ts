@@ -3,6 +3,42 @@ import "server-only";
 import { createClient } from "../auth/server";
 import type { Organizer, EventSummary, EventCategory, PricingMode } from "../lib/types";
 
+/**
+ * Strips PostgREST .or()/filter metacharacters + LIKE wildcards from a
+ * user-supplied search term. Empty result → caller should skip the filter.
+ */
+export function sanitizeSearchTerm(raw: string): string {
+  return raw.toLowerCase().replace(/[%_(),."\\]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+export interface OrganizerSearchHit {
+  id: string;
+  name: string;
+  bio: string | null;
+  avatarUrl: string | null;
+  verified: boolean | null;
+}
+
+/** Organizers whose name matches the term — powers the search-results strip. */
+export async function searchOrganizers(term: string): Promise<OrganizerSearchHit[]> {
+  const safe = sanitizeSearchTerm(term);
+  if (!safe) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("organizers_public")
+    .select("id, name, bio, avatar_url, verified")
+    .ilike("name", `%${safe}%`)
+    .order("name")
+    .limit(12);
+  return (data ?? []).map((o) => ({
+    id: o.id,
+    name: o.name,
+    bio: o.bio ?? null,
+    avatarUrl: o.avatar_url ?? null,
+    verified: o.verified ?? null,
+  }));
+}
+
 export async function getPublicOrganizer(id: string): Promise<Organizer | null> {
   const supabase = await createClient();
   const { data } = await supabase

@@ -12,7 +12,7 @@ import {
   CITY_LABELS,
   DEFAULT_CITY,
 } from "@/modules/shared";
-import { listEvents } from "@/modules/shared/server";
+import { listEvents, searchOrganizers } from "@/modules/shared/server";
 import { getHeroEvents } from "@/modules/shared/server";
 import { getMyEventsToday } from "@/modules/shared/server";
 import {
@@ -50,7 +50,7 @@ export default async function DiscoveryPage({
   const search = params.q?.trim() || undefined;
 
   // Parallelize all data fetching — events + settings + user at the same time
-  const [allEvents, maxPopular, maxSponsored, heroEnabled, heroRotationInterval, heroMaxVisible, taglineHeader, taglineSubheader, currentUser] = await Promise.all([
+  const [allEvents, maxPopular, maxSponsored, heroEnabled, heroRotationInterval, heroMaxVisible, taglineHeader, taglineSubheader, currentUser, matchedOrganizers] = await Promise.all([
     listEvents({ city, category, search }),
     getMaxPopularPerCity(),
     getMaxSponsoredPerCity(),
@@ -60,6 +60,7 @@ export default async function DiscoveryPage({
     getTaglineHeader(),
     getTaglineSubheader(),
     getCurrentUser(),
+    search ? searchOrganizers(search) : Promise.resolve([]),
   ]);
 
   // Split into upcoming (today + future) and past events
@@ -120,6 +121,38 @@ export default async function DiscoveryPage({
       <Suspense fallback={<div className="mb-6 h-14" />}>
         <CategoryFilter active={category ?? "ALL"} />
       </Suspense>
+
+      {/* Organizers matching the search term */}
+      {matchedOrganizers.length > 0 ? (
+        <section className="mb-8">
+          <h2 className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-muted">Organizers</h2>
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {matchedOrganizers.map((org) => (
+              <Link
+                key={org.id}
+                href={`/organizers/${org.id}`}
+                className="glass flex min-w-[220px] items-center gap-3 rounded-2xl p-4 transition-all hover:border-violet-neon/50 hover:shadow-[0_0_20px_rgba(139,92,246,0.25)]"
+              >
+                {org.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={org.avatarUrl} alt={org.name} className="h-11 w-11 rounded-full object-cover" />
+                ) : (
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-neon-gradient text-base font-bold text-white">
+                    {org.name.slice(0, 1).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold">
+                    {org.name}
+                    {org.verified ? <span className="ml-1 text-violet-neon" title="Verified">✓</span> : null}
+                  </p>
+                  {org.bio ? <p className="mt-0.5 line-clamp-1 text-xs text-muted">{org.bio}</p> : null}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {/* Hero Boost carousel — only shown in "All" view (no category filter) */}
       {!category && heroEvents.length > 0 ? <HeroCarousel events={heroEvents} /> : null}

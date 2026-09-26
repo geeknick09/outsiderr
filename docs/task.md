@@ -108,6 +108,7 @@ Sequencing when mobile lands: Scanner → Outsiderr → Organizer. React Native/
 - Razorpay live-payment E2E is unverified — `/checkout` returns "not configured" without keys; verify `create_reserved_order → confirm_razorpay_order → webhook` end-to-end once `rzp_test_` keys are set (staging first).
 - M3 (phone OTP + `outsiderr://` deep-link scheme) deferred — email-only auth for now.
 - Sole-waiter edge: a lone waitlisted user whose offer lapses gets re-queued and immediately re-offered (notification spam each cycle) — cap re-offers or add a permanent `EXPIRED` state if it becomes noisy.
+- **Search at scale (do when traffic/events grow):** `listEvents` search is `ilike %term%` on title/venue/description + organizer-id resolution — full-scans published events per keystroke (400ms debounce). Upgrade path: `pg_trgm` extension + GIN index on `title`/`venue_name`/`description`, or a `tsvector` column + `websearch_to_tsquery` (also enables typo tolerance + relevance ranking). Consider a dedicated `/search` page with an "Organizers" results section (see below).
 
 ---
 
