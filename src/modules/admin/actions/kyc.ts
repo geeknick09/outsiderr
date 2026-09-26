@@ -191,3 +191,116 @@ export async function requestClarificationAction(organizerId: string, note: stri
   revalidatePath("/organizer", "page");
   return { error: null, success: true };
 }
+
+/**
+ * Approve staged KYC/payout changes on an APPROVED organizer — applies the
+ * pending_kyc values to the real columns and clears the stage. The organizer
+ * stays approved throughout; only the new data was gated.
+ */
+export async function approveKycChangeAction(organizerId: string): Promise<KycReviewResult> {
+  let admin: Awaited<ReturnType<typeof getCurrentUser>>;
+  try {
+    admin = await requireAdmin();
+  } catch {
+    return { error: "Admin access required.", success: false };
+  }
+
+  const supabase = await createClient();
+  const service = createServiceClient();
+
+  const { data: org } = await supabase
+    .from("organizers")
+    .select("owner_id, name, pending_kyc")
+    .eq("id", organizerId)
+    .maybeSingle();
+
+  const pending = (org as { pending_kyc?: Record<string, string | null> | null } | null)?.pending_kyc;
+  if (!pending || Object.keys(pending).length === 0) {
+    return { error: "No pending changes to approve.", success: false };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: updateError } = await (service.from("organizers") as any)
+    .update({
+      ...pending,
+      pending_kyc: null,
+      kyc_reviewed_at: new Date().toISOString(),
+    })
+    .eq("id", organizerId);
+
+  if (updateError) return { error: updateError.message, success: false };
+
+  if (org?.owner_id) {
+    await sendNotification(
+      {
+        userId: org.owner_id,
+        type: "KYC_APPROVED",
+        message: `Your requested KYC/payout changes were approved and are now live.`,
+        channels: ["in-app", "email"],
+      },
+      supabase,
+    );
+  }
+  await addKycMessage(organizerId, "admin", admin?.email ?? null, "Profile changes approved and applied.");
+
+  revalidatePath("/admin/kyc", "page");
+  revalidatePath("/organizer", "page");
+  return { error: null, success: true };
+}
+
+/**
+ * Reject staged KYC/payout changes — clears pending_kyc so the previously
+ * verified details remain authoritative. Organizer is told why and directed
+ * to re-edit or contact support.
+ */
+export async function rejectKycChangeAction(organizerId: string, note: string): Promise<KycReviewResult> {
+  let admin: Awaited<ReturnType<typeof getCurrentUser>>;
+  try {
+    admin = await requireAdmin();
+  } catch {
+    return { error: "Admin access required.", success: false };
+  }
+
+  if (!note.trim()) return { error: "Please provide a reason for rejecting the changes.", success: false };
+
+  const supabase = await createClient();
+  const service = createServiceClient();
+
+  const { data: org } = await supabase
+    .from("organizers")
+    .select("owner_id, name, pending_kyc")
+    .eq("id", organizerId)
+    .maybeSingle();
+
+  const pending = (org as { pending_kyc?: Record<string, string | null> | null } | null)?.pending_kyc;
+  if (!pending || Object.keys(pending).length === 0) {
+    return { error: "No pending changes to reject.", success: false };
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: updateError } = await (service.from("organizers") as any)
+    .update({
+      pending_kyc: null,
+      kyc_reviewed_at: new Date().toISOString(),
+    })
+    .eq("id", organizerId);
+
+  if (updateError) return { error: updateError.message, success: false };
+
+  if (org?.owner_id) {
+    await sendNotification(
+      {
+        userId: org.owner_id,
+        type: "KYC_REJECTED",
+        message: `Your requested KYC/payout changes were not approved. Reason: ${note.trim()}. Your previously verified details remain active — you can edit again or contact Outsiderr support.`,
+        channels: ["in-app", "email"],
+      },
+      supabase,
+    );
+  }
+  await addKycMessage(organizerId, "admin", admin?.email ?? null, `Change request rejected: ${note.trim()}`);
+
+  revalidatePath("/admin/kyc", "page");
+  revalidatePath("/organizer", "page");
+  return { error: null, success: true };
+}

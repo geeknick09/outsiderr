@@ -13,6 +13,8 @@ export interface CreateOrganizerState {
 
 export interface UpdateOrganizerState {
   error: string | null;
+  /** Non-blocking confirmation (e.g. KYC changes sent for re-verification). */
+  notice?: string | null;
 }
 
 export async function createOrganizerAction(
@@ -148,7 +150,7 @@ export async function updateOrganizerAction(
   }
 
   try {
-    await updateOrganizerProfile(user, {
+    const result = await updateOrganizerProfile(user, {
       name,
       bio,
       description,
@@ -171,14 +173,18 @@ export async function updateOrganizerAction(
       kycResponseNote,
       kycResponseDocumentUrl,
     });
+    revalidatePath("/organizer");
+    return {
+      error: null,
+      notice: result.pendingKycRequested
+        ? "Saved. Your KYC/bank/payout changes are now under admin review — your verified details stay active until approved."
+        : null,
+    };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Could not update organizer profile.",
     };
   }
-
-  revalidatePath("/organizer");
-  return { error: null };
 }
 
 /**
@@ -198,13 +204,22 @@ export async function withdrawOrganizerApplication(): Promise<{ error: string | 
 
   const { data: org } = await supabase
     .from("organizers")
-    .select("id, kyc_status")
+    .select("id, kyc_status, rejection_count")
     .eq("owner_id", user.id)
     .maybeSingle();
   if (!org) return { error: "No organizer application found." };
 
   if (org.kyc_status === "APPROVED") {
     return { error: "Approved organizers can't withdraw — contact support to deactivate." };
+  }
+
+  // Withdrawing deletes the organizers row (and rejection_count with it) —
+  // a user at the rejection limit could reset the counter by withdrawing
+  // and re-applying, so block that path.
+  const { getSettingInt } = await import("@/modules/shared/server");
+  const rejectionLimit = await getSettingInt("organizer_rejection_limit");
+  if (rejectionLimit > 0 && (org.rejection_count ?? 0) >= rejectionLimit) {
+    return { error: "This application reached the maximum rejections and can't be withdrawn — please contact Outsiderr support." };
   }
 
   const { count: eventCount } = await supabase

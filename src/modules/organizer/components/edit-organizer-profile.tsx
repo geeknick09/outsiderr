@@ -55,9 +55,9 @@ export function EditOrganizerProfile({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4" onClick={onClose}>
       <div
-        className="glass w-full max-w-md space-y-4 rounded-3xl p-6"
+        className="glass w-full max-w-md max-h-[92dvh] space-y-4 overflow-y-auto rounded-3xl p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -207,6 +207,10 @@ export function EditOrganizerProfile({
             <p className="text-xs font-bold uppercase tracking-wide text-muted">
               KYC &amp; Bank details
             </p>
+            <p className="text-[11px] text-muted">
+              Changes to these fields are re-verified by our team before they take
+              effect — your verified details stay active meanwhile.
+            </p>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block space-y-1">
                 <span className="text-xs text-muted">PAN number</span>
@@ -311,6 +315,11 @@ export function EditOrganizerProfile({
           ) : null}
 
           {state.error ? <p className="text-sm text-red-500">{state.error}</p> : null}
+          {state.notice ? (
+            <p className="rounded-2xl bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600 dark:text-emerald-400">
+              {state.notice}
+            </p>
+          ) : null}
 
           <div className="flex gap-2">
             <Button

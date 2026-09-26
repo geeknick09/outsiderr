@@ -1,7 +1,28 @@
-import { Clock, XCircle, HelpCircle } from "lucide-react";
+import { Clock, XCircle, HelpCircle, ShieldCheck } from "lucide-react";
 
-export function KycStatusBanner({ kycStatus }: { kycStatus: string }) {
-  if (kycStatus === "APPROVED" || kycStatus === "NOT_SUBMITTED") return null;
+export function KycStatusBanner({
+  kycStatus,
+  hasPendingChanges = false,
+}: {
+  kycStatus: string;
+  hasPendingChanges?: boolean;
+}) {
+  const pendingChangesBanner = hasPendingChanges ? (
+    <div className="glass rounded-3xl border-2 border-amber-300 bg-amber-50 p-5 dark:border-amber-500/30 dark:bg-amber-500/5">
+      <div className="flex items-start gap-3">
+        <ShieldCheck className="mt-0.5 h-6 w-6 shrink-0" />
+        <div>
+          <h3 className="text-base font-bold">Profile changes under review</h3>
+          <p className="mt-1 text-sm text-muted">
+            Your updated KYC / bank / payout details are being verified by our team.
+            Your currently verified details stay active until the changes are approved.
+          </p>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  if (kycStatus === "APPROVED" || kycStatus === "NOT_SUBMITTED") return pendingChangesBanner;
 
   const config: Record<string, { icon: React.ElementType; title: string; message: string; className: string }> = {
     PENDING: {
@@ -25,19 +46,22 @@ export function KycStatusBanner({ kycStatus }: { kycStatus: string }) {
   };
 
   const c = config[kycStatus];
-  if (!c) return null;
+  if (!c) return pendingChangesBanner;
 
   const Icon = c.icon;
 
   return (
-    <div className={`glass rounded-3xl border-2 p-5 ${c.className}`}>
-      <div className="flex items-start gap-3">
-        <Icon className="mt-0.5 h-6 w-6 shrink-0" />
-        <div>
-          <h3 className="text-base font-bold">{c.title}</h3>
-          <p className="mt-1 text-sm text-muted">{c.message}</p>
+    <>
+      <div className={`glass rounded-3xl border-2 p-5 ${c.className}`}>
+        <div className="flex items-start gap-3">
+          <Icon className="mt-0.5 h-6 w-6 shrink-0" />
+          <div>
+            <h3 className="text-base font-bold">{c.title}</h3>
+            <p className="mt-1 text-sm text-muted">{c.message}</p>
+          </div>
         </div>
       </div>
-    </div>
+      {pendingChangesBanner}
+    </>
   );
 }

@@ -106,6 +106,8 @@ export interface Organizer {
   bankAccountName?: string | null;
   bankAccountType?: string | null;
   bankDocumentUrl?: string | null;
+  /** Staged KYC/payout edits awaiting admin re-verification (column → new value). */
+  pendingKyc?: Record<string, string | null> | null;
   rejectionCount?: number;
   kycStatus?: string; // NOT_SUBMITTED | PENDING | APPROVED | REJECTED | CLARIFICATION_NEEDED
   kycReviewedAt?: string | null;

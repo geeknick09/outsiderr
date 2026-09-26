@@ -1310,6 +1310,11 @@ alter table public.organizers add column if not exists bank_document_url text;
 alter table public.organizers add column if not exists kyc_response_note text;
 alter table public.organizers add column if not exists kyc_response_document_url text;
 
+-- Pending KYC/payout changes for APPROVED organizers — sensitive edits are
+-- staged here (jsonb keyed by column name) and only applied to the real
+-- columns when an admin approves. Never exposed via organizers_public.
+alter table public.organizers add column if not exists pending_kyc jsonb;
+
 -- ----------------------------------------------------------------
 -- Atomic offer_waitlist_next RPC (returns the offered row so app can
 -- create a notification). Uses SELECT FOR UPDATE to prevent race.
@@ -3288,7 +3293,8 @@ grant update (name, bio, description, organizer_intent, avatar_url, cover_url, i
               x_url, facebook_url, linkedin_url, upi_id, upi_qr_url,
               pan_number, pan_name, pan_document_url, gst_number, gst_business_name,
               bank_account_number, bank_ifsc, bank_account_name, bank_account_type,
-              bank_document_url, kyc_response_note, kyc_response_document_url)
+              bank_document_url, kyc_response_note, kyc_response_document_url,
+              pending_kyc)
   on public.organizers to authenticated;
 
 -- Pin the INSERT path too — an owner can't create an already-APPROVED row.
@@ -3351,12 +3357,19 @@ $$;
 grant execute on function public.set_event_status(uuid, text) to authenticated, service_role;
 
 -- ---- 11. submit_kyc RPC — owner submits own KYC; can only reach PENDING ---------
+-- Also enforces the rejection limit: an owner whose rejection_count reached
+-- organizer_rejection_limit cannot re-enter the review queue. Callable via
+-- PostgREST by any authenticated user, so the check must live here — app-level
+-- guards are bypassable. Admin/service callers are exempt (review override).
 create or replace function public.submit_kyc(p_organizer_id uuid)
 returns void
 language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_rejections int;
+  v_limit int;
 begin
   if not exists (
     select 1 from public.organizers
@@ -3364,6 +3377,24 @@ begin
   ) and not public.is_current_user_admin() then
     raise exception 'Not authorised to submit KYC for this organizer';
   end if;
+
+  if auth.role() = 'authenticated' and not public.is_current_user_admin() then
+    select coalesce(rejection_count, 0)
+      into v_rejections
+      from public.organizers
+     where id = p_organizer_id;
+
+    select coalesce((value #>> '{}')::int, 5)
+      into v_limit
+      from public.platform_settings
+     where key = 'organizer_rejection_limit';
+    v_limit := coalesce(v_limit, 5);
+
+    if v_limit > 0 and v_rejections >= v_limit then
+      raise exception 'Organizer application rejected the maximum number of times';
+    end if;
+  end if;
+
   update public.organizers
      set kyc_submitted = true,
          kyc_status = 'PENDING',
@@ -5074,6 +5105,7 @@ grant execute on function public.complete_notification_outbox(uuid, boolean, tex
 do $$ begin alter type public.event_notification_type add value if not exists 'KYC_SUBMITTED'; exception when others then null; end $$;
 do $$ begin alter type public.event_notification_type add value if not exists 'BOOST_REQUESTED'; exception when others then null; end $$;
 do $$ begin alter type public.event_notification_type add value if not exists 'DOOR_STAFF_REQUESTED'; exception when others then null; end $$;
+do $$ begin alter type public.event_notification_type add value if not exists 'KYC_CHANGE_REQUESTED'; exception when others then null; end $$;
 
 -- ============================================================================
 -- STEP 31 · KYC message thread

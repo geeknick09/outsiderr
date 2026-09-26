@@ -5,6 +5,8 @@ import { createServiceClient } from "../auth/service";
 import type { CurrentUser } from "../auth/auth";
 import type { Database } from "../db/database.types";
 import type { Organizer } from "../lib/types";
+import { getSettingInt } from "./platform-settings";
+import { getOrganizerAccessState, computePendingKyc } from "../lib/organizer-eligibility";
 
 export async function getOrganizerProfile(
   user: CurrentUser,
@@ -50,6 +52,7 @@ export async function getOrganizerProfile(
     kycReviewNote: (data as { kyc_review_note?: string | null }).kyc_review_note ?? null,
     kycResponseNote: (data as { kyc_response_note?: string | null }).kyc_response_note ?? null,
     kycResponseDocumentUrl: (data as { kyc_response_document_url?: string | null }).kyc_response_document_url ?? null,
+    pendingKyc: (data as { pending_kyc?: Record<string, string | null> | null }).pending_kyc ?? null,
   };
 }
 
@@ -62,6 +65,23 @@ export async function createOrganizerProfile(
   const existing = await getOrganizerProfile(user);
   if (existing) {
     if (existing.kycStatus === "APPROVED") return existing.id;
+
+    // Server-side enforcement — the UI hides the wizard but a direct action
+    // call must still respect the rejection limit and in-flight statuses.
+    if (existing.kycStatus === "PENDING" || existing.kycStatus === "CLARIFICATION_NEEDED") {
+      throw new Error("Your organizer application is already under review.");
+    }
+    if (existing.kycStatus === "REJECTED") {
+      const accessState = getOrganizerAccessState({
+        kycStatus: existing.kycStatus,
+        rejectionCount: existing.rejectionCount,
+        rejectionLimit: await getSettingInt("organizer_rejection_limit"),
+      });
+      if (accessState.blocked) {
+        throw new Error("Your organizer application was rejected the maximum number of times. Please contact Outsiderr support.");
+      }
+    }
+
     const resubmit = {
       name: input.name,
       bio: input.bio || null,
@@ -193,23 +213,29 @@ export interface UpdateOrganizerInput {
   kycResponseDocumentUrl?: string | null;
 }
 
-/** Updates an organizer's profile (name, bio, UPI ID, avatar, cover, social, KYC). */
+/**
+ * Updates an organizer's profile. Safe fields (name, bio, avatar, socials)
+ * apply immediately. For APPROVED organizers, sensitive KYC/payout fields
+ * are staged into pending_kyc and only applied after admin re-verification —
+ * unverified payout details can never go live. Non-approved organizers keep
+ * the original behaviour (direct write + submit_kyc resubmission).
+ */
 export async function updateOrganizerProfile(
   user: CurrentUser,
   input: UpdateOrganizerInput,
-): Promise<void> {
+): Promise<{ pendingKycRequested: boolean }> {
   const organizer = await getOrganizerProfile(user);
   if (!organizer) throw new Error("No organizer profile found.");
 
   const supabase = await createClient();
+  const approved = organizer.kycStatus === "APPROVED";
+
   // Partial update — only fields present in the input are written, so a PATCH
   // that omits name/upiId can't wipe them.
   const update: Database["public"]["Tables"]["organizers"]["Update"] = {};
   if (input.name !== undefined) update.name = input.name;
   if (input.bio !== undefined) update.bio = input.bio || null;
   if (input.description !== undefined) update.description = input.description || null;
-  if (input.organizerIntent !== undefined) update.organizer_intent = input.organizerIntent || null;
-  if (input.upiId !== undefined) update.upi_id = input.upiId || null;
   if (input.avatarUrl !== undefined) update.avatar_url = input.avatarUrl;
   if (input.coverUrl !== undefined) update.cover_url = input.coverUrl;
   if (input.instagramUrl !== undefined) update.instagram_url = input.instagramUrl;
@@ -217,18 +243,41 @@ export async function updateOrganizerProfile(
   if (input.xUrl !== undefined) update.x_url = input.xUrl;
   if (input.facebookUrl !== undefined) update.facebook_url = input.facebookUrl;
   if (input.linkedinUrl !== undefined) update.linkedin_url = input.linkedinUrl;
-  if (input.panNumber !== undefined) update.pan_number = input.panNumber;
-  if (input.panName !== undefined) update.pan_name = input.panName;
-  if (input.panDocumentUrl !== undefined) update.pan_document_url = input.panDocumentUrl;
-  if (input.gstNumber !== undefined) update.gst_number = input.gstNumber;
-  if (input.gstBusinessName !== undefined) update.gst_business_name = input.gstBusinessName;
-  if (input.bankAccountNumber !== undefined) update.bank_account_number = input.bankAccountNumber;
-  if (input.bankIfsc !== undefined) update.bank_ifsc = input.bankIfsc;
-  if (input.bankAccountName !== undefined) update.bank_account_name = input.bankAccountName;
-  if (input.bankAccountType !== undefined) update.bank_account_type = input.bankAccountType;
-  if (input.bankDocumentUrl !== undefined) update.bank_document_url = input.bankDocumentUrl;
   if (input.kycResponseNote !== undefined) update.kyc_response_note = input.kycResponseNote;
   if (input.kycResponseDocumentUrl !== undefined) update.kyc_response_document_url = input.kycResponseDocumentUrl;
+
+  // Sensitive KYC/payout fields: input field → [column, current verified value]
+  const sensitive: [keyof UpdateOrganizerInput, string, string | null][] = [
+    ["organizerIntent", "organizer_intent", organizer.organizerIntent ?? null],
+    ["upiId", "upi_id", organizer.upiId],
+    ["panNumber", "pan_number", organizer.panNumber ?? null],
+    ["panName", "pan_name", organizer.panName ?? null],
+    ["panDocumentUrl", "pan_document_url", organizer.panDocumentUrl ?? null],
+    ["gstNumber", "gst_number", organizer.gstNumber ?? null],
+    ["gstBusinessName", "gst_business_name", organizer.gstBusinessName ?? null],
+    ["bankAccountNumber", "bank_account_number", organizer.bankAccountNumber ?? null],
+    ["bankIfsc", "bank_ifsc", organizer.bankIfsc ?? null],
+    ["bankAccountName", "bank_account_name", organizer.bankAccountName ?? null],
+    ["bankAccountType", "bank_account_type", organizer.bankAccountType ?? null],
+    ["bankDocumentUrl", "bank_document_url", organizer.bankDocumentUrl ?? null],
+  ];
+
+  let nextPending: Record<string, string | null> = { ...(organizer.pendingKyc ?? {}) };
+  if (approved) {
+    // Stage real changes only; values reverted to the verified one leave pending.
+    const values: Record<string, { value: string | null | undefined; current: string | null }> = {};
+    for (const [field, column, current] of sensitive) {
+      values[column] = { value: input[field] as string | null | undefined, current };
+    }
+    nextPending = computePendingKyc({ existing: organizer.pendingKyc, values });
+    update.pending_kyc = Object.keys(nextPending).length ? nextPending : null;
+  } else {
+    for (const [field, column] of sensitive) {
+      const raw = input[field] as string | null | undefined;
+      if (raw === undefined) continue;
+      (update as Record<string, unknown>)[column] = raw || null;
+    }
+  }
 
   const { error } = await supabase
     .from("organizers")
@@ -237,9 +286,50 @@ export async function updateOrganizerProfile(
 
   if (error) throw error;
 
+  const pendingKycRequested = approved && Object.keys(nextPending).length > 0;
+
+  // Notify when the pending change-set actually changed — a plain profile
+  // edit that doesn't touch sensitive fields must not spam the admin queue.
+  if (
+    pendingKycRequested &&
+    JSON.stringify(nextPending) !== JSON.stringify(organizer.pendingKyc ?? {})
+  ) {
+    const { notifyAdmins, addKycMessage, sendNotification } = await import("../notifications");
+    await notifyAdmins({
+      type: "KYC_CHANGE_REQUESTED",
+      message: `Organizer "${organizer.name}" submitted KYC/payout changes — pending re-verification.`,
+    });
+    await sendNotification({
+      userId: organizer.ownerId,
+      type: "KYC_CHANGE_REQUESTED",
+      message: "Your KYC/payout changes were received and are under review — your verified details stay live meanwhile.",
+      channels: ["in-app", "email"],
+    });
+    await addKycMessage(
+      organizer.id,
+      "organizer",
+      user.email ?? null,
+      "Submitted KYC/payout changes for admin re-verification.",
+    );
+  }
+
   // If KYC data was provided, transition status via the RPC — kyc_status is
   // a privileged column that only flips to PENDING through submit_kyc.
-  if (input.panNumber && input.bankAccountNumber) {
+  // Approved organizers stage changes instead of re-entering the queue.
+  if (!approved && input.panNumber && input.bankAccountNumber) {
+    // A blocked (max-rejected) organizer must not re-enter the review queue.
+    // The RPC enforces this at DB level too — this guard gives a clean error.
+    if (organizer.kycStatus === "REJECTED") {
+      const accessState = getOrganizerAccessState({
+        kycStatus: organizer.kycStatus,
+        rejectionCount: organizer.rejectionCount,
+        rejectionLimit: await getSettingInt("organizer_rejection_limit"),
+      });
+      if (accessState.blocked) {
+        throw new Error("Your organizer application was rejected the maximum number of times. Please contact Outsiderr support.");
+      }
+    }
+
     const { error: kycError } = await supabase.rpc("submit_kyc", {
       p_organizer_id: organizer.id,
     });
@@ -261,6 +351,8 @@ export async function updateOrganizerProfile(
       );
     }
   }
+
+  return { pendingKycRequested };
 }
 
 export interface CreateOrganizerInput {

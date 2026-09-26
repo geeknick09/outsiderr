@@ -66,6 +66,7 @@ export type OrganizerRow = {
   kyc_review_note: string | null;
   kyc_response_note: string | null;
   kyc_response_document_url: string | null;
+  pending_kyc: Record<string, string | null> | null;
 }
 
 export type EventRow = {

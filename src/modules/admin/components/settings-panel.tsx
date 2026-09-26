@@ -23,6 +23,7 @@ interface FieldDef {
   type: "number" | "text" | "boolean" | "json";
   suffix?: string;
   help?: string;
+  min?: number;
 }
 
 interface SectionDef {
@@ -36,20 +37,20 @@ const SECTIONS: SectionDef[] = [
     title: "Commission",
     icon: "%",
     fields: [
-      { key: "commission_tier1_max_paise", label: "Tier 1 threshold", type: "number", suffix: "₹", help: "Tickets below this price use tier 1 rate" },
-      { key: "commission_tier2_max_paise", label: "Tier 2 threshold", type: "number", suffix: "₹", help: "Tickets up to this price use tier 2 rate" },
-      { key: "commission_tier1_bps", label: "Tier 1 rate", type: "number", suffix: "bps (1000=10%)", help: "For tickets below tier 1 threshold" },
-      { key: "commission_tier2_bps", label: "Tier 2 rate", type: "number", suffix: "bps (700=7%)", help: "For tickets between tier 1 and tier 2" },
-      { key: "commission_tier3_bps", label: "Tier 3 rate", type: "number", suffix: "bps (500=5%)", help: "For tickets above tier 2 threshold" },
+      { key: "commission_tier1_max_paise", label: "Tier 1 threshold", type: "number", suffix: "₹", min: 0, help: "Tickets below this price use tier 1 rate" },
+      { key: "commission_tier2_max_paise", label: "Tier 2 threshold", type: "number", suffix: "₹", min: 0, help: "Tickets up to this price use tier 2 rate" },
+      { key: "commission_tier1_bps", label: "Tier 1 rate", type: "number", suffix: "bps (1000=10%)", min: 0, help: "For tickets below tier 1 threshold" },
+      { key: "commission_tier2_bps", label: "Tier 2 rate", type: "number", suffix: "bps (700=7%)", min: 0, help: "For tickets between tier 1 and tier 2" },
+      { key: "commission_tier3_bps", label: "Tier 3 rate", type: "number", suffix: "bps (500=5%)", min: 0, help: "For tickets above tier 2 threshold" },
     ],
   },
   {
     title: "Charges",
     icon: "₹",
     fields: [
-      { key: "cancellation_charge_percent", label: "Cancellation charge", type: "number", suffix: "%" },
-      { key: "postponement_charge_percent", label: "Postponement charge", type: "number", suffix: "%" },
-      { key: "max_tickets_per_order", label: "Max tickets per order", type: "number" },
+      { key: "cancellation_charge_percent", label: "Cancellation charge", type: "number", suffix: "%", min: 0 },
+      { key: "postponement_charge_percent", label: "Postponement charge", type: "number", suffix: "%", min: 0 },
+      { key: "max_tickets_per_order", label: "Max tickets per order", type: "number", min: 1 },
     ],
   },
   {
@@ -67,12 +68,12 @@ const SECTIONS: SectionDef[] = [
     fields: [
       { key: "terms_version", label: "Terms version", type: "text" },
       { key: "organizer_whatsapp_number", label: "Support WhatsApp number", type: "text" },
-      { key: "venue_announcement_deadline_hours", label: "Venue announcement deadline", type: "number", suffix: "hours" },
-      { key: "max_popular_per_city", label: "Max popular events per city", type: "number" },
-      { key: "max_sponsored_per_city", label: "Max sponsored events per city", type: "number" },
-      { key: "organizer_rejection_limit", label: "Organizer rejection limit", type: "number", help: "Once a profile reaches this many rejections, organizer access is blocked" },
-      { key: "default_commission_bps", label: "Default commission (bps)", type: "number", help: "1000 = 10%" },
-      { key: "default_convenience_fee_bps", label: "Default convenience fee (bps)", type: "number", help: "200 = 2%" },
+      { key: "venue_announcement_deadline_hours", label: "Venue announcement deadline", type: "number", suffix: "hours", min: 0 },
+      { key: "max_popular_per_city", label: "Max popular events per city", type: "number", min: 1 },
+      { key: "max_sponsored_per_city", label: "Max sponsored events per city", type: "number", min: 1 },
+      { key: "organizer_rejection_limit", label: "Organizer rejection limit", type: "number", min: 1, help: "Once a profile reaches this many rejections, organizer access is blocked (default 5)" },
+      { key: "default_commission_bps", label: "Default commission (bps)", type: "number", min: 0, help: "1000 = 10%" },
+      { key: "default_convenience_fee_bps", label: "Default convenience fee (bps)", type: "number", min: 0, help: "200 = 2%" },
     ],
   },
 ];
@@ -208,6 +209,7 @@ function SettingsSection({
                   <div className="flex items-center gap-2">
                     <input
                       type={field.type === "number" ? "number" : "text"}
+                      min={field.type === "number" ? field.min : undefined}
                       value={value}
                       onChange={(e) => setValue(field.key, e.target.value)}
                       className={INPUT}

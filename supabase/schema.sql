@@ -79,6 +79,9 @@ do $$ begin
   alter type public.event_notification_type add value if not exists 'KYC_CLARIFICATION';
 exception when others then null; end $$;
 do $$ begin
+  alter type public.event_notification_type add value if not exists 'KYC_CHANGE_REQUESTED';
+exception when others then null; end $$;
+do $$ begin
   create type event_category as enum (
     'CYPHER_BATTLE','SKATE_STUNT','FITNESS','JAM_GIG','HIP_HOP_PARTY','CAR_BIKE_MEET','WORKSHOP','OTHER'
   );
@@ -200,6 +203,7 @@ create table if not exists public.organizers (
   kyc_review_note     text,                   -- admin note on rejection/clarification
   kyc_response_note   text,
   kyc_response_document_url text,
+  pending_kyc         jsonb,                  -- staged KYC/payout edits awaiting admin re-verification
   verified            boolean     not null default false,
   created_at          timestamptz not null default now()
 );
@@ -3456,11 +3460,12 @@ revoke update on public.organizers from anon, authenticated;
 -- Owners may update their own profile + KYC *data* fields; the *decision*
 -- fields (kyc_status, verified, rejection_count, kyc_reviewed_at,
 -- kyc_review_note, owner_id) are writable only via submit_kyc/admin paths.
-grant update (name, bio, description, avatar_url, cover_url, instagram_url, youtube_url,
+grant update (name, bio, description, organizer_intent, avatar_url, cover_url, instagram_url, youtube_url,
               x_url, facebook_url, linkedin_url, upi_id, upi_qr_url,
               pan_number, pan_name, pan_document_url, gst_number, gst_business_name,
               bank_account_number, bank_ifsc, bank_account_name, bank_account_type,
-              bank_document_url, kyc_response_note, kyc_response_document_url)
+              bank_document_url, kyc_response_note, kyc_response_document_url,
+              pending_kyc)
   on public.organizers to authenticated;
 
 -- Pin the INSERT path too — an owner can't create an already-APPROVED row.
@@ -3523,12 +3528,19 @@ $$;
 grant execute on function public.set_event_status(uuid, text) to authenticated, service_role;
 
 -- ---- 11. submit_kyc RPC — owner submits own KYC; can only reach PENDING ---------
+-- Also enforces the rejection limit: an owner whose rejection_count reached
+-- organizer_rejection_limit cannot re-enter the review queue. Callable via
+-- PostgREST by any authenticated user, so the check must live here — app-level
+-- guards are bypassable. Admin/service callers are exempt (review override).
 create or replace function public.submit_kyc(p_organizer_id uuid)
 returns void
 language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_rejections int;
+  v_limit int;
 begin
   if not exists (
     select 1 from public.organizers
@@ -3536,6 +3548,24 @@ begin
   ) and not public.is_current_user_admin() then
     raise exception 'Not authorised to submit KYC for this organizer';
   end if;
+
+  if auth.role() = 'authenticated' and not public.is_current_user_admin() then
+    select coalesce(rejection_count, 0)
+      into v_rejections
+      from public.organizers
+     where id = p_organizer_id;
+
+    select coalesce((value #>> '{}')::int, 5)
+      into v_limit
+      from public.platform_settings
+     where key = 'organizer_rejection_limit';
+    v_limit := coalesce(v_limit, 5);
+
+    if v_limit > 0 and v_rejections >= v_limit then
+      raise exception 'Organizer application rejected the maximum number of times';
+    end if;
+  end if;
+
   update public.organizers
      set kyc_submitted = true,
          kyc_status = 'PENDING',

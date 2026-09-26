@@ -192,8 +192,11 @@ export default async function OrganizerPage({
       {/* Profile header with avatar, name, edit button, and action buttons */}
       <OrganizerHeader organizer={organizerProfile} followerCount={followerCount} />
 
-      {/* KYC status banner — shown if pending/rejected/clarification */}
-      <KycStatusBanner kycStatus={organizerProfile.kycStatus ?? "NOT_SUBMITTED"} />
+      {/* KYC status banner — shown if pending/rejected/clarification or has staged changes */}
+      <KycStatusBanner
+        kycStatus={organizerProfile.kycStatus ?? "NOT_SUBMITTED"}
+        hasPendingChanges={Object.keys(organizerProfile.pendingKyc ?? {}).length > 0}
+      />
 
       <div className="flex flex-wrap gap-2">
         {TABS.map((t) => (

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Eye, Loader2, MessageSquareWarning, Paperclip, X } from "lucide-react";
 
-import { approveKycAction, rejectKycAction, requestClarificationAction } from "../actions/kyc";
+import { approveKycAction, rejectKycAction, requestClarificationAction, approveKycChangeAction, rejectKycChangeAction } from "../actions/kyc";
 import { Modal } from "@/modules/shared";
 import { KycSubmission } from "../data/kyc";
 
@@ -16,12 +16,14 @@ const STATUS_STYLES: Record<string, string> = {
   NOT_SUBMITTED: "bg-zinc-100 text-zinc-500 dark:bg-white/5 dark:text-muted",
 };
 
-type PendingAction = "approve" | "reject" | "clarify";
+type PendingAction = "approve" | "reject" | "clarify" | "approve_change" | "reject_change";
 
 const ACTION_META: Record<PendingAction, { label: string; status: string; color: string; button: string }> = {
   approve: { label: "Approve application", status: "APPROVED", color: "text-emerald-500", button: "bg-emerald-500 hover:bg-emerald-600" },
   reject: { label: "Reject application", status: "REJECTED", color: "text-red-500", button: "bg-red-500 hover:bg-red-600" },
   clarify: { label: "Request clarification", status: "CLARIFICATION_NEEDED", color: "text-blue-500", button: "bg-blue-500 hover:bg-blue-600" },
+  approve_change: { label: "Approve profile changes", status: "changes applied", color: "text-emerald-500", button: "bg-emerald-500 hover:bg-emerald-600" },
+  reject_change: { label: "Reject profile changes", status: "changes discarded", color: "text-red-500", button: "bg-red-500 hover:bg-red-600" },
 };
 
 function notificationPreview(action: PendingAction, note: string): string {
@@ -32,6 +34,44 @@ function notificationPreview(action: PendingAction, note: string): string {
       return `Your organizer application was not approved. Reason: ${note.trim()}`;
     case "clarify":
       return `Your organizer application needs clarification. Please open your organizer dashboard and respond to the review note. Note: ${note.trim()}`;
+    case "approve_change":
+      return "Your requested KYC/payout changes were approved and are now live.";
+    case "reject_change":
+      return `Your requested KYC/payout changes were not approved. Reason: ${note.trim()}. Your previously verified details remain active.`;
+  }
+}
+
+// Human labels + current verified values for the staged-change diff.
+const CHANGE_FIELD_LABELS: Record<string, string> = {
+  pan_number: "PAN number",
+  pan_name: "Name on PAN",
+  pan_document_url: "PAN document",
+  gst_number: "GST number",
+  gst_business_name: "GST business name",
+  bank_account_number: "Bank account number",
+  bank_ifsc: "IFSC",
+  bank_account_name: "Account holder name",
+  bank_account_type: "Account type",
+  bank_document_url: "Bank proof document",
+  organizer_intent: "Organizer intent",
+  upi_id: "UPI ID",
+};
+
+function currentValueFor(submission: KycSubmission, column: string): string | null {
+  switch (column) {
+    case "pan_number": return submission.panNumber;
+    case "pan_name": return submission.panName;
+    case "pan_document_url": return submission.panDocumentUrl;
+    case "gst_number": return submission.gstNumber;
+    case "gst_business_name": return submission.gstBusinessName;
+    case "bank_account_number": return submission.bankAccountNumber;
+    case "bank_ifsc": return submission.bankIfsc;
+    case "bank_account_name": return submission.bankAccountName;
+    case "bank_account_type": return submission.bankAccountType;
+    case "bank_document_url": return submission.bankDocumentUrl;
+    case "organizer_intent": return submission.organizerIntent;
+    case "upi_id": return submission.upiId;
+    default: return null;
   }
 }
 
@@ -59,7 +99,7 @@ export function KycReviewTable({ submissions, adminEmail }: { submissions: KycSu
   function requestAction(action: PendingAction) {
     setPendingAction(action);
     setError(null);
-    if (action === "approve") {
+    if (action === "approve" || action === "approve_change") {
       setNote("");
       setMode("preview");
     } else {
@@ -70,7 +110,11 @@ export function KycReviewTable({ submissions, adminEmail }: { submissions: KycSu
   function goToPreview() {
     if (!pendingAction) return;
     if (!note.trim()) {
-      setError(pendingAction === "reject" ? "Please provide a rejection reason." : "Please describe what clarification is needed.");
+      setError(
+        pendingAction === "reject" || pendingAction === "reject_change"
+          ? "Please provide a rejection reason."
+          : "Please describe what clarification is needed.",
+      );
       return;
     }
     setError(null);
@@ -86,13 +130,17 @@ export function KycReviewTable({ submissions, adminEmail }: { submissions: KycSu
         ? await approveKycAction(selected.id)
         : pendingAction === "reject"
           ? await rejectKycAction(selected.id, note)
-          : await requestClarificationAction(selected.id, note);
+          : pendingAction === "approve_change"
+            ? await approveKycChangeAction(selected.id)
+            : pendingAction === "reject_change"
+              ? await rejectKycChangeAction(selected.id, note)
+              : await requestClarificationAction(selected.id, note);
     setBusy(false);
 
     if (result.error) {
       setError(result.error);
       // Go back so the admin can edit the note or cancel
-      setMode(pendingAction === "approve" ? "idle" : "compose");
+      setMode(pendingAction === "approve" || pendingAction === "approve_change" ? "idle" : "compose");
     } else {
       resetAction();
       setSelected(null);
@@ -137,9 +185,16 @@ export function KycReviewTable({ submissions, adminEmail }: { submissions: KycSu
                     <p className="text-[10px]">{submission.ownerPhone ?? "No phone"}</p>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold ${STATUS_STYLES[submission.kycStatus] ?? STATUS_STYLES.NOT_SUBMITTED}`}>
-                      {submission.kycStatus.replace("_", " ")}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      <span className={`inline-flex w-fit rounded-full px-2.5 py-1 text-[10px] font-bold ${STATUS_STYLES[submission.kycStatus] ?? STATUS_STYLES.NOT_SUBMITTED}`}>
+                        {submission.kycStatus.replace("_", " ")}
+                      </span>
+                      {submission.pendingKyc ? (
+                        <span className="inline-flex w-fit rounded-full bg-violet-100 px-2.5 py-1 text-[10px] font-bold text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">
+                          CHANGES REQUESTED
+                        </span>
+                      ) : null}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-muted">
                     {new Date(submission.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
@@ -177,6 +232,35 @@ export function KycReviewTable({ submissions, adminEmail }: { submissions: KycSu
                 </div>
               ) : null}
             </div>
+
+            {selected.pendingKyc && Object.keys(selected.pendingKyc).length > 0 ? (
+              <div className="space-y-2 rounded-2xl border border-violet-200 bg-violet-500/5 p-3 dark:border-violet-500/30">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-violet-600 dark:text-violet-300">
+                  Requested changes — awaiting your review
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {Object.entries(selected.pendingKyc).map(([column, next]) => {
+                    const oldVal = currentValueFor(selected, column);
+                    const isDoc = column.endsWith("_url");
+                    return (
+                      <div key={column} className="rounded-xl bg-white/70 p-2 text-xs dark:bg-white/5">
+                        <p className="font-bold">{CHANGE_FIELD_LABELS[column] ?? column}</p>
+                        <p className="truncate text-muted line-through">
+                          {isDoc ? (oldVal ? "Existing document" : "None") : oldVal ?? "—"}
+                        </p>
+                        {isDoc && next ? (
+                          <a href={next} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-semibold text-violet-neon underline">
+                            <Paperclip className="h-3 w-3" /> New document
+                          </a>
+                        ) : (
+                          <p className="truncate font-mono font-semibold text-emerald-600 dark:text-emerald-400">{next ?? "(cleared)"}</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
 
             <div className="grid gap-3 sm:grid-cols-2">
               <InfoCard
@@ -241,33 +325,49 @@ export function KycReviewTable({ submissions, adminEmail }: { submissions: KycSu
 
             {error ? <p className="text-sm text-red-500">{error}</p> : null}
 
-            {(selected.kycStatus === "PENDING" || selected.kycStatus === "CLARIFICATION_NEEDED") ? (
+            {(selected.kycStatus === "PENDING" || selected.kycStatus === "CLARIFICATION_NEEDED" || (selected.pendingKyc && Object.keys(selected.pendingKyc).length > 0)) ? (
               mode === "idle" ? (
               <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={() => requestAction("approve")} disabled={busy} className="flex items-center gap-1.5 rounded-full bg-emerald-500 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-600 disabled:opacity-50">
-                  <Check className="h-4 w-4" />
-                  Approve
-                </button>
-                <button type="button" onClick={() => requestAction("reject")} disabled={busy} className="flex items-center gap-1.5 rounded-full bg-red-500 px-4 py-2 text-xs font-bold text-white hover:bg-red-600 disabled:opacity-50">
-                  <X className="h-4 w-4" />
-                  Reject
-                </button>
-                <button type="button" onClick={() => requestAction("clarify")} disabled={busy} className="flex items-center gap-1.5 rounded-full bg-blue-500 px-4 py-2 text-xs font-bold text-white hover:bg-blue-600 disabled:opacity-50">
-                  <MessageSquareWarning className="h-4 w-4" />
-                  Clarify
-                </button>
+                {selected.pendingKyc && Object.keys(selected.pendingKyc).length > 0 ? (
+                  <>
+                    <button type="button" onClick={() => requestAction("approve_change")} disabled={busy} className="flex items-center gap-1.5 rounded-full bg-emerald-500 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-600 disabled:opacity-50">
+                      <Check className="h-4 w-4" />
+                      Approve changes
+                    </button>
+                    <button type="button" onClick={() => requestAction("reject_change")} disabled={busy} className="flex items-center gap-1.5 rounded-full bg-red-500 px-4 py-2 text-xs font-bold text-white hover:bg-red-600 disabled:opacity-50">
+                      <X className="h-4 w-4" />
+                      Reject changes
+                    </button>
+                  </>
+                ) : null}
+                {(selected.kycStatus === "PENDING" || selected.kycStatus === "CLARIFICATION_NEEDED") ? (
+                  <>
+                    <button type="button" onClick={() => requestAction("approve")} disabled={busy} className="flex items-center gap-1.5 rounded-full bg-emerald-500 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-600 disabled:opacity-50">
+                      <Check className="h-4 w-4" />
+                      Approve
+                    </button>
+                    <button type="button" onClick={() => requestAction("reject")} disabled={busy} className="flex items-center gap-1.5 rounded-full bg-red-500 px-4 py-2 text-xs font-bold text-white hover:bg-red-600 disabled:opacity-50">
+                      <X className="h-4 w-4" />
+                      Reject
+                    </button>
+                    <button type="button" onClick={() => requestAction("clarify")} disabled={busy} className="flex items-center gap-1.5 rounded-full bg-blue-500 px-4 py-2 text-xs font-bold text-white hover:bg-blue-600 disabled:opacity-50">
+                      <MessageSquareWarning className="h-4 w-4" />
+                      Clarify
+                    </button>
+                  </>
+                ) : null}
               </div>
             ) : mode === "compose" ? (
               <div className="space-y-3">
                 <label className="block text-xs font-semibold uppercase tracking-wide text-muted">
-                  {pendingAction === "reject" ? "Reason for rejection" : "Clarification requested"}
+                  {pendingAction === "reject" || pendingAction === "reject_change" ? "Reason for rejection" : "Clarification requested"}
                 </label>
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   rows={4}
                   className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white"
-                  placeholder={pendingAction === "reject" ? "Mention the mismatch or issue to reject." : "Explain what supporting detail or correction is needed."}
+                  placeholder={pendingAction === "reject" || pendingAction === "reject_change" ? "Mention the mismatch or issue to reject." : "Explain what supporting detail or correction is needed."}
                 />
                 <div className="flex gap-2">
                   <button type="button" onClick={goToPreview} disabled={busy} className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold text-white disabled:opacity-60 ${ACTION_META[pendingAction!].button}`}>
@@ -308,7 +408,7 @@ export function KycReviewTable({ submissions, adminEmail }: { submissions: KycSu
                   </button>
                   <button
                     type="button"
-                    onClick={() => setMode(pendingAction === "approve" ? "idle" : "compose")}
+                    onClick={() => setMode(pendingAction === "approve" || pendingAction === "approve_change" ? "idle" : "compose")}
                     disabled={busy}
                     className="rounded-full border border-zinc-200 px-4 py-2 text-xs font-bold text-muted hover:bg-zinc-100 dark:border-white/10 dark:hover:bg-white/5"
                   >

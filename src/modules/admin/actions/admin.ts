@@ -483,6 +483,25 @@ export async function adminRecordPayoutAction(
   return { success: true };
 }
 
+// Numeric settings with a floor — mirrors the `min` attributes in
+// AdminSettingsPanel but enforced server-side (client input is bypassable).
+const SETTING_MINIMUMS: Record<string, number> = {
+  commission_tier1_max_paise: 0,
+  commission_tier2_max_paise: 0,
+  commission_tier1_bps: 0,
+  commission_tier2_bps: 0,
+  commission_tier3_bps: 0,
+  cancellation_charge_percent: 0,
+  postponement_charge_percent: 0,
+  max_tickets_per_order: 1,
+  venue_announcement_deadline_hours: 0,
+  max_popular_per_city: 1,
+  max_sponsored_per_city: 1,
+  organizer_rejection_limit: 1,
+  default_commission_bps: 0,
+  default_convenience_fee_bps: 0,
+};
+
 export async function updatePlatformSettingAction(
   key: string,
   value: string,
@@ -497,6 +516,16 @@ export async function updatePlatformSettingAction(
       parsedValue = JSON.parse(value);
     } catch {
       parsedValue = value;
+    }
+
+    const min = SETTING_MINIMUMS[key];
+    if (min !== undefined) {
+      if (typeof parsedValue !== "number" || !Number.isFinite(parsedValue)) {
+        return { error: "This setting requires a number." };
+      }
+      if (parsedValue < min) {
+        return { error: `Minimum allowed value is ${min}.` };
+      }
     }
 
     const { updateSetting } = await import("@/modules/shared/server");

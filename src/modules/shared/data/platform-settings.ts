@@ -89,13 +89,28 @@ export async function getAllSettings(): Promise<PlatformSetting[]> {
     .select("*")
     .order("key", { ascending: true });
   if (error || !data) return [];
-  return data.map((row) => ({
+  const rows = data.map((row) => ({
     key: row.key,
     value: parseValue(row.value),
     description: row.description,
     updatedAt: row.updated_at,
     updatedBy: row.updated_by,
   }));
+  // Surface fallback defaults for settings that have no DB row yet, so the
+  // admin panel shows the effective value instead of an empty field.
+  const existingKeys = new Set(rows.map((r) => r.key));
+  for (const [key, value] of Object.entries(FALLBACKS)) {
+    if (!existingKeys.has(key)) {
+      rows.push({
+        key,
+        value: value as PlatformSetting["value"],
+        description: null,
+        updatedAt: "",
+        updatedBy: null,
+      });
+    }
+  }
+  return rows;
 }
 
 export async function updateSetting(
@@ -104,14 +119,16 @@ export async function updateSetting(
   value: string | number | boolean | Record<string, number>,
 ): Promise<void> {
   const supabase = await createClient();
+  // Upsert: keys like organizer_rejection_limit may have no DB row yet — a
+  // plain update would silently affect 0 rows and the setting never saves.
   const { error } = await supabase
     .from("platform_settings")
-    .update({
+    .upsert({
+      key,
       value: typeof value === "object" ? JSON.stringify(value) : value,
       updated_at: new Date().toISOString(),
       updated_by: userId,
-    })
-    .eq("key", key);
+    });
   if (error) throw error;
 }
 

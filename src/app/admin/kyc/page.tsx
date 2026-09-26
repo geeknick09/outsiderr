@@ -21,6 +21,7 @@ export default async function AdminKycPage({
 
   const filters = [
     { label: "Pending", value: "PENDING" },
+    { label: "Change Requests", value: "CHANGES" },
     { label: "Clarification Needed", value: "CLARIFICATION_NEEDED" },
     { label: "Approved", value: "APPROVED" },
     { label: "Rejected", value: "REJECTED" },

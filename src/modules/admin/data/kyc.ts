@@ -30,6 +30,8 @@ export interface KycSubmission {
   kycSubmitted: boolean;
   kycReviewedAt: string | null;
   kycReviewNote: string | null;
+  /** Staged KYC/payout edits awaiting re-verification (column → new value). */
+  pendingKyc: Record<string, string | null> | null;
   thread: KycThreadMessage[];
   createdAt: string;
 }
@@ -73,16 +75,20 @@ export async function listKycSubmissions(statusFilter?: string): Promise<KycSubm
       kyc_status,
       kyc_reviewed_at,
       kyc_review_note,
+      pending_kyc,
       created_at,
       owner_id
     `)
     .order("created_at", { ascending: false });
 
-  if (statusFilter && statusFilter !== "ALL") {
+  if (statusFilter === "CHANGES") {
+    // Approved organizers with staged KYC/payout edits awaiting re-verification
+    query = query.not("pending_kyc", "is", null);
+  } else if (statusFilter && statusFilter !== "ALL") {
     query = query.eq("kyc_status", statusFilter);
   } else if (!statusFilter) {
-    // Default: show pending + clarification needed
-    query = query.in("kyc_status", ["PENDING", "CLARIFICATION_NEEDED"]);
+    // Default queue: pending + clarification + staged change requests
+    query = query.or("kyc_status.in.(PENDING,CLARIFICATION_NEEDED),pending_kyc.not.is.null");
   }
 
   const { data, error } = await query;
@@ -145,6 +151,7 @@ export async function listKycSubmissions(statusFilter?: string): Promise<KycSubm
       kycSubmitted: row.kyc_submitted ?? false,
       kycReviewedAt: row.kyc_reviewed_at,
       kycReviewNote: row.kyc_review_note,
+      pendingKyc: (row as { pending_kyc?: Record<string, string | null> | null }).pending_kyc ?? null,
       thread: threadMap.get(row.id) ?? [],
       createdAt: row.created_at,
     };
@@ -181,6 +188,7 @@ export async function getKycSubmission(organizerId: string): Promise<KycSubmissi
       kyc_status,
       kyc_reviewed_at,
       kyc_review_note,
+      pending_kyc,
       created_at,
       owner_id
     `)
@@ -236,6 +244,7 @@ export async function getKycSubmission(organizerId: string): Promise<KycSubmissi
     kycSubmitted: data.kyc_submitted ?? false,
     kycReviewedAt: data.kyc_reviewed_at,
     kycReviewNote: data.kyc_review_note,
+    pendingKyc: (data as { pending_kyc?: Record<string, string | null> | null }).pending_kyc ?? null,
     thread,
     createdAt: data.created_at,
   };
@@ -246,11 +255,12 @@ export async function listKycCounts(): Promise<Record<string, number>> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("organizers")
-    .select("kyc_status");
-  const counts: Record<string, number> = { PENDING: 0, CLARIFICATION_NEEDED: 0, APPROVED: 0, REJECTED: 0 };
+    .select("kyc_status, pending_kyc");
+  const counts: Record<string, number> = { PENDING: 0, CLARIFICATION_NEEDED: 0, APPROVED: 0, REJECTED: 0, CHANGES: 0 };
   for (const row of data ?? []) {
     const s = row.kyc_status ?? "NOT_SUBMITTED";
     if (s in counts) counts[s]++;
+    if ((row as { pending_kyc?: unknown }).pending_kyc) counts.CHANGES++;
   }
   counts.ALL = data?.length ?? 0;
   return counts;
