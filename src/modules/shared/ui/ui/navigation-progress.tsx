@@ -67,15 +67,17 @@ export function NavigationProgress() {
     if (currentPath === prevPath.current) return;
     prevPath.current = currentPath;
     // Navigation completed — finish the bar + scroll to top.
-    // Re-scroll after paint + after a short delay to win the race against
-    // images/layout settling (a single synchronous scrollTo often loses).
+    // Retry over ~800ms: images/layout settling or a late browser scroll
+    // restore can land the page mid-way; a single early scrollTo loses.
     finishProgress();
     window.scrollTo(0, 0);
     const raf = requestAnimationFrame(() => window.scrollTo(0, 0));
-    const late = setTimeout(() => window.scrollTo(0, 0), 250);
+    const timers = [120, 350, 800].map((ms) =>
+      setTimeout(() => window.scrollTo(0, 0), ms),
+    );
     return () => {
       cancelAnimationFrame(raf);
-      clearTimeout(late);
+      timers.forEach(clearTimeout);
     };
   }, [pathname, searchParams]);
 

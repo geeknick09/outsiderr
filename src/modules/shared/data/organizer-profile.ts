@@ -93,7 +93,10 @@ export async function createOrganizerProfile(
       kyc_response_document_url: null,
       kyc_reviewed_at: null,
     };
-    const supabase2 = await createClient();
+    // Service client: the update writes privileged KYC columns (kyc_status,
+    // kyc_reviewed_at) that the authenticated role cannot UPDATE. Safe — the
+    // row was fetched under the user's own RLS, so it's guaranteed to be theirs.
+    const supabase2 = createServiceClient();
     const { error } = await supabase2.from("organizers").update(resubmit).eq("id", existing.id);
     if (error) throw error;
     return existing.id;

@@ -43,11 +43,17 @@ export function ImageCropper({
   // Lock body scroll while the cropper is open — otherwise the page behind
   // scrolls under the modal, and on close the browser scrolls the upload
   // button back into view (perceived as "the screen scrolled down").
+  // Lock both <html> and <body> (iOS Safari ignores body) and restore
+  // unconditionally — a stale lock leaves the page unscrollable ("half screen").
   useEffect(() => {
-    const prev = document.body.style.overflow;
+    const htmlEl = document.documentElement;
+    const prevHtml = htmlEl.style.overflow;
+    const prevBody = document.body.style.overflow;
+    htmlEl.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
     return () => {
-      document.body.style.overflow = prev;
+      htmlEl.style.overflow = prevHtml === "hidden" ? "" : prevHtml;
+      document.body.style.overflow = prevBody === "hidden" ? "" : prevBody;
     };
   }, []);
 
@@ -78,7 +84,7 @@ export function ImageCropper({
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-sm">
       <div className="w-full max-w-md space-y-4 rounded-3xl bg-white p-6 dark:bg-zinc-900">
         <h3 className="text-sm font-bold">{title}</h3>
 

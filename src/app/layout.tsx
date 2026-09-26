@@ -68,6 +68,13 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-dvh bg-zinc-50 font-sans text-zinc-900 antialiased dark:bg-ink dark:text-white">
+        {/* Disable browser scroll restoration BEFORE hydration — doing it in a
+            useEffect is too late (browser restores mid-page scroll first). */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if ("scrollRestoration" in history) history.scrollRestoration = "manual";`,
+          }}
+        />
         <ThemeProvider>
           <NavigationProgress />
           <Navbar mobileNav={<AdminMobileNav />} />
