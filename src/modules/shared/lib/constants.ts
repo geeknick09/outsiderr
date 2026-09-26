@@ -5,7 +5,6 @@ export const CATEGORIES: { value: EventCategory | "ALL"; label: string }[] = [
   { value: "CYPHER_BATTLE", label: "Cyphers & Battles" },
   { value: "SKATE_STUNT", label: "Skate & Stunts" },
   { value: "FITNESS", label: "Alternate Sports & Fitness" },
-  { value: "JAM_GIG", label: "Jams & Gigs" },
   { value: "HIP_HOP_PARTY", label: "Hip Hop/Rap Party" },
   { value: "TECHNO_RAVE", label: "Techno & Rave" },
   { value: "CAR_BIKE_MEET", label: "Car & Bike Meetups" },

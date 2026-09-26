@@ -24,7 +24,7 @@ const bodySchema = z.object({
   description: z.string().max(10000).default(""),
   thingsToKnow: z.array(z.string()).default([]),
   tags: z.array(z.string()).default([]),
-  category: z.string().default("JAM_GIG"),
+  category: z.string().default("OTHER"),
   categories: z.array(z.string()).default([]),
   city: z.string().default("KOLKATA"),
   venueName: z.string().max(200).default(""),

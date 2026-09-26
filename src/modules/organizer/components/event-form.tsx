@@ -240,7 +240,7 @@ export function EventForm({
           <Field label="Categories (select all that apply)">
             <div className="flex flex-wrap gap-2 rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
               {CATEGORIES.filter((c) => c.value !== "ALL").map((cat) => {
-                const selectedCats = (sv?.categories as string[] | undefined) ?? (sv?.category ? [sv.category] : ["JAM_GIG"]);
+                const selectedCats = (sv?.categories as string[] | undefined) ?? (sv?.category ? [sv.category] : []);
                 const isSelected = selectedCats.includes(cat.value);
                 return (
                   <label
@@ -278,7 +278,7 @@ export function EventForm({
               })}
             </div>
             {/* Hidden single category field for backward compat — uses first selected */}
-            <input type="hidden" name="category" value={(sv?.categories as string[] | undefined)?.[0] ?? sv?.category ?? "JAM_GIG"} readOnly />
+            <input type="hidden" name="category" value={(sv?.categories as string[] | undefined)?.[0] ?? sv?.category ?? "OTHER"} readOnly />
           </Field>
           <Field label="City">
             <select

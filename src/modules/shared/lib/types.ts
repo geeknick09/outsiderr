@@ -2,7 +2,7 @@ export type EventCategory =
   | "CYPHER_BATTLE"
   | "SKATE_STUNT"
   | "FITNESS"
-  | "JAM_GIG"
+  | "JAM_GIG" // legacy — removed from chips; kept so existing events/profiles typecheck
   | "WORKSHOP"
   | "HIP_HOP_PARTY"
   | "TECHNO_RAVE"

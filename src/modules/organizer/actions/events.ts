@@ -87,7 +87,7 @@ function extractFormValues(formData: FormData): CreateEventState["values"] {
 
   return {
     title: String(formData.get("title") ?? ""),
-    category: String(formData.get("category") ?? "JAM_GIG"),
+    category: String(formData.get("category") ?? "OTHER"),
     categories: formData.getAll("categories").map(String).filter(Boolean),
     city: String(formData.get("city") ?? "KOLKATA"),
     startsAt: String(formData.get("startsAt") ?? ""),
@@ -329,7 +329,7 @@ export async function createEventAction(
         .split(",")
         .map((t) => t.trim())
         .filter(Boolean),
-      category: (formData.getAll("categories")[0] ?? formData.get("category") ?? "JAM_GIG") as EventCategory,
+      category: (formData.getAll("categories")[0] ?? formData.get("category") ?? "OTHER") as EventCategory,
       categories: formData.getAll("categories").map(String).filter(Boolean) as EventCategory[],
       city: String(formData.get("city") ?? "KOLKATA") as City,
       venueName: venueMode === "TBA" ? "TBA" : String(formData.get("venueName") ?? "").trim(),
