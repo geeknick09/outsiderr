@@ -143,7 +143,7 @@ export function OrganizerKycReviewPanel({ organizer, thread = [] }: { organizer:
       formData.set("name", organizer.name || "");
       formData.set("bio", organizer.bio ?? "");
       formData.set("description", organizer.description ?? "");
-      formData.set("organizerIntent", "");
+      formData.set("organizerIntent", organizer.organizerIntent ?? "");
       formData.set("upiId", organizer.upiId ?? "");
       formData.set("avatarUrl", organizer.avatarUrl ?? "");
       formData.set("panNumber", organizer.panNumber ?? "");

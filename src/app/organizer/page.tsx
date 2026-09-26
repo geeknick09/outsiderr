@@ -25,6 +25,7 @@ import { listOrganizerEvents, listCollaboratedEvents } from "@/modules/organizer
 import { OrganizerKycReviewPanel } from "@/modules/organizer";
 import { getOrganizerPastEventsForLinking } from "@/modules/shared/server";
 import { listClubMembers, listMyClubs } from "@/modules/shared/server";
+import { getOrganizerFollowerCount } from "@/modules/shared/server";
 import { listPendingOrders, listOrdersForOrganizerEvents } from "@/modules/shared/server";
 import { getTermsVersion, getDoorStaffPricing, getDoorStaffMax, getDoorStaffAvailable } from "@/modules/shared/server";
 
@@ -153,9 +154,12 @@ export default async function OrganizerPage({
 
   // Fetch all orders for the organizer's events (for the Order Monitor)
   const organizerEventIds = allEvents.map((e) => e.id);
-  const allOrders = organizerEventIds.length > 0
-    ? await listOrdersForOrganizerEvents(organizerEventIds)
-    : [];
+  const [allOrders, followerCount] = await Promise.all([
+    organizerEventIds.length > 0
+      ? listOrdersForOrganizerEvents(organizerEventIds)
+      : Promise.resolve([]),
+    getOrganizerFollowerCount(organizerProfile.id),
+  ]);
 
   // Analytics tab: fetch per-event analytics
   // Also fetch for events tab so sorting by waitlist/revenue works
@@ -186,7 +190,7 @@ export default async function OrganizerPage({
       <OrganizerKycRealtimeRefresher userId={user.id} />
 
       {/* Profile header with avatar, name, edit button, and action buttons */}
-      <OrganizerHeader organizer={organizerProfile} />
+      <OrganizerHeader organizer={organizerProfile} followerCount={followerCount} />
 
       {/* KYC status banner — shown if pending/rejected/clarification */}
       <KycStatusBanner kycStatus={organizerProfile.kycStatus ?? "NOT_SUBMITTED"} />

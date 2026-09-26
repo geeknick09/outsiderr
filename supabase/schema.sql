@@ -173,6 +173,7 @@ create table if not exists public.organizers (
   name                text        not null,
   bio                 text,
   description         text,
+  organizer_intent    text,
   avatar_url          text,
   cover_url           text,
   instagram_url      text,

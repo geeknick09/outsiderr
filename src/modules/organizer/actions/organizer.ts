@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/modules/shared/server";
 import { createOrganizerProfile, updateOrganizerProfile, notifyAdmins, addKycMessage } from "@/modules/shared/server";
-import { mergeOrganizerIntent } from "@/modules/shared";
 
 export interface CreateOrganizerState {
   error: string | null;
@@ -67,7 +66,7 @@ export async function createOrganizerAction(
     organizerId = await createOrganizerProfile(user, {
       name,
       bio,
-      description: mergeOrganizerIntent(description, organizerIntent),
+      description,
       organizerIntent,
       upiId,
       avatarUrl,
@@ -152,7 +151,7 @@ export async function updateOrganizerAction(
     await updateOrganizerProfile(user, {
       name,
       bio,
-      description: mergeOrganizerIntent(description, organizerIntent),
+      description,
       organizerIntent,
       upiId,
       avatarUrl,

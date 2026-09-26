@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Pencil, Rocket } from "lucide-react";
+import { Pencil, Rocket, Users } from "lucide-react";
 import Link from "next/link";
 
 import { EditOrganizerProfile } from "./edit-organizer-profile";
@@ -52,7 +52,7 @@ function LinkedinIcon({ className }: { className?: string }) {
   );
 }
 
-export function OrganizerHeader({ organizer }: { organizer: Organizer }) {
+export function OrganizerHeader({ organizer, followerCount }: { organizer: Organizer; followerCount: number }) {
   const [editing, setEditing] = useState(false);
 
   return (
@@ -82,6 +82,13 @@ export function OrganizerHeader({ organizer }: { organizer: Organizer }) {
           <p className="text-sm text-muted">
             {organizer.bio ?? "Publish events and manage your community."}
           </p>
+          <Link
+            href={`/organizers/${organizer.id}`}
+            className="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold text-muted transition-colors hover:text-violet-neon"
+          >
+            <Users className="h-4 w-4" />
+            {followerCount} {followerCount === 1 ? "follower" : "followers"}
+          </Link>
           {/* Social links — show icons for all provided URLs */}
           {(organizer.instagramUrl || organizer.youtubeUrl || organizer.facebookUrl || organizer.xUrl || organizer.linkedinUrl) ? (
             <div className="mt-1 flex flex-wrap items-center gap-3">

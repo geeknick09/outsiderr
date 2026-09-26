@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Cropper, { type Area } from "react-easy-crop";
 
 import { Button } from "./button";
@@ -33,6 +34,11 @@ export function ImageCropper({
   const [processing, setProcessing] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const url = URL.createObjectURL(file);
@@ -83,16 +89,23 @@ export function ImageCropper({
     onCancel();
   }
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md space-y-4 rounded-3xl bg-white p-6 dark:bg-zinc-900">
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/80 p-2 backdrop-blur-sm">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="my-auto max-h-[calc(100dvh-1rem)] w-full max-w-md space-y-3 overflow-y-auto overscroll-contain rounded-3xl bg-white p-4 dark:bg-zinc-900"
+      >
         <h3 className="text-sm font-bold">{title}</h3>
 
         {error ? (
           <p className="rounded-xl bg-red-500/10 p-3 text-xs text-red-500">{error}</p>
         ) : null}
 
-        <div className="relative h-64 w-full overflow-hidden rounded-2xl bg-zinc-900">
+        <div className="relative h-[min(16rem,35dvh)] w-full overflow-hidden rounded-2xl bg-zinc-900">
           {imageUrl ? (
             <Cropper
               image={imageUrl}
@@ -136,7 +149,8 @@ export function ImageCropper({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

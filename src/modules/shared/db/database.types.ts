@@ -36,6 +36,7 @@ export type OrganizerRow = {
   name: string;
   bio: string | null;
   description: string | null;
+  organizer_intent: string | null;
   avatar_url: string | null;
   cover_url: string | null;
   instagram_url: string | null;

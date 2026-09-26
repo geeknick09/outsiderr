@@ -1298,7 +1298,14 @@ end $$;
 -- bio stays as a short intro (up to 200 chars)
 -- ----------------------------------------------------------------
 alter table public.organizers add column if not exists description text;
+alter table public.organizers add column if not exists organizer_intent text;
 alter table public.organizers add column if not exists pan_document_url text;
+
+update public.organizers
+set organizer_intent = substr(description, strpos(description, E'\n\n') + 2),
+    description = nullif(substr(description, 1, strpos(description, E'\n\n') - 1), '')
+where organizer_intent is null
+  and strpos(coalesce(description, ''), E'\n\n') > 0;
 alter table public.organizers add column if not exists bank_document_url text;
 alter table public.organizers add column if not exists kyc_response_note text;
 alter table public.organizers add column if not exists kyc_response_document_url text;
@@ -3277,7 +3284,7 @@ revoke update on public.organizers from anon, authenticated;
 -- Owners may update their own profile + KYC *data* fields; the *decision*
 -- fields (kyc_status, verified, rejection_count, kyc_reviewed_at,
 -- kyc_review_note, owner_id) are writable only via submit_kyc/admin paths.
-grant update (name, bio, description, avatar_url, cover_url, instagram_url, youtube_url,
+grant update (name, bio, description, organizer_intent, avatar_url, cover_url, instagram_url, youtube_url,
               x_url, facebook_url, linkedin_url, upi_id, upi_qr_url,
               pan_number, pan_name, pan_document_url, gst_number, gst_business_name,
               bank_account_number, bank_ifsc, bank_account_name, bank_account_type,

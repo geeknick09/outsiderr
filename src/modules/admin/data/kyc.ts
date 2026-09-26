@@ -41,21 +41,6 @@ export interface KycThreadMessage {
   createdAt: string;
 }
 
-function splitOrganizerProfileDescription(raw: string | null): { aboutText: string | null; organizerIntent: string | null } {
-  const parts = (raw ?? "")
-    .split(/\n\s*\n/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  if (parts.length === 0) return { aboutText: null, organizerIntent: null };
-  if (parts.length === 1) return { aboutText: parts[0], organizerIntent: null };
-
-  return {
-    aboutText: parts[0] ?? null,
-    organizerIntent: parts.slice(1).join("\n\n") || null,
-  };
-}
-
 /**
  * List all organizers with KYC status (admin only).
  * Filters by status filter if provided.
@@ -70,6 +55,7 @@ export async function listKycSubmissions(statusFilter?: string): Promise<KycSubm
       name,
       bio,
       description,
+      organizer_intent,
       avatar_url,
       upi_id,
       pan_number,
@@ -131,7 +117,8 @@ export async function listKycSubmissions(statusFilter?: string): Promise<KycSubm
 
   return data.map((row) => {
     const profile = profileMap.get(row.owner_id);
-    const { aboutText, organizerIntent } = splitOrganizerProfileDescription(row.description ?? null);
+    const aboutText = row.description;
+    const organizerIntent = row.organizer_intent;
     return {
       id: row.id,
       organizerName: row.name,
@@ -176,6 +163,7 @@ export async function getKycSubmission(organizerId: string): Promise<KycSubmissi
       name,
       bio,
       description,
+      organizer_intent,
       avatar_url,
       upi_id,
       pan_number,
@@ -207,7 +195,8 @@ export async function getKycSubmission(organizerId: string): Promise<KycSubmissi
     .eq("id", data.owner_id)
     .maybeSingle();
 
-  const { aboutText, organizerIntent } = splitOrganizerProfileDescription(data.description ?? null);
+  const aboutText = data.description;
+  const organizerIntent = data.organizer_intent;
 
   const { data: msgRows } = await supabase
     .from("kyc_messages")

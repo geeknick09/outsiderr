@@ -3,7 +3,6 @@ import "server-only";
 import { createClient } from "../auth/server";
 import { createServiceClient } from "../auth/service";
 import type { CurrentUser } from "../auth/auth";
-import { mergeOrganizerIntent } from "../lib/event-lifecycle";
 import type { Database } from "../db/database.types";
 import type { Organizer } from "../lib/types";
 
@@ -24,6 +23,7 @@ export async function getOrganizerProfile(
     name: data.name,
     bio: data.bio,
     description: (data as { description?: string | null }).description ?? null,
+    organizerIntent: (data as { organizer_intent?: string | null }).organizer_intent ?? null,
     avatarUrl: data.avatar_url,
     coverUrl: (data as { cover_url?: string | null }).cover_url ?? null,
     instagramUrl: (data as { instagram_url?: string | null }).instagram_url ?? null,
@@ -62,11 +62,11 @@ export async function createOrganizerProfile(
   const existing = await getOrganizerProfile(user);
   if (existing) {
     if (existing.kycStatus === "APPROVED") return existing.id;
-    const merged = mergeOrganizerIntent(input.description ?? "", input.organizerIntent ?? "");
     const resubmit = {
       name: input.name,
       bio: input.bio || null,
-      description: merged || null,
+      description: input.description || null,
+      organizer_intent: input.organizerIntent || null,
       upi_id: input.upiId || null,
       avatar_url: input.avatarUrl,
       cover_url: input.coverUrl,
@@ -105,13 +105,12 @@ export async function createOrganizerProfile(
   const supabase = await createClient();
   // Single atomic INSERT with all fields — KYC included — so no partial profile is
   // left behind if the database is missing columns from an unapplied migration.
-  const mergedDescription = mergeOrganizerIntent(input.description ?? "", input.organizerIntent ?? "");
-
   const organizerInsert = {
     owner_id: user.id,
     name: input.name,
     bio: input.bio || null,
-    description: mergedDescription || null,
+    description: input.description || null,
+    organizer_intent: input.organizerIntent || null,
     upi_id: input.upiId || null,
     avatar_url: input.avatarUrl,
     cover_url: input.coverUrl,
@@ -203,15 +202,13 @@ export async function updateOrganizerProfile(
   if (!organizer) throw new Error("No organizer profile found.");
 
   const supabase = await createClient();
-  const mergedDescription = input.description !== undefined || input.organizerIntent !== undefined
-    ? mergeOrganizerIntent(input.description ?? "", input.organizerIntent ?? "")
-    : undefined;
   // Partial update — only fields present in the input are written, so a PATCH
   // that omits name/upiId can't wipe them.
   const update: Database["public"]["Tables"]["organizers"]["Update"] = {};
   if (input.name !== undefined) update.name = input.name;
   if (input.bio !== undefined) update.bio = input.bio || null;
-  if (mergedDescription !== undefined) update.description = mergedDescription || null;
+  if (input.description !== undefined) update.description = input.description || null;
+  if (input.organizerIntent !== undefined) update.organizer_intent = input.organizerIntent || null;
   if (input.upiId !== undefined) update.upi_id = input.upiId || null;
   if (input.avatarUrl !== undefined) update.avatar_url = input.avatarUrl;
   if (input.coverUrl !== undefined) update.cover_url = input.coverUrl;

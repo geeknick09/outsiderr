@@ -85,6 +85,7 @@ export interface Organizer {
   name: string;
   bio: string | null;
   description: string | null;
+  organizerIntent?: string | null;
   avatarUrl: string | null;
   coverUrl: string | null;
   instagramUrl: string | null;
