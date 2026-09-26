@@ -78,7 +78,7 @@ export default async function OrganizerPage({
   if (kycInProgress || organizerProfile.kycStatus === "REJECTED") {
     if (accessState.blocked) {
       return (
-        <div className="py-10">
+        <div className="flex min-h-[55vh] items-center py-10">
           <div className="glass mx-auto max-w-lg rounded-3xl border border-red-300 bg-red-500/5 p-8 text-center">
             <h1 className="text-2xl font-black tracking-tight">Organizer application rejected</h1>
             <p className="mt-3 text-sm text-muted">
@@ -105,7 +105,7 @@ export default async function OrganizerPage({
     const params = await searchParams;
     if (organizerProfile.kycStatus === "REJECTED" && params.reapply !== "1") {
       return (
-        <div className="py-10">
+        <div className="flex min-h-[55vh] items-center py-10">
           <div className="glass mx-auto max-w-lg rounded-3xl border border-red-300 bg-red-500/5 p-8 text-center">
             <h1 className="text-2xl font-black tracking-tight">Application not approved</h1>
             <p className="mt-3 text-sm text-muted">
@@ -145,7 +145,7 @@ export default async function OrganizerPage({
     }));
 
     return (
-      <div className="space-y-6 py-6">
+      <div className="min-h-[55vh] space-y-6 py-6">
         <OrganizerKycRealtimeRefresher userId={user.id} />
         <OrganizerKycReviewPanel organizer={organizerProfile} thread={thread} />
       </div>

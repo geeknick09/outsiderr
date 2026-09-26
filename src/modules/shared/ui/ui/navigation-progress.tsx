@@ -66,9 +66,17 @@ export function NavigationProgress() {
     const currentPath = pathname + searchParams.toString();
     if (currentPath === prevPath.current) return;
     prevPath.current = currentPath;
-    // Navigation completed — finish the bar + scroll to top
+    // Navigation completed — finish the bar + scroll to top.
+    // Re-scroll after paint + after a short delay to win the race against
+    // images/layout settling (a single synchronous scrollTo often loses).
     finishProgress();
     window.scrollTo(0, 0);
+    const raf = requestAnimationFrame(() => window.scrollTo(0, 0));
+    const late = setTimeout(() => window.scrollTo(0, 0), 250);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(late);
+    };
   }, [pathname, searchParams]);
 
   // Detect form submissions (server actions)

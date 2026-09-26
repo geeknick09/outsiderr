@@ -209,6 +209,16 @@ export async function inviteCollaboratorAction(
     return { error: "Already invited this organizer." };
   }
 
+  // Cap: max 4 collaborators per event (pending invites + accepted collaborators)
+  const { count: activeCount } = await supabase
+    .from("event_collaborators")
+    .select("id", { count: "exact", head: true })
+    .eq("event_id", eventId)
+    .in("status", ["PENDING", "ACCEPTED"]);
+  if ((activeCount ?? 0) >= 4) {
+    return { error: "Maximum 4 collaborators per event." };
+  }
+
   // Insert the collaboration invite
   const { error } = await supabase.from("event_collaborators").insert({
     event_id: eventId,

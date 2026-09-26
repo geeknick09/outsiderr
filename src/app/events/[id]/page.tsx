@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { BadgeCheck, CalendarDays, Globe, Info, Link2, Mail, MapPin, MessageCircle, Phone, Play } from "lucide-react";
+import { BadgeCheck, CalendarDays, Globe, Info, Link2, Mail, MapPin, MessageCircle, Phone, Play, Star, UserPlus } from "lucide-react";
 import { InstagramIcon } from "@/modules/shared";
 import { EventRealtimeWrapper } from "@/modules/web";
 
@@ -16,12 +16,15 @@ import { TagPills } from "@/modules/web";
 import { TermsAccordion } from "@/modules/web";
 import { TicketTiers } from "@/modules/web";
 import { UpdateMeButton } from "@/modules/web";
+import { FollowOrganizerButton } from "@/modules/web";
 import { Badge } from "@/modules/shared";
 import { CATEGORY_LABELS, CITY_LABELS } from "@/modules/shared";
 import { getCurrentUser } from "@/modules/shared/server";
 import { getEvent, getLinkedPastEvents } from "@/modules/shared/server";
 import { getEventReviews } from "@/modules/shared/server";
 import { isSubscribedToEvent, getEventCollaborators } from "@/modules/shared/server";
+import { getOrganizerFollowerCount, isFollowingOrganizer } from "@/modules/shared/server";
+import { getOrganizerRating } from "@/modules/shared/server";
 import { getWaitlistEntry, getWaitlistCount } from "@/modules/shared/server";
 import { formatDateRange, mapsLink } from "@/modules/shared";
 
@@ -96,14 +99,18 @@ export default async function EventDetailsPage({
   const endMs = event.endsAt ? new Date(event.endsAt).getTime() : startMs;
   const eventEnded = endMs <= nowMs;
 
-  const [linkedPastEvents, eventReviews, isSubscribed, collaborators] = await Promise.all([
+  const [linkedPastEvents, eventReviews, isSubscribed, collaborators, followerCount, isFollowing, organizerRating] = await Promise.all([
     event.linkedPastEventIds.length > 0
       ? getLinkedPastEvents(event.linkedPastEventIds)
       : Promise.resolve([]),
     eventEnded ? getEventReviews(event.id) : Promise.resolve([]),
     user ? isSubscribedToEvent(user, event.id) : Promise.resolve(false),
     getEventCollaborators(event.id),
+    getOrganizerFollowerCount(event.organizer.id),
+    user ? isFollowingOrganizer(user, event.organizer.id) : Promise.resolve(false),
+    getOrganizerRating(event.organizer.id),
   ]);
+  const isOwnEvent = !!user && event.organizer.ownerId === user.id;
 
   // Build share URL dynamically from request origin, falling back to env
   const hdrs = await headers();
@@ -269,11 +276,30 @@ export default async function EventDetailsPage({
                     <BadgeCheck className="h-4 w-4 shrink-0 text-violet-neon" />
                   ) : null}
                 </p>
-                {event.organizer.bio ? (
-                  <p className="truncate text-xs text-muted">{event.organizer.bio}</p>
+                {organizerRating.totalReviews > 0 ? (
+                  <p className="mt-0.5 flex items-center gap-1 text-xs">
+                    <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                    <span className="font-bold">{organizerRating.averageRating.toFixed(1)}</span>
+                    <span className="text-muted">({organizerRating.totalReviews} review{organizerRating.totalReviews === 1 ? "" : "s"})</span>
+                  </p>
                 ) : null}
+                <p className="mt-0.5 text-xs text-muted">
+                  {followerCount} follower{followerCount === 1 ? "" : "s"}
+                </p>
               </div>
             </Link>
+            <div className="mt-3">
+              {user && !isOwnEvent ? (
+                <FollowOrganizerButton organizerId={event.organizer.id} isFollowing={isFollowing} />
+              ) : !user ? (
+                <Link
+                  href={`/login?next=/events/${event.id}`}
+                  className="inline-flex items-center gap-2 rounded-full border border-violet-neon/40 px-5 py-2 text-sm font-bold text-violet-neon transition-all hover:bg-violet-neon/10"
+                >
+                  <UserPlus className="h-4 w-4" /> Follow
+                </Link>
+              ) : null}
+            </div>
           </section>
 
           {/* Co-organizers / Collaborators */}

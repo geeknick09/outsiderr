@@ -40,6 +40,17 @@ export function ImageCropper({
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
+  // Lock body scroll while the cropper is open — otherwise the page behind
+  // scrolls under the modal, and on close the browser scrolls the upload
+  // button back into view (perceived as "the screen scrolled down").
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
   const onCropChange = useCallback((_: Area, pixels: Area) => {
     setCroppedAreaPixels(pixels);
   }, []);

@@ -142,11 +142,27 @@ export function BecomeOrganizerForm() {
   }
 
   function next() {
-    if (step < 4) setStep((s) => (s + 1) as StepIndex);
+    if (step < 4) {
+      setStep((s) => (s + 1) as StepIndex);
+      scrollToFormTop();
+    }
   }
 
   function back() {
-    if (step > 0) setStep((s) => (s - 1) as StepIndex);
+    if (step > 0) {
+      setStep((s) => (s - 1) as StepIndex);
+      scrollToFormTop();
+    }
+  }
+
+  /** Step transitions aren't route navigations — reset scroll manually. */
+  function scrollToFormTop() {
+    requestAnimationFrame(() => {
+      if (formRef.current) {
+        const top = formRef.current.getBoundingClientRect().top + window.scrollY - 100;
+        window.scrollTo({ top: Math.max(top, 0), behavior: "instant" as ScrollBehavior });
+      }
+    });
   }
 
   if (state.success) {
@@ -345,6 +361,8 @@ export function BecomeOrganizerForm() {
                       <ImageUploadWithCrop
                         onCropped={handleAvatar}
                         aspect={1}
+                        maxFileSizeBytes={1024 * 1024}
+                        onSizeError={(msg) => setUploadError(msg)}
                         label={
                           <span className="flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-3 text-sm text-muted hover:border-violet-neon dark:border-white/15">
                             <Upload className="h-4 w-4" />
