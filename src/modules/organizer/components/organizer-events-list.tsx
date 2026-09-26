@@ -167,9 +167,9 @@ export function OrganizerEventsList({
         <p className="glass rounded-3xl p-5 text-sm text-muted">
           {activeTab === "published" ? (
             <>
-              No published events yet.{" "}
+              Nothing live yet.{" "}
               <Link href="/organizer?tab=create" className="underline hover:text-violet-neon">
-                Create your first event
+                Put an event out
               </Link>
               .
             </>

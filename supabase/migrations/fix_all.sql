@@ -4057,6 +4057,7 @@ as $$
 declare
   v_entry public.waitlist;
   v_pos   integer;
+  v_cap   integer;
 begin
   if auth.uid() is null then
     raise exception 'Sign in to join the waitlist';
@@ -4072,6 +4073,20 @@ begin
   end if;
   if not exists (select 1 from public.events where id = p_event_id and waitlist_enabled) then
     raise exception 'Waitlist is not enabled for this event';
+  end if;
+
+  -- Per-user cap: when max_tickets_per_order is 1 (the default), a user who
+  -- already holds an active order can't join the waitlist — mirrors the
+  -- per-user-per-event guard in the order flow.
+  select (value #>> '{}')::int into v_cap
+    from public.platform_settings where key = 'max_tickets_per_order';
+  if coalesce(v_cap, 1) <= 1 and exists (
+    select 1 from public.orders
+     where event_id = p_event_id
+       and user_id = auth.uid()
+       and status in ('CONFIRMED', 'PENDING_VERIFICATION', 'RESERVED')
+  ) then
+    raise exception 'You already have a ticket for this event';
   end if;
 
   -- Idempotent: already on the waitlist → return existing row

@@ -79,6 +79,11 @@ export function EventCard({
                 {CATEGORY_LABELS[cat]}
               </Badge>
             ))}
+            {(event.categories ?? []).length > 2 ? (
+              <Badge tone="violet" className="bg-black/50 text-white">
+                +{event.categories.length - 2}
+              </Badge>
+            ) : null}
           </div>
           <span className="rounded-full bg-white/90 px-2.5 py-1 text-xs font-bold text-zinc-900">
             {formatPriceTag(event.minPricePaise)}

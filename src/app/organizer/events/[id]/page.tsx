@@ -88,9 +88,11 @@ export default async function ManageEventPage({
   // Expire stale waitlist offers (best-effort, non-blocking)
   try { await expireWaitlistOffers(); } catch { /* ignore */ }
 
-  if (!event || !analytics) notFound();
+  if (!event) notFound();
 
-  // Check access level — owner or accepted collaborator
+  // Check access level — owner or accepted collaborator. Note: analytics is
+  // null for collaborators without ANALYTICS/FULL permission — that's not a
+  // 404, they still get the event view.
   const accessLevel = await getEventAccessLevel(user, id);
   if (!accessLevel) notFound();
   const isOwner = accessLevel === "OWNER";
@@ -223,14 +225,14 @@ export default async function ManageEventPage({
       </div>
 
       {/* Analytics — hidden for draft events (no data yet) or view-only collaborators */}
-      {event.status !== "DRAFT" && canView ? (
+      {event.status !== "DRAFT" && canView && analytics ? (
         <section className="space-y-3">
           <h2 className="text-lg font-bold">Analytics</h2>
           <AnalyticsPanel analytics={analytics} eventId={event.id} />
         </section>
       ) : null}
 
-      {canView && analytics.waitlistCount > 0 ? (
+      {canView && analytics && analytics.waitlistCount > 0 ? (
         <WaitlistPanel waitlistCount={analytics.waitlistCount} entries={waitlistEntries} />
       ) : null}
 

@@ -72,6 +72,7 @@ export default async function EventDetailsPage({
   }
 
   const banner = event.bannerPosterUrl ?? event.cardPosterUrl;
+  const cardPoster = event.cardPosterUrl ?? event.bannerPosterUrl;
 
   // Waitlist data for sold-out tiers (passed to TicketTiers so it can show
   // "On waitlist" state and waitlist counts)
@@ -132,21 +133,39 @@ export default async function EventDetailsPage({
   return (
     <EventRealtimeWrapper eventId={event.id}>
     <div className="-mt-6 overflow-x-hidden">
-      <div className="relative -mx-4 h-[40vh] max-h-[340px] min-h-[200px] overflow-hidden sm:rounded-b-3xl">
-        {banner ? (
-          <Image
-            src={banner}
-            alt={event.title}
-            fill
-            sizes="100vw"
-            priority
-            className="object-cover"
-          />
-        ) : (
-          <div className="h-full w-full bg-neon-gradient" />
-        )}
-        {/* Blend the poster into the page background. */}
-        <div className="absolute inset-0 bg-gradient-to-t from-zinc-50 via-zinc-50/30 to-transparent dark:from-ink dark:via-ink/40" />
+      {/* Hero: 3:4 card poster on mobile, 16:9 banner on desktop */}
+      <div className="relative -mx-4 overflow-hidden sm:rounded-b-3xl">
+        <div className="relative hidden aspect-video max-h-[440px] w-full sm:block">
+          {banner ? (
+            <Image
+              src={banner}
+              alt={event.title}
+              fill
+              sizes="100vw"
+              priority
+              className="object-cover"
+            />
+          ) : (
+            <div className="h-full w-full bg-neon-gradient" />
+          )}
+          {/* Blend the poster into the page background. */}
+          <div className="absolute inset-0 bg-gradient-to-t from-zinc-50 via-zinc-50/30 to-transparent dark:from-ink dark:via-ink/40" />
+        </div>
+        <div className="relative aspect-[3/4] max-h-[70vh] w-full sm:hidden">
+          {cardPoster ? (
+            <Image
+              src={cardPoster}
+              alt={event.title}
+              fill
+              sizes="100vw"
+              priority
+              className="object-cover"
+            />
+          ) : (
+            <div className="h-full w-full bg-neon-gradient" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-zinc-50 via-zinc-50/30 to-transparent dark:from-ink dark:via-ink/40" />
+        </div>
       </div>
 
       <div className="grid gap-6 pt-6 lg:grid-cols-[1fr_380px]">
