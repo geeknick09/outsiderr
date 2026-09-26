@@ -5,6 +5,7 @@ export type EventCategory =
   | "JAM_GIG"
   | "WORKSHOP"
   | "HIP_HOP_PARTY"
+  | "TECHNO_RAVE"
   | "CAR_BIKE_MEET"
   | "GAMING"
   | "OTHER";

@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
-import { Check, X } from "lucide-react";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { Check, Loader2, Paperclip, Upload, X } from "lucide-react";
 
 import { updateOrganizerAction, type UpdateOrganizerState } from "../actions/organizer";
 import { Button } from "@/modules/shared";
@@ -39,6 +39,35 @@ export function EditOrganizerProfile({
   const [gstNumber, setGstNumber] = useState(organizer.gstNumber ?? "");
   const [bankIfsc, setBankIfsc] = useState(organizer.bankIfsc ?? "");
   const [bankAccountNumber, setBankAccountNumber] = useState(organizer.bankAccountNumber ?? "");
+  const [panDocumentUrl, setPanDocumentUrl] = useState(organizer.panDocumentUrl ?? "");
+  const [bankDocumentUrl, setBankDocumentUrl] = useState(organizer.bankDocumentUrl ?? "");
+  const [uploadingPan, setUploadingPan] = useState(false);
+  const [uploadingBank, setUploadingBank] = useState(false);
+  const [panDocError, setPanDocError] = useState<string | null>(null);
+  const [bankDocError, setBankDocError] = useState<string | null>(null);
+
+  const MAX_DOC_MB = 1;
+
+  async function handleDocUpload(file: File | undefined, kind: "pan" | "bank") {
+    if (!file) return;
+    const setErr = kind === "pan" ? setPanDocError : setBankDocError;
+    if (file.size > MAX_DOC_MB * 1024 * 1024) {
+      setErr(`File too large — keep it under ${MAX_DOC_MB} MB (${(file.size / 1024 / 1024).toFixed(1)} MB selected).`);
+      return;
+    }
+    setErr(null);
+    const setter = kind === "pan" ? setUploadingPan : setUploadingBank;
+    setter(true);
+    try {
+      const url = await uploadPublicFile(file, `organizer-kyc/${kind}`);
+      if (kind === "pan") setPanDocumentUrl(url ?? "");
+      else setBankDocumentUrl(url ?? "");
+    } catch (err) {
+      setErr(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setter(false);
+    }
+  }
 
   const PAN_RE = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
   const GST_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
@@ -344,6 +373,50 @@ export function EditOrganizerProfile({
                 </select>
               </label>
             </div>
+
+            {/* PAN + bank proof documents — view current, upload to replace */}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-zinc-200 p-3 dark:border-white/10">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted">PAN card document</span>
+                <div className="mt-2 space-y-2">
+                  {panDocumentUrl ? (
+                    <a href={panDocumentUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs text-violet-neon underline">
+                      <Paperclip className="h-3.5 w-3.5" /> View current document
+                    </a>
+                  ) : (
+                    <p className="text-xs text-muted">No document uploaded.</p>
+                  )}
+                  <DocUpload
+                    uploading={uploadingPan}
+                    hasFile={!!panDocumentUrl}
+                    label="Upload PAN card"
+                    error={panDocError}
+                    onFile={(f) => handleDocUpload(f, "pan")}
+                  />
+                </div>
+                <input type="hidden" name="panDocumentUrl" value={panDocumentUrl} />
+              </div>
+              <div className="rounded-xl border border-zinc-200 p-3 dark:border-white/10">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted">Bank proof document</span>
+                <div className="mt-2 space-y-2">
+                  {bankDocumentUrl ? (
+                    <a href={bankDocumentUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs text-violet-neon underline">
+                      <Paperclip className="h-3.5 w-3.5" /> View current document
+                    </a>
+                  ) : (
+                    <p className="text-xs text-muted">No document uploaded.</p>
+                  )}
+                  <DocUpload
+                    uploading={uploadingBank}
+                    hasFile={!!bankDocumentUrl}
+                    label="Upload cancelled cheque / passbook"
+                    error={bankDocError}
+                    onFile={(f) => handleDocUpload(f, "bank")}
+                  />
+                </div>
+                <input type="hidden" name="bankDocumentUrl" value={bankDocumentUrl} />
+              </div>
+            </div>
           </div>
 
           <label className="block space-y-1.5">
@@ -386,7 +459,7 @@ export function EditOrganizerProfile({
           <div className="flex gap-2">
             <Button
               type="submit"
-              disabled={pending || uploading || (!!upiId && !upiValid) || !kycValid}
+              disabled={pending || uploading || uploadingPan || uploadingBank || (!!upiId && !upiValid) || !kycValid}
               loading={pending}
               loadingText="Saving…"
               className="flex-1"
@@ -400,6 +473,47 @@ export function EditOrganizerProfile({
           </div>
         </form>
       </div>
+    </div>
+  );
+}
+
+function DocUpload({
+  uploading,
+  hasFile,
+  label,
+  error,
+  onFile,
+}: {
+  uploading: boolean;
+  hasFile: boolean;
+  label: string;
+  error: string | null;
+  onFile: (file: File | undefined) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  return (
+    <div className="space-y-1">
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*,application/pdf"
+        className="hidden"
+        onChange={(e) => {
+          onFile(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+      <button
+        type="button"
+        disabled={uploading}
+        onClick={() => inputRef.current?.click()}
+        className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-zinc-300 px-3 py-2 text-xs text-muted hover:border-violet-neon disabled:opacity-50 dark:border-white/15"
+      >
+        {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+        {uploading ? "Uploading…" : hasFile ? "Replace document" : label}
+      </button>
+      <p className="text-[10px] text-muted">Image or PDF, under 1 MB — re-verified by admin.</p>
+      {error ? <p className="text-xs text-red-500">{error}</p> : null}
     </div>
   );
 }

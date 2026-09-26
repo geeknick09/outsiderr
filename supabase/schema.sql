@@ -83,7 +83,7 @@ do $$ begin
 exception when others then null; end $$;
 do $$ begin
   create type event_category as enum (
-    'CYPHER_BATTLE','SKATE_STUNT','FITNESS','JAM_GIG','HIP_HOP_PARTY','CAR_BIKE_MEET','WORKSHOP','OTHER'
+    'CYPHER_BATTLE','SKATE_STUNT','FITNESS','JAM_GIG','HIP_HOP_PARTY','TECHNO_RAVE','CAR_BIKE_MEET','WORKSHOP','OTHER'
   );
 exception when duplicate_object then null; end $$;
 
@@ -110,6 +110,7 @@ alter type event_category add value if not exists 'CYPHER_BATTLE';
 alter type event_category add value if not exists 'SKATE_STUNT';
 alter type event_category add value if not exists 'JAM_GIG';
 alter type event_category add value if not exists 'HIP_HOP_PARTY';
+alter type event_category add value if not exists 'TECHNO_RAVE';
 alter type event_category add value if not exists 'CAR_BIKE_MEET';
 alter type event_category add value if not exists 'GAMING';
 alter type event_category add value if not exists 'WORKSHOP';

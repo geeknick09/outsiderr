@@ -1413,6 +1413,7 @@ on conflict (key) do nothing;
 -- Multi-category support + Hip Hop Party category
 -- ----------------------------------------------------------------
 alter type event_category add value if not exists 'HIP_HOP_PARTY';
+alter type event_category add value if not exists 'TECHNO_RAVE';
 alter type event_category add value if not exists 'CAR_BIKE_MEET';
 alter type event_category add value if not exists 'GAMING';
 alter table public.events add column if not exists categories text[] not null default '{}';
