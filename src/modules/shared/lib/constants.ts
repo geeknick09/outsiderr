@@ -5,7 +5,7 @@ export const CATEGORIES: { value: EventCategory | "ALL"; label: string }[] = [
   { value: "CYPHER_BATTLE", label: "Cyphers & Battles" },
   { value: "SKATE_STUNT", label: "Skate & Stunts" },
   { value: "FITNESS", label: "Alternate Sports & Fitness" },
-  { value: "HIP_HOP_PARTY", label: "Hip Hop/Rap Party" },
+  { value: "HIP_HOP_PARTY", label: "Hip Hop & R&B Party" },
   { value: "TECHNO_RAVE", label: "Techno & Rave" },
   { value: "CAR_BIKE_MEET", label: "Car & Bike Meetups" },
   { value: "GAMING", label: "Gaming" },
@@ -51,7 +51,7 @@ export const CATEGORY_LABELS: Record<EventCategory, string> = {
   SKATE_STUNT: "Skate & Stunts",
   FITNESS: "Alternate Sports & Fitness",
   JAM_GIG: "Jams & Gigs",
-  HIP_HOP_PARTY: "Hip Hop/Rap Party",
+  HIP_HOP_PARTY: "Hip Hop & R&B Party",
   TECHNO_RAVE: "Techno & Rave",
   CAR_BIKE_MEET: "Car & Bike Meetups",
   GAMING: "Gaming",
@@ -73,8 +73,8 @@ export const PREDEFINED_EVENT_TAGS: string[] = [
   "Run Club", "5K", "10K", "Marathon", "Walkathon", "Trail Run",
   // Gig / Jam
   "Live Music", "DJ Set", "Open Decks",
-  // Hip Hop Party
-  "Hip Hop Party", "Hip Hop", "Rap Party", "Trap Night", "Boom Bap Night",
+  // Hip Hop / R&B Party
+  "Hip Hop Party", "Hip Hop", "Rap Party", "Trap Night", "Boom Bap Night", "R&B Night", "Afrobeats",
   // Techno / Rave
   "Techno", "Rave", "Warehouse Rave", "Coffee Rave", "Sundowner", "Boiler Set", "Psytrance", "Acid", "Melodic Techno",
   // Car & Bike Meet
