@@ -17,6 +17,8 @@ export * from "./components/events/past-event-card";
 export * from "./components/events/past-event-section";
 export * from "./components/events/photo-gallery";
 export * from "./components/events/previous-editions";
+export * from "./components/events/search-result-utils";
+export * from "./components/events/search-results";
 export * from "./components/events/share-button";
 export * from "./components/events/share-event-button";
 export * from "./components/events/tag-pills";
