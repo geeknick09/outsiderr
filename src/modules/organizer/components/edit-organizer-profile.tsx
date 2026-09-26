@@ -211,6 +211,17 @@ export function EditOrganizerProfile({
               Changes to these fields are re-verified by our team before they take
               effect — your verified details stay active meanwhile.
             </p>
+            <label className="block space-y-1">
+              <span className="text-xs text-muted">Organizer intent <span className="normal-case">(what kind of events you&apos;ll host)</span></span>
+              <textarea
+                name="organizerIntent"
+                rows={2}
+                maxLength={300}
+                defaultValue={organizer.organizerIntent ?? ""}
+                placeholder="e.g. Underground cyphers, skate jams, intimate gigs"
+                className={INPUT}
+              />
+            </label>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block space-y-1">
                 <span className="text-xs text-muted">PAN number</span>
