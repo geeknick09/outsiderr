@@ -5,23 +5,26 @@
 ## Prerequisites
 
 *   Two organizer accounts (Organizer A = primary owner, Organizer B = co-organizer)
+    
 *   One regular user account (User C = ticket buyer / subscriber / follower)
+    
 *   One admin account
+    
 *   Supabase migrations applied (`fix_all.sql` run)
+    
 *   `.env` configured with Supabase credentials
-
- *
+    
 
 ## 1\. Authentication & User Profile
 
 ### 1.1 Registration & Login
 
-- [ ] Register a new user with email + password
-- [ ] Verify redirect to home page after registration
-- [ ] Log out, log back in
-- [ ] Verify “My Profile” link appears in navbar user menu
-- [ ] Verify “List Your Event” label shows for non-organizers
-- [ ] Verify “Manage Your Events” label shows for organizers
+- [x] Register a new user with email + password
+- [x] Verify redirect to home page after registration
+- [x] Log out, log back in
+- [x] Verify “My Profile” link appears in navbar user menu
+- [x] Verify “List Your Event” label shows for non-organizers
+- [x] Verify “Manage Your Events” label shows for organizers
 
 ### 1.2 User Profile
 
@@ -30,8 +33,6 @@
 - [ ] Select interested-in tags from the chip picker
 - [ ] Save and verify changes persist on reload
 - [ ] Book an event → verify event tags auto-merge into interested-in tags
-
- *
 
 ## 2\. Organizer Onboarding
 
@@ -49,7 +50,7 @@
 
 - [ ] Navigate to organizer verification flow
 - [ ] Step 1: Profile details
-- [ ] Step 2: PAN number (validate format `ABCDE1234F`) + optional PAN card photo (JPG/PNG under 1 MB — oversized file shows error, doesn't upload)
+- [ ] Step 2: PAN number (validate format `ABCDE1234F`) + optional PAN card photo (JPG/PNG under 1 MB — oversized file shows error, doesn’t upload)
 - [ ] Step 3: GST (optional — skip should work)
 - [ ] Step 4: Bank account + IFSC (validate format `ABCD0123456`) + optional bank proof (cancelled cheque/passbook, under 1 MB)
 - [ ] Step 5: Agreement acceptance
@@ -57,40 +58,38 @@
 
 ### 2.3 KYC Review States
 
-- [ ] While PENDING → dashboard shows "Organizer verification in progress" (amber)
-- [ ] Admin rejects → bell gets "Application Rejected" notification live (no reload) + page refreshes to red "application not approved" panel
-- [ ] Admin requests clarification → "Clarification Needed" notification + blue banner
-- [ ] Admin approves → "Organizer Verified!" notification + dashboard unlocks
-- [ ] Organizer replies + re-uploads docs → "Submit response" persists `kyc_response_note` + doc URLs (verify in admin review card)
+- [ ] While PENDING → dashboard shows “Organizer verification in progress” (amber)
+- [ ] Admin rejects → bell gets “Application Rejected” notification live (no reload) + page refreshes to red “application not approved” panel
+- [ ] Admin requests clarification → “Clarification Needed” notification + blue banner
+- [ ] Admin approves → “Organizer Verified!” notification + dashboard unlocks
+- [ ] Organizer replies + re-uploads docs → “Submit response” persists `kyc_response_note` + doc URLs (verify in admin review card)
 - [ ] Resubmit → `kyc_status` back to PENDING
-- [ ] "Withdraw application" → confirm → organizers row deleted + `is_organizer=false` → lands on become-organizer form
+- [ ] “Withdraw application” → confirm → organizers row deleted + `is_organizer=false` → lands on become-organizer form
 - [ ] Withdrawal blocked if APPROVED or if events exist (error message shown)
 
 ### 2.3b Rejection Limit & Menu States
 
-- [ ] REJECTED (any count) → navbar + footer show "List Your Event", NOT "Organizer Dashboard"
-- [ ] Only APPROVED organizers see "Organizer Dashboard" in user menu
-- [ ] Rejected below limit → `/list-your-event` shows "Get Started" → `/organizer` renders the **fresh 5-step KYC wizard** (no notice card, no resubmit panel)
+- [ ] REJECTED (any count) → navbar + footer show “List Your Event”, NOT “Organizer Dashboard”
+- [ ] Only APPROVED organizers see “Organizer Dashboard” in user menu
+- [ ] Rejected below limit → `/list-your-event` shows “Get Started” → `/organizer` renders the **fresh 5-step KYC wizard** (no notice card, no resubmit panel)
 - [ ] Resubmitting the wizard **overwrites** the existing organizer row (all fields + docs), flips `kyc_status` → PENDING, preserves `rejection_count`, notifies admins + logs thread
-- [ ] Rejection count reaches `organizer_rejection_limit` (platform_settings, default 5) → `/list-your-event` shows "application rejected N times — contact support" instead of CTAs
-- [ ] Blocked user visiting `/organizer` directly → "Organizer access blocked" panel (no wizard, no dashboard)
-- [ ] Change `organizer_rejection_limit` in platform_settings → block threshold updates accordingly
+- [ ] Rejection count reaches `organizer_rejection_limit` (platform\_settings, default 5) → `/list-your-event` shows “application rejected N times — contact support” instead of CTAs
+- [ ] Blocked user visiting `/organizer` directly → “Organizer access blocked” panel (no wizard, no dashboard)
+- [ ] Change `organizer_rejection_limit` in platform\_settings → block threshold updates accordingly
 
 ### 2.4 Admin Notifications (pending-review queues)
 
-- [ ] New organizer submits KYC → every admin's bell shows "KYC Submitted" live
+- [ ] New organizer submits KYC → every admin’s bell shows “KYC Submitted” live
 - [ ] Organizer resubmits after rejection → admins notified again
-- [ ] Organizer requests a boost slot → "Boost Request" notification to admins (₹ + UTR in message)
-- [ ] Organizer submits hero-boost UTR → "Boost Request" notification to admins
-- [ ] Organizer submits door-staff payment UTR → "Door Staff Payment" notification to admins
+- [ ] Organizer requests a boost slot → “Boost Request” notification to admins (₹ + UTR in message)
+- [ ] Organizer submits hero-boost UTR → “Boost Request” notification to admins
+- [ ] Organizer submits door-staff payment UTR → “Door Staff Payment” notification to admins
 
 ### 2.3 Organizer Profile Edit
 
 - [ ] Edit name, bio, photo, cover photo, UPI ID
 - [ ] Verify QR preview updates when UPI ID changes
 - [ ] Save and verify changes persist
-
- *
 
 ## 3\. Event Creation
 
@@ -163,11 +162,12 @@
 - [ ] Upload a Banner poster → crop modal locked to **16:9**
 - [ ] Cancel the crop → nothing uploads, field stays empty
 - [ ] Re-select the same file → cropper re-opens
+- [ ] Open cropper from a scrolled form inside `.glass` → dialog portals to viewport and title/image/controls are not clipped
+- [ ] On a short viewport, crop dialog stays centered when it fits; otherwise its own content scrolls so title and Apply/Cancel remain reachable
+- [ ] Close/apply cropper → page scroll is restored and remains scrollable
 - [ ] Crop a very large source → cropped output still respects the 1.5 MB limit (or a size error shows)
-- [ ] "or paste an image URL" still works as a no-crop fallback
+- [ ] “or paste an image URL” still works as a no-crop fallback
 - [ ] Same crop behavior on the **edit** form
-
- *
 
 ## 4\. Event Discovery (Public Pages)
 
@@ -204,6 +204,7 @@
 - [ ] Navigate to `/organizers/[id]`
 - [ ] Verify Facebook-style cover + avatar
 - [ ] Verify organizer name, bio, verified badge
+- [ ] Verify private organizer intent is not visible on public profile or metadata
 - [ ] Verify follower count displayed
 - [ ] Verify Follow/Unfollow button works
 - [ ] Verify upcoming events section
@@ -219,8 +220,6 @@
 - [ ] Poster image shows as the instant/fallback visual before the video buffers
 - [ ] A past or cancelled event → photo card only (no video), even if a teaser was set
 - [ ] After the event ends, the `cleanup-teasers` cron deletes the file from `event-media` and clears `teaser_video_url`
-
- *
 
 ## 5\. Booking & Tickets
 
@@ -265,15 +264,13 @@
 
 ### 5.6 Waitlist & FIFO
 
-- [ ] Sell out a tier → "Join Waitlist" appears → User C joins, gets a position
+- [ ] Sell out a tier → “Join Waitlist” appears → User C joins, gets a position
 - [ ] Same user re-joins → returns existing entry (idempotent, no duplicate)
 - [ ] Two users join → positions assigned in arrival order (1, 2 …)
 - [ ] Free a ticket (organizer rejects/cancels an order) → lowest-position WAITING user gets `WAITLIST_OFFER` notification + 24h `expires_at`
 - [ ] OFFERED user books within 24h → order confirms; their waitlist row is cleared (no re-offer later)
 - [ ] OFFERED user lets 24h lapse → `expire-waitlist-offers` cron re-queues them to the END and offers the next person
 - [ ] Burst join (many users at once) → no two users share a position
-
- *
 
 ## 6\. “Update Me” Event Subscriptions
 
@@ -306,8 +303,6 @@
 - [ ] Organizer changes venue
 - [ ] Verify both User C and User D receive the notification
 
- *
-
 ## 7\. Follow / Unfollow Organizers
 
 ### 7.1 Follow
@@ -327,8 +322,6 @@
 
 - [ ] Reload page → verify follow state persists
 - [ ] Log out, log back in → verify follow state persists
-
- *
 
 ## 8\. Event Collaboration (Co-Organizer Invites)
 
@@ -435,8 +428,6 @@
 - [ ] As a visitor, navigate to the event page
 - [ ] Verify both Organizer A and Organizer B names appear as co-organizers
 
- *
-
 ## 9\. Event Management (Owner)
 
 ### 9.1 Edit Event
@@ -469,8 +460,6 @@
 - [ ] As Organizer A, publish a draft event
 - [ ] Verify status changes to PUBLISHED
 - [ ] Verify event appears on homepage
-
- *
 
 ## 10\. Door Scanner & Check-in
 
@@ -522,8 +511,6 @@
 - [ ] Enter a revoked PIN → verify rejection
 - [ ] Verify rate limiting (20 attempts/min) kicks in after repeated failures
 
- *
-
 ## 11\. Orders & Revenue
 
 ### 11.1 Orders Page
@@ -547,8 +534,6 @@
 - [ ] Verify report shows: revenue summary, confirmed orders, attendee tickets
 - [ ] Verify print button works (opens print dialog)
 
- *
-
 ## 12\. Organizer Analytics
 
 ### 12.1 Per-Event Analytics
@@ -570,8 +555,6 @@
 - [ ] Verify revenue by event (top 5)
 - [ ] Verify draft events excluded from aggregate metrics
 
- *
-
 ## 13\. Boosting & Promotions
 
 ### 13.1 Slot Boost
@@ -591,8 +574,6 @@
 - [ ] Verify dot indicators work
 - [ ] Verify `?source=HERO_BOOST` in carousel links
 - [ ] Cancel event → verify it’s removed from Hero Carousel
-
- *
 
 ## 14\. Clubs & Crews
 
@@ -617,8 +598,6 @@
 - [ ] Verify/unverify a club
 - [ ] Verify badge updates on public club page
 
- *
-
 ## 15\. Reviews & Ratings
 
 ### 15.1 Submit Review
@@ -636,8 +615,6 @@
 - [ ] As the review author, delete own review → verify removed
 - [ ] As organizer, try to delete a review → verify blocked
 - [ ] As admin, delete any review → verify removed
-
- *
 
 ## 16\. Admin Dashboard
 
@@ -704,6 +681,7 @@
 - [ ] Click “Approved” filter → verify only approved organizers shown
 - [ ] Click “All” filter → verify all organizers with KYC shown
 - [ ] Verify each submission card shows: organizer name, avatar, owner email/phone, PAN, GST, bank details, UPI ID, submission date
+- [ ] Verify organizer intent is visible in admin KYC review, but hidden from public organizer profile
 - [ ] Verify status badge color matches status (amber=pending, green=approved, red=rejected, blue=clarification)
 
 ### 16.9 KYC Approve Flow
@@ -751,11 +729,9 @@
 ### 16.13 Event Fee Lock (post-start)
 
 - [ ] Admin → `/admin/events` → find an **upcoming** paid event → commission/fee form is editable → change values → saves + audit row written
-- [ ] Find a **live/past** (started) event → fee area is a read-only summary ("locked — event started"), no form
-- [ ] Try to bypass via a crafted request → `adminUpdateEventFeesAction` returns "Event has already started — fees are locked."
+- [ ] Find a **live/past** (started) event → fee area is a read-only summary (“locked — event started”), no form
+- [ ] Try to bypass via a crafted request → `adminUpdateEventFeesAction` returns “Event has already started — fees are locked.”
 - [ ] Verify Edit/Feature/Cancel/Publish/Delete are all hidden on a started event (whole card view-only)
-
- *
 
 ## 17\. Notifications
 
@@ -787,11 +763,9 @@
 - [ ] `complete_notification_outbox(id, false)` → row back to PENDING with `next_attempt_at` in the future (attempts² backoff); ≥5 attempts → FAILED
 - [ ] `complete_notification_outbox(id, true)` → SENT
 - [ ] Rows older than 24h → marked EXPIRED on next claim (no stale blast when a provider is enabled later)
-- [ ] `GET /api/cron/drain-notifications` with bad secret → 401; with `CRON_SECRET` → 200 `{status:"skipped"}` while no provider env (EXPO_ACCESS_TOKEN / FCM_SERVER_KEY / WEB_PUSH_PRIVATE_KEY)
+- [ ] `GET /api/cron/drain-notifications` with bad secret → 401; with `CRON_SECRET` → 200 `{status:"skipped"}` while no provider env (EXPO\_ACCESS\_TOKEN / FCM\_SERVER\_KEY / WEB\_PUSH\_PRIVATE\_KEY)
 - [ ] `notification_outbox` not readable/writable by anon or authenticated roles (service-role only)
 - [ ] `node scripts/_test_analytics_rollup.mjs` → T17–T21 cover this end-to-end
-
- *
 
 ## 18\. Legal & Info Pages
 
@@ -817,13 +791,12 @@
 - [ ] Verify consent notice
 - [ ] Verify responsive (stacks on mobile)
 
- *
-
 ## 19\. Loading States
 
 ### 19.1 Branded Loader
 
 - [ ] Navigate to each route and verify branded spinner appears:
+
 *   `/` (home)
 *   `/admin`
 *   `/checkout`
@@ -837,11 +810,10 @@
 *   `/profile`
 *   `/scan`
 *   `/tickets`
+
 - [ ] Verify spinner uses neon-gradient (purple → pink)
 - [ ] Verify spinner animates (rotates)
 - [ ] Verify skeleton structure retained below spinner
-
- *
 
 ## 20\. Error Handling & Edge Cases
 
@@ -871,8 +843,6 @@
 - [ ] Verify: platform retains ₹225 + ₹135 = ₹360
 - [ ] Run `npx vitest run` → verify 102 tests pass (financial, validation, rate-limit, fixtures)
 
- *
-
 ## 21\. PWA & Branding
 
 ### 21.1 PWA
@@ -886,8 +856,6 @@
 
 - [ ] Toggle dark/light mode → verify logo switches
 - [ ] Verify logo in navbar, favicon
-
- *
 
 ## 22\. Automated Tests
 
@@ -914,9 +882,9 @@ node scripts/_seed_dev_test.mjs
 node scripts/_e2e_dev_test.mjs            # default base http://localhost:3124
 ```
 
-- [ ] Verify 72 assertions pass (auth, free/manual orders, approve/reject,
-      subscribe/follow, waitlist FIFO, scanner, box-office, event lifecycle,
-      burst no-oversell, reviews, cancel/refund, collab, clubs, postponement)
+- [ ] Verify 72 assertions pass (auth, free/manual orders, approve/reject,  
+subscribe/follow, waitlist FIFO, scanner, box-office, event lifecycle,  
+burst no-oversell, reviews, cancel/refund, collab, clubs, postponement)
 - [ ] Seed users: `dev.{user,user2,user3,organizer,organizer2,admin}@outsiderr.test` (pw `DevTest#1234`)
 - [ ] `/dev-login` page = one-click sign-in in dev; hard-404s in production
 - [ ] Re-runnable: the suite resets its state at the start of each run
@@ -930,8 +898,6 @@ npx next build
 - [ ] Verify build compiles successfully
 - [ ] Verify zero type errors
 - [ ] Verify all routes generated
-
- *
 
 ## 23\. Box Office (On-Site Sales)
 
@@ -997,14 +963,14 @@ npx next build
 
 ### 26.1 Burst Booking (no oversell)
 
-- [ ] Open the same event in many tabs/browsers, hit "Book" simultaneously
+- [ ] Open the same event in many tabs/browsers, hit “Book” simultaneously
 - [ ] If tickets ≥ demand → **all** orders succeed (each becomes RESERVED), inventory decrements per order
-- [ ] If tickets < demand → orders fill capacity exactly; extras get "Not enough tickets" + waitlist option — **never** over-sold
+- [ ] If tickets < demand → orders fill capacity exactly; extras get “Not enough tickets” + waitlist option — **never** over-sold
 - [ ] Confirm `quantity_sold` never exceeds `quantity` in the DB
 
 ### 26.2 Reservation Window (Razorpay)
 
-- [ ] Reserve an order, don't pay → inventory held 15 min then released by `expire-reservations` cron
+- [ ] Reserve an order, don’t pay → inventory held 15 min then released by `expire-reservations` cron
 - [ ] Reserved seats count against availability (sold + reserved) while held
 - [ ] After expiry → seats free up, tier no longer shows sold-out
 
@@ -1041,7 +1007,7 @@ npx next build
 
 - [ ] Regular user → `/admin/*`, `/organizer/*` → blocked/redirected
 - [ ] Non-admin calls a `requireAdmin` action → rejected
-- [ ] Organizer A reads Organizer B's event/orders → blocked by RLS
+- [ ] Organizer A reads Organizer B’s event/orders → blocked by RLS
 - [ ] Unauthenticated → any protected route/action → auth error or redirect
 
 ### 27.2 RPC / Action Abuse
@@ -1072,7 +1038,7 @@ npx next build
 - [ ] Direct `PATCH events` with `status` / `organizer_id` → column privilege error; status changes only via `set_event_status` RPC / `cancel_event` / `postpone_event`
 - [ ] `GET /rest/v1/organizers` as anon → returns nothing sensitive; `organizers_public` view exposes only safe columns (no PAN/bank/KYC) and still includes `upi_id`
 - [ ] `organizers` INSERT with `kyc_status='APPROVED'`/`verified=true` → policy rejects; legit insert starts `NOT_SUBMITTED`
-- [ ] `PATCH /api/v1/organizer` with a partial body → only sent fields change (omitted fields not wiped to "" / null)
+- [ ] `PATCH /api/v1/organizer` with a partial body → only sent fields change (omitted fields not wiped to “” / null)
 - [ ] Razorpay webhook: `payment.captured` event with `x-razorpay-event-id` header → processes; unknown order id → falls back to hero-boost activation; replay → idempotent
 
 ## Test Execution Checklist
@@ -1106,18 +1072,19 @@ npx next build
 | Mobile & Navigation | 25.1–25.2 | ☐ |
 | Concurrency & Money | 26.1–26.6 | ☐ |
 | Security & Auth | 27.1–27.5 | ☐ |
+
 ### 2.5 KYC Polish & Thread
 
 - [ ] Doc uploads (PAN/bank) use a plain file picker — no cropper, accepts image + PDF
-- [ ] File >1 MB → inline red error under the upload button ("keep it under 1 MB"), nothing uploads
+- [ ] File >1 MB → inline red error under the upload button (“keep it under 1 MB”), nothing uploads
 - [ ] Page reload lands at the top of the page (no scroll-restore jump)
 - [ ] PENDING state → status banner + withdraw only (no response form until admin acts)
-- [ ] REJECTED/CLARIFICATION → "Update & resubmit" form visible, button reads "Resubmit application"
+- [ ] REJECTED/CLARIFICATION → “Update & resubmit” form visible, button reads “Resubmit application”
 - [ ] Admin KYC page: filter tabs show counts — Pending (n), Clarification Needed (n), Approved (n), Rejected (n), All (n)
-- [ ] Admin card shows PAN document + bank proof links, organizer's response note, and full communication thread with admin emails
-- [ ] Clarification message tells the organizer to respond in the dashboard (no "team member will contact you")
+- [ ] Admin card shows PAN document + bank proof links, organizer’s response note, and full communication thread with admin emails
+- [ ] Clarification message tells the organizer to respond in the dashboard (no “team member will contact you”)
 - [ ] Admin clicks Review → modal previews submission; approve/reject/clarify each show a confirm-preview with acting admin email + exact notification text before sending
 - [ ] APPROVED/REJECTED rows: Review is read-only (no action buttons)
 - [ ] Admin A clarifies → Admin B rejects next round → thread shows both with their respective emails
-- [ ] Search by organizer name → that organizer's events appear
+- [ ] Search by organizer name → that organizer’s events appear
 - [ ] Search with `%),(` or stray commas/quotes → returns results (no filter error)

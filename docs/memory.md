@@ -2,7 +2,11 @@
 
 One-sentence purpose: append-only knowledge so agents never re-derive a past fix — check here before debugging.
 Format: `Date · Area · What happened/decision → Fix/rule · Files`. Newest entries go on top.
-Last updated: 2025-09-22
+Last updated: 2026-09-26
+
+## 2026-09-26 — Cropper modal viewport clipping
+
+- **Cropper · modal was clipped inside profile/KYC forms** — `.glass` uses `backdrop-filter`, creating a containing block for nested `position: fixed`; render `ImageCropper` via `createPortal(..., document.body)`. Responsive crop area (`min(16rem, 35dvh)`) + capped, internally scrollable panel keep all controls visible/reachable on short screens. **Organizer intent · was concatenated into public `description`** — add private `organizer_intent` column; separate writes, admin KYC reads it, public view deliberately excludes it; backfill legacy description/intent separator. Files: `shared/ui/ui/image-cropper.tsx`, organizer profile/actions, admin KYC data, schema + fix_all.
 
 ## 2025-09-22 — E2E harness + production bugs surfaced
 
