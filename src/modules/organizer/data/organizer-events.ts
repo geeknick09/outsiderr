@@ -408,7 +408,7 @@ export interface UpdateEventInput {
   city?: City;
   category?: EventCategory;
   categories?: EventCategory[];
-  tiers?: { id?: string; name: string; pricePaise: number; quantity: number; perks: string[]; phaseOpensAt?: string | null; phaseClosesAt?: string | null }[];
+  tiers?: { id?: string; name: string; pricePaise: number; quantity: number; perks: string[]; tierType?: "NAMED" | "FLAT_PHASE"; phaseOrder?: number | null; phaseOpensAt?: string | null; phaseClosesAt?: string | null }[];
   photoUrls?: string[];
   contactEmail?: string | null;
   contactPhone?: string | null;
@@ -641,6 +641,8 @@ export async function updateEvent(
             quantity: tier.quantity,
             perks: tier.perks,
             sort_order: i,
+            ...(tier.tierType !== undefined ? { tier_type: tier.tierType } : {}),
+            ...(tier.phaseOrder !== undefined ? { phase_order: tier.phaseOrder } : {}),
             ...(tier.phaseOpensAt !== undefined ? { phase_opens_at: tier.phaseOpensAt } : {}),
             ...(tier.phaseClosesAt !== undefined ? { phase_closes_at: tier.phaseClosesAt } : {}),
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
