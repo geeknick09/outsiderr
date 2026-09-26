@@ -89,6 +89,7 @@ export async function isFollowingOrganizer(
 export interface EventCollaborator {
   id: string;
   organizerId: string;
+  organizerOwnerId: string | null;
   organizerName: string;
   organizerPhotoUrl: string | null;
   status: string;
@@ -114,7 +115,7 @@ export async function getEventCollaborators(eventId: string): Promise<EventColla
   const organizerIds = [...new Set(data.map((c) => c.organizer_id))];
   const { data: orgs } = await supabase
     .from("organizers_public")
-    .select("id, name, avatar_url")
+    .select("id, owner_id, name, avatar_url")
     .in("id", organizerIds);
 
   const orgMap = new Map((orgs ?? []).map((o) => [o.id, o]));
@@ -122,6 +123,7 @@ export async function getEventCollaborators(eventId: string): Promise<EventColla
   return data.map((c) => ({
     id: c.id,
     organizerId: c.organizer_id,
+    organizerOwnerId: orgMap.get(c.organizer_id)?.owner_id ?? null,
     organizerName: orgMap.get(c.organizer_id)?.name ?? "Unknown",
     organizerPhotoUrl: orgMap.get(c.organizer_id)?.avatar_url ?? null,
     status: c.status,

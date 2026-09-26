@@ -7,9 +7,11 @@ import { followOrganizerAction, unfollowOrganizerAction } from "@/modules/shared
 export function FollowOrganizerButton({
   organizerId,
   isFollowing,
+  compact = false,
 }: {
   organizerId: string;
   isFollowing: boolean;
+  compact?: boolean;
 }) {
   const [following, setFollowing] = useState(isFollowing);
   const [pending, startTransition] = useTransition();
@@ -31,7 +33,9 @@ export function FollowOrganizerButton({
       disabled={pending}
       aria-label={following ? "Unfollow organizer" : "Follow organizer"}
       title={following ? "Unfollow organizer" : "Follow organizer"}
-      className={`flex items-center gap-2 rounded-full px-5 py-2 text-sm font-bold transition-all disabled:opacity-50 ${
+      className={`flex shrink-0 items-center gap-2 rounded-full font-bold transition-all disabled:opacity-50 ${
+        compact ? "px-3 py-1.5 text-xs" : "px-5 py-2 text-sm"
+      } ${
         following
           ? "border border-zinc-200 bg-white text-zinc-600 hover:border-red-300 hover:text-red-500 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300"
           : "bg-neon-gradient text-white shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_25px_rgba(139,92,246,0.5)]"

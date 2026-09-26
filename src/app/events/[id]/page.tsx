@@ -112,6 +112,16 @@ export default async function EventDetailsPage({
   ]);
   const isOwnEvent = !!user && event.organizer.ownerId === user.id;
 
+  // Per-co-organizer stats: follower count, rating, viewer's follow state
+  const collabDetails = await Promise.all(
+    collaborators.map(async (collab) => ({
+      collab,
+      followerCount: await getOrganizerFollowerCount(collab.organizerId),
+      rating: await getOrganizerRating(collab.organizerId),
+      isFollowing: user ? await isFollowingOrganizer(user, collab.organizerId) : false,
+    })),
+  );
+
   // Build share URL dynamically from request origin, falling back to env
   const hdrs = await headers();
   const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "localhost:3000";
@@ -303,33 +313,56 @@ export default async function EventDetailsPage({
           </section>
 
           {/* Co-organizers / Collaborators */}
-          {collaborators.length > 0 ? (
+          {collabDetails.length > 0 ? (
             <section className="glass rounded-3xl p-5">
               <h2 className="mb-3 text-base font-bold">Co-Organizers</h2>
-              <div className="space-y-3">
-                {collaborators.map((collab) => (
-                  <Link
-                    key={collab.id}
-                    href={`/organizers/${collab.organizerId}`}
-                    className="flex items-center gap-3 hover:opacity-80"
-                  >
-                    {collab.organizerPhotoUrl ? (
-                      <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl">
-                        <Image
-                          src={collab.organizerPhotoUrl}
-                          alt={collab.organizerName}
-                          fill
-                          sizes="40px"
-                          className="object-cover"
-                        />
+              <div className="space-y-4">
+                {collabDetails.map(({ collab, followerCount: cFollowers, rating, isFollowing: cIsFollowing }) => (
+                  <div key={collab.id} className="flex items-center gap-3">
+                    <Link
+                      href={`/organizers/${collab.organizerId}`}
+                      className="flex min-w-0 flex-1 items-center gap-3 hover:opacity-80"
+                    >
+                      {collab.organizerPhotoUrl ? (
+                        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl">
+                          <Image
+                            src={collab.organizerPhotoUrl}
+                            alt={collab.organizerName}
+                            fill
+                            sizes="40px"
+                            className="object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-neon-gradient text-sm font-bold text-white">
+                          {collab.organizerName.slice(0, 1).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">{collab.organizerName}</span>
+                        {rating.totalReviews > 0 ? (
+                          <p className="mt-0.5 flex items-center gap-1 text-xs">
+                            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                            <span className="font-bold">{rating.averageRating.toFixed(1)}</span>
+                            <span className="text-muted">({rating.totalReviews} review{rating.totalReviews === 1 ? "" : "s"})</span>
+                          </p>
+                        ) : null}
+                        <p className="mt-0.5 text-xs text-muted">
+                          {cFollowers} follower{cFollowers === 1 ? "" : "s"}
+                        </p>
                       </div>
-                    ) : (
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-neon-gradient text-sm font-bold text-white">
-                        {collab.organizerName.slice(0, 1).toUpperCase()}
-                      </div>
-                    )}
-                    <span className="truncate text-sm font-semibold">{collab.organizerName}</span>
-                  </Link>
+                    </Link>
+                    {user && collab.organizerOwnerId !== user.id ? (
+                      <FollowOrganizerButton organizerId={collab.organizerId} isFollowing={cIsFollowing} compact />
+                    ) : !user ? (
+                      <Link
+                        href={`/login?next=/events/${event.id}`}
+                        className="inline-flex shrink-0 items-center gap-2 rounded-full border border-violet-neon/40 px-3 py-1.5 text-xs font-bold text-violet-neon transition-all hover:bg-violet-neon/10"
+                      >
+                        <UserPlus className="h-3.5 w-3.5" /> Follow
+                      </Link>
+                    ) : null}
+                  </div>
                 ))}
               </div>
             </section>
