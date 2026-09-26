@@ -13,6 +13,8 @@ export interface CreateOrganizerState {
 
 export interface UpdateOrganizerState {
   error: string | null;
+  /** Set when the save succeeded — lets the UI close the modal. */
+  saved?: boolean;
   /** Non-blocking confirmation (e.g. KYC changes sent for re-verification). */
   notice?: string | null;
 }
@@ -61,6 +63,16 @@ export async function createOrganizerAction(
   // Basic IFSC: 4 letters, 0, 6 alphanumeric
   if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(bankIfsc)) {
     return { error: "IFSC code format is invalid. Expected: ABCD0123456" };
+  }
+
+  // GST number (GSTIN) when provided — 2-digit state code + PAN + entity + Z + check char
+  if (gstNumber && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gstNumber)) {
+    return { error: "GST number format is invalid. Expected a 15-character GSTIN like 27ABCDE1234F1Z5." };
+  }
+
+  // Bank account number — digits only, 9-18 chars
+  if (!/^[0-9]{9,18}$/.test(bankAccountNumber)) {
+    return { error: "Bank account number should be 9-18 digits." };
   }
 
   let organizerId: string;
@@ -124,12 +136,12 @@ export async function updateOrganizerAction(
   const xUrl = String(formData.get("xUrl") ?? "").trim() || null;
   const facebookUrl = String(formData.get("facebookUrl") ?? "").trim() || null;
   const linkedinUrl = String(formData.get("linkedinUrl") ?? "").trim() || null;
-  const panNumber = String(formData.get("panNumber") ?? "").trim() || undefined;
+  const panNumber = String(formData.get("panNumber") ?? "").trim().toUpperCase() || undefined;
   const panName = String(formData.get("panName") ?? "").trim() || undefined;
-  const gstNumber = String(formData.get("gstNumber") ?? "").trim() || undefined;
+  const gstNumber = String(formData.get("gstNumber") ?? "").trim().toUpperCase() || undefined;
   const gstBusinessName = String(formData.get("gstBusinessName") ?? "").trim() || undefined;
   const bankAccountNumber = String(formData.get("bankAccountNumber") ?? "").trim() || undefined;
-  const bankIfsc = String(formData.get("bankIfsc") ?? "").trim() || undefined;
+  const bankIfsc = String(formData.get("bankIfsc") ?? "").trim().toUpperCase() || undefined;
   const bankAccountName = String(formData.get("bankAccountName") ?? "").trim() || undefined;
   const bankAccountType = String(formData.get("bankAccountType") ?? "").trim() || undefined;
   const panDocumentUrl = String(formData.get("panDocumentUrl") ?? "").trim() || undefined;
@@ -147,6 +159,14 @@ export async function updateOrganizerAction(
   // Validate IFSC if provided
   if (bankIfsc && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(bankIfsc)) {
     return { error: "IFSC code format is invalid. Expected: ABCD0123456" };
+  }
+  // GST number (GSTIN) — 2-digit state code + PAN + entity + Z + check char
+  if (gstNumber && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gstNumber)) {
+    return { error: "GST number format is invalid. Expected a 15-character GSTIN like 27ABCDE1234F1Z5." };
+  }
+  // Bank account number — digits only, 9-18 chars
+  if (bankAccountNumber && !/^[0-9]{9,18}$/.test(bankAccountNumber)) {
+    return { error: "Bank account number should be 9-18 digits." };
   }
 
   try {
@@ -176,6 +196,7 @@ export async function updateOrganizerAction(
     revalidatePath("/organizer");
     return {
       error: null,
+      saved: true,
       notice: result.pendingKycRequested
         ? "Saved. Your KYC/bank/payout changes are now under admin review — your verified details stay active until approved."
         : null,

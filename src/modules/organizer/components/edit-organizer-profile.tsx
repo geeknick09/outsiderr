@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { Check, X } from "lucide-react";
 
 import { updateOrganizerAction, type UpdateOrganizerState } from "../actions/organizer";
@@ -34,10 +34,43 @@ export function EditOrganizerProfile({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
+  // KYC fields — live format checks (server validates again before staging)
+  const [panNumber, setPanNumber] = useState(organizer.panNumber ?? "");
+  const [gstNumber, setGstNumber] = useState(organizer.gstNumber ?? "");
+  const [bankIfsc, setBankIfsc] = useState(organizer.bankIfsc ?? "");
+  const [bankAccountNumber, setBankAccountNumber] = useState(organizer.bankAccountNumber ?? "");
+
+  const PAN_RE = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+  const GST_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+  const IFSC_RE = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+  const ACCT_RE = /^[0-9]{9,18}$/;
+
+  const panValid = !panNumber || PAN_RE.test(panNumber);
+  const gstValid = !gstNumber || GST_RE.test(gstNumber);
+  const ifscValid = !bankIfsc || IFSC_RE.test(bankIfsc);
+  const acctValid = !bankAccountNumber || ACCT_RE.test(bankAccountNumber);
+  const kycValid = panValid && gstValid && ifscValid && acctValid;
+
   const upiValid = upiId ? validateUpiId(upiId) : true;
   const qrValue = upiValid && upiId
     ? upiIntent({ upiId, payeeName: name, amountPaise: 100, note: "Test QR" })
     : "";
+
+  // Auto-close on successful save — linger when a KYC-review notice exists so
+  // the organizer can read it; Escape also closes.
+  useEffect(() => {
+    if (!state.saved) return;
+    const t = setTimeout(onClose, state.notice ? 2000 : 500);
+    return () => clearTimeout(t);
+  }, [state, onClose]);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   async function handleAvatar(file: File | undefined) {
     if (!file) return;
@@ -227,10 +260,14 @@ export function EditOrganizerProfile({
                 <span className="text-xs text-muted">PAN number</span>
                 <input
                   name="panNumber"
-                  defaultValue={organizer.panNumber ?? ""}
+                  value={panNumber}
+                  onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
                   placeholder="ABCDE1234F"
-                  className={INPUT}
+                  className={`${INPUT} ${panNumber && !panValid ? "border-red-500" : ""}`}
                 />
+                {panNumber && !panValid ? (
+                  <p className="text-xs text-red-500">Expected format: ABCDE1234F</p>
+                ) : null}
               </label>
               <label className="block space-y-1">
                 <span className="text-xs text-muted">Name on PAN</span>
@@ -244,9 +281,14 @@ export function EditOrganizerProfile({
                 <span className="text-xs text-muted">GST number (optional)</span>
                 <input
                   name="gstNumber"
-                  defaultValue={organizer.gstNumber ?? ""}
-                  className={INPUT}
+                  value={gstNumber}
+                  onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
+                  placeholder="27ABCDE1234F1Z5"
+                  className={`${INPUT} ${gstNumber && !gstValid ? "border-red-500" : ""}`}
                 />
+                {gstNumber && !gstValid ? (
+                  <p className="text-xs text-red-500">Expected a 15-character GSTIN</p>
+                ) : null}
               </label>
               <label className="block space-y-1">
                 <span className="text-xs text-muted">GST business name (optional)</span>
@@ -260,18 +302,27 @@ export function EditOrganizerProfile({
                 <span className="text-xs text-muted">Bank account number</span>
                 <input
                   name="bankAccountNumber"
-                  defaultValue={organizer.bankAccountNumber ?? ""}
-                  className={INPUT}
+                  value={bankAccountNumber}
+                  onChange={(e) => setBankAccountNumber(e.target.value.replace(/[^0-9]/g, ""))}
+                  inputMode="numeric"
+                  className={`${INPUT} ${bankAccountNumber && !acctValid ? "border-red-500" : ""}`}
                 />
+                {bankAccountNumber && !acctValid ? (
+                  <p className="text-xs text-red-500">9-18 digits</p>
+                ) : null}
               </label>
               <label className="block space-y-1">
                 <span className="text-xs text-muted">IFSC</span>
                 <input
                   name="bankIfsc"
-                  defaultValue={organizer.bankIfsc ?? ""}
+                  value={bankIfsc}
+                  onChange={(e) => setBankIfsc(e.target.value.toUpperCase())}
                   placeholder="ABCD0123456"
-                  className={INPUT}
+                  className={`${INPUT} ${bankIfsc && !ifscValid ? "border-red-500" : ""}`}
                 />
+                {bankIfsc && !ifscValid ? (
+                  <p className="text-xs text-red-500">Expected format: ABCD0123456</p>
+                ) : null}
               </label>
               <label className="block space-y-1">
                 <span className="text-xs text-muted">Account holder name</span>
@@ -335,7 +386,7 @@ export function EditOrganizerProfile({
           <div className="flex gap-2">
             <Button
               type="submit"
-              disabled={pending || uploading || (!!upiId && !upiValid)}
+              disabled={pending || uploading || (!!upiId && !upiValid) || !kycValid}
               loading={pending}
               loadingText="Saving…"
               className="flex-1"
