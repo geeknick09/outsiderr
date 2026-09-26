@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "../auth/server";
+import { createServiceClient } from "../auth/service";
 import type { CurrentUser } from "../auth/auth";
 import type { UserProfile } from "../lib/types";
 
@@ -83,8 +84,9 @@ export async function addInterestedTags(
 ): Promise<void> {
   if (tags.length === 0) return;
 
-  const supabase = await createClient();
-  // Read current tags
+  // Service client: this is a system bookkeeping write after booking — it must
+  // not silently no-op when the caller lacks a profiles row or column grants.
+  const supabase = createServiceClient();
   const { data } = await supabase
     .from("profiles")
     .select("interested_tags")
@@ -95,8 +97,9 @@ export async function addInterestedTags(
   for (const tag of tags) existing.add(tag);
   const merged = [...existing];
 
-  await supabase
+  // Upsert creates the profiles row when the signup trigger missed it.
+  const { error } = await supabase
     .from("profiles")
-    .update({ interested_tags: merged })
-    .eq("id", user.id);
+    .upsert({ id: user.id, interested_tags: merged });
+  if (error) throw error;
 }

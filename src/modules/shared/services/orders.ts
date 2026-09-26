@@ -169,13 +169,19 @@ function validPhoneOrError(phone: string | null | undefined): string | null {
     : null;
 }
 
-/** Best-effort: persist buyer details + merge event tags into the profile. */
+/** Best-effort: persist buyer details + merge event tags/categories into the profile. */
 async function postBookingSideEffects(user: CurrentUser, input: CheckoutInput): Promise<void> {
   try {
     const event = await getEvent(input.eventId);
-    if (event?.tags?.length) await addInterestedTags(user, event.tags);
-  } catch {
-    // Non-critical
+    const tags = [
+      ...(event?.tags ?? []),
+      // Category interests share the `cat:<CATEGORY>` convention used by the
+      // profile edit form's Categories picker.
+      ...(event?.categories ?? []).map((c) => `cat:${c}`),
+    ];
+    if (tags.length) await addInterestedTags(user, tags);
+  } catch (err) {
+    console.warn("[booking] interested-tags merge failed:", err);
   }
   try {
     const buyerName = input.buyerName?.trim();
