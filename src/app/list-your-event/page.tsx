@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { BarChart3, CalendarDays, MapPin, QrCode, Rocket, ScanLine, Shield, TrendingUp, Users, Zap } from "lucide-react";
 
 import { ThemeLogo } from "@/modules/shared";
@@ -13,6 +14,14 @@ export default async function ListYourEventPage() {
   if (user) {
     const org = await getOrganizerProfile(user);
     if (org) {
+      // Applications in the pipeline go straight to /organizer, which renders
+      // the right screen per state: review panel (PENDING), respond form
+      // (CLARIFICATION_NEEDED), dashboard (APPROVED), or the max-rejection
+      // blocked page. Only REJECTED stays here — the marketing page is the
+      // agreed fresh-start entry point (Get Started → new 5-step wizard).
+      if (org.kycStatus !== "REJECTED") {
+        redirect("/organizer");
+      }
       accessState = getOrganizerAccessState({
         kycStatus: org.kycStatus,
         rejectionCount: org.rejectionCount,

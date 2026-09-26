@@ -78,6 +78,7 @@ Grouped by domain. Full detail was in `BACKLOG.md` (now superseded); test cases 
 | Automated organizer settlements | Not started | `payout_records` + admin page exist |
 | Push notifications | Not started | `push.ts` + subscribe component exist |
 | Admin analytics (DAU/MAU) | Partial | `getUserAnalytics` exists; trend UI thin |
+| **Promoter program ("Become a Promoter")** | Not started | Users promote events and help sell tickets; each sold ticket pays the promoter a commission **set by the organizer** (per event/tier). Outsiderr's platform commission always applies on ticket price regardless. Design notes: track via promoter links/codes (reuse Phase 4 campaign attribution pipeline), `promoter_commission_bps` on events/tiers, promoter application + dashboard (clicks, sales, earnings), payout via `payment_ledger`/payout pipeline, admin oversight. Sequence after Razorpay payments plan (STEP 32–36) + campaigns attribution. |
 
 ## Phase 4 — Campaigns MVP (planned)
 
