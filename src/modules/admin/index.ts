@@ -1,6 +1,7 @@
 // modules/admin — client-safe public API (admin management components).
 // Server data: ./server · Server actions: ./actions/{admin,kyc,legal-pages}
 export * from "./components/admin-event-edit-form";
+export * from "./components/admin-kyc-realtime";
 export * from "./components/admin-mobile-nav";
 export * from "./components/boost-settings-editor";
 export * from "./components/bulk-approve-panel";

@@ -57,9 +57,47 @@ export async function createOrganizerProfile(
   user: CurrentUser,
   input: CreateOrganizerInput,
 ): Promise<string> {
-  // If the user already has a profile, return its id.
+  // If the user already has a profile: approved → return its id as-is;
+  // rejected/pending → overwrite all fields (the wizard is the resubmit path).
   const existing = await getOrganizerProfile(user);
-  if (existing) return existing.id;
+  if (existing) {
+    if (existing.kycStatus === "APPROVED") return existing.id;
+    const merged = mergeOrganizerIntent(input.description ?? "", input.organizerIntent ?? "");
+    const resubmit = {
+      name: input.name,
+      bio: input.bio || null,
+      description: merged || null,
+      upi_id: input.upiId || null,
+      avatar_url: input.avatarUrl,
+      cover_url: input.coverUrl,
+      instagram_url: input.instagramUrl,
+      youtube_url: input.youtubeUrl,
+      x_url: input.xUrl,
+      facebook_url: input.facebookUrl,
+      linkedin_url: input.linkedinUrl,
+      pan_number: input.panNumber || null,
+      pan_name: input.panName || null,
+      pan_document_url: input.panDocumentUrl || null,
+      gst_number: input.gstNumber || null,
+      gst_business_name: input.gstBusinessName || null,
+      bank_account_number: input.bankAccountNumber || null,
+      bank_ifsc: input.bankIfsc || null,
+      bank_account_name: input.bankAccountName || null,
+      bank_account_type: input.bankAccountType || null,
+      bank_document_url: input.bankDocumentUrl || null,
+      kyc_submitted: !!(input.panNumber && input.bankAccountNumber),
+      kyc_status: (input.panNumber && input.bankAccountNumber) ? "PENDING" : "NOT_SUBMITTED",
+      // Fresh application clears the previous response fields (rejection_count
+      // is preserved — it feeds the block limit).
+      kyc_response_note: null,
+      kyc_response_document_url: null,
+      kyc_reviewed_at: null,
+    };
+    const supabase2 = await createClient();
+    const { error } = await supabase2.from("organizers").update(resubmit).eq("id", existing.id);
+    if (error) throw error;
+    return existing.id;
+  }
 
   const supabase = await createClient();
   // Single atomic INSERT with all fields — KYC included — so no partial profile is

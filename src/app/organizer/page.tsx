@@ -51,7 +51,7 @@ const TABS: { value: Tab; label: string }[] = [
 export default async function OrganizerPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; reapply?: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=%2Forganizer");
@@ -99,33 +99,12 @@ export default async function OrganizerPage({
       );
     }
 
-    // Rejected but under the limit → show a rejection notice first; the
-    // resubmit form only opens via ?reapply=1 (keeps them off the
-    // clarification-style screen until they choose to resubmit).
-    const params = await searchParams;
-    if (organizerProfile.kycStatus === "REJECTED" && params.reapply !== "1") {
+    // Rejected but under the limit → straight back into the 5-step KYC
+    // wizard (a fresh application overwrites the previous row).
+    if (organizerProfile.kycStatus === "REJECTED") {
       return (
-        <div className="flex min-h-[55vh] items-center py-10">
-          <div className="glass mx-auto max-w-lg rounded-3xl border border-red-300 bg-red-500/5 p-8 text-center">
-            <h1 className="text-2xl font-black tracking-tight">Application not approved</h1>
-            <p className="mt-3 text-sm text-muted">
-              Your organizer application wasn&apos;t approved{organizerProfile.kycReviewNote ? `: ${organizerProfile.kycReviewNote}` : "."}
-            </p>
-            <p className="mt-2 text-xs text-muted">
-              You can fix the issues and reapply — {rejectionLimit - (organizerProfile.rejectionCount ?? 0)} attempt{rejectionLimit - (organizerProfile.rejectionCount ?? 0) === 1 ? "" : "s"} remaining.
-            </p>
-            <div className="mt-5 flex items-center justify-center gap-3">
-              <Link
-                href="/organizer?reapply=1"
-                className="rounded-2xl bg-neon-gradient px-8 py-3 text-sm font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90"
-              >
-                Fix &amp; reapply
-              </Link>
-              <Link href="/list-your-event" className="text-xs text-muted hover:text-violet-neon">
-                Back
-              </Link>
-            </div>
-          </div>
+        <div className="py-10">
+          <BecomeOrganizerForm />
         </div>
       );
     }

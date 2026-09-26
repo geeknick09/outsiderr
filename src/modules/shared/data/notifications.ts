@@ -14,16 +14,21 @@ export interface UserNotification {
 }
 
 /**
- * List all notifications for the current user, newest first.
+ * List notifications for the current user, newest first.
+ * `limit`/`offset` drive bell pagination ("load more").
  */
-export async function listUserNotifications(user: CurrentUser): Promise<UserNotification[]> {
+export async function listUserNotifications(
+  user: CurrentUser,
+  limit = 10,
+  offset = 0,
+): Promise<UserNotification[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("event_notifications")
     .select("*")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
-    .limit(50);
+    .range(offset, offset + limit - 1);
 
   if (!data || data.length === 0) return [];
 
@@ -83,5 +88,17 @@ export async function markAllNotificationsRead(user: CurrentUser): Promise<void>
     .update({ read: true })
     .eq("user_id", user.id)
     .eq("read", false);
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Clear (delete) all notifications for the current user.
+ */
+export async function clearAllNotifications(user: CurrentUser): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("event_notifications")
+    .delete()
+    .eq("user_id", user.id);
   if (error) throw new Error(error.message);
 }

@@ -1,6 +1,7 @@
 import { listKycSubmissions, listKycCounts } from "@/modules/admin/server";
 import { getCurrentUser } from "@/modules/shared/server";
 import { KycReviewTable } from "@/modules/admin";
+import { AdminKycRealtimeRefresher } from "@/modules/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,7 @@ export default async function AdminKycPage({
 
   return (
     <div className="space-y-6">
+      <AdminKycRealtimeRefresher />
       <div>
         <h1 className="text-2xl font-black">KYC Review</h1>
         <p className="text-sm text-muted">

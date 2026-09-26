@@ -276,6 +276,15 @@ export function OrganizerKycReviewPanel({ organizer, thread = [] }: { organizer:
           </div>
         </div>
 
+        {organizer.kycReviewNote ? (
+          <div className="rounded-2xl border border-blue-200 bg-blue-500/5 p-4 text-sm text-blue-700 dark:border-blue-500/30 dark:text-blue-300">
+            <div className="mb-1 flex items-center gap-2 font-bold">
+              <MessageSquareText className="h-4 w-4" /> Team note
+            </div>
+            <p>{organizer.kycReviewNote}</p>
+          </div>
+        ) : null}
+
         <div className="space-y-2">
           <label className="block space-y-1.5">
             <span className="text-xs font-semibold uppercase tracking-wide text-muted">Reply to the verification team</span>
@@ -287,17 +296,8 @@ export function OrganizerKycReviewPanel({ organizer, thread = [] }: { organizer:
               className={INPUT}
             />
           </label>
-          <p className="text-xs text-muted">Respond to the note below — your reply and documents go straight to the review team.</p>
+          <p className="text-xs text-muted">Respond to the team note above — your reply and documents go straight to the review team.</p>
         </div>
-
-        {organizer.kycReviewNote ? (
-          <div className="rounded-2xl border border-blue-200 bg-blue-500/5 p-4 text-sm text-blue-700 dark:border-blue-500/30 dark:text-blue-300">
-            <div className="mb-1 flex items-center gap-2 font-bold">
-              <MessageSquareText className="h-4 w-4" /> Team note
-            </div>
-            <p>{organizer.kycReviewNote}</p>
-          </div>
-        ) : null}
 
         {message ? (
           <div className="rounded-2xl border border-emerald-200 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-300">

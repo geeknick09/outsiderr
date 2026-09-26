@@ -70,7 +70,8 @@
 
 - [ ] REJECTED (any count) → navbar + footer show "List Your Event", NOT "Organizer Dashboard"
 - [ ] Only APPROVED organizers see "Organizer Dashboard" in user menu
-- [ ] Rejected below limit → `/list-your-event` still shows "Get Started" (→ resubmit panel)
+- [ ] Rejected below limit → `/list-your-event` shows "Get Started" → `/organizer` renders the **fresh 5-step KYC wizard** (no notice card, no resubmit panel)
+- [ ] Resubmitting the wizard **overwrites** the existing organizer row (all fields + docs), flips `kyc_status` → PENDING, preserves `rejection_count`, notifies admins + logs thread
 - [ ] Rejection count reaches `organizer_rejection_limit` (platform_settings, default 5) → `/list-your-event` shows "application rejected N times — contact support" instead of CTAs
 - [ ] Blocked user visiting `/organizer` directly → "Organizer access blocked" panel (no wizard, no dashboard)
 - [ ] Change `organizer_rejection_limit` in platform_settings → block threshold updates accordingly

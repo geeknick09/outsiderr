@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, Check, CheckCheck } from "lucide-react";
+import { Bell, Check, CheckCheck, Trash2 } from "lucide-react";
 
-import { markAllNotificationsReadAction, markNotificationReadAction, getNotificationsAction } from "@/modules/shared/actions/notifications";
+import { markAllNotificationsReadAction, markNotificationReadAction, getNotificationsAction, clearAllNotificationsAction } from "@/modules/shared/actions/notifications";
 import { useRealtime } from "../../hooks/use-realtime";
 import type { UserNotification } from "../../data/notifications";
 import { formatDateTime } from "../../lib/format";
@@ -75,15 +75,20 @@ export function NotificationBell({
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState(initialNotifications);
   const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
+  const [hasMore, setHasMore] = useState(initialNotifications.length >= 10);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Refetch when the dropdown opens — covers realtime misses (dropped socket,
-  // backgrounded tab) so a delivered notification is never invisible.
+  // Refetch page 0 when the dropdown opens — covers realtime misses (dropped
+  // socket, backgrounded tab) so a delivered notification is never invisible.
   useEffect(() => {
     if (!open) return;
-    getNotificationsAction().then(({ notifications: fresh, unreadCount: freshCount }) => {
+    setConfirmClear(false);
+    getNotificationsAction(0).then(({ notifications: fresh, unreadCount: freshCount, hasMore: more }) => {
       setNotifications(fresh);
       setUnreadCount(freshCount);
+      setHasMore(more);
     }).catch(() => {});
   }, [open]);
 
@@ -104,7 +109,9 @@ export function NotificationBell({
         createdAt: row.created_at as string,
         eventTitle: undefined,
       };
-      setNotifications((prev) => [newNotif, ...prev].slice(0, 50));
+      setNotifications((prev) =>
+        prev.some((n) => n.id === newNotif.id) ? prev : [newNotif, ...prev],
+      );
       setUnreadCount((c) => c + 1);
     },
   });
@@ -142,6 +149,43 @@ export function NotificationBell({
     await markNotificationReadAction(id);
   }
 
+  async function handleLoadMore() {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const { notifications: page, hasMore: more } = await getNotificationsAction(notifications.length);
+      setNotifications((prev) => {
+        const seen = new Set(prev.map((n) => n.id));
+        return [...prev, ...page.filter((n) => !seen.has(n.id))];
+      });
+      setHasMore(more);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
+  async function handleClearAll() {
+    if (!confirmClear) {
+      setConfirmClear(true);
+      setTimeout(() => setConfirmClear(false), 4000);
+      return;
+    }
+    setConfirmClear(false);
+    // Optimistic clear
+    setNotifications([]);
+    setUnreadCount(0);
+    setHasMore(false);
+    const res = await clearAllNotificationsAction();
+    if (res.error) {
+      // Restore on failure
+      getNotificationsAction(0).then(({ notifications: fresh, unreadCount: freshCount, hasMore: more }) => {
+        setNotifications(fresh);
+        setUnreadCount(freshCount);
+        setHasMore(more);
+      }).catch(() => {});
+    }
+  }
+
   return (
     <div className="relative" ref={containerRef}>
       <button
@@ -172,16 +216,30 @@ export function NotificationBell({
             role="menu"
             className="glass absolute right-0 z-50 mt-2 max-h-96 w-80 overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-2 dark:border-white/10 dark:bg-zinc-900"
           >
-            {unreadCount > 0 ? (
-              <div className="flex justify-end border-b border-zinc-200 px-2 py-2 dark:border-white/10">
-                <button
-                  type="button"
-                  onClick={() => void handleMarkAllRead()}
-                  className="flex items-center gap-1 text-xs font-semibold text-violet-neon hover:underline"
-                >
-                  <CheckCheck className="h-3 w-3" />
-                  Mark all read
-                </button>
+            {(unreadCount > 0 || notifications.length > 0) ? (
+              <div className="flex items-center justify-between border-b border-zinc-200 px-2 py-2 dark:border-white/10">
+                {notifications.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleClearAll()}
+                    className={`flex items-center gap-1 text-xs font-semibold ${
+                      confirmClear ? "text-red-500" : "text-muted hover:text-red-500"
+                    }`}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    {confirmClear ? "Clear all? Click again" : "Clear all"}
+                  </button>
+                ) : <span />}
+                {unreadCount > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleMarkAllRead()}
+                    className="flex items-center gap-1 text-xs font-semibold text-violet-neon hover:underline"
+                  >
+                    <CheckCheck className="h-3 w-3" />
+                    Mark all read
+                  </button>
+                ) : <span />}
               </div>
             ) : null}
 
@@ -230,6 +288,16 @@ export function NotificationBell({
                     </div>
                   </div>
                 ))}
+                {hasMore ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleLoadMore()}
+                    disabled={loadingMore}
+                    className="mt-1 w-full rounded-xl border border-dashed border-zinc-300 py-2 text-xs font-semibold text-muted transition-colors hover:border-violet-neon hover:text-violet-neon disabled:opacity-50 dark:border-white/15"
+                  >
+                    {loadingMore ? "Loading…" : "Load more"}
+                  </button>
+                ) : null}
               </div>
             )}
           </div>

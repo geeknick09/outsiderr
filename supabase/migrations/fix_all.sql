@@ -431,6 +431,10 @@ drop policy if exists "users can mark own notifications read" on public.event_no
 create policy "users can mark own notifications read" on public.event_notifications
   for update using (user_id = auth.uid());
 
+drop policy if exists "users can clear own notifications" on public.event_notifications;
+create policy "users can clear own notifications" on public.event_notifications
+  for delete using (user_id = auth.uid());
+
 drop policy if exists "organizers can create event notifications" on public.event_notifications;
 create policy "organizers can create event notifications" on public.event_notifications
   for insert with check (
@@ -2822,6 +2826,16 @@ create policy "users can unfollow" on public.organizer_follows
 
 do $$ begin
   alter publication supabase_realtime add table public.organizer_follows;
+exception when duplicate_object then null; when duplicate_table then null;
+end $$;
+
+-- KYC realtime — admins + organizers get live status/thread updates
+do $$ begin
+  alter publication supabase_realtime add table public.organizers;
+exception when duplicate_object then null; when duplicate_table then null;
+end $$;
+do $$ begin
+  alter publication supabase_realtime add table public.kyc_messages;
 exception when duplicate_object then null; when duplicate_table then null;
 end $$;
 
