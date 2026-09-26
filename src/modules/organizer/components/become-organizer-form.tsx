@@ -130,12 +130,14 @@ export function BecomeOrganizerForm() {
     }
   }
 
-  // Per-step "next" validation
+  // Per-step "next" validation — any visible validation error or in-flight
+  // upload must block advancing (e.g. oversized PAN/bank doc, bad avatar upload).
   function canAdvance(): boolean {
-    if (step === 0) return !!orgName.trim();
-    if (step === 1) return !!panNumber && panValid && !!panName;
+    if (uploadError) return false;
+    if (step === 0) return !!orgName.trim() && !uploading;
+    if (step === 1) return !!panNumber && panValid && !!panName && !panDocError && !uploadingPan;
     if (step === 2) return true; // GST is optional
-    if (step === 3) return !!upiId && upiValid && !!bankAccountNumber && !!bankIfsc && ifscValid && !!bankAccountName;
+    if (step === 3) return !!upiId && upiValid && !!bankAccountNumber && !!bankIfsc && ifscValid && !!bankAccountName && !bankDocError && !uploadingBank;
     return agreed;
   }
 

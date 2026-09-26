@@ -1,5 +1,7 @@
 # Razorpay Payment Integration — Complete Migration Plan
 
+> **SUPERSEDED (2026-09-26)** — the approved, current plan is [`docs/razorpay-payments-plan.md`](../razorpay-payments-plan.md). This file is kept for history only.
+
 Replace all manual UPI/UTR payment verification with Razorpay Checkout for paid ticket bookings and Front Row/Boost purchases, including webhook-driven confirmation, inventory reservation, invoice generation, organizer revenue reporting, and admin reconciliation.
 
 ---

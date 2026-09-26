@@ -51,7 +51,7 @@ const TABS: { value: Tab; label: string }[] = [
 export default async function OrganizerPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; reapply?: string }>;
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=%2Forganizer");
@@ -79,11 +79,52 @@ export default async function OrganizerPage({
     if (accessState.blocked) {
       return (
         <div className="py-10">
-          <div className="glass rounded-3xl border border-red-300 bg-red-500/5 p-8 text-center">
-            <h1 className="text-2xl font-black tracking-tight">Organizer access blocked</h1>
+          <div className="glass mx-auto max-w-lg rounded-3xl border border-red-300 bg-red-500/5 p-8 text-center">
+            <h1 className="text-2xl font-black tracking-tight">Organizer application rejected</h1>
             <p className="mt-3 text-sm text-muted">
-              This profile has reached the maximum {rejectionLimit} rejection limit and cannot reapply as an organizer.
+              Your organizer application was rejected {organizerProfile.rejectionCount ?? 0} time{(organizerProfile.rejectionCount ?? 0) === 1 ? "" : "s"} — the maximum allowed
+              ({rejectionLimit}) — so this account can&apos;t apply again.
             </p>
+            <p className="mt-2 text-sm text-muted">
+              If you think this is a mistake, please contact Outsiderr support and we&apos;ll take another look.
+            </p>
+            <Link
+              href="/contact"
+              className="mt-5 inline-block rounded-2xl border border-red-300 px-8 py-3 text-sm font-bold text-red-500 transition-colors hover:bg-red-500/10"
+            >
+              Contact support
+            </Link>
+          </div>
+        </div>
+      );
+    }
+
+    // Rejected but under the limit → show a rejection notice first; the
+    // resubmit form only opens via ?reapply=1 (keeps them off the
+    // clarification-style screen until they choose to resubmit).
+    const params = await searchParams;
+    if (organizerProfile.kycStatus === "REJECTED" && params.reapply !== "1") {
+      return (
+        <div className="py-10">
+          <div className="glass mx-auto max-w-lg rounded-3xl border border-red-300 bg-red-500/5 p-8 text-center">
+            <h1 className="text-2xl font-black tracking-tight">Application not approved</h1>
+            <p className="mt-3 text-sm text-muted">
+              Your organizer application wasn&apos;t approved{organizerProfile.kycReviewNote ? `: ${organizerProfile.kycReviewNote}` : "."}
+            </p>
+            <p className="mt-2 text-xs text-muted">
+              You can fix the issues and reapply — {rejectionLimit - (organizerProfile.rejectionCount ?? 0)} attempt{rejectionLimit - (organizerProfile.rejectionCount ?? 0) === 1 ? "" : "s"} remaining.
+            </p>
+            <div className="mt-5 flex items-center justify-center gap-3">
+              <Link
+                href="/organizer?reapply=1"
+                className="rounded-2xl bg-neon-gradient px-8 py-3 text-sm font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90"
+              >
+                Fix &amp; reapply
+              </Link>
+              <Link href="/list-your-event" className="text-xs text-muted hover:text-violet-neon">
+                Back
+              </Link>
+            </div>
           </div>
         </div>
       );

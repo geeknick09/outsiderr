@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BarChart3, CalendarDays, MapPin, QrCode, Rocket, ScanLine, Shield, TrendingUp, Users, XCircle, Zap } from "lucide-react";
+import { BarChart3, CalendarDays, MapPin, QrCode, Rocket, ScanLine, Shield, TrendingUp, Users, Zap } from "lucide-react";
 
 import { ThemeLogo } from "@/modules/shared";
 import { getCurrentUser, getOrganizerProfile, getSettingInt } from "@/modules/shared/server";
@@ -41,40 +41,24 @@ export default async function ListYourEventPage() {
             outside the mainstream, it belongs here. Reach the communities that matter.
           </p>
           {blocked ? (
-            <div className="mx-auto mt-10 max-w-2xl rounded-3xl border border-red-300 bg-red-500/5 p-6">
-              <div className="flex items-start gap-3 text-left">
-                <XCircle className="mt-0.5 h-6 w-6 shrink-0 text-red-500" />
-                <div>
-                  <h2 className="text-lg font-black tracking-tight">Organizer application blocked</h2>
-                  <p className="mt-1 text-sm text-muted">
-                    Your organizer application was rejected {accessState!.rejectionCount} time{accessState!.rejectionCount === 1 ? "" : "s"} (limit: {accessState!.rejectionLimit}), so you can&apos;t apply again from this account.
-                    If you believe this is a mistake, please contact support and our team will review your case.
-                  </p>
-                  <Link
-                    href="/contact"
-                    className="mt-4 inline-block rounded-2xl border border-red-300 px-5 py-2.5 text-sm font-bold text-red-500 transition-colors hover:bg-red-500/10"
-                  >
-                    Contact support
-                  </Link>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Link
-                href="/organizer"
-                className="w-full rounded-2xl bg-neon-gradient px-8 py-4 text-center text-base font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90 sm:w-auto"
-              >
-                {isApproved ? "Go to Organizer Dashboard" : "Get Started — It's Free"}
-              </Link>
-              <Link
-                href="/"
-                className="w-full rounded-2xl border border-zinc-200 px-8 py-4 text-center text-base font-semibold text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10 sm:w-auto"
-              >
-                Explore Events
-              </Link>
-            </div>
-          )}
+            <p className="mt-8 text-sm font-semibold text-red-500">
+              Your organizer application reached the rejection limit — get started to see your options.
+            </p>
+          ) : null}
+          <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Link
+              href="/organizer"
+              className="w-full rounded-2xl bg-neon-gradient px-8 py-4 text-center text-base font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90 sm:w-auto"
+            >
+              {isApproved ? "Go to Organizer Dashboard" : "Get Started — It's Free"}
+            </Link>
+            <Link
+              href="/"
+              className="w-full rounded-2xl border border-zinc-200 px-8 py-4 text-center text-base font-semibold text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10 sm:w-auto"
+            >
+              Explore Events
+            </Link>
+          </div>
           <p className="mt-4 text-xs text-muted">
             Free listing. We only charge a negligible fraction — and only when you actually sell.
           </p>
@@ -250,25 +234,14 @@ export default async function ListYourEventPage() {
             Ready to list your event?
           </h2>
           <p className="mt-4 text-base text-muted">
-            {blocked
-              ? "Your account can no longer apply as an organizer. Reach out to support if you'd like us to take another look."
-              : "Join the community of organizers bringing underground culture to the surface. It's free to get started."}
+            Join the community of organizers bringing underground culture to the surface. It&apos;s free to get started.
           </p>
-          {blocked ? (
-            <Link
-              href="/contact"
-              className="mt-8 inline-block rounded-2xl border border-red-300 px-10 py-4 text-base font-bold text-red-500 transition-colors hover:bg-red-500/10"
-            >
-              Contact support
-            </Link>
-          ) : (
-            <Link
-              href="/organizer"
-              className="mt-8 inline-block rounded-2xl bg-neon-gradient px-10 py-4 text-base font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90"
-            >
-              {isApproved ? "Go to Organizer Dashboard" : "Get Started"}
-            </Link>
-          )}
+          <Link
+            href="/organizer"
+            className="mt-8 inline-block rounded-2xl bg-neon-gradient px-10 py-4 text-base font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90"
+          >
+            {isApproved ? "Go to Organizer Dashboard" : "Get Started"}
+          </Link>
         </div>
       </section>
 
