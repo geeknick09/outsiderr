@@ -35,6 +35,7 @@ const FALLBACKS: Record<string, unknown> = {
   commission_tier2_bps: 700,
   commission_tier3_bps: 500,
   organizer_rejection_limit: 5,
+  draft_retention_days: 60,
 };
 
 // ---------------------------------------------------------------- helpers
@@ -194,6 +195,12 @@ export async function getMaxPopularPerCity(): Promise<number> {
 export async function getMaxSponsoredPerCity(): Promise<number> {
   const val = await getSettingInt("max_sponsored_per_city");
   return val || 4;
+}
+
+/** Days after creation before an unpublished draft event (row + media) is purged. */
+export async function getDraftRetentionDays(): Promise<number> {
+  const val = await getSettingInt("draft_retention_days");
+  return val >= 1 ? val : 60;
 }
 
 export async function getTaglineHeader(): Promise<string> {

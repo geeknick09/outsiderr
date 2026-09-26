@@ -354,3 +354,78 @@ export async function cleanupExpiredTeasers(): Promise<number> {
 
   return cleaned;
 }
+
+/**
+ * Permanently delete draft events older than `draft_retention_days` (default
+ * 60, admin-configurable) measured from created_at — organizers were warned at
+ * save time. Removes the row (children cascade) AND every uploaded media file
+ * (card/banner posters, teaser video, gallery photos) that lives in our bucket.
+ */
+export async function purgeOldDraftEvents(): Promise<{ purged: number; filesRemoved: number }> {
+  const supabase = createServiceClient();
+
+  const { data: setting } = await supabase
+    .from("platform_settings")
+    .select("value")
+    .eq("key", "draft_retention_days")
+    .maybeSingle();
+  const parsed = Number(setting?.value);
+  const days = Number.isFinite(parsed) && parsed >= 1 ? parsed : 60;
+  const cutoff = new Date(Date.now() - days * 86_400_000).toISOString();
+
+  const { data: drafts, error } = await supabase
+    .from("events")
+    .select("id, title, card_poster_url, banner_poster_url, teaser_video_url, photo_urls")
+    .eq("status", "DRAFT")
+    .lt("created_at", cutoff);
+
+  if (error || !drafts || drafts.length === 0) {
+    if (error) console.error("[purge-drafts] fetch failed:", error.message);
+    return { purged: 0, filesRemoved: 0 };
+  }
+
+  // Collect every storage path referenced by the doomed rows
+  const marker = `/object/public/${STORAGE_BUCKET}/`;
+  const paths: string[] = [];
+  for (const ev of drafts as {
+    id: string;
+    card_poster_url: string | null;
+    banner_poster_url: string | null;
+    teaser_video_url: string | null;
+    photo_urls: string[] | null;
+  }[]) {
+    for (const url of [ev.card_poster_url, ev.banner_poster_url, ev.teaser_video_url, ...(ev.photo_urls ?? [])]) {
+      if (url && url.includes(marker)) {
+        paths.push(url.substring(url.indexOf(marker) + marker.length));
+      }
+    }
+  }
+
+  let filesRemoved = 0;
+  if (paths.length > 0) {
+    // Storage remove accepts up to 1000 paths per call — chunk defensively
+    for (let i = 0; i < paths.length; i += 200) {
+      const { error: rmErr } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .remove(paths.slice(i, i + 200));
+      if (rmErr) console.error("[purge-drafts] storage remove:", rmErr.message);
+      else filesRemoved += Math.min(200, paths.length - i);
+    }
+  }
+
+  const { error: delErr, count } = await supabase
+    .from("events")
+    .delete({ count: "exact" })
+    .in("id", drafts.map((d) => d.id));
+
+  if (delErr) {
+    console.error("[purge-drafts] delete failed:", delErr.message);
+    return { purged: 0, filesRemoved };
+  }
+
+  console.info(
+    `[purge-drafts] removed ${count ?? drafts.length} drafts (> ${days}d) + ${filesRemoved} files`,
+    drafts.map((d) => d.id),
+  );
+  return { purged: count ?? drafts.length, filesRemoved };
+}

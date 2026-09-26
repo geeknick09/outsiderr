@@ -27,7 +27,7 @@ import { getOrganizerPastEventsForLinking } from "@/modules/shared/server";
 import { listClubMembers, listMyClubs } from "@/modules/shared/server";
 import { getOrganizerFollowerCount } from "@/modules/shared/server";
 import { listPendingOrders, listOrdersForOrganizerEvents } from "@/modules/shared/server";
-import { getTermsVersion, getDoorStaffPricing, getDoorStaffMax, getDoorStaffAvailable } from "@/modules/shared/server";
+import { getTermsVersion, getDoorStaffPricing, getDoorStaffMax, getDoorStaffAvailable, getDraftRetentionDays } from "@/modules/shared/server";
 
 // Lazy load EventForm — it pulls in Leaflet (~140kB) via MapPicker
 const EventForm = lazy(() =>
@@ -135,7 +135,7 @@ export default async function OrganizerPage({
   const rawTab = (await searchParams).tab as Tab | undefined;
   const tab: Tab = TABS.some((t) => t.value === rawTab) ? (rawTab as Tab) : "events";
 
-  const [events, pending, termsVersion, doorStaffPricing, doorStaffMax, doorStaffAvailable, pastEventsForLinking, collabInvites, collabEvents] = await Promise.all([
+  const [events, pending, termsVersion, doorStaffPricing, doorStaffMax, doorStaffAvailable, pastEventsForLinking, collabInvites, collabEvents, draftRetentionDays] = await Promise.all([
     listOrganizerEvents(user),
     listPendingOrders(),
     getTermsVersion(),
@@ -145,6 +145,7 @@ export default async function OrganizerPage({
     getOrganizerPastEventsForLinking(organizerProfile.id),
     getPendingCollaborationInvites(user),
     listCollaboratedEvents(user),
+    getDraftRetentionDays(),
   ]);
 
   // Merge owned events + collaborated events (dedup by id, owned takes precedence)
@@ -232,6 +233,7 @@ export default async function OrganizerPage({
             doorStaffPricing={doorStaffPricing}
             doorStaffMax={Math.min(doorStaffMax, doorStaffAvailable)}
             pastEvents={pastEventsForLinking}
+            draftRetentionDays={draftRetentionDays}
           />
         </Suspense>
       ) : tab === "verify" ? (

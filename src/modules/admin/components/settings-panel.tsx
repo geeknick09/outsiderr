@@ -72,6 +72,7 @@ const SECTIONS: SectionDef[] = [
       { key: "max_popular_per_city", label: "Max popular events per city", type: "number", min: 1 },
       { key: "max_sponsored_per_city", label: "Max sponsored events per city", type: "number", min: 1 },
       { key: "organizer_rejection_limit", label: "Organizer rejection limit", type: "number", min: 1, help: "Once a profile reaches this many rejections, organizer access is blocked (default 5)" },
+      { key: "draft_retention_days", label: "Draft retention (days)", type: "number", min: 1, help: "Draft events older than this are permanently deleted (data + media) — default 60" },
       { key: "default_commission_bps", label: "Default commission (bps)", type: "number", min: 0, help: "1000 = 10%" },
       { key: "default_convenience_fee_bps", label: "Default convenience fee (bps)", type: "number", min: 0, help: "200 = 2%" },
     ],

@@ -229,7 +229,10 @@ export async function createEvent(
     throw new Error(`Database error: ${error.message} (code: ${error.code ?? "unknown"})`);
   }
 
-  const { error: tierError } = await supabase.from("ticket_tiers").insert(
+  // Drafts can save with zero tiers — nothing is required until publish
+  const { error: tierError } = input.tiers.length === 0
+    ? { error: null }
+    : await supabase.from("ticket_tiers").insert(
     input.tiers.map((tier, index) => ({
       event_id: event.id,
       name: tier.name,
@@ -399,7 +402,8 @@ export interface UpdateEventInput {
   longitude: number | null;
   googleMapsLink: string | null;
   startsAt: string;
-  endsAt: string | null;
+  /** undefined = leave unchanged (drafts may not have one yet) */
+  endsAt?: string | null;
   tags: string[];
   city?: City;
   category?: EventCategory;
@@ -421,6 +425,7 @@ export interface UpdateEventInput {
   bannerPosterUrl?: string | null;
   teaserVideoUrl?: string | null;
   linkedPastEventIds?: string[];
+  pricingMode?: PricingMode;
 }
 
 
@@ -437,12 +442,13 @@ export async function updateEvent(
   // Fetch current event to detect changes for notifications
   const { data: currentEvent } = await supabase
     .from("events")
-    .select("venue_name, city, starts_at, ends_at")
+    .select("venue_name, city, starts_at, ends_at, status")
     .eq("id", eventId)
     .maybeSingle();
 
-  // Server-side 2-hour edit lock — prevents forged requests from bypassing the UI
-  if (currentEvent?.starts_at) {
+  // Server-side 2-hour edit lock — prevents forged requests from bypassing the UI.
+  // Drafts are exempt: they never went live, so nobody depends on their schedule.
+  if (currentEvent?.starts_at && currentEvent.status !== "DRAFT") {
     const startMs = new Date(currentEvent.starts_at).getTime();
     const nowMs = Date.now();
     if (startMs - nowMs <= 2 * 60 * 60 * 1000) {
@@ -460,8 +466,8 @@ export async function updateEvent(
       latitude: input.latitude,
       longitude: input.longitude,
       google_maps_link: input.googleMapsLink,
-      starts_at: input.startsAt,
-      ends_at: input.endsAt,
+      ...(input.startsAt ? { starts_at: input.startsAt } : {}),
+      ...(input.endsAt !== undefined ? { ends_at: input.endsAt } : {}),
       tags: input.tags,
       ...(input.city !== undefined ? { city: input.city } : {}),
       ...(input.category !== undefined ? { category: input.category } : {}),
@@ -482,6 +488,7 @@ export async function updateEvent(
       ...(input.bannerPosterUrl !== undefined ? { banner_poster_url: input.bannerPosterUrl } : {}),
       ...(input.teaserVideoUrl !== undefined ? { teaser_video_url: input.teaserVideoUrl } : {}),
       ...(input.linkedPastEventIds !== undefined ? { linked_past_event_ids: input.linkedPastEventIds } : {}),
+      ...(input.pricingMode !== undefined ? { pricing_mode: input.pricingMode } : {}),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
     .eq("id", eventId)

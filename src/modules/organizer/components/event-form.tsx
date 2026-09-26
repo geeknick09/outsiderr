@@ -1,8 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Suspense, useActionState, useEffect, useState } from "react";
-import { MapPin, Plus, ShieldCheck, Trash2, Upload, Users } from "lucide-react";
+import { Suspense, useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { MapPin, Plus, ShieldCheck, Trash2, Upload, Users, X } from "lucide-react";
 
 import { createEventAction, type CreateEventState } from "../actions/events";
 import { Button } from "@/modules/shared";
@@ -10,11 +10,12 @@ import { PhoneInput } from "@/modules/shared";
 import { GalleryUploader } from "./gallery-uploader";
 import { PosterGuidelines } from "./poster-guidelines";
 import { CATEGORIES, CITIES, PREDEFINED_EVENT_TAGS } from "@/modules/shared";
-import { nowISTInput } from "@/modules/shared";
+import { nowISTInput, utcToISTInput } from "@/modules/shared";
 import { uploadPublicFile } from "@/modules/shared";
 import { ImageCropper } from "@/modules/shared";
 import { isGoogleMapsLink } from "@/modules/shared";
 import { cn } from "@/modules/shared";
+import type { EventDetail } from "@/modules/shared";
 
 // Lazy load MapPicker with ssr: false — Leaflet requires `window`
 const MapPicker = dynamic(
@@ -116,20 +117,78 @@ export function EventForm({
   doorStaffPricing = { "1": 1500, "2": 2500, "3": 3500, "4": 5000, "5": 6500 },
   doorStaffMax = 5,
   pastEvents = [],
+  draftEvent,
+  draftRetentionDays = 60,
 }: {
   organizerName?: string;
   termsVersion?: string;
   doorStaffPricing?: Record<string, number>;
   doorStaffMax?: number;
   pastEvents?: Array<{ id: string; title: string; startsAt: string }>;
+  /** Set when editing an existing draft — pre-fills every field. */
+  draftEvent?: EventDetail;
+  /** Admin-configured purge window for drafts (shown in the save confirmation). */
+  draftRetentionDays?: number;
 }) {
   const [state, formAction, pending] = useActionState<CreateEventState, FormData>(
     createEventAction,
     { error: null },
   );
 
-  // Restore values from a failed submit
-  const sv = state.values;
+  // Map a draft row into the same shape the form restores after a failed submit
+  const initialValues = useMemo<CreateEventState["values"] | undefined>(() => {
+    if (!draftEvent) return undefined;
+    const namedTiers = draftEvent.tiers.filter((t) => t.tierType !== "FLAT_PHASE");
+    const flatTier = namedTiers[0];
+    return {
+      title: draftEvent.title,
+      category: draftEvent.category,
+      categories: draftEvent.categories ?? [draftEvent.category],
+      city: draftEvent.city,
+      startsAt: utcToISTInput(draftEvent.startsAt),
+      endsAt: draftEvent.endsAt ? utcToISTInput(draftEvent.endsAt) : "",
+      venueName: draftEvent.venueName === "TBA" ? "" : draftEvent.venueName,
+      venueAddress: draftEvent.venueAddress ?? "",
+      latitude: draftEvent.latitude != null ? String(draftEvent.latitude) : "",
+      longitude: draftEvent.longitude != null ? String(draftEvent.longitude) : "",
+      googleMapsLink: draftEvent.googleMapsLink ?? "",
+      description: draftEvent.description,
+      thingsToKnow: draftEvent.thingsToKnow.join("\n"),
+      terms: draftEvent.terms.join("\n"),
+      tags: draftEvent.tags.join(","),
+      pricingMode: draftEvent.pricingMode,
+      freeQuantity: draftEvent.pricingMode === "FREE" && flatTier ? String(flatTier.quantity) : "",
+      flatPrice: draftEvent.pricingMode === "FLAT" && flatTier ? String(flatTier.pricePaise / 100) : "",
+      flatQuantity: draftEvent.pricingMode === "FLAT" && flatTier ? String(flatTier.quantity) : "",
+      tiers: namedTiers.map((t) => ({
+        name: t.name,
+        price: String(t.pricePaise / 100),
+        quantity: String(t.quantity),
+        perks: t.perks.join(","),
+      })),
+      feePayer: draftEvent.feePayer,
+      needsDoorStaff: draftEvent.needsDoorStaff,
+      waitlistEnabled: draftEvent.waitlistEnabled,
+      doorStaffTerms: false,
+      doorStaffCount: "1",
+      organizerTerms: false,
+      cardPosterUrl: draftEvent.cardPosterUrl ?? "",
+      bannerPosterUrl: draftEvent.bannerPosterUrl ?? "",
+      teaserVideoUrl: draftEvent.teaserVideoUrl ?? "",
+      photoUrls: draftEvent.photoUrls ?? [],
+      contactEmail: draftEvent.contactEmail ?? "",
+      contactPhone: draftEvent.contactPhone ?? "",
+      instagramUrl: draftEvent.instagramUrl ?? "",
+      youtubeUrl: draftEvent.youtubeUrl ?? "",
+      xUrl: draftEvent.xUrl ?? "",
+      facebookUrl: draftEvent.facebookUrl ?? "",
+      linkedinUrl: draftEvent.linkedinUrl ?? "",
+      linkedPastEventIds: draftEvent.linkedPastEventIds ?? [],
+    };
+  }, [draftEvent]);
+
+  // Restore values from a failed submit, else prefill from the draft
+  const sv = state.values ?? initialValues;
   const [pricingMode, setPricingMode] = useState<PricingMode>(
     (sv?.pricingMode as PricingMode) ?? "PAID",
   );
@@ -137,7 +196,9 @@ export function EventForm({
   const [startsAt, setStartsAt] = useState(sv?.startsAt ?? "");
   const [endsAt, setEndsAt] = useState(sv?.endsAt ?? "");
   const [dateError, setDateError] = useState<string | null>(null);
-  const [venueMode, setVenueMode] = useState<"NOW" | "TBA">("NOW");
+  const [venueMode, setVenueMode] = useState<"NOW" | "TBA">(
+    draftEvent?.venueName === "TBA" ? "TBA" : "NOW",
+  );
   const [mapsLink, setMapsLink] = useState(sv?.googleMapsLink ?? "");
   const [mapsError, setMapsError] = useState<string | null>(null);
   const [instagramUrl, setInstagramUrl] = useState(sv?.instagramUrl ?? "");
@@ -161,10 +222,36 @@ export function EventForm({
       ? sv.tiers.map((t) => ({ ...t, key: crypto.randomUUID() }))
       : [emptyTier()],
   );
-  const [phases, setPhases] = useState<PhaseRow[]>([
-    emptyPhase(),
-    emptyPhase(),
-  ]);
+  const [phases, setPhases] = useState<PhaseRow[]>(
+    draftEvent
+      ? draftEvent.tiers
+          .filter((t) => t.tierType === "FLAT_PHASE")
+          .map((t) => ({
+            key: crypto.randomUUID(),
+            name: t.name,
+            price: String(t.pricePaise / 100),
+            quantity: String(t.quantity),
+            opensAt: t.phaseOpensAt ? utcToISTInput(t.phaseOpensAt) : "",
+            closesAt: t.phaseClosesAt ? utcToISTInput(t.phaseClosesAt) : "",
+          }))
+      : [emptyPhase(), emptyPhase()],
+  );
+
+  // Draft save → confirm retention notice, then submit programmatically so
+  // native `required` validation never blocks an incomplete draft.
+  const [showDraftConfirm, setShowDraftConfirm] = useState(false);
+  const [, startDraftTransition] = useTransition();
+  const formRef = useRef<HTMLFormElement>(null);
+
+  function saveAsDraft() {
+    const form = formRef.current;
+    if (!form) return;
+    const fd = new FormData(form);
+    fd.set("saveMode", "draft");
+    if (draftEvent) fd.set("draftEventId", draftEvent.id);
+    setShowDraftConfirm(false);
+    startDraftTransition(() => formAction(fd));
+  }
 
   // "Now" in IST datetime-local format (YYYY-MM-DDTHH:mm) for min attributes
   // Use state + useEffect to avoid hydration mismatch (server vs client time difference)
@@ -218,9 +305,17 @@ export function EventForm({
   }
 
   return (
-    <form action={formAction} className="space-y-6">
+    <form ref={formRef} action={formAction} className="space-y-6">
       {/* Hidden pricing mode */}
       <input type="hidden" name="pricingMode" value={pricingMode} />
+      {draftEvent ? <input type="hidden" name="draftEventId" value={draftEvent.id} /> : null}
+
+      {draftEvent ? (
+        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-700 dark:text-amber-300">
+          You&apos;re editing a <strong>draft</strong> — it isn&apos;t visible to anyone. Drafts are
+          permanently deleted {draftRetentionDays} days after they were first saved if not published.
+        </div>
+      ) : null}
 
       <section className="glass space-y-4 rounded-3xl p-5">
         <h2 className="text-base font-bold">Event details</h2>
@@ -1101,25 +1196,65 @@ export function EventForm({
           Publish event
         </Button>
         <Button
-          type="submit"
+          type="button"
           variant="secondary"
           size="lg"
           disabled={pending}
           loading={pending}
           loadingText="Saving…"
-          formAction={undefined}
-          onClick={(e) => {
-            // Set the hidden saveMode field to "draft" before submitting
-            const form = e.currentTarget.closest("form");
-            if (form) {
-              const hidden = form.querySelector('input[name="saveMode"]') as HTMLInputElement | null;
-              if (hidden) hidden.value = "draft";
-            }
-          }}
+          onClick={() => setShowDraftConfirm(true)}
         >
           Save as draft
         </Button>
       </div>
+
+      {/* Draft-save confirmation — warns about the auto-delete window */}
+      {showDraftConfirm ? (
+        <div
+          className="fixed inset-0 z-[120] flex items-end justify-center bg-black/70 p-4 backdrop-blur-sm sm:items-center"
+          onClick={() => setShowDraftConfirm(false)}
+        >
+          <div
+            className="glass w-full max-w-md rounded-3xl p-6"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="text-lg font-bold">Save as draft?</h3>
+              <button
+                type="button"
+                onClick={() => setShowDraftConfirm(false)}
+                className="rounded-full p-1 text-muted hover:text-violet-neon"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="mt-3 text-sm leading-relaxed text-muted">
+              Drafts aren&apos;t visible publicly and don&apos;t need to be complete.{" "}
+              <strong className="text-zinc-900 dark:text-white">
+                Drafts older than {draftRetentionDays} days are permanently deleted
+              </strong>{" "}
+              — the event and all its uploaded files (posters, video, photos) — to keep storage clean.
+              Publish it before then to keep it.
+            </p>
+            <div className="mt-5 flex gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                className="flex-1"
+                onClick={() => setShowDraftConfirm(false)}
+              >
+                Keep editing
+              </Button>
+              <Button type="button" className="flex-1" onClick={saveAsDraft}>
+                Save draft
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </form>
   );
 }

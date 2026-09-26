@@ -498,6 +498,7 @@ const SETTING_MINIMUMS: Record<string, number> = {
   max_popular_per_city: 1,
   max_sponsored_per_city: 1,
   organizer_rejection_limit: 1,
+  draft_retention_days: 1,
   default_commission_bps: 0,
   default_convenience_fee_bps: 0,
 };

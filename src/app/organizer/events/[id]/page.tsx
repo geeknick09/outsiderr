@@ -22,7 +22,7 @@ import { WaitlistPanel } from "@/modules/organizer";
 import { WalkinCheckinForm } from "@/modules/scanner";
 import { Badge } from "@/modules/shared";
 import { Button } from "@/modules/shared";
-import { SubmitButton } from "@/modules/shared";
+
 import { getCurrentUser } from "@/modules/shared/server";
 import { getEvent, getOrganizerPastEventsForLinking } from "@/modules/shared/server";
 import { getDoorStaffOrder } from "@/modules/shared/server";
@@ -33,11 +33,18 @@ import { getOrganizerEventAnalytics } from "@/modules/analytics/server";
 import { getEventCollaboratorsForOwner, getEventAccessLevel, canViewAnalytics, canScanTickets, canEditEvent, canManageOrders } from "@/modules/shared/server";
 import { listEventOrders, listEventTickets } from "@/modules/shared/server";
 import { expireWaitlistOffers, listEventWaitlist } from "@/modules/shared/server";
-import { publishEventAction } from "@/modules/organizer/actions/events";
+
 import { getCancellationChargePercent, getPostponementChargePercent, getDoorStaffPricing, getDoorStaffAvailable, getHeroBoostPrice, getHeroBoostDurationDays } from "@/modules/shared/server";
 import { getHeroBoostForEvent } from "@/modules/shared/server";
 import { formatDateRange, isPast } from "@/modules/shared";
 import { CATEGORY_LABELS } from "@/modules/shared";
+import { getDraftRetentionDays } from "@/modules/shared/server";
+import { lazy, Suspense } from "react";
+
+// Lazy — EventForm pulls in Leaflet via MapPicker
+const EventForm = lazy(() =>
+  import("@/modules/organizer").then((m) => ({ default: m.EventForm })),
+);
 
 export const dynamic = "force-dynamic";
 
@@ -100,6 +107,50 @@ export default async function ManageEventPage({
   const canScan = canScanTickets(accessLevel);
   const canEdit = canEditEvent(accessLevel);
   const canOrders = canManageOrders(accessLevel);
+
+  // Drafts get a dedicated editor (create-form prefilled) — never the live-event
+  // manage UI (walk-in registration, orders, analytics don't apply to drafts).
+  if (event.status === "DRAFT") {
+    const [pastEventsForLinking, draftRetentionDays] = await Promise.all([
+      getOrganizerPastEventsForLinking(event.organizer.id, id),
+      getDraftRetentionDays(),
+    ]);
+    return (
+      <div className="space-y-6 py-6">
+        <div className="flex items-center gap-3">
+          <Link href="/organizer" className="text-muted hover:text-violet-neon">
+            <ChevronLeft className="h-5 w-5" />
+          </Link>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-2xl font-black tracking-tight">{event.title}</h1>
+            <p className="text-sm text-muted">Draft — finish setup or keep editing</p>
+          </div>
+          <Badge tone="warning" className="bg-black/60 text-amber-300">Draft</Badge>
+        </div>
+        {canEdit ? (
+          <Suspense
+            fallback={
+              <div className="glass flex h-96 items-center justify-center rounded-3xl">
+                <p className="text-sm text-muted">Loading editor…</p>
+              </div>
+            }
+          >
+            <EventForm
+              draftEvent={event}
+              draftRetentionDays={draftRetentionDays}
+              organizerName={event.organizer.name}
+              pastEvents={pastEventsForLinking}
+            />
+          </Suspense>
+        ) : (
+          <div className="glass rounded-3xl p-5 text-sm text-muted">
+            This event is still a draft. Only the organizer (or a co-organizer with edit
+            access) can edit and publish it.
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const pastEventsForLinking = await getOrganizerPastEventsForLinking(event.organizer.id, id);
 
@@ -208,24 +259,10 @@ export default async function ManageEventPage({
             </Button>
           </Link>
         ) : null}
-        {event.status === "DRAFT" && !eventPast && canEdit ? (
-          <form>
-            <SubmitButton
-              formAction={async () => {
-                "use server";
-                await publishEventAction(event.id);
-              }}
-              loadingText="Publishing…"
-              className="rounded-2xl bg-neon-gradient px-5 py-2.5 text-sm font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90"
-            >
-              Publish event
-            </SubmitButton>
-          </form>
-        ) : null}
       </div>
 
-      {/* Analytics — hidden for draft events (no data yet) or view-only collaborators */}
-      {event.status !== "DRAFT" && canView && analytics ? (
+      {/* Analytics — hidden when the collaborator lacks analytics permission */}
+      {canView && analytics ? (
         <section className="space-y-3">
           <h2 className="text-lg font-bold">Analytics</h2>
           <AnalyticsPanel analytics={analytics} eventId={event.id} />

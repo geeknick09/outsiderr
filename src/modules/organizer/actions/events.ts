@@ -209,10 +209,22 @@ export async function createEventAction(
 
   const saveMode = String(formData.get("saveMode") ?? "publish"); // "publish" | "draft"
   const isDraft = saveMode === "draft";
+  // When set, we're updating an existing draft row instead of creating a new event
+  const draftEventId = String(formData.get("draftEventId") ?? "").trim() || null;
 
   const title = String(formData.get("title") ?? "").trim();
   const startsAt = String(formData.get("startsAt") ?? "");
   const pricingMode = String(formData.get("pricingMode") ?? "PAID") as PricingMode;
+
+  if (draftEventId) {
+    // Only allow this path for actual drafts — guards against passing a live
+    // event id to bypass publish-time validation.
+    const { getEvent } = await import("@/modules/shared/server");
+    const existing = await getEvent(draftEventId);
+    if (!existing || existing.status !== "DRAFT") {
+      return { error: "Draft not found.", values: extractFormValues(formData) };
+    }
+  }
 
   const tiers = buildTiers(formData, pricingMode);
 
@@ -222,7 +234,9 @@ export async function createEventAction(
     if (phaseError) return { error: phaseError, values: extractFormValues(formData) };
   }
 
-  if (!title) return { error: "Give the event a title.", values: extractFormValues(formData) };
+  if (!title && !isDraft) return { error: "Give the event a title.", values: extractFormValues(formData) };
+  // Drafts get a fallback name — nothing else is mandatory until publish
+  const effectiveTitle = title || "Untitled draft";
 
   const needsDoorStaff = formData.get("needsDoorStaff") === "on";
 
@@ -302,8 +316,8 @@ export async function createEventAction(
   const longitude = String(formData.get("longitude") ?? "").trim();
   const googleMapsLink = String(formData.get("googleMapsLink") ?? "").trim() || null;
 
-  // Validate Google Maps link if venue mode is NOW
-  if (venueMode === "NOW") {
+  // Validate Google Maps link if venue mode is NOW (drafts skip — fill it in before publish)
+  if (venueMode === "NOW" && !isDraft) {
     if (!googleMapsLink) {
       return {
         error: "Google Maps link is required when venue is not TBA. Paste a maps.google.com or maps.app.goo.gl link.",
@@ -321,8 +335,55 @@ export async function createEventAction(
 
   let eventId: string;
   try {
+    // Drafts may omit a date entirely — placeholder 30 days out so the NOT NULL
+    // column is satisfied; the editor prefills it and publish still validates.
+    const draftStartFallback = new Date(Date.now() + 30 * 86_400_000).toISOString();
+
+    if (draftEventId) {
+      await updateEvent(user, draftEventId, {
+        title: effectiveTitle,
+        description: String(formData.get("description") ?? "").trim(),
+        venueName: venueMode === "TBA" ? "TBA" : String(formData.get("venueName") ?? "").trim(),
+        venueAddress: venueMode === "TBA" ? "" : String(formData.get("venueAddress") ?? "").trim(),
+        latitude: latitude ? Number(latitude) : null,
+        longitude: longitude ? Number(longitude) : null,
+        googleMapsLink,
+        startsAt: startsAt ? istToUTC(startsAt) : "",
+        endsAt: endsAt ? istToUTC(endsAt) : null,
+        tags: String(formData.get("tags") ?? "")
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean),
+        city: String(formData.get("city") ?? "KOLKATA") as City,
+        category: (formData.getAll("categories")[0] ?? formData.get("category") ?? "OTHER") as EventCategory,
+        categories: formData.getAll("categories").map(String).filter(Boolean) as EventCategory[],
+        tiers,
+        photoUrls: formData.getAll("photoUrls").map(String).filter(Boolean),
+        contactEmail: String(formData.get("contactEmail") ?? "").trim() || null,
+        contactPhone: String(formData.get("contactPhone") ?? "").trim() || null,
+        instagramUrl: String(formData.get("instagramUrl") ?? "").trim() || null,
+        youtubeUrl: String(formData.get("youtubeUrl") ?? "").trim() || null,
+        xUrl: String(formData.get("xUrl") ?? "").trim() || null,
+        facebookUrl: String(formData.get("facebookUrl") ?? "").trim() || null,
+        linkedinUrl: String(formData.get("linkedinUrl") ?? "").trim() || null,
+        waitlistEnabled: formData.get("waitlistEnabled") === "on" || formData.get("waitlistEnabled") === "true",
+        thingsToKnow: lines(formData.get("thingsToKnow")),
+        terms: lines(formData.get("terms")),
+        cardPosterUrl: String(formData.get("cardPosterUrl") ?? "") || null,
+        bannerPosterUrl: String(formData.get("bannerPosterUrl") ?? "") || null,
+        teaserVideoUrl: String(formData.get("teaserVideoUrl") ?? "") || null,
+        linkedPastEventIds: formData.getAll("linkedPastEventIds").map(String).filter(Boolean),
+        pricingMode,
+      });
+      eventId = draftEventId;
+
+      // Publishing a draft: run the status transition after the field update
+      if (!isDraft) {
+        await updateEventStatus(user, draftEventId, "PUBLISHED");
+      }
+    } else {
     eventId = await createEvent(user, {
-      title,
+      title: effectiveTitle,
       description: String(formData.get("description") ?? "").trim(),
       thingsToKnow: lines(formData.get("thingsToKnow")),
       tags: String(formData.get("tags") ?? "")
@@ -337,7 +398,7 @@ export async function createEventAction(
       latitude: latitude ? Number(latitude) : null,
       longitude: longitude ? Number(longitude) : null,
       googleMapsLink,
-      startsAt: istToUTC(startsAt),
+      startsAt: startsAt ? istToUTC(startsAt) : draftStartFallback,
       endsAt: endsAt ? istToUTC(endsAt) : null,
       cardPosterUrl: String(formData.get("cardPosterUrl") ?? "") || null,
       bannerPosterUrl: String(formData.get("bannerPosterUrl") ?? "") || null,
@@ -359,9 +420,13 @@ export async function createEventAction(
       linkedPastEventIds: formData.getAll("linkedPastEventIds").map(String).filter(Boolean),
       status: isDraft ? "DRAFT" : "PUBLISHED",
     });
+    }
 
+    // Publish-time side effects — only when the event goes live (or draft→live),
+    // never on a plain draft save (would duplicate door-staff orders per save).
+    if (!isDraft) {
     // Create door staff order if requested
-    if (needsDoorStaff) {
+    if (needsDoorStaff && !draftEventId) {
       const doorStaffCount = Number(formData.get("doorStaffCount") ?? 1);
       try {
         const { createDoorStaffOrder } = await import("@/modules/shared/server");
@@ -391,6 +456,7 @@ export async function createEventAction(
       }
     } catch {
       // T&C acceptance logging is best-effort — don't fail the event creation
+    }
     }
   } catch (error) {
     return {
@@ -612,6 +678,23 @@ export async function publishEventAction(eventId: string): Promise<void> {
   const user = await getCurrentUser();
   if (!user) throw new Error("Not authenticated.");
   console.log(`[publish] publishEventAction: eventId=${eventId}, userId=${user.id}`);
+
+  // Drafts may be missing publish-required fields — gate the transition so an
+  // incomplete draft can't go live via this shortcut. Full publishing still
+  // goes through the form, which runs every publish-time validation.
+  const { getEvent } = await import("@/modules/shared/server");
+  const ev = await getEvent(eventId);
+  if (ev?.status === "DRAFT") {
+    const problems: string[] = [];
+    if (!ev.title?.trim() || ev.title === "Untitled draft") problems.push("a title");
+    if (!ev.startsAt || new Date(ev.startsAt).getTime() < Date.now()) problems.push("a future start date");
+    if (!ev.venueName?.trim() && !ev.venueAddress?.trim()) problems.push("a venue (or mark it TBA)");
+    if (!ev.tiers.length || ev.tiers.every((t) => t.quantity < 1)) problems.push("at least one ticket tier");
+    if (problems.length > 0) {
+      throw new Error(`Complete the draft first — missing ${problems.join(", ")}.`);
+    }
+  }
+
   await updateEventStatus(user, eventId, "PUBLISHED");
   console.log(`[publish] Event published: eventId=${eventId}`);
   revalidatePath("/");
