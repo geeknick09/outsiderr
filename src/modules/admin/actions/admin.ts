@@ -319,46 +319,52 @@ export async function adminRecordPayoutAction(
   bankReference: string,
   eventId?: string,
   notes?: string,
+  method?: "UPI" | "NEFT" | "IMPS" | "RTGS" | "CASH" | "OTHER",
 ): Promise<{ success: boolean; error?: string }> {
   const user = await requireAdmin();
 
-  const { createClient } = await import("@/modules/shared/server");
-  const supabase = await createClient();
+  if (!amountPaise || amountPaise <= 0) return { success: false, error: "Amount must be positive." };
+  if (!bankReference?.trim()) return { success: false, error: "Bank/UTR reference is required." };
 
-  const { error } = await createServiceClient().from("payout_records").insert({
+  const service = createServiceClient();
+  const { data, error } = await service.from("payout_records").insert({
     organizer_id: organizerId,
     event_id: eventId ?? null,
     amount_paise: amountPaise,
     status: "COMPLETED",
-    bank_reference: bankReference,
+    method: method ?? null,
+    bank_reference: bankReference.trim(),
     notes: notes ?? null,
     initiated_by: user.id,
+    completed_by: user.id,
     initiated_at: new Date().toISOString(),
     completed_at: new Date().toISOString(),
-  });
+  }).select("id").single();
 
   if (error) {
     return { success: false, error: error.message };
   }
 
-  // Insert ledger entry — service client (no user insert policy on payment_ledger)
-  await createServiceClient().from("payment_ledger").insert({
+  // Ledger entry — money OUT, so net_organizer is negative: Σ net_organizer
+  // stays the organizer's live receivable.
+  await service.from("payment_ledger").insert({
     order_id: null,
     organizer_id: organizerId,
     event_id: eventId ?? null,
     type: "PAYOUT",
-    gross_amount_paise: amountPaise,
+    gross_amount_paise: -amountPaise,
     commission_paise: 0,
     convenience_fee_paise: 0,
-    net_organizer_paise: amountPaise,
+    net_organizer_paise: -amountPaise,
     net_platform_paise: 0,
-    notes: `Payout: ${bankReference}${notes ? ` — ${notes}` : ""}`,
+    notes: `Payout ${data?.id?.slice(0, 8)} via ${method ?? "manual"} — ${bankReference.trim()}${notes ? ` — ${notes}` : ""}`,
     created_at: new Date().toISOString(),
   });
 
   await auditFinancialAction(user.id, "RECORD_PAYOUT", organizerId, {
     amountPaise,
     bankReference,
+    method,
     eventId,
   });
 

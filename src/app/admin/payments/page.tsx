@@ -57,11 +57,24 @@ export default async function AdminPaymentsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-black">Payment Reconciliation</h1>
-        <p className="text-sm text-muted">
-          Monitor webhook health and payment reconciliation status.
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-black">Payment Reconciliation</h1>
+          <p className="text-sm text-muted">
+            Monitor webhook health and payment reconciliation status.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {(["ledger", "orders", "refunds"] as const).map((k) => (
+            <a
+              key={k}
+              href={`/api/admin/export/${k}`}
+              className="rounded-xl border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-muted hover:border-violet-neon dark:border-white/10"
+            >
+              Export {k}
+            </a>
+          ))}
+        </div>
       </div>
 
       {/* Summary cards */}

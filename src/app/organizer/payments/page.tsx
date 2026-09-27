@@ -92,15 +92,17 @@ export default async function OrganizerPaymentsPage() {
   const ledgerRows = (ledger ?? []) as unknown as LedgerRow[];
   const payoutRows = (payouts ?? []) as unknown as PayoutRow[];
 
+  // PAYOUT rows are negative net_organizer (money left) — excluded from
+  // liabilities. Balance = Σ net_organizer − payouts still in flight.
   const earned = ledgerRows
-    .filter((r) => r.net_organizer_paise > 0)
+    .filter((r) => r.type !== "PAYOUT" && r.net_organizer_paise > 0)
     .reduce((s, r) => s + r.net_organizer_paise, 0);
   const owed = ledgerRows
-    .filter((r) => r.net_organizer_paise < 0)
+    .filter((r) => r.type !== "PAYOUT" && r.net_organizer_paise < 0)
     .reduce((s, r) => s + r.net_organizer_paise, 0);
-  const paidOut = payoutRows
-    .filter((p) => p.status === "COMPLETED")
-    .reduce((s, p) => s + p.amount_paise, 0);
+  const paidOut = Math.abs(
+    ledgerRows.filter((r) => r.type === "PAYOUT").reduce((s, r) => s + r.net_organizer_paise, 0),
+  );
   const pendingPayout = payoutRows
     .filter((p) => p.status === "PENDING" || p.status === "PROCESSING")
     .reduce((s, p) => s + p.amount_paise, 0);

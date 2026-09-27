@@ -470,11 +470,14 @@ export type PayoutRecordRow = {
   event_id: string | null;
   amount_paise: number;
   status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+  method: "UPI" | "NEFT" | "IMPS" | "RTGS" | "CASH" | "OTHER" | null;
   bank_reference: string | null;
+  failure_reason: string | null;
   notes: string | null;
   initiated_by: string | null;
   initiated_at: string;
   completed_at: string | null;
+  completed_by: string | null;
 }
 
 export type EventNotificationRow = {
