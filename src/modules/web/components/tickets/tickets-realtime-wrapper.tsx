@@ -38,12 +38,6 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
   REFUND_REQUESTED: "Refund requested",
 };
 
-// Format event dates once, not inside the render loop
-const dateFormatter = new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata" });
-function formatEventDate(iso: string) {
-  return dateFormatter.format(new Date(iso));
-}
-
 export function TicketsRealtimeWrapper({
   userId,
   userName,
@@ -85,7 +79,13 @@ export function TicketsRealtimeWrapper({
       setOrders((prev) =>
         prev.map((o) =>
           o.id === row.id
-            ? { ...o, status: newStatus, rejectionReason: (row.rejection_reason as string) ?? null }
+            ? {
+                ...o,
+                status: newStatus,
+                rejectionReason: (row.rejection_reason as string) ?? null,
+                refundOffered: (row.refund_offered as boolean) ?? false,
+                refundOfferReason: (row.refund_offer_reason as string) ?? null,
+              }
             : o,
         ),
       );
@@ -167,17 +167,6 @@ export function TicketsRealtimeWrapper({
     },
   });
 
-  // Memoize formatted dates so they don't recompute on every render
-  const formattedOrderDates = useMemo(
-    () =>
-      new Map(
-        orders
-          .filter((o) => o.eventStartsAt)
-          .map((o) => [o.id, formatEventDate(o.eventStartsAt!)]),
-      ),
-    [orders],
-  );
-
   return (
     <div className="mx-auto max-w-4xl space-y-8 py-6">
       <div>
@@ -250,13 +239,14 @@ export function TicketsRealtimeWrapper({
                       ) : null}
                     </div>
                     <Badge tone={STATUS_TONE[order.status]}>{STATUS_LABEL[order.status]}</Badge>
-                    {order.eventStatus === "POSTPONED" &&
+                    {order.refundOffered &&
                     order.status === "CONFIRMED" &&
-                    order.eventStartsAt ? (
+                    order.id ? (
                       <PostponementRefundButton
+                        orderId={order.id}
                         eventId={order.eventId}
                         eventTitle={order.eventTitle}
-                        newDate={formattedOrderDates.get(order.id) ?? order.eventStartsAt}
+                        reason={order.refundOfferReason ?? null}
                       />
                     ) : null}
                   </div>

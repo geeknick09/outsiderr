@@ -449,13 +449,19 @@
 - [ ] Verify refund records created
 - [ ] Verify event shows “Cancelled” status
 
-### 9.3 Postpone Event
+### 9.3 Postpone Event (event stays live)
 
-- [ ] As Organizer A, postpone a published event
-- [ ] Verify POSTPONED status
-- [ ] Verify ticket holders notified
-- [ ] Verify subscribers notified
-- [ ] Verify new date validation (must be future)
+- [ ] As Organizer A, postpone a published event (new date must be future)
+- [ ] Verify event stays PUBLISHED — no POSTPONED status, no "Postponed" section on the homepage; card/date just move
+- [ ] Verify ticket holders + subscribers notified (POSTPONEMENT)
+- [ ] Ticket card shows "Event changed" panel → "Keep my ticket" clears it; "Request refund" → REFUND_REQUESTED + PENDING refund + ticket cancelled + seat returned
+- [ ] Re-requesting a refund on the same order returns the existing refund (no duplicate)
+
+### 9.3b Date / venue changes via edit
+
+- [ ] Edit an event's date → notified + ticket card offers refund/keep (same as postpone)
+- [ ] Change city (e.g. KOLKATA → MUMBAI) → notified + refund/keep offer
+- [ ] Change venue within the same city → notified only, no refund offer (default keep)
 
 ### 9.4 Publish Draft
 

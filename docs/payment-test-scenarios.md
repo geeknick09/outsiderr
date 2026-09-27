@@ -102,6 +102,20 @@ All gated by `CRON_SECRET` bearer + timing-safe compare.
 5. Failure → "try again" card; seat released (tier reserved count drops).
 6. Organizer → attendees → Refund → reason → admin → `/admin/refunds` → Approve → watch status move to `COMPLETED` (webhook) or Run worker now.
 
+## 8b. Refund/keep offers (order-level, STEP 37)
+
+| # | Scenario | Expected | Verified |
+|---|----------|----------|----------|
+| 8b.1 | `postpone_event` on a live event | Dates move, status stays **PUBLISHED** (no postponed section), POSTPONEMENT notif, CONFIRMED orders get `refund_offered=true` | ✅ live |
+| 8b.2 | `decline_refund_offer` own order | Flag cleared; foreign order id → `false` (no-op) | ✅ live |
+| 8b.3 | Refund via offer | REFUND_REQUESTED + PENDING refund (TICKET_PRICE, offer reason carried) + ticket CANCELLED + inventory released | ✅ live |
+| 8b.4 | Idempotent re-request | Returns existing refund `is_new=false`, no duplicate row | ✅ live |
+| 8b.5 | Refund with no open offer | `No refund offer is open` — blocked | ✅ live |
+| 8b.6 | Edit: date change / city change | `updateEvent` flags orders + notification carries the choice | ✅ code (offerReason path) |
+| 8b.7 | Edit: same-city venue change | Notification only — no offer (default keep) | ✅ code |
+| 8b.8 | Ticket card | Panel renders on `refund_offered` + Realtime flips it on UPDATE | ✅ wired |
+| 8b.9 | Homepage | POSTPONED events render inline in the live listing — no separate section | ✅ code |
+
 ## 9. Manual payouts (pre-RazorpayX settlement)
 
 | # | Scenario | Expected | Verified |

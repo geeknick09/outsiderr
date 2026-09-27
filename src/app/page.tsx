@@ -67,9 +67,8 @@ export default async function DiscoveryPage({
 
   const { upcoming, past } = partitionSearchEvents(allEvents);
 
-  // Postponed events are still live — show them in their own section
-  const postponed = upcoming.filter((event) => event.status === "POSTPONED");
-  const live = upcoming.filter((event) => event.status !== "POSTPONED");
+  // Postponed events stay in the normal live listing — they're still live.
+  const live = upcoming;
 
   const featured = live
     .filter((event) => event.isFeatured)
@@ -167,21 +166,13 @@ export default async function DiscoveryPage({
       <EventSection title="Popular Events" events={popular} />
       <EventSection title="All Events" events={live} />
 
-      {postponed.length > 0 ? (
-        <EventSection
-          title="Postponed Events"
-          subtitle="New dates announced — stay tuned"
-          events={postponed}
-        />
-      ) : null}
-
       <PastEventSection
         title="Past Events"
         subtitle="Already completed — for reference only"
         events={past}
       />
 
-      {live.length === 0 && postponed.length === 0 && past.length === 0 ? (
+      {live.length === 0 && past.length === 0 ? (
         <div className="glass rounded-3xl p-10 text-center">
           <h2 className="text-lg font-bold">Nothing here yet</h2>
           <p className="mt-1 text-sm text-muted">

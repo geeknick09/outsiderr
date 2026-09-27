@@ -247,6 +247,9 @@ export interface Order {
   eventStartsAt?: string;
   orderSource?: string | null;
   isBoxOffice?: boolean;
+  /** Refund/keep offer from a postponement, date change, or cross-city move. */
+  refundOffered?: boolean;
+  refundOfferReason?: string | null;
 }
 
 export interface Ticket {

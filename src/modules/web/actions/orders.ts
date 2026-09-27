@@ -144,3 +144,17 @@ export async function requestPostponementRefundAction(
 
   return runPostponementRefund(user, eventId);
 }
+
+/** User chose "keep my ticket" — clears the refund offer on their order. */
+export async function declineRefundOfferAction(
+  orderId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "Please sign in to continue." };
+
+  const { createClient } = await import("@/modules/shared/server");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("decline_refund_offer", { p_order_id: orderId });
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}

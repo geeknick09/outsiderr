@@ -167,6 +167,8 @@ export type OrderRow = {
   order_source: string | null;
   is_box_office: boolean;
   idempotency_key: string | null;
+  refund_offered: boolean;
+  refund_offer_reason: string | null;
   created_at: string;
 }
 
@@ -867,6 +869,10 @@ export type Database = {
           razorpay_payment_id: string | null;
           is_new: boolean;
         }[];
+      };
+      decline_refund_offer: {
+        Args: { p_order_id: string };
+        Returns: boolean;
       };
       create_reserved_order: {
         Args: {

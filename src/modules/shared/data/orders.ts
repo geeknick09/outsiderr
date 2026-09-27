@@ -159,6 +159,8 @@ async function hydrateOrders(
     created_at: string;
     order_source?: string | null;
     is_box_office?: boolean | null;
+    refund_offered?: boolean | null;
+    refund_offer_reason?: string | null;
   }[],
 ): Promise<Order[]> {
   const supabase = await createClient();
@@ -208,6 +210,8 @@ async function hydrateOrders(
     createdAt: row.created_at,
     orderSource: row.order_source ?? null,
     isBoxOffice: row.is_box_office ?? false,
+    refundOffered: row.refund_offered ?? false,
+    refundOfferReason: row.refund_offer_reason ?? null,
   };
   });
 }

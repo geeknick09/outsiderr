@@ -1,7 +1,7 @@
 import "server-only";
 
 import { DEFAULT_EVENT_TERMS } from "../../shared";
-import { getOrganizerProfile, createClient } from "../../shared/server";
+import { getOrganizerProfile, createClient, createServiceClient } from "../../shared/server";
 import type { CurrentUser } from "../../shared";
 import type { City, EventCategory, EventSummary, FeePayer, PricingMode } from "../../shared";
 
@@ -501,6 +501,9 @@ export async function updateEvent(
   // Send notifications to ticket holders if key details changed
   if (currentEvent) {
     const changes: { type: string; message: string }[] = [];
+    // Refund/keep offer triggers: date moved, or the event changed cities.
+    // Same-city venue edits only notify — nobody needs the choice for that.
+    let offerReason: string | null = null;
 
     if (currentEvent.venue_name !== input.venueName) {
       changes.push({
@@ -511,8 +514,9 @@ export async function updateEvent(
     if (input.city && currentEvent.city !== input.city) {
       changes.push({
         type: "CITY_CHANGE",
-        message: `City changed from ${currentEvent.city} to ${input.city}.`,
+        message: `Event moved from ${currentEvent.city} to ${input.city}. You can keep your ticket or request a refund.`,
       });
+      offerReason = `Event moved from ${currentEvent.city} to ${input.city}.`;
     }
     // Compare timestamps, not raw strings — DB returns "2026-09-16 14:00:00+00:00"
     // but istToUTC returns "2026-09-16T14:00:00.000Z". Same time, different format.
@@ -521,8 +525,9 @@ export async function updateEvent(
     if (oldStart !== null && newStart !== null && oldStart !== newStart) {
       changes.push({
         type: "TIME_CHANGE",
-        message: `Event time has been updated. Please check the new schedule.`,
+        message: `Event rescheduled to ${new Date(input.startsAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}. You can keep your ticket or request a refund.`,
       });
+      offerReason ??= "Event rescheduled.";
     }
 
     if (changes.length > 0) {
@@ -557,6 +562,17 @@ export async function updateEvent(
           ),
           supabase,
         );
+      }
+
+      // Date moved or cross-city move → flag confirmed orders with the
+      // refund/keep offer (orders are service-only post-STEP32).
+      if (offerReason && currentEvent.status !== "DRAFT") {
+        const service = createServiceClient();
+        await service
+          .from("orders")
+          .update({ refund_offered: true, refund_offer_reason: offerReason })
+          .eq("event_id", eventId)
+          .eq("status", "CONFIRMED");
       }
     }
   }

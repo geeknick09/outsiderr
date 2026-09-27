@@ -3,21 +3,24 @@
 import { useState } from "react";
 import { AlertCircle, Loader2, RotateCcw } from "lucide-react";
 
-import { requestPostponementRefundAction } from "@/modules/web/actions/orders";
+import { declineRefundOfferAction, requestPostponementRefundAction } from "@/modules/web/actions/orders";
 import { Button } from "@/modules/shared";
 
 /**
- * Shows a "Request Refund" or "Keep Ticket" choice for postponed events.
- * Only visible when the event status is POSTPONED and the user has a CONFIRMED order.
+ * Refund-or-keep panel for consumer-impacting event changes — postponement,
+ * date change, or a move to a different city. Rides on order.refund_offered:
+ * the event stays live either way; "Keep my ticket" clears the offer.
  */
 export function PostponementRefundButton({
+  orderId,
   eventId,
   eventTitle,
-  newDate,
+  reason,
 }: {
+  orderId: string;
   eventId: string;
   eventTitle: string;
-  newDate: string;
+  reason: string | null;
 }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ success: boolean; error?: string } | null>(null);
@@ -33,12 +36,19 @@ export function PostponementRefundButton({
     setLoading(false);
   }
 
+  async function handleKeep() {
+    setLoading(true);
+    await declineRefundOfferAction(orderId);
+    setDismissed(true);
+    setLoading(false);
+  }
+
   if (result?.success) {
     return (
       <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm">
-        <p className="font-bold text-emerald-600 dark:text-emerald-300">Refund processed</p>
+        <p className="font-bold text-emerald-600 dark:text-emerald-300">Refund requested</p>
         <p className="mt-1 text-muted">
-          Your refund for <strong>{eventTitle}</strong> has been initiated. You will receive
+          Your refund for <strong>{eventTitle}</strong> has been submitted. You will receive
           the amount in your original payment method within 5-7 business days.
         </p>
       </div>
@@ -50,11 +60,10 @@ export function PostponementRefundButton({
       <div className="flex items-start gap-2">
         <AlertCircle className="h-5 w-5 shrink-0 text-amber-500 mt-0.5" />
         <div>
-          <p className="font-bold text-amber-600 dark:text-amber-300">Event Postponed</p>
+          <p className="font-bold text-amber-600 dark:text-amber-300">Event changed</p>
           <p className="mt-1 text-sm text-muted">
-            <strong>{eventTitle}</strong> has been postponed to{" "}
-            <strong>{newDate}</strong>. You can keep your ticket for the new date or request
-            a full refund.
+            {reason ?? `The details for ${eventTitle} were updated.`} You can keep your ticket
+            or request a full refund.
           </p>
         </div>
       </div>
@@ -76,7 +85,8 @@ export function PostponementRefundButton({
         <Button
           variant="secondary"
           size="sm"
-          onClick={() => setDismissed(true)}
+          onClick={handleKeep}
+          disabled={loading}
         >
           Keep my ticket
         </Button>
