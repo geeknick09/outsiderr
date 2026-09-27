@@ -67,7 +67,7 @@ export interface RequestBoostInput {
   amountPaidPaise: number;
   startsAt: string;
   endsAt: string;
-  utrReference: string;
+  utrReference?: string | null;
 }
 
 export async function requestBoost(
@@ -92,14 +92,15 @@ export async function requestBoost(
     throw new Error("This slot is already taken. Pick another slot.");
   }
 
-  // Insert as PENDING — admin verifies the UTR payment before it goes live.
+  // Insert as PENDING — the capture dispatcher activates it on payment
+  // (or an admin activates a manual/offline payment).
   const { data, error } = await supabase
     .from("boosts")
     .insert({
       event_id: input.eventId, organizer_id: input.organizerId,
       slot: input.slot, amount_paid_paise: input.amountPaidPaise,
       starts_at: input.startsAt, ends_at: input.endsAt,
-      utr_reference: input.utrReference,
+      utr_reference: input.utrReference ?? null,
       status: "PENDING",
     })
     .select("*")

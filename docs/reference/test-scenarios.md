@@ -223,17 +223,19 @@
 
 ## 5\. Booking & Tickets
 
-### 5.1 Book a Ticket (Manual UPI)
+### 5.1 Book a Ticket (Razorpay)
 
 - [ ] As User C, navigate to a paid event
 - [ ] Select ticket tier and quantity
 - [ ] Fill RSVP form (email, gender if optional)
-- [ ] Verify checkout page shows subtotal + convenience fee + total
-- [ ] Verify platform fee percentage matches admin settings
-- [ ] Submit UTR reference
-- [ ] Verify green success message + WhatsApp instructions
-- [ ] Navigate to `/tickets` → verify ticket appears
-- [ ] Expand ticket card → verify large QR, event details, download button
+- [ ] Verify checkout sidebar shows ticket subtotal + convenience fee + **total**
+- [ ] Razorpay Checkout opens — verify amount matches the sidebar total and the buyer's name/email/phone are prefilled
+- [ ] Test card `4111 1111 1111 1111` (any CVV, future expiry) or UPI `success@razorpay` → payment succeeds
+- [ ] Verify `/checkout/status` flips to confirmed (Realtime or poll) and redirects to `/tickets`
+- [ ] Verify ticket appears with QR; order shows invoice `OUT-YYYYMM-XXXXX` + `pay_…` reference
+- [ ] Repeat with UPI `failure@razorpay` → verify "payment didn't complete" card, and the seat is released (tier availability returns)
+- [ ] Close the Razorpay modal without paying → verify same release path
+- [ ] Let a reservation expire (don't pay for >15 min) → booking marked Expired, inventory returned, booking a new order still works
 
 ### 5.2 Book a Free Ticket
 
@@ -520,15 +522,23 @@
 - [ ] Verify confirmed/pending/failed status badges
 - [ ] Verify buyer name, tier, quantity, amounts
 
-### 11.2 Payment Verification
+### 11.2 Refund Request (organizer-side)
 
-- [ ] As a user, book a ticket with manual UPI + UTR
-- [ ] As Organizer A, verify order appears in Payment Verification queue
-- [ ] Approve the order → verify status changes to CONFIRMED
-- [ ] Verify ticket generated for the buyer
-- [ ] Reject a different order → verify status changes to FAILED
+- [ ] As Organizer A, open event → attendees table → Refund on a CONFIRMED paid order
+- [ ] Enter a reason (10+ chars) → verify request submitted, order shows "Refund" state
+- [ ] Try a second refund on the same order → blocked ("already in progress")
+- [ ] Navigate to `/organizer/refunds` → request appears under "In progress"
+- [ ] After admin approves → status moves to Completed when the gateway settles
 
-### 11.3 Print Report
+### 11.3 Organizer Payments & Settlement
+
+- [ ] Navigate to `/organizer/payments` (organizer dashboard → Payments tab)
+- [ ] Verify summary cards: Gross earned, Liabilities, Paid out, Balance due
+- [ ] Verify ledger table lists each sale with gross/fees/net — "You get" column is green
+- [ ] Verify completed payouts appear with method chip + bank ref + timestamps
+- [ ] After admin completes a payout → Balance due drops accordingly
+
+### 11.4 Print Report
 
 - [ ] Navigate to `/organizer/events/[id]/report`
 - [ ] Verify report shows: revenue summary, confirmed orders, attendee tickets
@@ -560,16 +570,17 @@
 ### 13.1 Slot Boost
 
 - [ ] As Organizer A, navigate to `/organizer/boost?event=[id]`
-- [ ] Submit boost request with UPI + UTR
-- [ ] As admin, approve the boost → verify event appears in boosted slots
-- [ ] As admin, reject a boost → verify event doesn’t appear
+- [ ] Pick event + slot + duration → verify total = per-day price × days
+- [ ] "Pay" → Razorpay Checkout opens with the same amount → pay with test card
+- [ ] Verify boost activates instantly and the event appears in the featured carousel
+- [ ] Try to boost a slot that just got taken → payment succeeds but auto-refund lands (boost REJECTED, PENDING refund in admin queue)
 
 ### 13.2 Hero Boost
 
 - [ ] As Organizer A, purchase Hero Boost from event management page
-- [ ] Verify UPI QR + UTR submission flow
+- [ ] Razorpay Checkout opens with the price from platform settings (₹999 default) → pay with test card
+- [ ] Verify boost activates instantly after capture (`expires_at` = min(duration, event start))
 - [ ] As admin, verify boost in `/admin/hero-boosts`
-- [ ] Admin activates boost → verify event appears in homepage Hero Carousel
 - [ ] Verify carousel auto-rotates
 - [ ] Verify dot indicators work
 - [ ] Verify `?source=HERO_BOOST` in carousel links
@@ -665,6 +676,43 @@
 - [ ] Navigate to `/admin/revenue`
 - [ ] Verify gross revenue, platform commission, net payouts
 - [ ] Verify per-event breakdown table
+
+### 16.6a Admin Payments (reconciliation monitor)
+
+- [ ] Navigate to `/admin/payments` — verify "Payments" in the admin sidebar
+- [ ] Verify webhook event log lists deliveries with `processed` flag
+- [ ] Verify stale-RESERVED monitor lists orders past their reservation window
+- [ ] Click Export `ledger` / `orders` / `refunds` → verify CSV downloads open in Excel/Sheets with joined names (event title, organizer name)
+
+### 16.6b Admin Refunds queue
+
+- [ ] Navigate to `/admin/refunds` — verify "Refunds" in the admin sidebar
+- [ ] Organizer requests a refund on a confirmed attendee (attendees table → Refund → reason) → verify the request lands in the queue with status "Under review"/REQUESTED
+- [ ] Approve (ticket) → status moves to processing; buyer gets REFUND_APPROVED notification; tickets cancelled + inventory released
+- [ ] Approve full → refund amount equals order total (incl. fees)
+- [ ] Reject with reason → order returns to CONFIRMED; buyer notified
+- [ ] Run refund worker now → pending refunds push to Razorpay and show `razorpay_refund_id`
+- [ ] Filter tabs (Queue / All / Completed / Failed / Rejected) show correct subsets
+- [ ] Export CSV → refund rows include gateway refund IDs + statuses
+
+### 16.6c Admin Payouts (manual settlement)
+
+- [ ] Navigate to `/admin/payouts` — verify "Payouts" in the admin sidebar
+- [ ] Verify "Due to organizers" card equals Σ ledger net-organizer minus in-flight payouts
+- [ ] Owed organizers list shows name + due amount + Schedule payout form
+- [ ] Schedule a payout (amount, method NEFT/UPI/IMPS/RTGS/CASH/OTHER, note) → record appears as PENDING in history
+- [ ] Mark Processing → status chip updates
+- [ ] Mark completed without a bank reference → blocked with error; enter a UTR → COMPLETED, `completed_at` set
+- [ ] Verify organizer's `/organizer/payments` balance drops to 0 (payout writes a negative ledger row)
+- [ ] Mark a payout Failed with a reason → failure_reason visible on the record
+- [ ] Invalid transition (COMPLETED → anything) → rejected
+- [ ] Export payouts CSV → includes method + bank reference + failure reasons
+
+### 16.6d CSV exports
+
+- [ ] `/api/admin/export/ledger?from=YYYY-MM-DD&to=YYYY-MM-DD` → date range respected
+- [ ] Non-admin hits any export URL → 403; signed-out → 401
+- [ ] Verify no sensitive PII beyond buyer name/phone in exports
 
 ### 16.7 Admin Strict Authorization
 

@@ -1,14 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Lock } from "lucide-react";
 
-import { requestBoostAction } from "../actions/boosts";
-import { QrCode } from "@/modules/shared";
+import {
+  handleBoostFailureAction,
+  startBoostCheckoutAction,
+  verifyBoostPaymentAction,
+} from "../actions/boosts";
+import { RazorpayCheckout } from "@/modules/shared";
 import { formatPaise } from "@/modules/shared";
-import { upiIntent } from "@/modules/shared";
 import { cn } from "@/modules/shared";
-import type { BoostSlotPrice, EventSummary } from "@/modules/shared";
+import type { BoostSlotPrice, CheckoutSession, EventSummary } from "@/modules/shared";
 
 const DURATIONS = [
   { label: "7 days", days: 7 },
@@ -20,19 +23,18 @@ export function BoostPanel({
   events,
   slotPrices,
   occupiedSlots,
-  platformUpiId,
   preselectedEventId,
 }: {
   events: EventSummary[];
   slotPrices: BoostSlotPrice[];
   occupiedSlots: number[];
-  platformUpiId: string;
+  platformUpiId?: string; // unused post-Razorpay — kept for caller compat
   preselectedEventId?: string;
 }) {
   const [eventId, setEventId] = useState(preselectedEventId ?? events[0]?.id ?? "");
   const [slot, setSlot] = useState<number | null>(null);
   const [days, setDays] = useState(7);
-  const [utr, setUtr] = useState("");
+  const [session, setSession] = useState<CheckoutSession | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,28 +44,20 @@ export function BoostPanel({
   const dailyPaise = selectedPrice ? selectedPrice.pricePaise : 0;
   const totalPaise = dailyPaise * days;
 
-  const upiString =
-    slot && totalPaise
-      ? upiIntent({
-          upiId: platformUpiId,
-          payeeName: "Outsiderr",
-          amountPaise: totalPaise,
-          note: `Boost slot ${slot} — ${events.find((e) => e.id === eventId)?.title ?? "event"}`,
-        })
-      : null;
-
   async function handleSubmit() {
-    if (!eventId || !slot || !utr.trim()) {
-      setError("Select an event, a slot, and enter your UTR.");
+    if (!eventId || !slot) {
+      setError("Select an event and a slot.");
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
-      const startsAt = new Date().toISOString();
-      const endsAt = new Date(Date.now() + days * 86_400_000).toISOString();
-      await requestBoostAction({ eventId, slot, amountPaidPaise: totalPaise, startsAt, endsAt, utrReference: utr.trim() });
-      setSuccess(true);
+      const result = await startBoostCheckoutAction({ eventId, slot, days });
+      if (result.error || !result.session) {
+        setError(result.error ?? "Could not start payment.");
+        return;
+      }
+      setSession(result.session);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -82,6 +76,22 @@ export function BoostPanel({
           </p>
         </div>
       </div>
+    );
+  }
+
+  if (session) {
+    return (
+      <RazorpayCheckout
+        session={session}
+        verifyAction={verifyBoostPaymentAction}
+        failureAction={handleBoostFailureAction}
+        successRedirect="/organizer/boost?paid=1"
+        onError={(msg) => {
+          setSession(null);
+          setError(msg);
+        }}
+        onCancel={() => setSession(null)}
+      />
     );
   }
 
@@ -162,37 +172,29 @@ export function BoostPanel({
         ) : null}
       </section>
 
-      {/* Step 4 — pay + UTR */}
-      {upiString ? (
+      {/* Step 4 — pay online */}
+      {slot && totalPaise ? (
         <section className="glass space-y-4 rounded-3xl p-5">
-          <h3 className="text-sm font-bold">4. Pay & submit UTR</h3>
-          <div className="flex justify-center">
-            <QrCode value={upiString} size={180} className="rounded-2xl bg-white p-2" />
-          </div>
-          <p className="text-center text-xs text-muted">
-            Scan with any UPI app to pay {formatPaise(totalPaise)} to Outsiderr
-          </p>
-          <input
-            value={utr}
-            onChange={(e) => setUtr(e.target.value)}
-            placeholder="Enter UTR / transaction reference"
-            className={INPUT}
-          />
+          <h3 className="text-sm font-bold">4. Pay & activate</h3>
           {error ? <p className="text-sm text-red-500">{error}</p> : null}
           <button
             type="button"
-            disabled={submitting || !utr.trim()}
+            disabled={submitting}
             onClick={handleSubmit}
-            className="w-full rounded-2xl bg-neon-gradient py-3 text-sm font-bold text-white shadow-glow-violet transition-opacity disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-1.5 rounded-2xl bg-neon-gradient py-3 text-sm font-bold text-white shadow-glow-violet transition-opacity disabled:opacity-50"
           >
-            {submitting ? "Submitting…" : "Submit Boost Request"}
+            <Lock className="h-4 w-4" />
+            {submitting ? "Preparing payment…" : `Pay ${formatPaise(totalPaise)}`}
           </button>
+          <p className="text-center text-xs text-muted">
+            UPI, cards and netbanking via Razorpay — the slot activates instantly.
+          </p>
         </section>
       ) : null}
 
       <p className="px-2 text-center text-xs text-muted">
-        Slots 1–10 appear in the featured carousel. Slot 1 is the top position. Admin will verify
-        your UTR before the boost goes live.
+        Slots 1–10 appear in the featured carousel. Slot 1 is the top position. Your boost goes live
+        the moment payment clears.
       </p>
     </div>
   );

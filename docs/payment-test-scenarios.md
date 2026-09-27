@@ -26,7 +26,9 @@ and the draft-purge/waitlist checks.
 | 2.5 | `expire_payment_intents` on stale intent | Intent EXPIRED + order EXPIRED + reserved released, exactly once | ✅ live |
 | 2.6 | **Late capture** on FAILED/EXPIRED/CANCELLED order | No tickets; order → `REFUND_REQUESTED`; `PENDING` refund at full `total_paise`; buyer notified | ✅ live (fixed `lower(order_status)` enum crash) |
 | 2.7 | `record_webhook_event` claim semantics | First claim wins; in-progress → `skip`; processed → `already_processed` | ✅ live |
-| 2.8 | HERO_BOOST capture | Boost ACTIVE, `razorpay_payment_id`, `expires_at = min(now+duration, event start)`, `BOOST_SALE` ledger | ✅ dispatcher branch (per-kind probes below) |
+| 2.8 | HERO_BOOST capture | Boost ACTIVE, `razorpay_payment_id`, `expires_at = min(now+duration, event start)`, `BOOST_SALE` ledger | ✅ dispatcher branch |
+| 2.8b | SLOT_BOOST capture | Boost ACTIVE, `BOOST_SALE` ledger at `daily_price × days` (duration multiplication verified: ₹5,000/day × 7 = ₹35,000) | ✅ live probe |
+| 2.8c | SLOT_BOOST slot collision at capture | Boost REJECTED + `PENDING` auto-refund + `PAYMENT_ALERT`; **no** ledger row, no double-booking | ✅ live probe |
 | 2.9 | Compat path — order/boost without intent (pre-migration rows) | `confirm_razorpay_order` still invoked by order `razorpay_order_id`; hero boost via `razorpay_order_id` column | ✅ branch exists, legacy contract |
 
 ## 3. Refund pipeline (request → approve → initiate → finalize)
@@ -99,6 +101,35 @@ All gated by `CRON_SECRET` bearer + timing-safe compare.
 4. Success → `/checkout/status` → CONFIRMED → ticket + QR on `/tickets`.
 5. Failure → "try again" card; seat released (tier reserved count drops).
 6. Organizer → attendees → Refund → reason → admin → `/admin/refunds` → Approve → watch status move to `COMPLETED` (webhook) or Run worker now.
+
+## 9. Manual payouts (pre-RazorpayX settlement)
+
+| # | Scenario | Expected | Verified |
+|---|----------|----------|----------|
+| 9.1 | Admin → `/admin/payouts` → "Owed to organizers" | `Σ net_organizer` on ledger − in-flight payouts | ✅ live (₹630 + ₹1,169 balances) |
+| 9.2 | Schedule payout (amount, method, note) | `payout_records` PENDING row, audit logged | ✅ live |
+| 9.3 | PENDING → PROCESSING → COMPLETED (bank ref required) | `completed_at`/`completed_by` set; **negative** PAYOUT ledger row → organizer balance → 0 | ✅ live probe |
+| 9.4 | Complete without bank ref / FAIL without reason | Rejected with error | ✅ guard in `adminUpdatePayoutStatusAction` |
+| 9.5 | Invalid transition (COMPLETED → PENDING) | Rejected | ✅ transition map |
+| 9.6 | Organizer `/organizer/payments` | Balance due drops on COMPLETED; method chip + ref shown | ✅ page + math verified |
+| 9.7 | Non-admin calls payout actions | `requireAdmin` throws — Not authorised | ✅ admin gate |
+
+## 10. Accounting exports (`/api/admin/export/*`)
+
+| # | Scenario | Expected | Verified |
+|---|----------|----------|----------|
+| 10.1 | `GET /api/admin/export/ledger` | CSV: full ledger w/ event + organizer names flattened | ✅ route |
+| 10.2 | `GET /api/admin/export/payouts` / `refunds` / `orders` | CSV per entity incl. method, bank ref, failure reasons, fee splits | ✅ route |
+| 10.3 | `?from=`/`?to=` filters | Rows bounded by date column | ✅ route |
+| 10.4 | Signed-out | 401 | ✅ auth check |
+| 10.5 | Signed-in non-admin | 403 | ✅ `is_admin` check |
+| 10.6 | CSV escaping | Names containing `"`/`,`/newlines quoted correctly | ✅ `csvCell` |
+
+## 11. Ledger integrity rules (always true)
+
+- `net_organizer + net_platform` per row = `gross − fees` — enforced by the writers (dispatcher/RPCs).
+- Refunds/ADJUSTMENT/PAYOUT rows carry **negative** amounts so `Σ net_organizer` is always the live receivable.
+- `razorpay_payment_id` on ledger rows is partial-unique — a replayed webhook can't double-count a capture.
 
 ## Automation summary (2025-09-27)
 

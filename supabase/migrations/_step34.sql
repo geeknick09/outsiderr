@@ -231,11 +231,36 @@ begin
     ) on conflict (razorpay_payment_id) where razorpay_payment_id is not null do nothing;
 
   elsif v_intent.kind = 'SLOT_BOOST' then
-    update public.boosts
+    -- Only activate when the slot is still free at capture time — a paid
+    -- boost must never double-book a slot taken since the intent opened.
+    update public.boosts b
        set status = 'ACTIVE', amount_paid_paise = v_intent.amount_paise,
            reviewed_at = now()
-     where id = v_intent.ref_id and status = 'PENDING'
+     where b.id = v_intent.ref_id and b.status = 'PENDING'
+       and not exists (
+         select 1 from public.boosts b2
+          where b2.slot = b.slot and b2.id <> b.id
+            and b2.status = 'ACTIVE' and b2.ends_at > now())
      returning event_id, organizer_id into v_event_id, v_org_id;
+
+    if v_event_id is null then
+      -- Slot was taken between checkout and capture → auto-refund + alert.
+      update public.boosts set status = 'REJECTED' where id = v_intent.ref_id;
+      insert into public.refunds (
+        order_id, event_id, user_id, amount_paise, platform_fee_paise,
+        status, reason, initiated_at
+      ) select null, b.event_id, v_intent.user_id, v_intent.amount_paise, 0,
+          'PENDING', 'Slot taken before payment settled — auto-refund', now()
+        from public.boosts b where b.id = v_intent.ref_id;
+      insert into public.event_notifications (event_id, user_id, type, message)
+      select null, p.id, 'PAYMENT_ALERT',
+             'Boost slot collision on intent ' || v_intent.id::text
+             || ' — payment captured but slot occupied; auto-refunded'
+        from public.profiles p where p.is_admin = true;
+      update public.payment_intents set status = 'PAID', updated_at = now() where id = v_intent.id;
+      return 'APPLIED:SLOT_BOOST_REFUNDED';
+    end if;
+
     insert into public.payment_ledger (
       order_id, event_id, organizer_id, type, gross_amount_paise,
       commission_paise, net_platform_paise, razorpay_payment_id, razorpay_fee_paise, notes

@@ -272,7 +272,11 @@ begin
     if not found or v_owner <> auth.uid() then raise exception 'Not authorized'; end if;
 
   elsif p_kind = 'SLOT_BOOST' then
-    select bsp.price_paise, o.owner_id into v_amount, v_owner
+    -- Slot price is PER DAY — multiply by the booked duration (rounded up).
+    select bsp.price_paise
+           * greatest(1, ceil(extract(epoch from (b.ends_at - b.starts_at)) / 86400)::int),
+           o.owner_id
+      into v_amount, v_owner
       from public.boosts b
       join public.organizers o on o.id = b.organizer_id
       join public.boost_slot_prices bsp on bsp.slot = b.slot
