@@ -274,155 +274,39 @@ export async function adminInitiateRefundAction(
   reason?: string,
 ): Promise<{ success: boolean; error?: string }> {
   const user = await requireAdmin();
-
   logger.info({ orderId, amountPaise, reason }, "admin refund initiated");
 
-  const { createClient } = await import("@/modules/shared/server");
-  const { getRazorpay, isRazorpayConfigured } = await import("@/modules/shared/server");
+  const { requestRefund, approveRefund } = await import("@/modules/shared/server");
+  const { processPendingRefunds } = await import("@/modules/shared/services/refunds");
 
-  if (!isRazorpayConfigured()) {
-    logger.warn("admin refund: Razorpay not configured");
-    return { success: false, error: "Razorpay is not configured." };
+  const refundReason = reason?.trim() ?? "";
+  if (refundReason.length < 10) {
+    return { success: false, error: "Give a reason (at least 10 characters) — the buyer sees it." };
   }
 
-  const supabase = await createClient();
-  const { data: order } = await supabase
-    .from("orders")
-    .select("id, event_id, user_id, total_paise, razorpay_payment_id, status")
-    .eq("id", orderId)
-    .maybeSingle();
-
-  if (!order) {
-    logger.warn({ orderId }, "admin refund: order not found");
-    return { success: false, error: "Order not found." };
-  }
-  if (order.status !== "CONFIRMED") {
-    logger.warn({ orderId, status: order.status }, "admin refund: order not confirmed");
-    return { success: false, error: "Only confirmed orders can be refunded." };
-  }
-  if (!order.razorpay_payment_id) {
-    logger.warn({ orderId }, "admin refund: no razorpay payment id");
-    return { success: false, error: "No Razorpay payment id on this order." };
-  }
-
-  const refundAmount = amountPaise ?? order.total_paise;
-
-  // Guard: refund amount cannot exceed order total
-  if (refundAmount > order.total_paise) {
-    logger.warn({ orderId, refundAmount, total: order.total_paise }, "admin refund: exceeds total");
-    return { success: false, error: "Refund amount cannot exceed the order total." };
-  }
-  if (refundAmount <= 0) {
-    logger.warn({ orderId, refundAmount }, "admin refund: amount not positive");
-    return { success: false, error: "Refund amount must be positive." };
-  }
-
-  // Guard: check for existing refunds to prevent over-refund
-  const { data: existingRefunds } = await supabase
-    .from("refunds")
-    .select("amount_paise, status")
-    .eq("order_id", orderId)
-    .in("status", ["PENDING", "COMPLETED"]);
-
-  const alreadyRefunded = (existingRefunds ?? []).reduce((s, r) => s + (r.amount_paise ?? 0), 0);
-  if (alreadyRefunded + refundAmount > order.total_paise) {
-    logger.warn({ orderId, alreadyRefunded, requested: refundAmount, total: order.total_paise }, "admin refund: over-refund guard");
-    return {
-      success: false,
-      error: `Cannot refund ₹${(refundAmount / 100).toFixed(2)}. Already refunded ₹${(alreadyRefunded / 100).toFixed(2)} of ₹${(order.total_paise / 100).toFixed(2)}.`,
-    };
-  }
-
-  const razorpay = getRazorpay();
-
-  let razorpayRefundId: string;
   try {
-    logger.info({ paymentId: order.razorpay_payment_id, amount: refundAmount }, "calling Razorpay refund API");
-    const refund = await razorpay.payments.refund(order.razorpay_payment_id, {
-      amount: refundAmount,
-      notes: {
-        order_id: orderId,
-        reason: reason ?? "Admin initiated refund",
-      },
+    // Unified pipeline: request → approve → initiate with Razorpay (webhook
+    // finalizes). requestRefund writes REQUESTED; approveRefund applies the
+    // scope + releases inventory; the worker pushes to the gateway.
+    const refund = await requestRefund(orderId, refundReason);
+    const scope = amountPaise && amountPaise > 0 ? "CUSTOM" : "FULL";
+    await approveRefund(refund.id, scope, scope === "CUSTOM" ? amountPaise ?? null : null, `Admin: ${refundReason}`);
+    await processPendingRefunds(1);
+
+    await auditFinancialAction(user.id, "INITIATE_REFUND", orderId, {
+      amountPaise: amountPaise ?? null,
+      scope,
+      reason: refundReason,
     });
-    razorpayRefundId = refund.id;
-    logger.info({ refundId: razorpayRefundId }, "Razorpay refund created");
+    revalidatePath("/admin/orders");
+    revalidatePath("/admin/payments");
+    revalidatePath("/admin/refunds");
+    revalidatePath("/tickets");
+    return { success: true };
   } catch (err) {
-    logger.error({ orderId, error: err instanceof Error ? err.message : String(err) }, "Razorpay refund failed");
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : "Razorpay refund failed.",
-    };
+    logger.warn({ orderId, error: err instanceof Error ? err.message : String(err) }, "admin refund failed");
+    return { success: false, error: err instanceof Error ? err.message : "Refund failed." };
   }
-
-  // Create refund record — service client: refunds insert policy is
-  // owner-only + the ledger has no user insert policy at all.
-  const service = createServiceClient();
-  const { error: refundInsertError } = await service.from("refunds").insert({
-    order_id: orderId,
-    event_id: order.event_id,
-    user_id: order.user_id,
-    amount_paise: refundAmount,
-    platform_fee_paise: 0,
-    status: "INITIATED",
-    reason: reason ?? "Admin initiated refund",
-    initiated_at: new Date().toISOString(),
-    initiated_by: user.id,
-    razorpay_payment_id: order.razorpay_payment_id,
-    razorpay_refund_id: razorpayRefundId,
-    refund_type: refundAmount === order.total_paise ? "FULL" : "PARTIAL",
-  });
-  if (refundInsertError) {
-    logger.error({ orderId, error: refundInsertError.message }, "refund record insert failed — Razorpay already moved money, reconcile manually");
-  }
-
-  // Update order status to REFUNDED (for full refunds)
-  if (refundAmount === order.total_paise) {
-    await service
-      .from("orders")
-      .update({ status: "REFUNDED" })
-      .eq("id", orderId);
-    // Void tickets
-    await service
-      .from("tickets")
-      .update({ status: "CANCELLED" })
-      .eq("order_id", orderId);
-    logger.info({ orderId }, "full refund: order REFUNDED, tickets CANCELLED");
-  } else {
-    logger.info({ orderId }, "partial refund: order stays CONFIRMED");
-  }
-
-  // Insert payment_ledger REFUND entry
-  try {
-    await service.from("payment_ledger").insert({
-      order_id: orderId,
-      event_id: order.event_id,
-      organizer_id: null,
-      type: "REFUND",
-      gross_amount_paise: -refundAmount,
-      commission_paise: 0,
-      convenience_fee_paise: 0,
-      razorpay_fee_paise: 0,
-      net_organizer_paise: 0,
-      net_platform_paise: -refundAmount,
-      razorpay_payment_id: `refund_${razorpayRefundId}`,
-      notes: reason ?? "Admin initiated refund",
-      created_at: new Date().toISOString(),
-    });
-  } catch (ledgerErr) {
-    logger.error({ orderId, error: ledgerErr instanceof Error ? ledgerErr.message : String(ledgerErr) }, "refund ledger insert failed");
-  }
-
-  await auditFinancialAction(user.id, "INITIATE_REFUND", orderId, {
-    amountPaise: refundAmount,
-    razorpayRefundId,
-    reason,
-  });
-
-  revalidatePath("/admin/orders");
-  revalidatePath("/admin/payments");
-  revalidatePath("/tickets");
-  return { success: true };
 }
 
 /**

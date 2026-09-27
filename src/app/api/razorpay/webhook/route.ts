@@ -1,35 +1,33 @@
 import { NextResponse } from "next/server";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
-  confirmRazorpayOrder,
-  failRazorpayOrder,
-  findOrderByRazorpayOrderId,
+  createServiceClient,
+  logger,
+  notifyAdmins,
+  verifyRazorpayWebhookSignature,
 } from "@/modules/shared/server";
-import { verifyRazorpayWebhookSignature } from "@/modules/shared/server";
-import { createServiceClient } from "@/modules/shared/server";
-import { logger } from "@/modules/shared/server";
 
 // Must run on Node.js (not Edge) — needs crypto for HMAC verification
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Razorpay webhook handler.
+ * Razorpay webhook handler — source of truth for payment state.
  *
  * Flow:
- *  1. Read raw body (NOT parsed JSON — needed for signature verification)
- *  2. Verify HMAC-SHA256 signature using RAZORPAY_WEBHOOK_SECRET
- *  3. Check idempotency via webhook_events table
- *  4. Process event:
- *     - payment.captured / order.paid → confirm_razorpay_order (if still RESERVED)
- *     - payment.failed → fail_razorpay_order
- *     - refund.processed → update refund status to COMPLETED
- *     - refund.failed → update refund status to FAILED
- *  5. Always return 200 after signature verification (prevent retries)
- *
- * IMPORTANT: All DB operations use the service-role client because webhooks
- * have no user session/cookies. Using the anon client would fail under RLS.
+ *  1. Read raw body → verify HMAC-SHA256 signature (401 on failure, no retry).
+ *  2. record_webhook_event — insert-or-claim (idempotent; concurrent
+ *     deliveries of the same event id get "in_progress").
+ *  3. Dispatch:
+ *     - payment.captured / order.paid → apply_captured_payment (dispatcher)
+ *     - payment.failed → apply_failed_payment
+ *     - payment.authorized → log only (auto-capture on)
+ *     - refund.* → finalize_refund (+ receipt linkage on refund.created)
+ *     - payment.dispute.* → payment_disputes row + admin alert
+ *     - unknown → logged, marked processed
+ *  4. Success → finish_webhook_event(ok) → 200.
+ *     Processing failure → finish_webhook_event(fail) → 500 so Razorpay
+ *     retries with backoff; signature/parse errors stay 4xx.
  */
 export async function POST(request: Request) {
   const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
@@ -38,18 +36,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
   }
 
-  // 1. Read raw body — do NOT parse JSON before signature verification
   const rawBody = await request.text();
   const signature = request.headers.get("x-razorpay-signature") ?? "";
 
-  // 2. Verify signature
-  const isValid = verifyRazorpayWebhookSignature(rawBody, signature, webhookSecret);
-  if (!isValid) {
+  if (!verifyRazorpayWebhookSignature(rawBody, signature, webhookSecret)) {
     logger.error({ signature: signature.slice(0, 16) }, "webhook signature verification failed");
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
-  // 3. Parse the verified body
   let payload: RazorpayWebhookPayload;
   try {
     payload = JSON.parse(rawBody);
@@ -58,347 +52,154 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // Razorpay sends `event` as a top-level string (e.g. "payment.captured")
-  // and the unique event id in the X-Razorpay-Event-Id header.
   const eventType = typeof payload.event === "string" ? payload.event : "";
   const eventId = request.headers.get("x-razorpay-event-id") ?? "";
-
   if (!eventId || !eventType) {
     logger.error({ eventType, hasEventId: !!eventId }, "webhook missing event id/type");
     return NextResponse.json({ error: "Missing event id" }, { status: 400 });
   }
 
-  logger.info({ eventType, eventId }, "webhook received");
-
-  // 4. Use the service-role client for ALL database operations.
-  // Webhooks have no user session, so the anon/cookie client would fail under RLS.
-  const supabase = createServiceClient();
-
-  // Check if we've already processed this event
-  const { data: existing } = await supabase
-    .from("webhook_events")
-    .select("id, processed")
-    .eq("razorpay_event_id", eventId)
-    .maybeSingle();
-
-  if (existing?.processed) {
-    logger.info({ eventId, eventType }, "webhook already processed");
-    return NextResponse.json({ status: "already_processed" });
-  }
-
-  // Extract order/payment info from the payload
   const paymentEntity = payload.payload?.payment?.entity;
   const orderEntity = payload.payload?.order?.entity;
   const refundEntity = payload.payload?.refund?.entity;
-
-  // Find the internal order id from the Razorpay order id
+  const disputeEntity = payload.payload?.dispute?.entity;
   const razorpayOrderId =
-    paymentEntity?.order_id ?? orderEntity?.id ?? "";
-  let internalOrderId: string | null = null;
+    paymentEntity?.order_id ?? orderEntity?.id ?? refundEntity?.order_id ?? "";
 
-  if (razorpayOrderId) {
-    // Pass the service client so RLS doesn't block the lookup
-    const order = await findOrderByRazorpayOrderId(razorpayOrderId, supabase);
-    if (order) internalOrderId = order.id;
+  const supabase = createServiceClient();
+
+  // Claim the event (idempotent across Razorpay retries)
+  const { data: claim, error: claimErr } = await supabase.rpc("record_webhook_event", {
+    p_event_id: eventId,
+    p_type: eventType,
+    p_payload: payload as unknown as Record<string, unknown>,
+    p_order_id: null,
+  });
+  if (claimErr) {
+    logger.error({ eventId, error: claimErr.message }, "record_webhook_event failed");
+    return NextResponse.json({ error: "Event tracking failed" }, { status: 500 });
+  }
+  const row = Array.isArray(claim) ? claim[0] : claim;
+  if (row?.already_processed) {
+    return NextResponse.json({ status: "already_processed" });
+  }
+  if (!row?.is_new) {
+    return NextResponse.json({ status: "in_progress" });
   }
 
-  // Log the webhook event (insert or update the existing unprocessed record)
-  const { error: logError } = await supabase.from("webhook_events").upsert(
-    {
-      razorpay_event_id: eventId,
-      event_type: eventType,
-      payload: payload as unknown as Record<string, unknown>,
-      order_id: internalOrderId,
-      processed: false,
-      created_at: new Date().toISOString(),
-    },
-    { onConflict: "razorpay_event_id" },
-  );
-  if (logError) {
-    logger.error({ eventId, error: logError.message }, "failed to log webhook event");
-  }
-
-  // 5. Process the event
-  let processed = false;
-  let errorMessage: string | null = null;
+  logger.info({ eventType, eventId, razorpayOrderId }, "webhook received");
 
   try {
     switch (eventType) {
       case "payment.captured":
       case "order.paid": {
-        if (!internalOrderId || !paymentEntity) {
-          // Not a ticket order — check if it's a Hero Boost payment.
-          const boostHandled = await tryConfirmHeroBoost(supabase, razorpayOrderId, paymentEntity);
-          if (boostHandled) {
-            processed = true;
-            break;
-          }
-          errorMessage = "Missing order id or payment entity";
-          logger.warn({ eventId, eventType }, "missing order/payment for payment.captured");
-          break;
+        const amount = paymentEntity?.amount ?? orderEntity?.amount_paid ?? 0;
+        const { data: outcome, error } = await supabase.rpc("apply_captured_payment", {
+          p_razorpay_order_id: razorpayOrderId,
+          p_razorpay_payment_id: paymentEntity?.id ?? `orderpaid_${razorpayOrderId}`,
+          p_amount: amount,
+          p_currency: paymentEntity?.currency ?? orderEntity?.currency ?? "INR",
+          p_method: paymentEntity?.method ?? null,
+          p_fee: paymentEntity?.fee ?? null,
+          p_tax: paymentEntity?.tax ?? null,
+        });
+        if (error) throw new Error(`apply_captured_payment: ${error.message}`);
+        logger.info({ eventId, outcome }, "captured payment applied");
+        if (outcome === "MISMATCH") {
+          await notifyAdmins({
+            type: "PAYMENT_ALERT",
+            message: `Razorpay amount mismatch on order ${razorpayOrderId} — expected vs captured differ.`,
+          });
         }
-        logger.info({ orderId: internalOrderId, paymentId: paymentEntity.id, method: paymentEntity.method }, "confirming order via webhook");
-        // Confirm the order using the service client (idempotent — safe if callback already confirmed)
-        // Pass null for signature — the webhook HMAC is not the payment signature.
-        // The payment signature was already verified by the client-side callback.
-        // The webhook signature itself was verified above.
-        await confirmRazorpayOrder(
-          internalOrderId,
-          paymentEntity.id,
-          null, // payment signature — not available in webhook payload
-          paymentEntity.method ?? null,
-          supabase,
-        );
-        logger.info({ orderId: internalOrderId }, "order confirmed via webhook");
-
-        // Insert payment_ledger entry (best-effort, but using service client)
-        try {
-          const { data: orderRow } = await supabase
-            .from("orders")
-            .select("event_id, commission_paise, convenience_fee_paise, organizer_payout_paise, subtotal_paise, platform_fee_paise, total_paise")
-            .eq("id", internalOrderId)
-            .maybeSingle();
-
-          if (orderRow) {
-            const { data: eventRow } = await supabase
-              .from("events")
-              .select("organizer_id")
-              .eq("id", orderRow.event_id)
-              .maybeSingle();
-
-            // Check if a ledger entry already exists for this payment (idempotency)
-            const { data: existingLedger } = await supabase
-              .from("payment_ledger")
-              .select("id")
-              .eq("razorpay_payment_id", paymentEntity.id)
-              .maybeSingle();
-
-            if (!existingLedger) {
-              await supabase.from("payment_ledger").insert({
-                order_id: internalOrderId,
-                event_id: orderRow.event_id,
-                organizer_id: eventRow?.organizer_id ?? null,
-                type: "TICKET_SALE",
-                gross_amount_paise: orderRow.subtotal_paise,
-                commission_paise: orderRow.commission_paise ?? 0,
-                convenience_fee_paise: orderRow.convenience_fee_paise ?? 0,
-                razorpay_fee_paise: 0,
-                net_organizer_paise: orderRow.organizer_payout_paise ?? 0,
-                net_platform_paise: orderRow.platform_fee_paise ?? 0,
-                razorpay_payment_id: paymentEntity.id,
-                notes: "Razorpay webhook confirmation",
-                created_at: new Date().toISOString(),
-              });
-            }
-          }
-        } catch (ledgerErr) {
-          logger.error({ orderId: internalOrderId, error: ledgerErr instanceof Error ? ledgerErr.message : String(ledgerErr) }, "ledger insert from webhook failed");
-        }
-
-        processed = true;
         break;
       }
 
       case "payment.failed": {
-        if (!internalOrderId) {
-          errorMessage = "Missing order id for payment.failed";
-          logger.warn({ eventId }, "payment.failed: missing orderId");
-          break;
-        }
-        logger.info({ orderId: internalOrderId }, "failing order via webhook");
-        await failRazorpayOrder(internalOrderId, supabase);
-        logger.info({ orderId: internalOrderId }, "order failed via webhook");
-        processed = true;
+        const { data: outcome, error } = await supabase.rpc("apply_failed_payment", {
+          p_razorpay_order_id: razorpayOrderId,
+        });
+        if (error) throw new Error(`apply_failed_payment: ${error.message}`);
+        logger.info({ eventId, outcome }, "failed payment applied");
         break;
       }
 
-      case "refund.processed": {
-        // Update refund record to COMPLETED — match by razorpay_refund_id for precision
+      case "payment.authorized": {
+        logger.info({ eventId, paymentId: paymentEntity?.id }, "payment authorized (auto-capture)");
+        break;
+      }
+
+      case "refund.created": {
+        // Link the gateway refund id to our row via the receipt we sent.
         if (refundEntity?.id) {
-          logger.info({ refundId: refundEntity.id, amount: refundEntity.amount }, "refund.processed via webhook");
-          await supabase
-            .from("refunds")
-            .update({
-              status: "COMPLETED",
-              completed_at: new Date().toISOString(),
-            })
-            .eq("razorpay_refund_id", refundEntity.id);
-
-          // Insert REFUND ledger entry (best-effort)
-          try {
-            const { data: refundRow } = await supabase
+          const receipt = refundEntity.receipt ?? null;
+          if (receipt) {
+            await supabase
               .from("refunds")
-              .select("order_id, amount_paise, event_id")
-              .eq("razorpay_refund_id", refundEntity.id)
-              .maybeSingle();
-
-            if (refundRow) {
-              // Look up organizer from the event
-              const { data: eventRow } = await supabase
-                .from("events")
-                .select("organizer_id")
-                .eq("id", refundRow.event_id)
-                .maybeSingle();
-
-              const { data: existingLedger } = await supabase
-                .from("payment_ledger")
-                .select("id")
-                .eq("razorpay_payment_id", `refund_${refundEntity.id}`)
-                .maybeSingle();
-
-              if (!existingLedger) {
-                await supabase.from("payment_ledger").insert({
-                  order_id: refundRow.order_id,
-                  event_id: refundRow.event_id,
-                  organizer_id: eventRow?.organizer_id ?? null,
-                  type: "REFUND",
-                  gross_amount_paise: -(refundRow.amount_paise ?? 0),
-                  commission_paise: 0,
-                  convenience_fee_paise: 0,
-                  razorpay_fee_paise: 0,
-                  net_organizer_paise: 0,
-                  net_platform_paise: -(refundRow.amount_paise ?? 0),
-                  razorpay_payment_id: `refund_${refundEntity.id}`,
-                  notes: "Refund processed via webhook",
-                  created_at: new Date().toISOString(),
-                });
-              }
-            }
-          } catch (ledgerErr) {
-            logger.error({ refundId: refundEntity.id, error: ledgerErr instanceof Error ? ledgerErr.message : String(ledgerErr) }, "refund ledger insert from webhook failed");
+              .update({ razorpay_refund_id: refundEntity.id })
+              .or(`receipt.eq.${receipt},id.eq.${receipt}`);
           }
         }
-        processed = true;
         break;
       }
 
-      case "refund.failed": {
+      case "refund.processed":
+      case "refund.failed":
+      case "refund.speed_changed": {
+        const status =
+          eventType === "refund.processed" ? "processed"
+          : eventType === "refund.failed" ? "failed"
+          : refundEntity?.status ?? "ignored";
         if (refundEntity?.id) {
-          logger.warn({ refundId: refundEntity.id }, "refund.failed via webhook");
-          await supabase
-            .from("refunds")
-            .update({
-              status: "FAILED",
-            })
-            .eq("razorpay_refund_id", refundEntity.id);
+          const { data: outcome, error } = await supabase.rpc("finalize_refund", {
+            p_razorpay_refund_id: refundEntity.id,
+            p_status: status,
+          });
+          if (error) throw new Error(`finalize_refund: ${error.message}`);
+          logger.info({ eventId, outcome }, "refund finalized");
         }
-        errorMessage = "Refund failed";
-        processed = true; // Mark as processed so we don't retry
         break;
       }
 
-      default:
-        // Unknown event — log but don't error
-        logger.info({ eventType, eventId }, "unhandled webhook event type");
-        processed = true;
-        break;
-    }
-  } catch (err) {
-    errorMessage = err instanceof Error ? err.message : "Processing failed";
-    processed = false;
-    logger.error({ eventType, eventId, error: errorMessage }, "webhook processing error");
-  }
-
-  logger.info({ eventType, eventId, processed, error: errorMessage }, "webhook complete");
-
-  // 6. Update the webhook event record
-  await supabase
-    .from("webhook_events")
-    .update({
-      processed,
-      error_message: errorMessage,
-      processed_at: processed ? new Date().toISOString() : null,
-    })
-    .eq("razorpay_event_id", eventId);
-
-  // 7. Return 200 after signature verification.
-  // If processing failed, we still return 200 but with processed=false.
-  // The admin can monitor webhook_events for processed=false entries.
-  // Returning non-200 would cause Razorpay to retry, which is good for
-  // transient failures but could cause duplicate processing for persistent ones.
-  // The idempotency in confirm_razorpay_order and fail_razorpay_order handles retries safely.
-  return NextResponse.json({
-    status: processed ? "processed" : "failed",
-    error: errorMessage,
-  });
-}
-
-/**
- * payment.captured fallback: when no ticket order matches the Razorpay order
- * id, check hero_boosts — the boost checkout links razorpay_order_id there.
- * Records the payment id + activates the boost; idempotent.
- */
-async function tryConfirmHeroBoost(
-  supabase: SupabaseClient,
-  razorpayOrderId: string,
-  paymentEntity: { id: string; method?: string } | undefined,
-): Promise<boolean> {
-  if (!razorpayOrderId || !paymentEntity) return false;
-  const { data: boost } = await supabase
-    .from("hero_boosts")
-    .select("id, status")
-    .eq("razorpay_order_id", razorpayOrderId)
-    .maybeSingle();
-  if (!boost) return false;
-  if (boost.status === "ACTIVE") return true; // already activated — idempotent
-  if (boost.status !== "PENDING") return true; // cancelled/expired — nothing to do
-
-  await supabase
-    .from("hero_boosts")
-    .update({ razorpay_payment_id: paymentEntity.id })
-    .eq("id", boost.id);
-
-  const { getHeroBoostDurationDays, activateHeroBoost } = await import("@/modules/shared/server");
-  const durationDays = await getHeroBoostDurationDays();
-  try {
-    await activateHeroBoost(boost.id, durationDays);
-  } catch (err) {
-    logger.error({ boostId: boost.id, error: err instanceof Error ? err.message : String(err) }, "hero boost activation via webhook failed");
-  }
-
-  // Ledger: boost revenue is platform revenue.
-  try {
-    const { data: boostRow } = await supabase
-      .from("hero_boosts")
-      .select("amount_paise, organizer_id, event_id")
-      .eq("id", boost.id)
-      .maybeSingle();
-    if (boostRow) {
-      const { data: existingLedger } = await supabase
-        .from("payment_ledger")
-        .select("id")
-        .eq("razorpay_payment_id", paymentEntity.id)
-        .maybeSingle();
-      if (!existingLedger) {
-        await supabase.from("payment_ledger").insert({
-          order_id: null,
-          event_id: boostRow.event_id,
-          organizer_id: boostRow.organizer_id,
-          type: "BOOST_SALE",
-          gross_amount_paise: boostRow.amount_paise,
-          commission_paise: boostRow.amount_paise,
-          convenience_fee_paise: 0,
-          net_organizer_paise: 0,
-          net_platform_paise: boostRow.amount_paise,
-          razorpay_payment_id: paymentEntity.id,
-          notes: "Hero Boost purchase (webhook)",
-          created_at: new Date().toISOString(),
-        });
+      default: {
+        if (eventType.startsWith("payment.dispute.")) {
+          const entity = disputeEntity ?? paymentEntity;
+          const disputedPaymentId = disputeEntity?.payment_id ?? paymentEntity?.id ?? null;
+          await supabase.from("payment_disputes").upsert(
+            {
+              razorpay_dispute_id: entity?.id ?? eventId,
+              razorpay_payment_id: disputedPaymentId,
+              razorpay_order_id: razorpayOrderId || null,
+              amount_paise: entity?.amount ?? paymentEntity?.amount ?? null,
+              status: eventType.replace("payment.dispute.", "").toUpperCase(),
+              raw: payload as unknown as Record<string, unknown>,
+            },
+            { onConflict: "razorpay_dispute_id" },
+          );
+          await notifyAdmins({
+            type: "PAYMENT_ALERT",
+            message: `Razorpay dispute ${eventType.replace("payment.dispute.", "")} on payment ${disputedPaymentId ?? "unknown"} — review in admin.`,
+          });
+          logger.warn({ eventId, eventType }, "dispute recorded");
+        } else {
+          logger.info({ eventType, eventId }, "unhandled webhook event type");
+        }
       }
     }
-  } catch (ledgerErr) {
-    logger.error({ boostId: boost.id, error: ledgerErr instanceof Error ? ledgerErr.message : String(ledgerErr) }, "hero boost ledger insert failed");
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Processing failed";
+    logger.error({ eventType, eventId, error: message }, "webhook processing error");
+    await supabase.rpc("finish_webhook_event", { p_event_id: eventId, p_ok: false, p_error: message });
+    // 500 → Razorpay retries with backoff (≤24h); idempotency makes replay safe.
+    return NextResponse.json({ status: "failed", error: message }, { status: 500 });
   }
 
-  logger.info({ boostId: boost.id, paymentId: paymentEntity.id }, "hero boost confirmed via webhook");
-  return true;
+  await supabase.rpc("finish_webhook_event", { p_event_id: eventId, p_ok: true });
+  return NextResponse.json({ status: "processed" });
 }
 
-// Type definitions for the Razorpay webhook payload (subset)
 interface RazorpayWebhookPayload {
   entity?: string;
   account_id?: string;
-  /** Top-level string, e.g. "payment.captured" (not an object). */
   event?: string;
   created_at?: number;
   payload?: {
@@ -410,6 +211,8 @@ interface RazorpayWebhookPayload {
         amount?: number;
         currency?: string;
         status?: string;
+        fee?: number;
+        tax?: number;
       };
     };
     order?: {
@@ -417,10 +220,21 @@ interface RazorpayWebhookPayload {
         id: string;
         amount_paid?: number;
         amount_due?: number;
+        currency?: string;
         status?: string;
       };
     };
     refund?: {
+      entity: {
+        id: string;
+        payment_id?: string;
+        order_id?: string;
+        amount?: number;
+        status?: string;
+        receipt?: string;
+      };
+    };
+    dispute?: {
       entity: {
         id: string;
         payment_id?: string;

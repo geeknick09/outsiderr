@@ -385,17 +385,58 @@ const spec = {
         },
       },
     },
+    "/api/v1/payments/intent": {
+      post: {
+        tags: ["API v1"],
+        summary: "Create payment intent + Razorpay order for a non-ticket payable",
+        description: "For boosts, door-staff orders and club memberships. Ticket orders use /api/v1/checkout.",
+        operationId: "v1PaymentIntent",
+        security: [{ SupabaseAuth: [] }],
+        requestBody: { required: true, content: { "application/json": { schema: {
+          type: "object", required: ["kind", "refId"],
+          properties: {
+            kind: { type: "string", enum: ["HERO_BOOST", "SLOT_BOOST", "DOOR_STAFF", "CLUB_MEMBERSHIP"] },
+            refId: { type: "string", format: "uuid" },
+            idempotencyKey: { type: "string", maxLength: 128 },
+          },
+        } } } },
+        responses: {
+          "200": { description: "Intent + Razorpay order created", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiOk" } } } },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+        },
+      },
+    },
+    "/api/v1/payments/status": {
+      get: {
+        tags: ["API v1"],
+        summary: "Poll payment/order state (checkout-status poller)",
+        operationId: "v1PaymentStatus",
+        security: [{ SupabaseAuth: [] }],
+        parameters: [
+          { name: "orderId", in: "query", schema: { type: "string", format: "uuid" } },
+          { name: "intentId", in: "query", schema: { type: "string", format: "uuid" } },
+          { name: "razorpayOrderId", in: "query", schema: { type: "string" } },
+        ],
+        responses: {
+          "200": { description: "Payment status", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiOk" } } } },
+          "400": { $ref: "#/components/responses/BadRequest" },
+          "401": { $ref: "#/components/responses/Unauthorized" },
+          "404": { description: "Not found" },
+        },
+      },
+    },
     "/api/v1/orders/manual": {
       post: {
         tags: ["API v1"],
-        summary: "Free RSVP or manual-UPI order (PENDING_VERIFICATION)",
+        summary: "Free RSVP (auto-confirmed) — paid orders go through /api/v1/checkout",
         operationId: "v1ManualOrder",
         security: [{ SupabaseAuth: [] }],
         requestBody: { required: true, content: { "application/json": { schema: {
           type: "object", required: ["eventId", "tierId", "quantity"],
           properties: {
             eventId: { type: "string", format: "uuid" }, tierId: { type: "string", format: "uuid" },
-            quantity: { type: "integer" }, isFree: { type: "boolean" },
+            quantity: { type: "integer" }, isFree: { type: "boolean", enum: [true] },
             buyerName: { type: "string" }, buyerPhone: { type: "string" },
             buyerEmail: { type: "string" }, buyerGender: { type: "string" },
             utrReference: { type: "string" },

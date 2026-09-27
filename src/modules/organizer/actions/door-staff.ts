@@ -33,7 +33,7 @@ export async function verifyDoorStaffPaymentAction(
 export async function createDoorStaffOrderAction(
   eventId: string,
   staffCount: number,
-  serviceAmountPaise: number,
+  _serviceAmountPaise: number,
 ): Promise<{ error: string | null }> {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=%2Forganizer");
@@ -50,4 +50,66 @@ export async function createDoorStaffOrderAction(
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to create door staff order." };
   }
+}
+
+// ============================================================================
+// RAZORPAY: door staff payment via the unified payment intent pipeline
+// ============================================================================
+
+export async function startDoorStaffCheckoutAction(
+  orderId: string,
+): Promise<{ session?: import("@/modules/shared").CheckoutSession; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Please sign in to continue." };
+  if (!orderId) return { error: "Missing door staff order ID." };
+
+  const { startPayment } = await import("@/modules/shared/services/payments");
+  const { result, error } = await startPayment(user, {
+    kind: "DOOR_STAFF",
+    refId: orderId,
+    itemTitle: "Door staff service",
+  });
+  if (error || !result) return { error: error ?? "Could not start payment." };
+
+  return {
+    session: {
+      orderId,
+      razorpayOrderId: result.razorpayOrderId,
+      amountPaise: result.amountPaise,
+      currency: "INR",
+      keyId: result.keyId,
+      eventTitle: "Door staff service",
+      tierName: "Door staff",
+      quantity: 1,
+      buyerName: user.name,
+      buyerEmail: user.email ?? null,
+      buyerPhone: user.phone ?? null,
+      intentId: result.intentId,
+      expiresAt: result.expiresAt,
+    },
+  };
+}
+
+export async function verifyDoorStaffRazorpayAction(input: {
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "Sign in." };
+  const { verifyPayment } = await import("@/modules/shared/services/payments");
+  const result = await verifyPayment(user, input);
+  if (result.success) revalidatePath("/organizer");
+  return { success: result.success, error: result.error };
+}
+
+export async function handleDoorStaffPaymentFailureAction(input: {
+  razorpayOrderId: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "Please sign in to continue." };
+  const { reportPaymentFailure } = await import("@/modules/shared/services/payments");
+  const result = await reportPaymentFailure(user, input);
+  if (result.success) revalidatePath("/organizer");
+  return result;
 }

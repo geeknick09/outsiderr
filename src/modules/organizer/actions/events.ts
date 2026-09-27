@@ -649,19 +649,9 @@ export async function cancelEventAction(formData: FormData): Promise<void> {
   await cancelHeroBoostsForEvent(eventId);
   console.log(`[cancel] Hero boosts cancelled for eventId=${eventId}`);
 
-  // Process Razorpay refunds for all cancelled orders — shared sweep used by
-  // both the web action and /api/v1/events/[id]/cancel.
-  const { runCancellationRefundSweep } = await import("@/modules/shared/services/orders");
-  const { refundSuccess: refundSuccessCount, refundFail: refundFailCount } =
-    await runCancellationRefundSweep({
-      eventId,
-      reason,
-      organizerOwesPaise: result.organizerOwesPaise,
-      cancellationChargePercent: result.cancellationChargePercent,
-      refundCount: result.refundCount,
-    });
-
-  console.log(`[cancel] cancelEventAction complete: eventId=${eventId}, refundSuccess=${refundSuccessCount}, refundFail=${refundFailCount}, organizerOwes=${result.organizerOwesPaise}paise`);
+  // Refund rows are created PENDING inside cancel_event (with the organizer
+  // liability ADJUSTMENT) — the refund worker pushes them to Razorpay.
+  console.log(`[cancel] cancelEventAction complete: eventId=${eventId}, refundsQueued=${result.refundCount}, organizerOwes=${result.organizerOwesPaise}paise`);
 
   revalidatePath("/");
   revalidateTag("events");

@@ -3,12 +3,13 @@ name: Outsiderr Cron Jobs
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/5 * * * *'     # every 5 min  — expire-reservations, expire-waitlist-offers, drain-notifications
+    - cron: '*/5 * * * *'     # every 5 min  — expire-reservations, expire-waitlist-offers, drain-notifications, process-refunds
     - cron: '0 2 * * *'       # daily 02:00  — daily-backup
     - cron: '30 2 * * *'      # daily 02:30  — cleanup-teasers
     - cron: '0 3 * * 0'       # weekly Sun 03:00 — weekly-backup
     - cron: '15 * * * *'      # hourly       — refresh-analytics
     - cron: '45 3 * * 0'      # weekly Sun 03:45 — refresh-analytics (full rebuild)
+    - cron: '20 * * * *'      # hourly       — reconcile-payments (missed captures + refund finals)
 
 jobs:
   expire-reservations:
@@ -70,6 +71,26 @@ jobs:
           curl -fsS \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             "${{ secrets.APP_URL }}/api/cron/drain-notifications"
+
+  process-refunds:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/5 * * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Push approved refunds to Razorpay
+        run: |
+          curl -fsS \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/process-refunds"
+
+  reconcile-payments:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '20 * * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reconcile captures + refunds the webhook missed
+        run: |
+          curl -fsS \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/reconcile-payments"
 
   refresh-analytics:
     if: github.event_name == 'workflow_dispatch' || github.event.schedule == '15 * * * *' || github.event.schedule == '45 3 * * 0'

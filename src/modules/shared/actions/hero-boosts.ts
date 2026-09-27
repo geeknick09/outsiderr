@@ -6,9 +6,6 @@ import { getCurrentUser } from "../auth/auth";
 import { activateHeroBoost, cancelHeroBoost, cancelHeroBoostsForEvent, createHeroBoost, getHeroBoostForEvent, submitHeroBoostUtr } from "../data/hero-boosts";
 import { getHeroBoostDurationDays, getHeroBoostPrice } from "../data/platform-settings";
 import { createClient } from "../auth/server";
-import { createServiceClient } from "../auth/service";
-import { getRazorpay, getPublicKeyId, isRazorpayConfigured } from "../lib/razorpay";
-import { verifyRazorpayPaymentSignature } from "../lib/razorpay-verify";
 import { CheckoutSession } from "../lib/types";
 
 /**
@@ -148,22 +145,19 @@ export async function onEventCancelled(eventId: string): Promise<void> {
 }
 
 // ============================================================================
-// RAZORPAY: Hero Boost purchase via Razorpay Checkout
+// RAZORPAY: Hero Boost purchase via the unified payment intent pipeline
 // ============================================================================
 
 /**
- * Create a pending hero boost + Razorpay order for it.
- * Returns a CheckoutSession the client uses to open Razorpay Checkout.
+ * Create a pending hero boost → payment intent → Razorpay order. The boost's
+ * activation happens in the capture dispatcher (webhook or client verify —
+ * whichever lands first), never inline here.
  */
 export async function createHeroBoostCheckoutAction(
   eventId: string,
 ): Promise<{ session?: CheckoutSession; error?: string }> {
   const user = await getCurrentUser();
   if (!user) return { error: "Sign in to boost your event." };
-
-  if (!isRazorpayConfigured()) {
-    return { error: "Online payments are not configured yet." };
-  }
 
   const price = await getHeroBoostPrice();
   let boost;
@@ -177,74 +171,40 @@ export async function createHeroBoostCheckoutAction(
     return { error: message };
   }
 
-  // Create Razorpay order for the boost
-  const razorpay = getRazorpay();
-  let razorpayOrderId: string;
-  try {
-    const order = await razorpay.orders.create({
-      amount: price,
-      currency: "INR",
-      receipt: boost.id,
-      notes: {
-        boost_id: boost.id,
-        event_id: eventId,
-        type: "HERO_BOOST",
-      },
-    });
-    razorpayOrderId = order.id;
-  } catch (err) {
-    // Clean up the pending boost if Razorpay order creation fails
-    try {
-      await cancelHeroBoost(boost.id);
-    } catch {
-      // best-effort
-    }
-    return {
-      error: err instanceof Error ? `Payment gateway error: ${err.message}` : "Could not create payment order.",
-    };
-  }
-
-  // Link Razorpay order id to the boost — if this fails, the payment cannot
-  // be verified. Service client: hero_boosts has no organizer UPDATE policy.
-  const supabase = createServiceClient();
-  const { error: linkError } = await supabase
-    .from("hero_boosts")
-    .update({ razorpay_order_id: razorpayOrderId })
-    .eq("id", boost.id);
-
-  if (linkError) {
-    // Critical: if we can't link the order, cancel the boost so the user isn't charged
-    // without a way to verify their payment
-    try {
-      await cancelHeroBoost(boost.id);
-    } catch {
-      // best-effort cleanup
-    }
-    return {
-      error: "Failed to link payment order. Please try again.",
-    };
+  const { startPayment } = await import("../services/payments");
+  const { result, error } = await startPayment(user, {
+    kind: "HERO_BOOST",
+    refId: boost.id,
+    itemTitle: "Front Row Boost — Hero",
+  });
+  if (error || !result) {
+    try { await cancelHeroBoost(boost.id); } catch { /* best-effort */ }
+    return { error: error ?? "Could not start payment." };
   }
 
   return {
     session: {
       orderId: boost.id,
-      razorpayOrderId,
-      amountPaise: price,
+      razorpayOrderId: result.razorpayOrderId,
+      amountPaise: result.amountPaise,
       currency: "INR",
-      keyId: getPublicKeyId(),
+      keyId: result.keyId,
       eventTitle: "Front Row Boost",
       tierName: "Hero Boost",
       quantity: 1,
       buyerName: user.name,
       buyerEmail: user.email ?? null,
       buyerPhone: user.phone ?? null,
+      intentId: result.intentId,
+      expiresAt: result.expiresAt,
     },
   };
 }
 
 /**
- * Verify Razorpay payment for a hero boost and activate it.
- * Called after Razorpay Checkout returns successfully.
+ * Verify a hero-boost payment and dispatch the capture — the dispatcher
+ * activates the boost + writes the BOOST_SALE ledger row, idempotent vs the
+ * webhook.
  */
 export async function verifyHeroBoostPaymentAction(input: {
   razorpayOrderId: string;
@@ -254,133 +214,28 @@ export async function verifyHeroBoostPaymentAction(input: {
   const user = await getCurrentUser();
   if (!user) return { success: false, error: "Sign in." };
 
-  const keySecret = process.env.RAZORPAY_KEY_SECRET;
-  if (!keySecret) return { success: false, error: "Payment verification not configured." };
-
-  // Verify signature
-  const valid = verifyRazorpayPaymentSignature(
-    input.razorpayOrderId,
-    input.razorpayPaymentId,
-    input.razorpaySignature,
-    keySecret,
-  );
-  if (!valid) return { success: false, error: "Payment signature verification failed." };
-
-  // Find the boost by razorpay_order_id (service client — organizer has no
-  // update policy; signature already verified above proves the payment).
-  const supabase = createServiceClient();
-  const { data: boost } = await supabase
-    .from("hero_boosts")
-    .select("id, status, event_id, organizer_id")
-    .eq("razorpay_order_id", input.razorpayOrderId)
-    .maybeSingle();
-
-  if (!boost) return { success: false, error: "Boost not found for this payment." };
-  if (boost.status === "ACTIVE") return { success: true }; // idempotent
-
-  // Only the boost's own organizer can complete the payment.
-  const { getOrganizerProfile } = await import("../data/organizer-profile");
-  const callerOrg = await getOrganizerProfile(user);
-  if (!callerOrg || callerOrg.id !== boost.organizer_id) {
-    return { success: false, error: "This payment does not belong to your organizer account." };
+  const { verifyPayment } = await import("../services/payments");
+  const result = await verifyPayment(user, input);
+  if (result.success) {
+    revalidatePath("/organizer");
+    revalidatePath("/admin");
+    revalidatePath("/admin/boosts");
+    revalidatePath("/");
   }
-
-  // Update boost with payment id + activate
-  const durationDays = await getHeroBoostDurationDays();
-  await supabase
-    .from("hero_boosts")
-    .update({ razorpay_payment_id: input.razorpayPaymentId })
-    .eq("id", boost.id);
-
-  try {
-    await activateHeroBoost(boost.id, durationDays);
-  } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : "Failed to activate boost.",
-    };
-  }
-
-  // Insert ledger entry
-  try {
-    const { data: boostRow } = await supabase
-      .from("hero_boosts")
-      .select("amount_paise, organizer_id, event_id")
-      .eq("id", boost.id)
-      .maybeSingle();
-
-    if (boostRow) {
-      await supabase.from("payment_ledger").insert({
-        order_id: null,
-        event_id: boostRow.event_id,
-        organizer_id: boostRow.organizer_id,
-        type: "BOOST_SALE",
-        gross_amount_paise: boostRow.amount_paise,
-        commission_paise: boostRow.amount_paise, // boost is platform revenue
-        convenience_fee_paise: 0,
-        net_organizer_paise: 0,
-        net_platform_paise: boostRow.amount_paise,
-        razorpay_payment_id: input.razorpayPaymentId,
-        notes: "Hero Boost purchase",
-        created_at: new Date().toISOString(),
-      });
-    }
-  } catch (err) {
-    console.error("Ledger insert for boost failed:", err);
-  }
-
-  revalidatePath("/organizer");
-  revalidatePath("/admin");
-  revalidatePath("/admin/boosts");
-  revalidatePath("/");
-  return { success: true };
+  return { success: result.success, error: result.error };
 }
 
-/**
- * Handle Hero Boost payment failure — cancel the pending boost so the organizer can retry.
- * Called when Razorpay Checkout is dismissed or payment fails for a Hero Boost.
- */
+/** Boost payment dismissed/failed → release the pending boost via the dispatcher. */
 export async function handleHeroBoostFailureAction(input: {
   razorpayOrderId: string;
 }): Promise<{ success: boolean; error?: string }> {
   const user = await getCurrentUser();
   if (!user) return { success: false, error: "Please sign in to continue." };
 
-  const supabase = createServiceClient();
-  const { data: boost } = await supabase
-    .from("hero_boosts")
-    .select("id, status, organizer_id")
-    .eq("razorpay_order_id", input.razorpayOrderId)
-    .maybeSingle();
-
-  if (!boost) {
-    // Boost may have already been cancelled — safe to return success
-    return { success: true };
-  }
-
-  // Only cancel if still PENDING — don't touch ACTIVE/CANCELLED boosts
-  if (boost.status !== "PENDING") {
-    return { success: true };
-  }
-
-  // Ownership: only the boost's organizer (or admin) can cancel it.
-  const { getOrganizerProfile } = await import("../data/organizer-profile");
-  const callerOrg = await getOrganizerProfile(user);
-  const admin = await checkAdmin();
-  if (!admin && (!callerOrg || callerOrg.id !== boost.organizer_id)) {
-    return { success: false, error: "Not authorised." };
-  }
-
-  try {
-    await cancelHeroBoost(boost.id);
-    revalidatePath("/organizer");
-    return { success: true };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Could not cancel boost.",
-    };
-  }
+  const { reportPaymentFailure } = await import("../services/payments");
+  const result = await reportPaymentFailure(user, input);
+  if (result.success) revalidatePath("/organizer");
+  return result;
 }
 
 export { getHeroBoostForEvent };

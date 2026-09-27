@@ -3,7 +3,6 @@ import { revalidatePath, revalidateTag } from "next/cache";
 
 import { apiError, apiOk, cancelHeroBoostsForEvent, readJson, withApiUser } from "@/modules/shared/server";
 import { cancelEvent } from "@/modules/organizer/server";
-import { runCancellationRefundSweep } from "@/modules/shared/services/orders";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,21 +25,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     try {
       const result = await cancelEvent(user, id, parsed.data.reason);
-      // Same post-cancel pipeline as the web action: cancel hero boosts,
-      // initiate Razorpay refunds for PENDING refund rows, journal the
-      // organizer-liability adjustment.
+      // Refund rows are created PENDING inside cancel_event (with the
+      // organizer liability ADJUSTMENT) — the refund worker pushes them.
       await cancelHeroBoostsForEvent(id);
-      const sweep = await runCancellationRefundSweep({
-        eventId: id,
-        reason: parsed.data.reason,
-        organizerOwesPaise: result.organizerOwesPaise,
-        cancellationChargePercent: result.cancellationChargePercent,
-        refundCount: result.refundCount,
-      });
       revalidatePath("/");
       revalidateTag("events");
       revalidatePath(`/events/${id}`);
-      return apiOk({ ...result, refundSuccess: sweep.refundSuccess, refundFail: sweep.refundFail });
+      return apiOk(result);
     } catch (error) {
       return apiError(error instanceof Error ? error.message : "Could not cancel event.", 400);
     }

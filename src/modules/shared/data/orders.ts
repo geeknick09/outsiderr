@@ -2,24 +2,11 @@ import "server-only";
 
 import { MAX_TICKETS_PER_ORDER } from "../lib/constants";
 import { getEvent } from "./events";
-import { calculatePrice } from "../lib/pricing";
 import { createClient } from "../auth/server";
 import { createServiceClient } from "../auth/service";
 import type { CurrentUser } from "../auth/auth";
 import type { Order, ScanResult, Ticket } from "../lib/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
-
-export interface CreateOrderInput {
-  eventId: string;
-  tierId: string;
-  quantity: number;
-  utrReference: string | null;
-  paymentProofUrl: string | null;
-  buyerName: string;
-  buyerPhone: string;
-  buyerEmail: string | null;
-  buyerGender: string | null;
-}
 
 export interface CreateFreeOrderInput {
   eventId: string;
@@ -33,7 +20,7 @@ export interface CreateFreeOrderInput {
 
 /**
  * Input for the Razorpay reserved-order flow.
- * Inventory is reserved (held) for 15 minutes while the buyer completes payment.
+ * Inventory is reserved (held) for the reservation TTL while the buyer pays.
  */
 export interface CreateReservedOrderInput {
   eventId: string;
@@ -43,103 +30,8 @@ export interface CreateReservedOrderInput {
   buyerPhone: string;
   buyerEmail: string | null;
   buyerGender: string | null;
-}
-
-export async function createOrder(
-  user: CurrentUser,
-  input: CreateOrderInput,
-): Promise<Order> {
-  if (input.quantity < 1 || input.quantity > MAX_TICKETS_PER_ORDER) {
-    throw new Error(`Choose between 1 and ${MAX_TICKETS_PER_ORDER} tickets.`);
-  }
-
-  const event = await getEvent(input.eventId);
-  const tier = event?.tiers.find((candidate) => candidate.id === input.tierId);
-  if (!event || !tier) throw new Error("This ticket tier is no longer available.");
-  if (tier.quantity - tier.quantitySold < input.quantity) {
-    throw new Error("Not enough tickets left in this tier.");
-  }
-
-  // Server-side booking lock: reject orders after booking closes
-  // Closes at event start by default, or at event end if organizer allows booking during event
-  const bookingCutoffMs = event.allowBookingDuringEvent
-    ? (event.endsAt ? new Date(event.endsAt).getTime() : new Date(event.startsAt).getTime())
-    : new Date(event.startsAt).getTime();
-  if (bookingCutoffMs <= Date.now()) {
-    throw new Error("This event has started. Online booking is closed. Please buy tickets on spot at the venue.");
-  }
-
-  const supabase = await createClient();
-
-  // Use per-event commission + convenience fee config
-  const price = calculatePrice(tier.pricePaise, input.quantity, event.feePayer, undefined, {
-    commissionBps: event.commissionBps,
-    commissionEnabled: event.commissionEnabled,
-    convenienceFeeBps: event.convenienceFeeBps,
-    convenienceFeeEnabled: event.convenienceFeeEnabled,
-  });
-
-  // Use atomic RPC to prevent concurrent overbooking + double booking race condition.
-  // The RPC locks the tier row (SELECT FOR UPDATE), checks inventory, checks for
-  // existing active orders, and inserts — all in one transaction.
-  const { data, error } = await supabase.rpc("create_paid_order", {
-    p_event_id: event.id,
-    p_tier_id: tier.id,
-    p_quantity: input.quantity,
-    p_unit_price_paise: tier.pricePaise,
-    p_subtotal_paise: price.subtotalPaise,
-    p_platform_fee_paise: price.platformFeePaise,
-    p_total_paise: price.totalPaise,
-    p_fee_payer: event.feePayer,
-    p_utr_reference: input.utrReference,
-    p_payment_proof_url: input.paymentProofUrl,
-    p_buyer_name: input.buyerName || null,
-    p_buyer_phone: input.buyerPhone || null,
-    p_buyer_email: input.buyerEmail || null,
-    p_buyer_gender: input.buyerGender || null,
-    p_commission_paise: price.commissionPaise,
-    p_convenience_fee_paise: price.convenienceFeePaise,
-    p_organizer_payout_paise: price.organizerPayoutPaise,
-  });
-
-  if (error) throw new Error(error.message || "Failed to create order.");
-  if (!data) throw new Error("Failed to create order.");
-
-  return {
-    id: data.id,
-    eventId: event.id,
-    eventTitle: event.title,
-    tierId: tier.id,
-    tierName: tier.name,
-    userId: data.user_id,
-    quantity: data.quantity,
-    unitPricePaise: data.unit_price_paise,
-    subtotalPaise: data.subtotal_paise,
-    platformFeePaise: data.platform_fee_paise,
-    commissionPaise: data.commission_paise ?? 0,
-    convenienceFeePaise: data.convenience_fee_paise ?? 0,
-    organizerPayoutPaise: data.organizer_payout_paise ?? 0,
-    totalPaise: data.total_paise,
-    feePayer: data.fee_payer,
-    status: data.status,
-    utrReference: data.utr_reference,
-    paymentProofUrl: data.payment_proof_url,
-    razorpayOrderId: data.razorpay_order_id ?? null,
-    razorpayPaymentId: data.razorpay_payment_id ?? null,
-    paymentMethod: data.payment_method ?? null,
-    invoiceNumber: data.invoice_number ?? null,
-    reservedAt: data.reserved_at ?? null,
-    reservationExpiresAt: data.reservation_expires_at ?? null,
-    confirmedAt: data.confirmed_at ?? null,
-    buyerName: data.buyer_name,
-    buyerPhone: data.buyer_phone,
-    buyerEmail: data.buyer_email ?? null,
-    buyerGender: data.buyer_gender ?? null,
-    rejectionReason: data.rejection_reason,
-    createdAt: data.created_at,
-    orderSource: data.order_source ?? null,
-    isBoxOffice: (data as { is_box_office?: boolean }).is_box_office ?? false,
-  };
+  /** Double-click/retry safety — replays return the same order. */
+  idempotencyKey?: string | null;
 }
 
 /**
@@ -646,25 +538,13 @@ export async function createReservedOrder(
     }
   }
 
-  const price = calculatePrice(tier.pricePaise, input.quantity, event.feePayer, undefined, {
-    commissionBps: event.commissionBps,
-    commissionEnabled: event.commissionEnabled,
-    convenienceFeeBps: event.convenienceFeeBps,
-    convenienceFeeEnabled: event.convenienceFeeEnabled,
-  });
-
+  // Money is computed inside the RPC (subtotal/commission/convenience/gateway
+  // gross-up) — the client supplies no amounts.
   const { data, error } = await supabase.rpc("create_reserved_order", {
     p_event_id: event.id,
     p_tier_id: tier.id,
     p_quantity: input.quantity,
-    p_unit_price_paise: tier.pricePaise,
-    p_subtotal_paise: price.subtotalPaise,
-    p_platform_fee_paise: price.platformFeePaise,
-    p_commission_paise: price.commissionPaise,
-    p_convenience_fee_paise: price.convenienceFeePaise,
-    p_organizer_payout_paise: price.organizerPayoutPaise,
-    p_total_paise: price.totalPaise,
-    p_fee_payer: event.feePayer,
+    p_idempotency_key: input.idempotencyKey ?? null,
     p_buyer_name: input.buyerName || null,
     p_buyer_phone: input.buyerPhone || null,
     p_buyer_email: input.buyerEmail || null,

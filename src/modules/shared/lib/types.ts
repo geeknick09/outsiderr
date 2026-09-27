@@ -25,7 +25,15 @@ export type EventStatus =
   | "CANCELLED"
   | "POSTPONED";
 
-export type RefundStatus = "PENDING" | "INITIATED" | "COMPLETED" | "FAILED";
+export type RefundStatus =
+  | "REQUESTED"       // organizer/admin requested — awaiting admin review
+  | "PENDING"         // approved — queued for the refund worker
+  | "INITIATING"      // worker claimed — calling Razorpay
+  | "INITIATED"       // Razorpay accepted — awaiting gateway callback
+  | "COMPLETED"
+  | "FAILED"
+  | "REJECTED"        // admin rejected the request
+  | "MANUAL_SETTLED"; // settled offline (legacy manual-UPI orders)
 
 export interface RefundRecord {
   id: string;
@@ -556,4 +564,8 @@ export interface CheckoutSession {
   buyerName: string | null;
   buyerEmail: string | null;
   buyerPhone: string | null;
+  /** payment_intents.id — ties the modal to the dispatcher. */
+  intentId?: string | null;
+  /** Reservation expiry — Razorpay checkout/retry can't outlast this. */
+  expiresAt?: string | null;
 }

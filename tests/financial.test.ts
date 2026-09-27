@@ -3,9 +3,13 @@ import {
   calculatePrice,
   getFeeBpsForPrice,
   platformFee,
+  gatewayFeePaise,
+  buyerFeePaise,
+  refundableAmountPaise,
   DEFAULT_FEE_TIERS,
   DEFAULT_COMMISSION_BPS,
   DEFAULT_CONVENIENCE_FEE_BPS,
+  DEFAULT_GATEWAY_FEE_BPS,
 } from "@/modules/shared";
 
 describe("Financial calculations — dual-fee model", () => {
@@ -16,7 +20,8 @@ describe("Financial calculations — dual-fee model", () => {
   //   convenience:  ₹90   (9,000 paise)   — 2% of subtotal
   //   platform rev: ₹540  (54,000 paise)
   //   organizer:    ₹4,050 (405,000 paise)
-  //   buyer total:  ₹4,590 (459,000 paise)
+  //   gateway:      ₹110.94 (11,094 paise) — 2.36% gross-up
+  //   buyer total:  ₹4,700.94 (470,094 paise)
 
   const feeConfig = {
     commissionBps: DEFAULT_COMMISSION_BPS,       // 10%
@@ -32,14 +37,17 @@ describe("Financial calculations — dual-fee model", () => {
     expect(result.commissionPaise).toBe(45000);
     expect(result.convenienceFeePaise).toBe(9000);
     expect(result.platformFeePaise).toBe(54000); // commission + convenience
+    expect(result.gatewayFeePaise).toBe(11094);  // round(459000 * 236 / 9764)
     expect(result.organizerPayoutPaise).toBe(405000);
-    expect(result.totalPaise).toBe(459000);
+    expect(result.totalPaise).toBe(470094);      // sub + conv + gateway
     expect(result.grossRevenuePaise).toBe(450000);
   });
 
-  it("buyer pays subtotal + convenience fee", () => {
+  it("buyer pays subtotal + convenience fee + gateway fee", () => {
     const result = calculatePrice(100000, 1, "BUYER", undefined, feeConfig);
-    expect(result.totalPaise).toBe(result.subtotalPaise + result.convenienceFeePaise);
+    expect(result.totalPaise).toBe(
+      result.subtotalPaise + result.convenienceFeePaise + result.gatewayFeePaise,
+    );
   });
 
   it("organizer receives subtotal - commission", () => {
@@ -57,7 +65,8 @@ describe("Financial calculations — dual-fee model", () => {
     expect(result.subtotalPaise).toBe(50000);
     expect(result.commissionPaise).toBe(5000);   // 10% of 50000
     expect(result.convenienceFeePaise).toBe(1000); // 2% of 50000
-    expect(result.totalPaise).toBe(51000);
+    expect(result.gatewayFeePaise).toBe(1233);   // round(51000 * 236 / 9764)
+    expect(result.totalPaise).toBe(52233);
     expect(result.organizerPayoutPaise).toBe(45000);
   });
 
@@ -85,6 +94,7 @@ describe("Financial calculations — dual-fee model", () => {
       convenienceFeeEnabled: false,
     });
     expect(result.convenienceFeePaise).toBe(0);
+    expect(result.gatewayFeePaise).toBe(0);    // gateway fee bundled into convenience — disabled together
     expect(result.totalPaise).toBe(50000); // no convenience fee added
   });
 
@@ -93,7 +103,8 @@ describe("Financial calculations — dual-fee model", () => {
     expect(result.subtotalPaise).toBe(45000000);
     expect(result.commissionPaise).toBe(4500000);
     expect(result.convenienceFeePaise).toBe(900000);
-    expect(result.totalPaise).toBe(45900000);
+    expect(result.gatewayFeePaise).toBe(1109422); // round(45900000 * 236 / 9764)
+    expect(result.totalPaise).toBe(47009422);
     expect(result.organizerPayoutPaise).toBe(40500000);
   });
 });
@@ -179,10 +190,73 @@ describe("Financial invariants", () => {
     }
   });
 
-  it("buyer total = subtotal + convenience fee (no hidden charges)", () => {
+  it("buyer total = subtotal + convenience + gateway (no hidden charges)", () => {
     for (const [price, qty] of [[45000, 1], [45000, 10], [33333, 3], [100, 7]]) {
       const result = calculatePrice(price, qty, "BUYER", undefined, feeConfig);
-      expect(result.totalPaise).toBe(result.subtotalPaise + result.convenienceFeePaise);
+      expect(result.totalPaise).toBe(
+        result.subtotalPaise + result.convenienceFeePaise + result.gatewayFeePaise,
+      );
     }
+  });
+});
+
+describe("Gateway fee gross-up", () => {
+  it("matches the create_reserved_order SQL formula", () => {
+    // SQL: round((subtotal + convenience) * bps / (10000 - bps))
+    for (const [sub, conv] of [[450000, 9000], [50000, 1000], [333330, 6667], [100, 2]]) {
+      const expected = Math.round(((sub + conv) * DEFAULT_GATEWAY_FEE_BPS) / (10000 - DEFAULT_GATEWAY_FEE_BPS));
+      expect(gatewayFeePaise(sub, conv)).toBe(expected);
+    }
+  });
+
+  it("covers Razorpay's cut within 1 paisa", () => {
+    // Razorpay charges bps on the TOTAL collected — the grossed-up fee must
+    // be within 1 paise of what they'd take.
+    for (const [sub, conv] of [[450000, 9000], [50000, 1000], [123456, 2469], [99999, 2000]]) {
+      const gw = gatewayFeePaise(sub, conv);
+      const total = sub + conv + gw;
+      const rzpCut = Math.round((total * DEFAULT_GATEWAY_FEE_BPS) / 10000);
+      expect(Math.abs(gw - rzpCut)).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("gateway fee is 0 when convenience fees are disabled (box office)", () => {
+    const result = calculatePrice(45000, 2, "BUYER", undefined, {
+      commissionBps: 1000,
+      commissionEnabled: true,
+      convenienceFeeBps: 0,
+      convenienceFeeEnabled: false,
+    });
+    expect(result.gatewayFeePaise).toBe(0);
+    expect(result.totalPaise).toBe(result.subtotalPaise);
+  });
+
+  it("buyerFeePaise = convenience + gateway", () => {
+    const result = calculatePrice(45000, 10, "BUYER", undefined, {
+      commissionBps: 1000,
+      commissionEnabled: true,
+      convenienceFeeBps: 200,
+      convenienceFeeEnabled: true,
+    });
+    expect(buyerFeePaise(result)).toBe(result.convenienceFeePaise + result.gatewayFeePaise);
+  });
+});
+
+describe("Refundable amounts (BMS model)", () => {
+  const cfg = {
+    commissionBps: 1000,
+    commissionEnabled: true,
+    convenienceFeeBps: 200,
+    convenienceFeeEnabled: true,
+  };
+
+  it("TICKET_PRICE scope refunds the subtotal only", () => {
+    const price = calculatePrice(45000, 10, "BUYER", undefined, cfg);
+    expect(refundableAmountPaise(price, "TICKET_PRICE")).toBe(450000);
+  });
+
+  it("FULL scope refunds everything (platform-fault override)", () => {
+    const price = calculatePrice(45000, 10, "BUYER", undefined, cfg);
+    expect(refundableAmountPaise(price, "FULL")).toBe(price.totalPaise);
   });
 });

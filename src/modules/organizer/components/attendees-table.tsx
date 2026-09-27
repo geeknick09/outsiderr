@@ -6,6 +6,7 @@ import { Printer } from "lucide-react";
 import { Badge } from "@/modules/shared";
 import { formatDateTime, formatPaise } from "@/modules/shared";
 import type { Order, Ticket } from "@/modules/shared";
+import { requestOrderRefundAction } from "@/modules/organizer/actions/refunds";
 
 type FilterKey = "all" | "confirmed" | "checked_in" | "pending" | "rejected" | "cancelled";
 
@@ -111,8 +112,9 @@ export function AttendeesTable({
                   <th className="px-3 py-2 font-semibold text-muted">Pax</th>
                   <th className="hidden px-3 py-2 font-semibold text-muted sm:table-cell">Total</th>
                   <th className="px-3 py-2 font-semibold text-muted">Status</th>
-                  <th className="hidden px-3 py-2 font-semibold text-muted md:table-cell">UTR</th>
+                  <th className="hidden px-3 py-2 font-semibold text-muted md:table-cell">Payment</th>
                   <th className="hidden px-3 py-2 font-semibold text-muted md:table-cell">Date</th>
+                  <th className="px-3 py-2 font-semibold text-muted">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -141,6 +143,14 @@ export function AttendeesTable({
                           <Badge tone="success">Confirmed</Badge>
                         ) : order.status === "REJECTED" ? (
                           <Badge tone="danger">Rejected</Badge>
+                        ) : order.status === "REFUND_REQUESTED" ? (
+                          <Badge tone="violet">Refund</Badge>
+                        ) : order.status === "REFUNDED" ? (
+                          <Badge tone="neutral">Refunded</Badge>
+                        ) : order.status === "CANCELLED" ? (
+                          <Badge tone="neutral">Cancelled</Badge>
+                        ) : order.status === "FAILED" || order.status === "EXPIRED" ? (
+                          <Badge tone="neutral">Abandoned</Badge>
                         ) : (
                           <Badge tone="violet">Pending</Badge>
                         )}
@@ -151,10 +161,15 @@ export function AttendeesTable({
                         ) : null}
                       </td>
                       <td className="hidden px-3 py-2 font-mono text-[10px] text-muted md:table-cell">
-                        {order.utrReference || "—"}
+                        {order.razorpayPaymentId
+                          ? order.razorpayPaymentId.slice(0, 18)
+                          : order.utrReference || "—"}
                       </td>
                       <td className="hidden px-3 py-2 text-[10px] text-muted md:table-cell">
                         {formatDateTime(order.createdAt)}
+                      </td>
+                      <td className="px-3 py-2">
+                        <RefundRequestButton order={order} />
                       </td>
                     </tr>
                   );
@@ -186,6 +201,39 @@ export function AttendeesTable({
           ) : null}
         </>
       )}
+    </div>
+  );
+}
+
+/** Organizer-side refund request — goes to the admin queue for review. */
+function RefundRequestButton({ order }: { order: Order }) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (order.status !== "CONFIRMED" || order.totalPaise <= 0) return null;
+
+  return (
+    <div className="space-y-1">
+      <button
+        type="button"
+        disabled={pending}
+        onClick={async () => {
+          const reason = window.prompt("Reason for the refund (goes to the Outsiderr team for review):") ?? "";
+          if (reason.trim().length < 10) {
+            setError("Give a reason (10+ characters).");
+            return;
+          }
+          setPending(true);
+          setError(null);
+          const result = await requestOrderRefundAction(order.id, reason.trim());
+          setError(result.error ?? null);
+          setPending(false);
+        }}
+        className="rounded-lg border border-violet-300 px-2 py-1 text-[10px] font-semibold text-violet-700 transition-colors hover:bg-violet-50 disabled:opacity-50 dark:border-violet-500/40 dark:text-violet-300 dark:hover:bg-violet-500/10"
+      >
+        {pending ? "Requesting…" : "Refund"}
+      </button>
+      {error ? <p className="text-[10px] text-red-500">{error}</p> : null}
     </div>
   );
 }

@@ -106,6 +106,33 @@ export async function handlePaymentFailureAction(input: {
 
 
 // ============================================================================
+// Payment status — polls the order/intent for the checkout status page
+// ============================================================================
+
+export async function getPaymentStatusAction(input: {
+  orderId: string;
+}): Promise<{
+  status: string;
+  kind: string | null;
+  refStatus: string | null;
+  orderId: string | null;
+  expiresAt: string | null;
+} | null> {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  const { getPaymentStatus } = await import("@/modules/shared/server");
+  const result = await getPaymentStatus(user, { orderId: input.orderId });
+  if (!result) return null;
+  return {
+    status: result.status,
+    kind: result.kind,
+    refStatus: result.refStatus,
+    orderId: result.orderId,
+    expiresAt: result.expiresAt,
+  };
+}
+
+// ============================================================================
 // Postponement refund — user requests a refund for a postponed event
 // ============================================================================
 

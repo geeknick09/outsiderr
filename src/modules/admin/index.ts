@@ -9,6 +9,7 @@ export * from "./components/hero-boost-admin-actions";
 export * from "./components/kyc-review-card";
 export * from "./components/kyc-review-table";
 export * from "./components/legal-pages-panel";
+export * from "./components/refund-queue";
 export * from "./components/settings-panel";
 export * from "./components/slot-price-editor";
 export * from "./nav";

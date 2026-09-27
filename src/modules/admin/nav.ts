@@ -4,6 +4,7 @@
 import {
   BarChart2, BellRing, CalendarDays, Users, Zap, Settings, FileText,
   TrendingUp, CreditCard, Wallet, LineChart, KeyRound, Store, BadgeCheck,
+  RotateCcw,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -20,6 +21,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
   { href: "/admin/orders", label: "Transactions", icon: Zap },
   { href: "/admin/revenue", label: "Revenue", icon: TrendingUp },
   { href: "/admin/payments", label: "Payments", icon: CreditCard },
+  { href: "/admin/refunds", label: "Refunds", icon: RotateCcw },
   { href: "/admin/payouts", label: "Payouts", icon: Wallet },
   { href: "/admin/boosts", label: "Boosts", icon: BellRing },
   { href: "/admin/analytics", label: "Analytics", icon: LineChart },

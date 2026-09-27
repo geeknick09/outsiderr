@@ -71,11 +71,74 @@ export async function createClubAction(
 export async function joinClubAction(
   clubId: string,
   options: { instagramLink?: string; utrReference?: string },
-): Promise<void> {
+): Promise<{ memberId: string | null; status: "ACCEPTED" | "PENDING" }> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  await joinClub(user, clubId, options);
+  const result = await joinClub(user, clubId, options);
   revalidatePath(`/clubs/${clubId}`);
+  return result;
+}
+
+// ============================================================================
+// RAZORPAY: paid club membership via the unified payment intent pipeline
+// ============================================================================
+
+export async function startClubCheckoutAction(
+  memberId: string,
+): Promise<{ session?: import("../lib/types").CheckoutSession; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Please sign in to continue." };
+  if (!memberId) return { error: "Missing membership." };
+
+  const { startPayment } = await import("../services/payments");
+  const { result, error } = await startPayment(user, {
+    kind: "CLUB_MEMBERSHIP",
+    refId: memberId,
+    itemTitle: "Club membership",
+  });
+  if (error || !result) return { error: error ?? "Could not start payment." };
+
+  return {
+    session: {
+      orderId: memberId,
+      razorpayOrderId: result.razorpayOrderId,
+      amountPaise: result.amountPaise,
+      currency: "INR",
+      keyId: result.keyId,
+      eventTitle: "Club membership",
+      tierName: "Membership",
+      quantity: 1,
+      buyerName: user.name,
+      buyerEmail: user.email ?? null,
+      buyerPhone: user.phone ?? null,
+      intentId: result.intentId,
+      expiresAt: result.expiresAt,
+    },
+  };
+}
+
+export async function verifyClubPaymentAction(input: {
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "Sign in." };
+  const { verifyPayment } = await import("../services/payments");
+  const result = await verifyPayment(user, input);
+  if (result.success) revalidatePath("/clubs");
+  return { success: result.success, error: result.error };
+}
+
+export async function handleClubFailureAction(input: {
+  razorpayOrderId: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "Please sign in to continue." };
+  const { reportPaymentFailure } = await import("../services/payments");
+  const result = await reportPaymentFailure(user, input);
+  if (result.success) revalidatePath("/clubs");
+  return result;
 }
 
 export async function acceptMemberAction(memberId: string, clubId: string): Promise<void> {

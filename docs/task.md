@@ -39,7 +39,8 @@ Grouped by domain. Full detail was in `BACKLOG.md` (now superseded); test cases 
 | Users | profile (name/birthdate/phone/interests), tag auto-merge on booking, dynamic organizer label in menu | Completed |
 | Organizer | onboarding + 5-step KYC (PAN/GST/bank/UPI/agreement), profile edit + cover, dashboard, event mgmt, T&C versioning | Completed |
 | KYC review | `/admin/kyc` approve/reject/clarify + bell notifications + status banner + rejection cap (`organizer_rejection_limit`, default 5) + resubmission | Completed |
-| Booking | Razorpay checkout + webhook + legacy manual UPI/UTR, free tickets, waitlist, refundable flows | Completed |
+| Booking | Razorpay checkout via unified payment intents (orders/boosts/door-staff/clubs), webhook + client-callback capture dispatcher, gateway-fee gross-up, free RSVP, waitlist, refund pipeline | Completed |
+| Payments platform | `payment_intents` + `apply_captured_payment` dispatcher, `payment_ledger` (all money types), late-capture auto-refund, amount-mismatch lock + admin alert, refund state machine (requested→pending→initiated→completed), reconciliation cron | Completed |
 | Tickets | QR wallet, expandable cards, expired state, print, walk-in (3 modes), box-office | Completed |
 | Scanner | per-event PIN (hashed, rate-limited, staff name+email+phone), offline queue sync, per-event check-in | Completed |
 | Engagement | Update-Me subscriptions, follow organizers (display-only), co-organizer collab w/ 4 permission tiers | Completed |
@@ -106,7 +107,7 @@ Sequencing when mobile lands: Scanner → Outsiderr → Organizer. React Native/
 
 **Open follow-ups:**
 - Wire a push provider (`sendNotification` `push` channel resolves subscriptions but doesn't send — needs Expo Push/FCM when apps exist).
-- Razorpay live-payment E2E is unverified — `/checkout` returns "not configured" without keys; verify `create_reserved_order → confirm_razorpay_order → webhook` end-to-end once `rzp_test_` keys are set (staging first).
+- Razorpay test-mode verified end-to-end (signed webhook capture → CONFIRMED → ticket → ledger; refund pipeline 13/13; dispatcher 7/7 — see `docs/payment-test-scenarios.md`). Live-payment E2E still needs `rzp_live_` keys + activated Razorpay account for real payouts.
 - M3 (phone OTP + `outsiderr://` deep-link scheme) deferred — email-only auth for now.
 - Sole-waiter edge: a lone waitlisted user whose offer lapses gets re-queued and immediately re-offered (notification spam each cycle) — cap re-offers or add a permanent `EXPIRED` state if it becomes noisy.
 - **Search at scale (do when traffic/events grow):** `listEvents` search is `ilike %term%` on title/venue/description + organizer-id resolution — full-scans published events per keystroke (400ms debounce). Upgrade path: `pg_trgm` extension + GIN index on `title`/`venue_name`/`description`, or a `tsvector` column + `websearch_to_tsquery` (also enables typo tolerance + relevance ranking). Consider a dedicated `/search` page with an "Organizers" results section (see below).

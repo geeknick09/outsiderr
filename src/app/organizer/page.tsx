@@ -212,6 +212,8 @@ export default async function OrganizerPage({
             active={tab === t.value}
           />
         ))}
+        <TabLink href="/organizer/payments" label="Payments" active={false} />
+        <TabLink href="/organizer/refunds" label="Refunds" active={false} />
       </div>
 
       {/* Collaboration invites — shown at top of dashboard if any pending */}

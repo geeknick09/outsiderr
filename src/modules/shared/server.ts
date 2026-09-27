@@ -30,7 +30,9 @@ export * from "./data/notifications";
 export * from "./data/orders";
 export * from "./data/organizer-profile";
 export * from "./data/organizers";
+export * from "./data/payments";
 export * from "./data/platform-settings";
+export * from "./data/refunds";
 export * from "./data/profile";
 export * from "./data/reviews";
 export * from "./data/scanner-pins";
@@ -49,6 +51,8 @@ export * from "./lib/api";
 
 // ---- orchestration services (shared by server actions + /api/v1 routes) ----
 export * from "./services/orders";
+export * from "./services/payments";
+export * from "./services/refunds";
 
 // ---- server-only components ----
 export { Navbar } from "./ui/layout/navbar";

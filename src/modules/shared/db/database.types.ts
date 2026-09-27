@@ -141,6 +141,7 @@ export type OrderRow = {
   platform_fee_paise: number;
   commission_paise: number;
   convenience_fee_paise: number;
+  gateway_fee_paise: number;
   organizer_payout_paise: number;
   total_paise: number;
   fee_payer: FeePayer;
@@ -373,7 +374,7 @@ export type BoxOfficePinRow = {
 
 export type RefundRow = {
   id: string;
-  order_id: string;
+  order_id: string | null;
   event_id: string;
   user_id: string;
   amount_paise: number;
@@ -387,6 +388,16 @@ export type RefundRow = {
   refund_type: string | null;
   initiated_by: string | null;
   gateway_fee_paise: number;
+  intent_id: string | null;
+  refund_scope: "TICKET_PRICE" | "FULL" | "CUSTOM" | null;
+  requested_by: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  rejected_reason: string | null;
+  claimed_at: string | null;
+  attempts: number;
+  last_error: string | null;
+  receipt: string | null;
 }
 
 export type WebhookEventRow = {
@@ -397,8 +408,41 @@ export type WebhookEventRow = {
   order_id: string | null;
   processed: boolean;
   error_message: string | null;
+  processing_started_at: string | null;
   created_at: string;
   processed_at: string | null;
+}
+
+export type PaymentIntentRow = {
+  id: string;
+  kind: "TICKET_ORDER" | "HERO_BOOST" | "SLOT_BOOST" | "DOOR_STAFF" | "CLUB_MEMBERSHIP";
+  ref_id: string;
+  user_id: string;
+  amount_paise: number;
+  currency: string;
+  razorpay_order_id: string | null;
+  razorpay_payment_id: string | null;
+  status: "CREATED" | "PAID" | "FAILED" | "EXPIRED" | "MISMATCH";
+  razorpay_fee_paise: number | null;
+  razorpay_tax_paise: number | null;
+  payment_method: string | null;
+  idempotency_key: string | null;
+  expires_at: string;
+  paid_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PaymentDisputeRow = {
+  id: string;
+  razorpay_dispute_id: string | null;
+  razorpay_payment_id: string | null;
+  razorpay_order_id: string | null;
+  amount_paise: number | null;
+  status: string | null;
+  raw: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export type PaymentLedgerRow = {
@@ -522,7 +566,9 @@ export type Database = {
       boost_slot_prices: Table<BoostSlotPriceRow, "slot" | "price_paise">;
       clubs: Table<ClubRow, "owner_id" | "name" | "type" | "membership_type">;
       club_members: Table<ClubMemberRow, "club_id" | "user_id" | "status">;
-      refunds: Table<RefundRow, "order_id" | "event_id" | "user_id" | "amount_paise" | "platform_fee_paise" | "status" | "reason" | "initiated_at">;
+      refunds: Table<RefundRow, "event_id" | "user_id" | "amount_paise" | "platform_fee_paise" | "status" | "reason" | "initiated_at">;
+      payment_intents: Table<PaymentIntentRow, "kind" | "ref_id" | "user_id" | "amount_paise" | "expires_at">;
+      payment_disputes: Table<PaymentDisputeRow>;
       event_notifications: Table<EventNotificationRow, "event_id" | "user_id" | "type" | "message">;
       notification_outbox: Table<NotificationOutboxRow, "type" | "message" | "channel" | "user_id">;
       kyc_messages: Table<KycMessageRow, "organizer_id" | "sender_role" | "message">;
@@ -663,24 +709,89 @@ export type Database = {
         };
         Returns: OrderRow;
       };
-      create_paid_order: {
+      create_payment_intent: {
+        Args: {
+          p_kind: string;
+          p_ref_id: string;
+          p_idempotency_key?: string | null;
+        };
+        Returns: PaymentIntentRow;
+      };
+      attach_razorpay_order: {
+        Args: { p_intent_id: string; p_razorpay_order_id: string };
+        Returns: void;
+      };
+      record_webhook_event: {
         Args: {
           p_event_id: string;
-          p_tier_id: string;
-          p_quantity: number;
-          p_unit_price_paise: number;
-          p_subtotal_paise: number;
-          p_platform_fee_paise: number;
-          p_total_paise: number;
-          p_fee_payer: string;
-          p_utr_reference: string | null;
-          p_payment_proof_url: string | null;
-          p_buyer_name: string | null;
-          p_buyer_phone: string | null;
-          p_buyer_email: string | null;
-          p_buyer_gender: string | null;
+          p_type: string;
+          p_payload: Record<string, unknown>;
+          p_order_id?: string | null;
         };
-        Returns: OrderRow;
+        Returns: { is_new: boolean; already_processed: boolean }[];
+      };
+      finish_webhook_event: {
+        Args: { p_event_id: string; p_ok: boolean; p_error?: string | null };
+        Returns: void;
+      };
+      apply_captured_payment: {
+        Args: {
+          p_razorpay_order_id: string;
+          p_razorpay_payment_id: string;
+          p_amount: number;
+          p_currency: string;
+          p_method?: string | null;
+          p_fee?: number | null;
+          p_tax?: number | null;
+          p_signature?: string | null;
+        };
+        Returns: string;
+      };
+      apply_failed_payment: {
+        Args: { p_razorpay_order_id: string };
+        Returns: string;
+      };
+      expire_payment_intents: {
+        Args: Record<string, never>;
+        Returns: number;
+      };
+      request_refund: {
+        Args: { p_order_id: string; p_reason: string };
+        Returns: RefundRow;
+      };
+      approve_refund: {
+        Args: {
+          p_refund_id: string;
+          p_scope?: string;
+          p_custom_amount?: number | null;
+          p_note?: string | null;
+        };
+        Returns: RefundRow;
+      };
+      reject_refund: {
+        Args: { p_refund_id: string; p_reason?: string | null };
+        Returns: RefundRow;
+      };
+      claim_pending_refunds: {
+        Args: { p_limit?: number };
+        Returns: RefundRow[];
+      };
+      complete_refund_initiation: {
+        Args: {
+          p_refund_id: string;
+          p_razorpay_refund_id: string;
+          p_ok: boolean;
+          p_error?: string | null;
+        };
+        Returns: void;
+      };
+      finalize_refund: {
+        Args: { p_razorpay_refund_id: string; p_status: string };
+        Returns: string;
+      };
+      admin_manual_settle_refund: {
+        Args: { p_refund_id: string; p_reference: string };
+        Returns: RefundRow;
       };
       check_in_ticket: {
         Args: { p_qr_hash: string; p_event_id: string };
@@ -748,9 +859,10 @@ export type Database = {
         };
         Returns: {
           order_id: string;
-          total_paise: number;
+          refund_id: string;
+          amount_paise: number;
           razorpay_payment_id: string | null;
-          refund_created: boolean;
+          is_new: boolean;
         }[];
       };
       create_reserved_order: {
@@ -758,18 +870,11 @@ export type Database = {
           p_event_id: string;
           p_tier_id: string;
           p_quantity: number;
-          p_unit_price_paise: number;
-          p_subtotal_paise: number;
-          p_platform_fee_paise: number;
-          p_commission_paise: number;
-          p_convenience_fee_paise: number;
-          p_organizer_payout_paise: number;
-          p_total_paise: number;
-          p_fee_payer: string;
-          p_buyer_name: string | null;
-          p_buyer_phone: string | null;
-          p_buyer_email: string | null;
-          p_buyer_gender: string | null;
+          p_idempotency_key?: string | null;
+          p_buyer_name?: string | null;
+          p_buyer_phone?: string | null;
+          p_buyer_email?: string | null;
+          p_buyer_gender?: string | null;
         };
         Returns: OrderRow;
       };

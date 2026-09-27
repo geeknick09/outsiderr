@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { Info, Lock } from "lucide-react";
 
-import { CheckoutForm } from "@/modules/web";
-import { UpiQrCode } from "@/modules/web";
+import { CheckoutForm, RazorpayCheckoutForm } from "@/modules/web";
 import { MAX_TICKETS_PER_ORDER } from "@/modules/shared";
 import { getEvent } from "@/modules/shared/server";
 import { formatDateTime, formatPaise } from "@/modules/shared";
@@ -67,16 +67,18 @@ export default async function CheckoutPage({
     .select("id", { count: "exact", head: true })
     .eq("event_id", event.id)
     .eq("user_id", user.id)
-    .in("status", ["CONFIRMED", "PENDING_VERIFICATION", "RESERVED"]);
+    .in("status", ["CONFIRMED", "PENDING_VERIFICATION", "RESERVED", "REFUND_REQUESTED"]);
   const alreadyBooked = (existingOrderCount ?? 0) > 0;
 
-  // Use per-event commission + convenience fee config
+  // Server-side price preview — the DB recomputes these authoritatively in
+  // create_reserved_order; this is display-only.
   const price = calculatePrice(tier.pricePaise, quantity, event.feePayer, undefined, {
     commissionBps: event.commissionBps,
     commissionEnabled: event.commissionEnabled,
     convenienceFeeBps: event.convenienceFeeBps,
     convenienceFeeEnabled: event.convenienceFeeEnabled,
   });
+  const buyerFee = price.convenienceFeePaise + price.gatewayFeePaise;
 
   return (
     <div className="mx-auto max-w-4xl py-6">
@@ -114,38 +116,33 @@ export default async function CheckoutPage({
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="glass rounded-3xl p-6">
           <h2 className="mb-4 text-base font-bold">
-            {isFree ? "Your details" : "Confirm your payment"}
+            {isFree ? "Your details" : "Payment details"}
           </h2>
-          <CheckoutForm
-            eventId={event.id}
-            tierId={tier.id}
-            quantity={quantity}
-            defaultName={user?.name ?? ""}
-            defaultPhone={user?.phone ?? ""}
-            defaultEmail={user?.email ?? ""}
-            defaultGender={user?.gender ?? ""}
-            isFree={isFree}
-            totalRupees={formatPaise(price.totalPaise)}
-            organizerUpiId={event.organizer.upiId}
-            organizerPhone={event.contactPhone ?? null}
-            organizerName={event.organizer.name}
-          />
+          {isFree ? (
+            <CheckoutForm
+              eventId={event.id}
+              tierId={tier.id}
+              quantity={quantity}
+              defaultName={user?.name ?? ""}
+              defaultPhone={user?.phone ?? ""}
+              defaultEmail={user?.email ?? ""}
+              defaultGender={user?.gender ?? ""}
+            />
+          ) : (
+            <RazorpayCheckoutForm
+              eventId={event.id}
+              tierId={tier.id}
+              quantity={quantity}
+              defaultName={user?.name ?? ""}
+              defaultPhone={user?.phone ?? ""}
+              defaultEmail={user?.email ?? ""}
+              defaultGender={user?.gender ?? ""}
+              totalRupees={formatPaise(price.totalPaise)}
+            />
+          )}
         </div>
 
         <aside className="space-y-4">
-          {/* QR code for UPI payment — shown above the ticket payable box */}
-          {!isFree && event.organizer.upiId ? (
-            <div className="glass rounded-3xl p-5">
-              <UpiQrCode
-                upiId={event.organizer.upiId}
-                payeeName={event.organizer.name}
-                amountPaise={price.totalPaise}
-                note={`Outsiderr tickets — ${quantity} ticket(s)`}
-                size={180}
-              />
-            </div>
-          ) : null}
-
           <div className="glass rounded-3xl p-5">
             <p className="text-sm font-bold">{event.title}</p>
             <p className="text-xs text-muted">
@@ -153,8 +150,19 @@ export default async function CheckoutPage({
             </p>
             <dl className="mt-4 space-y-2 text-sm">
               <Row label={`${tier.name} × ${quantity}`} value={isFree ? "Free" : formatPaise(price.subtotalPaise)} />
-              {!isFree && price.convenienceFeePaise > 0 ? (
-                <Row label={`Convenience fee (${Math.round(price.convenienceFeePaise / price.subtotalPaise * 100)}%)`} value={formatPaise(price.convenienceFeePaise)} />
+              {!isFree && buyerFee > 0 ? (
+                <Row
+                  label={
+                    <span className="inline-flex items-center gap-1">
+                      Convenience fee
+                      <FeeTooltip
+                        convenience={price.convenienceFeePaise}
+                        gateway={price.gatewayFeePaise}
+                      />
+                    </span>
+                  }
+                  value={formatPaise(buyerFee)}
+                />
               ) : null}
               {!isFree ? (
                 <div className="border-t border-zinc-200 pt-2 dark:border-white/10">
@@ -162,14 +170,22 @@ export default async function CheckoutPage({
                 </div>
               ) : null}
             </dl>
+            {!isFree && buyerFee > 0 ? (
+              <p className="mt-3 text-[11px] leading-relaxed text-muted">
+                The convenience fee covers platform &amp; payment gateway costs and is
+                non-refundable. On a cancellation your ticket price is refunded.
+              </p>
+            ) : null}
           </div>
 
           {!isFree ? (
             <div className="glass rounded-3xl p-5 text-center">
-              <p className="text-sm font-bold text-violet-neon">Secure Manual payment</p>
+              <p className="inline-flex items-center gap-1.5 text-sm font-bold text-violet-neon">
+                <Lock className="h-4 w-4" /> Secure payment via Razorpay
+              </p>
               <p className="mt-1 text-xs text-muted">
-                Pay the organizer directly via UPI (GPay/PhonePe). After paying, submit your
-                booking — the organizer will verify and confirm your ticket.
+                Pay by UPI, card or netbanking. Your tickets are confirmed the
+                moment the payment succeeds — no screenshots, no waiting.
               </p>
               <p className="mt-2 text-xs text-muted">
                 Outsiderr is an intermediary platform connecting event organizers with attendees.
@@ -195,7 +211,7 @@ function Row({
   value,
   strong,
 }: {
-  label: string;
+  label: React.ReactNode;
   value: string;
   strong?: boolean;
 }) {
@@ -204,5 +220,33 @@ function Row({
       <dt className={strong ? "font-black" : "text-muted"}>{label}</dt>
       <dd className={strong ? "font-black" : "font-semibold"}>{value}</dd>
     </div>
+  );
+}
+
+/** Breaks the convenience fee down — platform fee + 2.36% payment gateway. */
+function FeeTooltip({
+  convenience,
+  gateway,
+}: {
+  convenience: number;
+  gateway: number;
+}) {
+  return (
+    <span className="group relative inline-flex cursor-help text-zinc-400">
+      <Info className="h-3.5 w-3.5" />
+      <span className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-60 -translate-x-1/2 rounded-xl bg-zinc-900 px-3 py-2.5 text-left text-xs font-normal leading-relaxed text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 dark:bg-zinc-800">
+        <span className="flex justify-between">
+          <span>Platform fee</span>
+          <span className="font-semibold">{formatPaise(convenience)}</span>
+        </span>
+        <span className="mt-1 flex justify-between">
+          <span>Payment gateway (2.36%)</span>
+          <span className="font-semibold">{formatPaise(gateway)}</span>
+        </span>
+        <span className="mt-2 block border-t border-white/10 pt-1.5 text-white/70">
+          Covers processing and gateway costs — non-refundable.
+        </span>
+      </span>
+    </span>
   );
 }

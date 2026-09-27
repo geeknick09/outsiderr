@@ -4,6 +4,7 @@ import { TicketsRealtimeWrapper } from "@/modules/web";
 import { ReviewForm } from "@/modules/web";
 import { getCurrentUser } from "@/modules/shared/server";
 import { listMyOrders, listMyTickets } from "@/modules/shared/server";
+import { listMyRefunds } from "@/modules/shared/server";
 import { getOrganizerWhatsappNumber } from "@/modules/shared/server";
 import { getReviewableEvents } from "@/modules/shared/server";
 
@@ -20,9 +21,10 @@ export default async function TicketsPage({
   if (!user) redirect("/login?next=%2Ftickets");
 
   const { submitted, review } = await searchParams;
-  const [orders, tickets, whatsappNumber, reviewableEvents] = await Promise.all([
+  const [orders, tickets, refunds, whatsappNumber, reviewableEvents] = await Promise.all([
     listMyOrders(user),
     listMyTickets(user),
+    listMyRefunds(user),
     getOrganizerWhatsappNumber(),
     getReviewableEvents(user.id),
   ]);
@@ -74,6 +76,7 @@ export default async function TicketsPage({
         submitted={!!submitted}
         initialOrders={orders}
         initialTickets={tickets}
+        initialRefunds={refunds}
       />
     </div>
   );

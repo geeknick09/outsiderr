@@ -330,8 +330,9 @@ export const onlineOrder = {
   platformFeePaise: 6000,
   commissionPaise: 5000,
   convenienceFeePaise: 1000,
+  gatewayFeePaise: 1233,
   organizerPayoutPaise: 45000,
-  totalPaise: 51000,
+  totalPaise: 52233,
   feePayer: "BUYER" as const,
   status: "CONFIRMED" as const,
   utrReference: null,
@@ -374,6 +375,7 @@ export const boxOfficeOrder = {
   platformFeePaise: 5000,
   commissionPaise: 5000,
   convenienceFeePaise: 0,
+  gatewayFeePaise: 0,
   organizerPayoutPaise: 45000,
   totalPaise: 50000,
   feePayer: "BUYER" as const,
@@ -469,8 +471,9 @@ export const FINANCIAL_EXPECTATIONS = {
     commission: 5000, // 10%
     convenienceFee: 1000, // 2%
     platformFee: 6000, // commission + convenience
+    gatewayFee: 1233, // 2.36% gross-up on (subtotal + convenience)
     organizerPayout: 45000, // subtotal - commission
-    buyerTotal: 51000, // subtotal + convenience
+    buyerTotal: 52233, // subtotal + convenience + gateway
   },
   // Box-office order: 1 × ₹500 (no convenience fee)
   boxOffice: {
@@ -489,7 +492,8 @@ export const FINANCIAL_EXPECTATIONS = {
     commission: 45000,
     convenienceFee: 9000,
     platformFee: 54000,
+    gatewayFee: 11094,
     organizerPayout: 405000,
-    buyerTotal: 459000,
+    buyerTotal: 470094,
   },
 } as const;

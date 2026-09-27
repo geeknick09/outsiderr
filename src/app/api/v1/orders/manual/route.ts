@@ -10,7 +10,7 @@ const bodySchema = z.object({
   eventId: z.string().uuid(),
   tierId: z.string().uuid(),
   quantity: z.number().int().min(1).max(MAX_TICKETS_PER_ORDER),
-  isFree: z.boolean().default(false),
+  isFree: z.literal(true),
   buyerName: z.string().max(200).optional().nullable(),
   buyerPhone: z.string().max(20).optional().nullable(),
   buyerEmail: z.string().email().max(200).optional().nullable(),
@@ -19,8 +19,8 @@ const bodySchema = z.object({
 });
 
 /**
- * POST /api/v1/orders/manual — free RSVP (auto-confirmed) or manual UPI order
- * (PENDING_VERIFICATION, organizer approves).
+ * POST /api/v1/orders/manual — free RSVP (auto-confirmed). Paid orders go
+ * through /api/v1/checkout (Razorpay) — the manual UPI path was removed.
  * Auth: Bearer <supabase-access-token>
  */
 export async function POST(request: Request) {

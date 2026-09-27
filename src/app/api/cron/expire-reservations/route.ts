@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 
-import { expireReservedOrders } from "@/modules/shared/server";
+import { expirePaymentIntents, expireReservedOrders } from "@/modules/shared/server";
 import { getCronEnvironmentError } from "@/modules/shared/server";
 import { logger } from "@/modules/shared/server";
 
@@ -49,13 +49,19 @@ export async function GET(request: Request) {
   }
 
   try {
-    const expiredCount = await expireReservedOrders();
+    // expire_payment_intents covers ticket orders (releases tier reservation)
+    // and every other payable kind; expire_reserved_orders stays for any
+    // pre-migration RESERVED rows that lack an intent.
+    const expiredIntents = await expirePaymentIntents();
+    const expiredOrders = await expireReservedOrders();
+    const expiredCount = expiredIntents + expiredOrders;
     if (expiredCount > 0) {
-      logger.info({ expiredCount }, "expired stale reserved orders");
+      logger.info({ expiredIntents, expiredOrders }, "expired stale reservations");
     }
     return NextResponse.json({
       status: "ok",
-      expired_orders: expiredCount,
+      expired_orders: expiredOrders,
+      expired_intents: expiredIntents,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {

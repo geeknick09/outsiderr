@@ -20,6 +20,10 @@ interface RazorpayOptions {
   description: string;
   prefill: { name: string; email: string; contact: string };
   theme: { color: string };
+  notes?: Record<string, string>;
+  /** Seconds before the gateway checkout itself expires. */
+  timeout?: number;
+  retry?: { enabled: boolean; max_count?: number };
   handler: (response: RazorpayResponse) => void;
   modal: {
     ondismiss: () => void;
@@ -148,6 +152,15 @@ export function RazorpayCheckout({
 
     setStatus("idle");
 
+    // Cap the gateway checkout at the reservation expiry — retries can't
+    // outlive the inventory hold (a late capture lands in the auto-refund
+    // path instead of silently double-holding seats).
+    const secondsLeft = session.expiresAt
+      ? Math.max(0, Math.floor((new Date(session.expiresAt).getTime() - Date.now()) / 1000))
+      : 0;
+    const timeoutSeconds = secondsLeft > 0 ? Math.min(secondsLeft, 900) : 900;
+    const retryEnabled = secondsLeft > 120; // disable retry when nearly expired
+
     const options: RazorpayOptions = {
       key: session.keyId,
       amount: session.amountPaise,
@@ -161,6 +174,14 @@ export function RazorpayCheckout({
         contact: session.buyerPhone ?? "",
       },
       theme: { color: THEME_COLOR },
+      notes: {
+        order_id: session.orderId,
+        ...(session.intentId ? { payment_intent_id: session.intentId } : {}),
+        event_title: session.eventTitle,
+        tier_name: session.tierName,
+      },
+      timeout: timeoutSeconds,
+      retry: { enabled: retryEnabled, max_count: 3 },
       handler: async (response) => {
         setStatus("verifying");
         setMessage("Verifying payment…");

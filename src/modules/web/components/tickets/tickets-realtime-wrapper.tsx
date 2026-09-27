@@ -8,9 +8,11 @@ import { useState } from "react";
 import { Badge } from "@/modules/shared";
 import { TicketCard } from "./ticket-card";
 import { PostponementRefundButton } from "./postponement-refund-button";
+import { RefundStatusStrip } from "./refund-status-strip";
 import { useRealtime } from "@/modules/shared";
 import { formatPaise } from "@/modules/shared";
 import type { Order, OrderStatus, Ticket } from "@/modules/shared";
+import type { Refund } from "@/modules/shared/server";
 
 const STATUS_TONE: Record<OrderStatus, "warning" | "success" | "danger" | "neutral" | "violet"> = {
   PENDING_VERIFICATION: "warning",
@@ -45,21 +47,31 @@ function formatEventDate(iso: string) {
 export function TicketsRealtimeWrapper({
   userId,
   userName,
-  whatsappNumber,
   submitted,
   initialOrders,
   initialTickets,
+  initialRefunds = [],
 }: {
   userId: string;
   userName: string;
-  whatsappNumber: string;
+  whatsappNumber?: string; // kept for call-site compat — unused post-Razorpay
   submitted: boolean;
   initialOrders: Order[];
   initialTickets: Ticket[];
+  initialRefunds?: Refund[];
 }) {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [tickets, setTickets] = useState<Ticket[]>(initialTickets);
+  const [refunds, setRefunds] = useState<Refund[]>(initialRefunds);
+
+  const refundsByOrder = useMemo(() => {
+    const map = new Map<string, Refund>();
+    for (const r of refunds) {
+      if (r.orderId) map.set(r.orderId, r);
+    }
+    return map;
+  }, [refunds]);
 
   // Channel 1: order status changes (e.g. PENDING_VERIFICATION → CONFIRMED)
   useRealtime({
@@ -108,6 +120,53 @@ export function TicketsRealtimeWrapper({
     },
   });
 
+  // Channel 3: refund status changes — keeps the strip live as the refund
+  // pipeline moves REQUESTED → PENDING → INITIATED → COMPLETED/FAILED.
+  useRealtime({
+    channelName: `user-refunds:${userId}`,
+    table: "refunds",
+    event: "*",
+    filter: `user_id=eq.${userId}`,
+    enabled: !!userId,
+    onPayload: ({ eventType, new: row }) => {
+      if (eventType === "INSERT" || eventType === "UPDATE") {
+        setRefunds((prev) => {
+          const idx = prev.findIndex((r) => r.id === row.id);
+          const mapped: Refund = {
+            id: row.id as string,
+            orderId: (row.order_id as string) ?? null,
+            eventId: row.event_id as string,
+            userId: row.user_id as string,
+            amountPaise: row.amount_paise as number,
+            platformFeePaise: row.platform_fee_paise as number,
+            status: row.status as Refund["status"],
+            reason: row.reason as string,
+            initiatedAt: row.initiated_at as string,
+            completedAt: (row.completed_at as string) ?? null,
+            razorpayRefundId: (row.razorpay_refund_id as string) ?? null,
+            razorpayPaymentId: (row.razorpay_payment_id as string) ?? null,
+            refundScope: (row.refund_scope as Refund["refundScope"]) ?? null,
+            requestedBy: (row.requested_by as string) ?? null,
+            approvedBy: (row.approved_by as string) ?? null,
+            approvedAt: (row.approved_at as string) ?? null,
+            rejectedReason: (row.rejected_reason as string) ?? null,
+            claimedAt: (row.claimed_at as string) ?? null,
+            attempts: (row.attempts as number) ?? 0,
+            lastError: (row.last_error as string) ?? null,
+            receipt: (row.receipt as string) ?? null,
+            intentId: (row.intent_id as string) ?? null,
+          };
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = mapped;
+            return next;
+          }
+          return [mapped, ...prev];
+        });
+      }
+    },
+  });
+
   // Memoize formatted dates so they don't recompute on every render
   const formattedOrderDates = useMemo(
     () =>
@@ -127,23 +186,11 @@ export function TicketsRealtimeWrapper({
       </div>
 
       {submitted ? (
-        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5 text-sm text-amber-700 dark:text-amber-300">
-          <p className="text-base font-black">Booking submitted — pending verification</p>
+        <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-5 text-sm text-emerald-700 dark:text-emerald-300">
+          <p className="text-base font-black">Booking submitted</p>
           <p className="mt-1">
-            Your booking is done and is pending payment verification by the organizer.
-            Once verified, your tickets will be visible here.
-          </p>
-          <p className="mt-2 text-xs">
-            Send your payment screenshot to{" "}
-            <a
-              href={`https://wa.me/91${whatsappNumber}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-bold underline"
-            >
-              +91 {whatsappNumber}
-            </a>{" "}
-            on WhatsApp for faster verification.
+            Your tickets will appear here as soon as the payment confirms —
+            usually within a few seconds.
           </p>
         </div>
       ) : null}
@@ -175,38 +222,48 @@ export function TicketsRealtimeWrapper({
           </p>
         ) : (
           <div className="space-y-3">
-            {orders.map((order) => (
-              <div
-                key={order.id}
-                className="glass flex flex-wrap items-center justify-between gap-3 rounded-3xl p-4"
-              >
-                <div className="min-w-0">
-                  <Link
-                    href={`/events/${order.eventId}`}
-                    className="text-sm font-bold hover:text-violet-neon"
-                  >
-                    {order.eventTitle}
-                  </Link>
-                  <p className="text-xs text-muted">
-                    {order.tierName} × {order.quantity} · {formatPaise(order.totalPaise)}
-                  </p>
-                  <p className="text-xs text-muted">UTR {order.utrReference ?? "—"}</p>
-                  {order.rejectionReason ? (
-                    <p className="text-xs text-red-500">{order.rejectionReason}</p>
-                  ) : null}
+            {orders.map((order) => {
+              const refund = order.id ? refundsByOrder.get(order.id) : undefined;
+              return (
+                <div
+                  key={order.id}
+                  className="glass rounded-3xl p-4"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <Link
+                        href={`/events/${order.eventId}`}
+                        className="text-sm font-bold hover:text-violet-neon"
+                      >
+                        {order.eventTitle}
+                      </Link>
+                      <p className="text-xs text-muted">
+                        {order.tierName} × {order.quantity} · {formatPaise(order.totalPaise)}
+                      </p>
+                      {order.invoiceNumber ? (
+                        <p className="text-xs text-muted">{order.invoiceNumber}</p>
+                      ) : order.utrReference ? (
+                        <p className="text-xs text-muted">UTR {order.utrReference}</p>
+                      ) : null}
+                      {order.rejectionReason ? (
+                        <p className="text-xs text-red-500">{order.rejectionReason}</p>
+                      ) : null}
+                    </div>
+                    <Badge tone={STATUS_TONE[order.status]}>{STATUS_LABEL[order.status]}</Badge>
+                    {order.eventStatus === "POSTPONED" &&
+                    order.status === "CONFIRMED" &&
+                    order.eventStartsAt ? (
+                      <PostponementRefundButton
+                        eventId={order.eventId}
+                        eventTitle={order.eventTitle}
+                        newDate={formattedOrderDates.get(order.id) ?? order.eventStartsAt}
+                      />
+                    ) : null}
+                  </div>
+                  {refund ? <RefundStatusStrip refund={refund} /> : null}
                 </div>
-                <Badge tone={STATUS_TONE[order.status]}>{STATUS_LABEL[order.status]}</Badge>
-                {order.eventStatus === "POSTPONED" &&
-                order.status === "CONFIRMED" &&
-                order.eventStartsAt ? (
-                  <PostponementRefundButton
-                    eventId={order.eventId}
-                    eventTitle={order.eventTitle}
-                    newDate={formattedOrderDates.get(order.id) ?? order.eventStartsAt}
-                  />
-                ) : null}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>

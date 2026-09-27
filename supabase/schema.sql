@@ -5328,3 +5328,111 @@ create policy "admin reads all kyc threads" on public.kyc_messages
 
 revoke insert, update, delete on public.kyc_messages from anon, authenticated;
 grant all on public.kyc_messages to service_role;
+
+alter table public.kyc_messages enable row level security;
+
+-- Organizer reads own thread; admin reads all; writes happen via service role
+-- (actions verify the caller before inserting).
+drop policy if exists "organizer reads own kyc thread" on public.kyc_messages;
+create policy "organizer reads own kyc thread" on public.kyc_messages
+  for select to authenticated
+  using (exists (
+    select 1 from public.organizers o
+    where o.id = organizer_id and o.owner_id = auth.uid()
+  ));
+
+drop policy if exists "admin reads all kyc threads" on public.kyc_messages;
+create policy "admin reads all kyc threads" on public.kyc_messages
+  for select to authenticated
+  using (public.is_current_user_admin());
+
+revoke insert, update, delete on public.kyc_messages from anon, authenticated;
+grant all on public.kyc_messages to service_role;
+
+-- ============================================================================
+-- STEP 32 · Money-table security lockdown (P0)
+-- ============================================================================
+-- anon/authenticated held table-level INSERT/UPDATE/DELETE on money tables via
+-- Supabase default grants, plus unconstrained RLS policies — an event manager
+-- could UPDATE orders SET status='CONFIRMED', mint tickets, or mark a refund
+-- COMPLETED via PostgREST. All money mutations now flow through SECURITY
+-- DEFINER RPCs (internal authz) or service_role only.
+
+-- 1. Revoke write grants on money tables
+revoke insert, update, delete on public.orders          from anon, authenticated;
+revoke insert, update, delete on public.tickets         from anon, authenticated;
+revoke insert, update, delete on public.refunds         from anon, authenticated;
+revoke insert, update, delete on public.payment_ledger  from anon, authenticated;
+revoke insert, update, delete on public.payout_records  from anon, authenticated;
+revoke insert, update, delete on public.webhook_events  from anon, authenticated;
+
+grant insert, update, delete on public.orders          to service_role;
+grant insert, update, delete on public.tickets         to service_role;
+grant insert, update, delete on public.refunds         to service_role;
+grant insert, update, delete on public.payment_ledger  to service_role;
+grant insert, update, delete on public.payout_records  to service_role;
+grant insert, update, delete on public.webhook_events  to service_role;
+
+-- 2. Drop unconstrained write policies (SELECT policies stay)
+drop policy if exists "buyers create their own orders"      on public.orders;
+drop policy if exists "organizer updates orders"            on public.orders;
+drop policy if exists "organizer creates tickets"           on public.tickets;
+drop policy if exists "organizer updates tickets"           on public.tickets;
+drop policy if exists "organizers can create refunds"       on public.refunds;
+drop policy if exists "organizers can update refund status" on public.refunds;
+drop policy if exists "admins insert refunds"               on public.refunds;
+drop policy if exists "admin insert payouts"                on public.payout_records;
+drop policy if exists "admin update payouts"                on public.payout_records;
+drop policy if exists "admin update webhook events"         on public.webhook_events;
+
+-- 3. ticket_tiers — organizers manage tiers via direct table writes (policies
+--    scope rows to their events; INSERT/DELETE stay). UPDATE restricted to
+--    safe columns only: quantity_sold / quantity_reserved are RPC-only.
+revoke update on public.ticket_tiers from anon, authenticated;
+grant update (name, price_paise, quantity, perks, sort_order,
+              tier_type, phase_order, phase_opens_at, phase_closes_at)
+  on public.ticket_tiers to authenticated;
+
+-- Hard floor: reserved + sold can never exceed capacity
+alter table public.ticket_tiers drop constraint if exists ticket_tiers_capacity_check;
+alter table public.ticket_tiers add constraint ticket_tiers_capacity_check
+  check (quantity_sold >= 0 and quantity_reserved >= 0
+         and quantity_sold + quantity_reserved <= quantity);
+
+-- 4. Legacy manual-UPI create_paid_order overloads — removed entirely.
+--    (Razorpay path uses create_reserved_order; free uses create_free_order.)
+do $$
+declare r record;
+begin
+  for r in
+    select p.oid, pg_get_function_identity_arguments(p.oid) as args
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'create_paid_order'
+  loop
+    execute format('drop function public.create_paid_order(%s)', r.args);
+  end loop;
+end $$;
+
+-- 5. Money RPC execute-scoping.
+--    Service-only (cron/webhook/admin): confirmations, failure, expiry.
+revoke execute on function public.confirm_razorpay_order(uuid, text, text, text) from public, anon, authenticated;
+revoke execute on function public.fail_razorpay_order(uuid)    from public, anon, authenticated;
+revoke execute on function public.set_razorpay_order_id(uuid, text) from public, anon, authenticated;
+revoke execute on function public.expire_reserved_orders()     from public, anon, authenticated;
+grant  execute on function public.confirm_razorpay_order(uuid, text, text, text) to service_role;
+grant  execute on function public.fail_razorpay_order(uuid)    to service_role;
+grant  execute on function public.set_razorpay_order_id(uuid, text) to service_role;
+grant  execute on function public.expire_reserved_orders()     to service_role;
+
+--    User-facing but internally gated → authenticated only (never anon/public).
+revoke execute on function public.create_reserved_order(uuid, uuid, integer, integer, integer, integer, integer, integer, integer, integer, text, text, text, text, text) from public, anon;
+revoke execute on function public.cancel_event(uuid, text, integer) from public, anon;
+revoke execute on function public.request_postponement_refund(uuid, uuid) from public, anon;
+grant  execute on function public.create_reserved_order(uuid, uuid, integer, integer, integer, integer, integer, integer, integer, integer, text, text, text, text, text) to authenticated;
+grant  execute on function public.cancel_event(uuid, text, integer) to authenticated;
+grant  execute on function public.request_postponement_refund(uuid, uuid) to authenticated;
+
+--    Legacy manual-verification RPCs stay authenticated — they self-authorize
+--    via auth.uid() + is_event_staff inside the definer body.
+revoke execute on function public.approve_order(uuid)        from public, anon;
+revoke execute on function public.reject_order(uuid, text)   from public, anon;

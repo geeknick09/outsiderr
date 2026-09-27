@@ -100,9 +100,9 @@ describe("Test fixtures — financial accuracy", () => {
     expect(boxOfficeOrder.totalPaise).toBe(boxOfficeOrder.subtotalPaise);
   });
 
-  it("online order: buyer pays subtotal + convenience fee", () => {
+  it("online order: buyer pays subtotal + convenience + gateway fee", () => {
     expect(onlineOrder.totalPaise).toBe(
-      onlineOrder.subtotalPaise + onlineOrder.convenienceFeePaise,
+      onlineOrder.subtotalPaise + onlineOrder.convenienceFeePaise + onlineOrder.gatewayFeePaise,
     );
   });
 
@@ -135,6 +135,7 @@ describe("Test fixtures — financial accuracy", () => {
     expect(result.convenienceFeePaise).toBe(onlineOrder.convenienceFeePaise);
     expect(result.platformFeePaise).toBe(onlineOrder.platformFeePaise);
     expect(result.organizerPayoutPaise).toBe(onlineOrder.organizerPayoutPaise);
+    expect(result.gatewayFeePaise).toBe(onlineOrder.gatewayFeePaise);
     expect(result.totalPaise).toBe(onlineOrder.totalPaise);
   });
 

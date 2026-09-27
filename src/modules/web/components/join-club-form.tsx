@@ -1,21 +1,23 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2, Lock } from "lucide-react";
 
-import { joinClubAction } from "@/modules/shared/actions/clubs";
-import { QrCode } from "@/modules/shared";
-import { Button } from "@/modules/shared";
-import { formatPaise } from "@/modules/shared";
-import { upiIntent } from "@/modules/shared";
-import type { Club } from "@/modules/shared";
+import {
+  handleClubFailureAction,
+  joinClubAction,
+  startClubCheckoutAction,
+  verifyClubPaymentAction,
+} from "@/modules/shared/actions/clubs";
+import { Button, RazorpayCheckout, formatPaise } from "@/modules/shared";
+import type { CheckoutSession, Club } from "@/modules/shared";
 
 const INPUT =
   "w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white";
 
 export function JoinClubForm({ club }: { club: Club }) {
   const [instagramLink, setInstagramLink] = useState("");
-  const [utr, setUtr] = useState("");
+  const [session, setSession] = useState<CheckoutSession | null>(null);
   const [pending, startTransition] = useTransition();
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,10 +35,27 @@ export function JoinClubForm({ club }: { club: Club }) {
               ? `Welcome to ${club.name}.`
               : club.membershipType === "AUDITION"
               ? "The crew will review your Instagram and get back to you."
-              : "The club owner will verify your payment and confirm your membership."}
+              : "Your membership confirms the moment the payment clears."}
           </p>
         </div>
       </div>
+    );
+  }
+
+  // PAID club — after the member row exists, open Razorpay Checkout.
+  if (session) {
+    return (
+      <RazorpayCheckout
+        session={session}
+        verifyAction={verifyClubPaymentAction}
+        failureAction={handleClubFailureAction}
+        successRedirect={`/clubs/${club.id}?paid=1`}
+        onError={(msg) => {
+          setSession(null);
+          setError(msg);
+        }}
+        onCancel={() => setSession(null)}
+      />
     );
   }
 
@@ -46,25 +65,30 @@ export function JoinClubForm({ club }: { club: Club }) {
       setError("Paste your Instagram link so the crew can review your talent.");
       return;
     }
-    if (club.membershipType === "PAID" && !utr.trim()) {
-      setError("Pay the membership fee and enter your UTR reference.");
-      return;
-    }
     startTransition(async () => {
       try {
-        await joinClubAction(club.id, {
+        const { memberId } = await joinClubAction(club.id, {
           instagramLink: instagramLink.trim() || undefined,
-          utrReference: utr.trim() || undefined,
         });
+        if (club.membershipType === "PAID") {
+          if (!memberId) {
+            setError("Could not start the membership — try again.");
+            return;
+          }
+          const result = await startClubCheckoutAction(memberId);
+          if (result.error || !result.session) {
+            setError(result.error ?? "Could not start payment.");
+            return;
+          }
+          setSession(result.session);
+          return;
+        }
         setDone(true);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong.");
       }
     });
   }
-
-  // For PAID clubs: use the club's own UPI ID (set by the creator), fallback to platform
-  const clubUpiId = club.upiId ?? "outsiderr@upi";
 
   return (
     <div className="glass space-y-4 rounded-3xl p-5">
@@ -105,55 +129,30 @@ export function JoinClubForm({ club }: { club: Club }) {
         </label>
       ) : null}
 
-      {/* PAID: UPI QR + UTR */}
-      {club.membershipType === "PAID" ? (
-        <>
-          <div className="flex flex-col items-center gap-2">
-            <QrCode
-              value={upiIntent({
-                upiId: clubUpiId,
-                payeeName: club.name,
-                amountPaise: club.membershipFeePaise,
-                note: `Membership — ${club.name}`,
-              })}
-              size={160}
-              className="rounded-2xl bg-white p-2"
-            />
-            <p className="text-center text-xs text-muted">
-              Scan to pay {formatPaise(club.membershipFeePaise)}/month
-            </p>
-            <p className="text-center text-xs font-mono text-muted">{clubUpiId}</p>
-          </div>
-          <label className="block space-y-1.5">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-              UTR / Transaction reference *
-            </span>
-            <input
-              value={utr}
-              onChange={(e) => setUtr(e.target.value)}
-              placeholder="Enter UTR number"
-              className={INPUT}
-            />
-          </label>
-        </>
-      ) : null}
-
       {error ? <p className="text-sm text-red-500">{error}</p> : null}
 
       <Button className="w-full" disabled={pending} onClick={handleJoin}>
         {pending ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" />
-            Joining…
+            {club.membershipType === "PAID" ? "Preparing payment…" : "Joining…"}
           </>
         ) : club.membershipType === "FREE" ? (
           "Join Now"
         ) : club.membershipType === "AUDITION" ? (
           "Submit Audition"
         ) : (
-          "Submit Payment"
+          <>
+            <Lock className="mr-1.5 h-4 w-4" />
+            Pay &amp; join — {formatPaise(club.membershipFeePaise)}/month
+          </>
         )}
       </Button>
+      {club.membershipType === "PAID" ? (
+        <p className="text-center text-xs text-muted">
+          UPI, cards and netbanking via Razorpay — membership activates instantly.
+        </p>
+      ) : null}
     </div>
   );
 }

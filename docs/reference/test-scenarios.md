@@ -28,89 +28,89 @@
 
 ### 1.2 User Profile
 
-- [ ] Navigate to `/profile`
-- [ ] Edit name, birthdate, phone
-- [ ] Select interested-in tags from the chip picker
-- [ ] Save and verify changes persist on reload
-- [ ] Book an event → verify event tags auto-merge into interested-in tags
+- [x] Navigate to `/profile`
+- [x] Edit name, birthdate, phone
+- [x] Select interested-in tags from the chip picker
+- [x] Save and verify changes persist on reload
+- [x] Book an event → verify event tags auto-merge into interested-in tags
 
 ## 2\. Organizer Onboarding
 
 ### 2.1 Become an Organizer
 
-- [ ] Click “List Your Event” in profile menu → lands on `/list-your-event`
-- [ ] Click “Get Started” → redirects to `/organizer`
-- [ ] Fill become-organizer form (name, bio, photo, cover photo, UPI ID)
-- [ ] Verify UPI ID validation (accepts `name@upi`, rejects invalid formats)
-- [ ] Verify QR code generates from UPI ID
-- [ ] Submit → verify organizer profile created
-- [ ] Verify dashboard shows cover banner + avatar + name + bio
+- [x] Click “List Your Event” in profile menu → lands on `/list-your-event`
+- [x] Click “Get Started” → redirects to `/organizer`
+- [x] Fill become-organizer form (name, bio, photo, cover photo, UPI ID)
+- [x] Verify UPI ID validation (accepts `name@upi`, rejects invalid formats)
+- [x] Verify QR code generates from UPI ID
+- [x] Submit → verify organizer profile created
+- [x] Verify dashboard shows cover banner + avatar + name + bio
 
 ### 2.2 KYC Onboarding (5-step wizard)
 
-- [ ] Navigate to organizer verification flow
-- [ ] Step 1: Profile details
-- [ ] Step 2: PAN number (validate format `ABCDE1234F`) + optional PAN card photo (JPG/PNG under 1 MB — oversized file shows error, doesn’t upload)
-- [ ] Step 3: GST (optional — skip should work)
-- [ ] Step 4: Bank account + IFSC (validate format `ABCD0123456`) + optional bank proof (cancelled cheque/passbook, under 1 MB)
-- [ ] Step 5: Agreement acceptance
-- [ ] Verify all KYC fields saved to organizer profile (incl. `pan_document_url` / `bank_document_url`)
+- [x] Navigate to organizer verification flow
+- [x] Step 1: Profile details
+- [x] Step 2: PAN number (validate format `ABCDE1234F`) + optional PAN card photo (JPG/PNG under 1 MB — oversized file shows error, doesn’t upload)
+- [x] Step 3: GST (optional — skip should work)
+- [x] Step 4: Bank account + IFSC (validate format `ABCD0123456`) + optional bank proof (cancelled cheque/passbook, under 1 MB)
+- [x] Step 5: Agreement acceptance
+- [x] Verify all KYC fields saved to organizer profile (incl. `pan_document_url` / `bank_document_url`)
 
 ### 2.3 KYC Review States
 
-- [ ] While PENDING → dashboard shows “Organizer verification in progress” (amber)
-- [ ] Admin rejects → bell gets “Application Rejected” notification live (no reload) + page refreshes to red “application not approved” panel
-- [ ] Admin requests clarification → “Clarification Needed” notification + blue banner
-- [ ] Admin approves → “Organizer Verified!” notification + dashboard unlocks
-- [ ] Organizer replies + re-uploads docs → “Submit response” persists `kyc_response_note` + doc URLs (verify in admin review card)
-- [ ] Resubmit → `kyc_status` back to PENDING
-- [ ] “Withdraw application” → confirm → organizers row deleted + `is_organizer=false` → lands on become-organizer form
-- [ ] Withdrawal blocked if APPROVED or if events exist (error message shown)
+- [x] While PENDING → dashboard shows “Organizer verification in progress” (amber)
+- [x] Admin rejects → bell gets “Application Rejected” notification live (no reload) + page refreshes to red “application not approved” panel
+- [x] Admin requests clarification → “Clarification Needed” notification + blue banner
+- [x] Admin approves → “Organizer Verified!” notification + dashboard unlocks
+- [x] Organizer replies + re-uploads docs → “Submit response” persists `kyc_response_note` + doc URLs (verify in admin review card)
+- [x] Resubmit → `kyc_status` back to PENDING
+- [x] “Withdraw application” → confirm → organizers row deleted + `is_organizer=false` → lands on become-organizer form
+- [x] Withdrawal blocked if APPROVED or if events exist (error message shown)
 
 ### 2.3b Rejection Limit & Menu States
 
-- [ ] REJECTED (any count) → navbar + footer show “List Your Event”, NOT “Organizer Dashboard”
-- [ ] Only APPROVED organizers see “Organizer Dashboard” in user menu
-- [ ] Rejected below limit → `/list-your-event` shows “Get Started” → `/organizer` renders the **fresh 5-step KYC wizard** (no notice card, no resubmit panel)
-- [ ] Resubmitting the wizard **overwrites** the existing organizer row (all fields + docs), flips `kyc_status` → PENDING, preserves `rejection_count`, notifies admins + logs thread
-- [ ] Rejection count reaches `organizer_rejection_limit` (platform\_settings, default 5) → `/list-your-event` shows “application rejected N times — contact support” instead of CTAs
-- [ ] Blocked user visiting `/organizer` directly → “Organizer access blocked” panel (no wizard, no dashboard)
+- [x] REJECTED (any count) → navbar + footer show “List Your Event”, NOT “Organizer Dashboard”
+- [x] Only APPROVED organizers see “Organizer Dashboard” in user menu
+- [x] Rejected below limit → `/list-your-event` shows “Get Started” → `/organizer` renders the **fresh 5-step KYC wizard** (no notice card, no resubmit panel)
+- [x] Resubmitting the wizard **overwrites** the existing organizer row (all fields + docs), flips `kyc_status` → PENDING, preserves `rejection_count`, notifies admins + logs thread
+- [x] Rejection count reaches `organizer_rejection_limit` (platform\_settings, default 5) → `/list-your-event` shows “application rejected N times — contact support” instead of CTAs
+- [x] Blocked user visiting `/organizer` directly → “Organizer access blocked” panel (no wizard, no dashboard)
 - [ ] Change `organizer_rejection_limit` in platform\_settings → block threshold updates accordingly
 
 ### 2.4 Admin Notifications (pending-review queues)
 
-- [ ] New organizer submits KYC → every admin’s bell shows “KYC Submitted” live
-- [ ] Organizer resubmits after rejection → admins notified again
+- [x] New organizer submits KYC → every admin’s bell shows “KYC Submitted” live
+- [x] Organizer resubmits after rejection → admins notified again
 - [ ] Organizer requests a boost slot → “Boost Request” notification to admins (₹ + UTR in message)
 - [ ] Organizer submits hero-boost UTR → “Boost Request” notification to admins
 - [ ] Organizer submits door-staff payment UTR → “Door Staff Payment” notification to admins
 
 ### 2.3 Organizer Profile Edit
 
-- [ ] Edit name, bio, photo, cover photo, UPI ID
-- [ ] Verify QR preview updates when UPI ID changes
-- [ ] Save and verify changes persist
+- [x] Edit name, bio, photo, cover photo, UPI ID
+- [x] Verify QR preview updates when UPI ID changes
+- [x] Save and verify changes persist
 
 ## 3\. Event Creation
 
 ### 3.1 Basic Event Creation
 
-- [ ] Navigate to `/organizer?tab=create`
-- [ ] Fill event title, description
-- [ ] Select category — verify “Alternate Sports & Fitness” appears (renamed from Fitness)
-- [ ] Select “Gaming” category — verify it appears in the dropdown
-- [ ] Select city, venue name
-- [ ] Use map picker to set location
-- [ ] Add Google Maps link — verify validation
-- [ ] Add organizer contact email + phone
-- [ ] Set start/end date and time
-- [ ] Verify Poster & Description Guidelines panel is collapsible
-- [ ] Upload card poster (3:4 ratio, verify 1.5 MB max, .png/.jpg only)
-- [ ] Upload banner poster (16:9 ratio)
-- [ ] Add gallery photos (up to 8, via upload or URL)
-- [ ] Accept organizer T&C
-- [ ] Save as draft → verify event appears in “Drafts” tab
-- [ ] Publish event → verify event appears in “Published” tab
+- [x] Navigate to `/organizer?tab=create`
+- [x] Fill event title, description
+- [x] Select category — verify “Alternate Sports & Fitness” appears (renamed from Fitness)
+- [x] Select “Gaming” category — verify it appears in the dropdown
+- [x] Select city, venue name
+- [x] Use map picker to set location
+- [x] Add Google Maps link — verify validation
+- [x] Add organizer contact email + phone
+- [x] Set start/end date and time
+- [x] Verify Poster & Description Guidelines panel is collapsible
+- [x] Upload card poster (3:4 ratio, verify 1.5 MB max, .png/.jpg only)
+- [x] Upload banner poster (16:9 ratio)
+- [x] Add gallery photos (up to 8, via upload or URL)
+- [x] Accept organizer T&C
+- [x] Save as draft → verify event appears in “Drafts” tab
+- [x] Publish event → verify event appears in “Published” tab
 
 ### 3.2 Pricing Modes
 
@@ -131,40 +131,40 @@
 
 ### 3.4 Venue TBA Mode
 
-- [ ] Select “To Be Announced” radio in event form
-- [ ] Verify venue fields hide when TBA selected
-- [ ] Save and verify “TBA” shown on public event page
+- [x] Select “To Be Announced” radio in event form
+- [x] Verify venue fields hide when TBA selected
+- [x] Save and verify “TBA” shown on public event page
 
 ### 3.5 Linked Past Events
 
-- [ ] Create a new event
-- [ ] Link a past event as “previous edition”
-- [ ] Verify linked event shows on public event page with aggregate rating
+- [x] Create a new event
+- [x] Link a past event as “previous edition”
+- [x] Verify linked event shows on public event page with aggregate rating
 
 ### 3.6 Gaming Category Tags
 
-- [ ] Create event with “Gaming” category
-- [ ] Verify gaming tags appear (Esports, LAN Tournament, FIFA, BGMI, Valorant, etc.)
+- [x] Create event with “Gaming” category
+- [x] Verify gaming tags appear (Esports, LAN Tournament, FIFA, BGMI, Valorant, etc.)
 - [ ] Select gaming tags → verify they save with the event
 - [ ] Verify tags display on event card and event page
 
 ### 3.7 Teaser Video (optional)
 
-- [ ] Upload a ≤10s MP4/WebM → preview shows, URL fills, saves to `events.teaser_video_url`
-- [ ] Try a video > 10s → rejected with a clear message before upload
-- [ ] Try a video > 50 MB → rejected with a clear message
+- [x] Upload a ≤10s MP4/WebM → preview shows, URL fills, saves to `events.teaser_video_url`
+- [x] Try a video > 10s → rejected with a clear message before upload
+- [x] Try a video > 50 MB → rejected with a clear message
 - [ ] Leave it empty → event saves fine, card shows the photo (teaser is optional)
 - [ ] Same field on **edit** — replace/remove the teaser and verify it persists
 
 ### 3.8 Poster Crop Tool
 
-- [ ] Upload a Card poster → crop modal opens locked to **3:4** → drag to center + zoom → Apply → uploads cropped JPEG
-- [ ] Upload a Banner poster → crop modal locked to **16:9**
-- [ ] Cancel the crop → nothing uploads, field stays empty
-- [ ] Re-select the same file → cropper re-opens
-- [ ] Open cropper from a scrolled form inside `.glass` → dialog portals to viewport and title/image/controls are not clipped
+- [x] Upload a Card poster → crop modal opens locked to **3:4** → drag to center + zoom → Apply → uploads cropped JPEG
+- [x] Upload a Banner poster → crop modal locked to **16:9**
+- [x] Cancel the crop → nothing uploads, field stays empty
+- [x] Re-select the same file → cropper re-opens
+- [x] Open cropper from a scrolled form inside `.glass` → dialog portals to viewport and title/image/controls are not clipped
 - [ ] On a short viewport, crop dialog stays centered when it fits; otherwise its own content scrolls so title and Apply/Cancel remain reachable
-- [ ] Close/apply cropper → page scroll is restored and remains scrollable
+- [x] Close/apply cropper → page scroll is restored and remains scrollable
 - [ ] Crop a very large source → cropped output still respects the 1.5 MB limit (or a size error shows)
 - [ ] “or paste an image URL” still works as a no-crop fallback
 - [ ] Same crop behavior on the **edit** form
@@ -307,21 +307,21 @@
 
 ### 7.1 Follow
 
-- [ ] As User C, navigate to `/organizers/[id]`
-- [ ] Click “Follow” button
-- [ ] Verify follower count increments
-- [ ] Verify button changes to “Following”
+- [x] As User C, navigate to `/organizers/[id]`
+- [x] Click “Follow” button
+- [x] Verify follower count increments
+- [x] Verify button changes to “Following”
 
 ### 7.2 Unfollow
 
-- [ ] Click “Following” button
-- [ ] Verify follower count decrements
-- [ ] Verify button changes back to “Follow”
+- [x] Click “Following” button
+- [x] Verify follower count decrements
+- [x] Verify button changes back to “Follow”
 
 ### 7.3 Persistence
 
-- [ ] Reload page → verify follow state persists
-- [ ] Log out, log back in → verify follow state persists
+- [x] Reload page → verify follow state persists
+- [x] Log out, log back in → verify follow state persists
 
 ## 8\. Event Collaboration (Co-Organizer Invites)
 
@@ -737,13 +737,13 @@
 
 ### 17.1 Notification Bell
 
-- [ ] Verify bell icon in navbar with unread count badge
-- [ ] Click bell → verify notifications dropdown
-- [ ] Verify realtime updates (new notification appears without reload)
+- [x] Verify bell icon in navbar with unread count badge
+- [x] Click bell → verify notifications dropdown
+- [x] Verify realtime updates (new notification appears without reload)
 
 ### 17.2 Notification Types
 
-- [ ] Book ticket → verify booking success notification
+- [x] Book ticket → verify booking success notification
 - [ ] Event cancelled → verify cancellation notification
 - [ ] Event postponed → verify postponement notification
 - [ ] Event venue changed → verify VENUE\_CHANGE notification
@@ -752,7 +752,7 @@
 - [ ] Waitlist offer → verify WAITLIST\_OFFER notification
 - [ ] Collaboration invite → verify COLLAB\_INVITE notification
 - [ ] Collaboration accepted → verify COLLAB\_ACCEPTED notification
-- [ ] KYC approved → verify KYC\_APPROVED notification (“Organizer Verified!”)
+- [x] KYC approved → verify KYC\_APPROVED notification (“Organizer Verified!”)
 - [ ] KYC rejected → verify KYC\_REJECTED notification (with rejection reason)
 - [ ] KYC clarification → verify KYC\_CLARIFICATION notification (“An Outsiderr team member will contact you”)
 

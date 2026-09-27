@@ -22,8 +22,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if ("response" in parsed) return parsed.response;
 
     try {
-      await joinClub(user, id, parsed.data);
-      return apiOk({ joined: true });
+      const result = await joinClub(user, id, parsed.data);
+      return apiOk({ joined: true, memberId: result.memberId, status: result.status });
     } catch (error) {
       return apiError(error instanceof Error ? error.message : "Could not join club.", 400);
     }

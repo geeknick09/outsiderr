@@ -203,17 +203,19 @@ export async function joinClub(
   user: CurrentUser,
   clubId: string,
   options: { instagramLink?: string; utrReference?: string },
-): Promise<void> {
+): Promise<{ memberId: string | null; status: "ACCEPTED" | "PENDING" }> {
   const supabase = await createClient();
 
   // Check if already a member
   const { data: existing } = await supabase
     .from("club_members")
-    .select("id")
+    .select("id, status")
     .eq("club_id", clubId)
     .eq("user_id", user.id)
     .maybeSingle();
-  if (existing) return;
+  if (existing) {
+    return { memberId: existing.id, status: existing.status as "ACCEPTED" | "PENDING" };
+  }
 
   // Get the club to determine status
   const { data: club } = await supabase
@@ -225,17 +227,17 @@ export async function joinClub(
 
   const status = club.membership_type === "FREE" ? "ACCEPTED" : "PENDING";
 
-  const { error } = await supabase.from("club_members").insert({
+  const { data: member, error } = await supabase.from("club_members").insert({
     club_id: clubId,
     user_id: user.id,
     status,
     instagram_link: options.instagramLink ?? null,
     utr_reference: options.utrReference ?? null,
-  });
+  }).select("id").single();
 
   // Handle unique constraint violation (concurrent join requests)
   if (error) {
-    if ((error as { code?: string }).code === "23505") return; // already a member
+    if ((error as { code?: string }).code === "23505") return { memberId: null, status };
     throw error;
   }
 
@@ -243,6 +245,7 @@ export async function joinClub(
   if (status === "ACCEPTED") {
     await supabase.rpc("increment_club_member_count", { p_club_id: clubId });
   }
+  return { memberId: member?.id ?? null, status };
 }
 
 export async function listClubMembers(clubId: string): Promise<ClubMember[]> {
