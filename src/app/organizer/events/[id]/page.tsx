@@ -36,7 +36,7 @@ import { expireWaitlistOffers, listEventWaitlist } from "@/modules/shared/server
 
 import { getCancellationChargePercent, getPostponementChargePercent, getDoorStaffPricing, getDoorStaffAvailable, getHeroBoostPrice, getHeroBoostDurationDays } from "@/modules/shared/server";
 import { getHeroBoostForEvent } from "@/modules/shared/server";
-import { formatDateRange, isPast } from "@/modules/shared";
+import { formatDateRange, isEventEnded } from "@/modules/shared";
 import { CATEGORY_LABELS } from "@/modules/shared";
 import { getDraftRetentionDays } from "@/modules/shared/server";
 import { lazy, Suspense } from "react";
@@ -154,7 +154,7 @@ export default async function ManageEventPage({
 
   const pastEventsForLinking = await getOrganizerPastEventsForLinking(event.organizer.id, id);
 
-  const eventPast = isPast(event.startsAt);
+  const eventPast = isEventEnded(event.startsAt, event.endsAt);
 
   const statusTone =
     eventPast

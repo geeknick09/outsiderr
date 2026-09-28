@@ -7,13 +7,13 @@ import { CalendarDays, Clock, MapPin, Printer, Ticket as TicketIcon, X } from "l
 import { Badge } from "@/modules/shared";
 import { QrCode } from "@/modules/shared";
 import { DownloadQrButton } from "@/modules/shared";
-import { formatDateTime, isPast } from "@/modules/shared";
+import { formatDateTime, isEventEnded } from "@/modules/shared";
 import type { Ticket } from "@/modules/shared";
 import { cn } from "@/modules/shared";
 
 export function TicketCard({ ticket }: { ticket: Ticket }) {
   const [expanded, setExpanded] = useState(false);
-  const expired = isPast(ticket.startsAt);
+  const expired = isEventEnded(ticket.startsAt, ticket.endsAt);
   const used = ticket.status === "USED";
   const cancelled = ticket.status === "CANCELLED";
   const void_ = ticket.status === "VOID";

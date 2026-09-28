@@ -11,7 +11,7 @@ import { Badge } from "@/modules/shared";
 import { ActionButton } from "@/modules/shared";
 import { listAllAdminEvents } from "@/modules/admin/server";
 import { CATEGORY_LABELS, CITY_LABELS } from "@/modules/shared";
-import { formatDateTime, isPast } from "@/modules/shared";
+import { formatDateTime, isEventEnded } from "@/modules/shared";
 import { cn } from "@/modules/shared";
 import type { EventCategory, City } from "@/modules/shared";
 
@@ -30,7 +30,7 @@ function isHappeningNow(startsAt: string, endsAt: string | null | undefined): bo
 /** Get a human-friendly status label with Live/Published distinction. */
 function getStatusLabel(status: string, startsAt: string, endsAt: string | null | undefined): string {
   if (status === "PUBLISHED") {
-    if (isPast(startsAt)) return "Completed";
+    if (isEventEnded(startsAt, endsAt)) return "Completed";
     if (isHappeningNow(startsAt, endsAt)) return "Live";
     return "Published";
   }
@@ -39,7 +39,7 @@ function getStatusLabel(status: string, startsAt: string, endsAt: string | null 
 
 function getStatusTone(status: string, startsAt: string, endsAt: string | null | undefined): "success" | "danger" | "neutral" | "violet" {
   if (status === "PUBLISHED") {
-    if (isPast(startsAt)) return "neutral";
+    if (isEventEnded(startsAt, endsAt)) return "neutral";
     return "success";
   }
   if (status === "CANCELLED") return "danger";

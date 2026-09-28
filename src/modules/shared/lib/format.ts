@@ -69,6 +69,18 @@ export function isPast(iso: string): boolean {
   return istDay(iso) < istDay(new Date().toISOString());
 }
 
+/**
+ * True once the event has ENDED — compares the real end timestamp, not the
+ * day. Same-day finished events count as past (e.g. a 6–9am run at noon).
+ * Without an endsAt we fall back to a 12h window from start.
+ */
+export function isEventEnded(startsAt: string, endsAt?: string | null): boolean {
+  const endMs = endsAt
+    ? new Date(endsAt).getTime()
+    : new Date(startsAt).getTime() + 12 * 3_600_000;
+  return endMs <= Date.now();
+}
+
 export function mapsLink(
   latitude: number | null,
   longitude: number | null,

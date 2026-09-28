@@ -51,9 +51,11 @@ export default async function DiscoveryPage({
       : undefined;
   const search = params.q?.trim() || undefined;
 
-  // Parallelize all data fetching — events + settings + user at the same time
+  // Parallelize all data fetching — events + settings + user at the same time.
+  // No city filter on the fetch: the city-scoped sections derive from the full
+  // set so "Events in your city" and "All Events" can coexist on one fetch.
   const [allEvents, maxPopular, maxSponsored, heroEnabled, heroRotationInterval, heroMaxVisible, taglineHeader, taglineSubheader, currentUser, matchedOrganizers] = await Promise.all([
-    listEvents({ city, category, search }),
+    listEvents({ category, search }),
     getMaxPopularPerCity(),
     getMaxSponsoredPerCity(),
     getHeroBoostEnabled(),
@@ -68,13 +70,17 @@ export default async function DiscoveryPage({
   const { upcoming, past } = partitionSearchEvents(allEvents);
 
   // Postponed events stay in the normal live listing — they're still live.
+  // City-scoped slices drive the curated sections; `upcoming` stays all-cities
+  // for the "All Events" grid.
   const live = upcoming;
+  const cityLive = live.filter((event) => event.city === city);
+  const cityPast = past.filter((event) => event.city === city);
 
-  const featured = live
+  const featured = cityLive
     .filter((event) => event.isFeatured)
     .slice(0, maxSponsored);
-  const today = live.filter((event) => isToday(event.startsAt));
-  const popular = [...live]
+  const today = cityLive.filter((event) => isToday(event.startsAt));
+  const popular = [...cityLive]
     .sort((a, b) => b.registrationsCount - a.registrationsCount)
     .slice(0, maxPopular);
 
@@ -164,12 +170,17 @@ export default async function DiscoveryPage({
         events={today}
       />
       <EventSection title="Popular Events" events={popular} />
+      <EventSection
+        title={`Events in ${CITY_LABELS[city]}`}
+        subtitle="Happening near you"
+        events={cityLive}
+      />
       <EventSection title="All Events" events={live} />
 
       <PastEventSection
         title="Past Events"
         subtitle="Already completed — for reference only"
-        events={past}
+        events={cityPast}
       />
 
       {live.length === 0 && past.length === 0 ? (

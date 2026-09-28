@@ -88,6 +88,7 @@ function toSummary(row: EventRow, tiers: TicketTier[]): EventSummary {
     city: row.city,
     venueName: row.venue_name,
     startsAt: row.starts_at,
+    endsAt: (row as { ends_at?: string | null }).ends_at ?? null,
     cardPosterUrl: row.card_poster_url,
     bannerPosterUrl: row.banner_poster_url,
     teaserVideoUrl: row.teaser_video_url,

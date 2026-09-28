@@ -264,6 +264,7 @@ export interface Ticket {
   status: TicketStatus;
   checkedInAt: string | null;
   startsAt: string;
+  endsAt?: string | null;
   venueName: string;
   organizerContactEmail?: string | null;
 }

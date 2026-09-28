@@ -695,6 +695,12 @@ export function EditEventForm({ event, pastEvents = [], lockLogistics = false }:
             );
           });
         })()}
+        <div className="flex justify-center pt-1">
+          <Button type="button" variant="secondary" size="sm" onClick={addTier}>
+            <Plus className="h-4 w-4" />
+            Add another tier
+          </Button>
+        </div>
         {phaseError ? (
           <p className="text-sm text-red-500">{phaseError}</p>
         ) : null}

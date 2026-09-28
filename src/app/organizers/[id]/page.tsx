@@ -12,7 +12,7 @@ import { getPublicOrganizer, listPublicOrganizerEvents } from "@/modules/shared/
 import { getOrganizerReviews, getOrganizerRating } from "@/modules/shared/server";
 import { getOrganizerFollowerCount, isFollowingOrganizer } from "@/modules/shared/server";
 import { getCurrentUser } from "@/modules/shared/server";
-import { isPast } from "@/modules/shared";
+import { isEventEnded } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 
@@ -51,8 +51,8 @@ export default async function PublicOrganizerPage({
 
   const isOwnProfile = user && organizer.ownerId === user.id;
 
-  const upcoming = events.filter((e) => !isPast(e.startsAt));
-  const past = events.filter((e) => isPast(e.startsAt));
+  const upcoming = events.filter((e) => !isEventEnded(e.startsAt, e.endsAt));
+  const past = events.filter((e) => isEventEnded(e.startsAt, e.endsAt));
 
   return (
     <div className="space-y-6 py-6">

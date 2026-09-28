@@ -268,7 +268,7 @@ export async function listMyTickets(user: CurrentUser): Promise<Ticket[]> {
   const [{ data: eventRows }, { data: tiers }] = await Promise.all([
     supabase
       .from("events")
-      .select("id, title, starts_at, venue_name, contact_email")
+      .select("id, title, starts_at, ends_at, venue_name, contact_email")
       .in("id", eventIds),
     supabase
       .from("ticket_tiers")

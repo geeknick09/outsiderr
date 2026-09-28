@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowDownUp, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 
 import { Badge } from "@/modules/shared";
-import { formatDateTime, isPast } from "@/modules/shared";
+import { formatDateTime, isEventEnded } from "@/modules/shared";
 import type { EventAnalytics, EventSummary } from "@/modules/shared";
 
 type SortKey = "date" | "title" | "popularity" | "waitlist" | "revenue";
@@ -30,7 +30,7 @@ function isHappeningNow(startsAt: string, endsAt: string | null | undefined): bo
 }
 
 function getStatusBadge(event: EventSummary) {
-  const past = isPast(event.startsAt);
+  const past = isEventEnded(event.startsAt, event.endsAt);
   if (past) return { tone: "neutral" as const, label: "Completed" };
   if (event.status === "PUBLISHED") {
     if (isHappeningNow(event.startsAt, event.endsAt)) {
@@ -53,7 +53,7 @@ function classifyEvent(event: EventSummary): LifecycleTab {
   if (event.status === "CANCELLED" || event.status === "CANCELLATION_REQUESTED") return "cancelled";
   if (event.status === "POSTPONED") return "published"; // postponed stays in published
   // PUBLISHED
-  const past = isPast(event.startsAt);
+  const past = isEventEnded(event.startsAt, event.endsAt);
   if (past) return "completed";
   return "published";
 }

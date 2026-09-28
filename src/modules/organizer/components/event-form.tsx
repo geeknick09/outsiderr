@@ -931,6 +931,18 @@ export function EventForm({
                 </Field>
               </div>
             ))}
+
+            <div className="flex justify-center pt-1">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setTiers((rows) => [...rows, emptyTier()])}
+              >
+                <Plus className="h-4 w-4" />
+                Add another tier
+              </Button>
+            </div>
           </>
         ) : null}
 
@@ -1057,6 +1069,18 @@ export function EventForm({
                 ) : null}
               </div>
             ))}
+
+            <div className="flex justify-center pt-1">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setPhases((rows) => [...rows, emptyPhase()])}
+              >
+                <Plus className="h-4 w-4" />
+                Add another phase
+              </Button>
+            </div>
             {phaseError ? (
               <p className="text-sm text-red-500">{phaseError}</p>
             ) : null}
@@ -1152,6 +1176,18 @@ export function EventForm({
                 </Field>
               </div>
             ))}
+
+            <div className="flex justify-center pt-1">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setTiers((rows) => [...rows, emptyTier()])}
+              >
+                <Plus className="h-4 w-4" />
+                Add another tier
+              </Button>
+            </div>
           </>
         ) : null}
       </section>

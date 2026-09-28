@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Analytics } from "@vercel/analytics/next";
 
 import { Footer } from "@/modules/shared";
 import { Navbar } from "@/modules/shared/server";
@@ -81,6 +82,7 @@ export default async function RootLayout({
           <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-6">{children}</main>
           <Footer isOrganizer={isOrganizer} tagline={footerTagline} />
           <ServiceWorkerRegister />
+          <Analytics />
         </ThemeProvider>
       </body>
     </html>
