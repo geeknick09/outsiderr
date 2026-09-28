@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { BellRing, Check, Clock, Loader2, Sparkles, X } from "lucide-react";
 
@@ -35,7 +35,9 @@ export function TicketTiers({
   ticketsHeld?: number;
 }) {
   const router = useRouter();
-  const nowMs = Date.now();
+  // Clock tick — re-evaluates phase/booking state without a refresh.
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  const nowMs = nowTick;
   const startMs = new Date(event.startsAt).getTime();
   const endMs = event.endsAt ? new Date(event.endsAt).getTime() : startMs;
   const eventStarted = startMs <= nowMs;
@@ -71,7 +73,27 @@ export function TicketTiers({
   // All derived state memoized — nothing recalculates on every render
   const phaseTiers = useMemo(() => tiers.filter((t) => t.tierType === "FLAT_PHASE"), [tiers]);
   const namedTiers = useMemo(() => tiers.filter((t) => t.tierType !== "FLAT_PHASE"), [tiers]);
-  const phaseAvailability = useMemo(() => computePhaseAvailability(phaseTiers), [phaseTiers]);
+  const phaseAvailability = useMemo(
+    () => computePhaseAvailability(phaseTiers, new Date(nowTick)),
+    [phaseTiers, nowTick],
+  );
+
+  // Realtime phase flips: time-based boundaries (phase opens/closes, event
+  // start/end) emit no DB event, so the realtime tier subscription can't see
+  // them. This timer wakes at the NEXT boundary, bumps the clock, and the
+  // availability recomputes — then re-arms for the one after it.
+  useEffect(() => {
+    const boundaries: number[] = [startMs, endMs];
+    for (const t of phaseTiers) {
+      if (t.phaseOpensAt) boundaries.push(new Date(t.phaseOpensAt).getTime());
+      if (t.phaseClosesAt) boundaries.push(new Date(t.phaseClosesAt).getTime());
+    }
+    const next = boundaries.filter((b) => b > Date.now()).sort((a, b) => a - b)[0];
+    if (!next) return;
+    const delay = Math.min(next - Date.now() + 250, 2_147_000_000);
+    const id = setTimeout(() => setNowTick(Date.now()), delay);
+    return () => clearTimeout(id);
+  }, [phaseTiers, nowTick, startMs, endMs]);
   const activePhase = useMemo(() => phaseAvailability.find((p) => p.isActive), [phaseAvailability]);
   const activePhaseTier = activePhase?.tier ?? null;
 
