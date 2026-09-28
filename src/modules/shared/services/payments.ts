@@ -1,6 +1,7 @@
 import type { CurrentUser } from "../auth/auth";
 import type { CheckoutSession } from "../lib/types";
 import {
+  abandonPayment,
   applyCapturedPayment,
   applyFailedPayment,
   attachRazorpayOrder,
@@ -287,7 +288,11 @@ export async function verifyPayment(
   };
 }
 
-/** Client-reported failure/cancel → releases the reservation via the dispatcher. */
+/**
+ * Client-reported dismissal/cancel → terminal release of the reservation.
+ * apply_failed_payment is for per-attempt webhook events (non-terminal);
+ * user abandonment is terminal — seats go back immediately, not on cron.
+ */
 export async function reportPaymentFailure(
   user: CurrentUser,
   input: { razorpayOrderId: string },
@@ -296,7 +301,7 @@ export async function reportPaymentFailure(
   if (intent && intent.userId !== user.id) {
     return { success: false, error: "This payment does not belong to your account." };
   }
-  const outcome = await applyFailedPayment(input.razorpayOrderId);
+  const outcome = await abandonPayment(input.razorpayOrderId);
   if (outcome === "NOT_FOUND") {
     return { success: false, error: "Order not found for this payment." };
   }

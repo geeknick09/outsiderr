@@ -237,3 +237,17 @@ export async function applyFailedPayment(razorpayOrderId: string): Promise<strin
   if (error) throw new Error(error.message);
   return data ?? "UNKNOWN";
 }
+
+/**
+ * Terminal release — user dismissed the modal / abandoned checkout.
+ * Order RESERVED → FAILED and reserved seats go back immediately.
+ * No-op once the intent is PAID (a racing capture wins).
+ */
+export async function abandonPayment(razorpayOrderId: string): Promise<string> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase.rpc("abandon_payment", {
+    p_razorpay_order_id: razorpayOrderId,
+  });
+  if (error) throw new Error(error.message);
+  return data ?? "UNKNOWN";
+}

@@ -754,6 +754,10 @@ export type Database = {
         Returns: string;
       };
       apply_failed_payment: {
+        Args: { p_razorpay_order_id: string; p_error?: string | null };
+        Returns: string;
+      };
+      abandon_payment: {
         Args: { p_razorpay_order_id: string };
         Returns: string;
       };
