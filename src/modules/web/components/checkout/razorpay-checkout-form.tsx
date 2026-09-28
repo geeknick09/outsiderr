@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Lock } from "lucide-react";
 
 import {
   createCheckoutAction,
+  getPaymentStatusAction,
   handlePaymentFailureAction,
   verifyPaymentAction,
 } from "@/modules/web/actions/orders";
@@ -38,9 +40,32 @@ export function RazorpayCheckoutForm({
   defaultGender: string;
   totalRupees: string;
 }) {
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [session, setSession] = useState<CheckoutSession | null>(null);
   const [pending, startTransition] = useTransition();
+  // Set while we resolve what happened to the last attempt — the Pay button
+  // stays disabled so the user can't stack a second payment on a first one
+  // that's still confirming server-side.
+  const [resolving, setResolving] = useState(false);
+
+  // After the modal returns (dismiss or error), check the intent before
+  // re-arming the Pay button: a capture may be mid-flight via the webhook.
+  async function resolveBeforeRetry(closedSession: CheckoutSession, err?: string) {
+    setResolving(true);
+    try {
+      const status = await getPaymentStatusAction({ orderId: closedSession.orderId });
+      if (status && (status.status === "PAID" || status.refStatus === "CONFIRMED" || status.refStatus === "REFUND_REQUESTED")) {
+        router.push(`/checkout/status?order=${closedSession.orderId}&event=${eventId}`);
+        return;
+      }
+    } catch {
+      // fall through — re-arm the form
+    }
+    setSession(null);
+    setResolving(false);
+    setError(err ?? null);
+  }
 
   function handlePay(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -65,12 +90,23 @@ export function RazorpayCheckoutForm({
         failureAction={handlePaymentFailureAction}
         successRedirect={`/checkout/status?order=${session.orderId}`}
         statusRedirect={`/checkout/status?order=${session.orderId}&event=${eventId}`}
-        onError={(msg) => {
-          setSession(null);
-          setError(msg);
-        }}
-        onCancel={() => setSession(null)}
+        onError={(msg) => void resolveBeforeRetry(session, msg)}
+        onCancel={() => void resolveBeforeRetry(session)}
       />
+    );
+  }
+
+  if (resolving) {
+    return (
+      <div className="rounded-2xl border border-zinc-200 p-6 text-center dark:border-white/10">
+        <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-violet-600" />
+        <p className="text-sm font-semibold text-muted">
+          Checking your payment status…
+        </p>
+        <Button className="mt-4 w-full" size="lg" disabled loading loadingText="Checking…">
+          Pay securely
+        </Button>
+      </div>
     );
   }
 

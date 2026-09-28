@@ -38,6 +38,59 @@ const TYPE_LABELS: Record<string, string> = {
   HERO_BOOST: "Boost Update",
 };
 
+/** Where each notification type actually belongs — the actionable screen. */
+function notificationHref(n: UserNotification): string {
+  const eventPage = n.eventId ? `/events/${n.eventId}` : "/";
+  switch (n.type) {
+    // Ticket lifecycle → My Tickets (QRs, refund strip, keep/refund choice)
+    case "ORDER_CONFIRMED":
+    case "PAYMENT_SUCCESS":
+    case "REFUND_INITIATED":
+    case "REFUND_COMPLETED":
+    case "CANCELLATION":
+    case "POSTPONEMENT":
+    case "RESCHEDULE":
+    case "VENUE_CHANGE":
+    case "CITY_CHANGE":
+    case "TIME_CHANGE":
+    case "ORDER_REJECTED":
+      return "/tickets";
+    // Failed payment → back to the event to retry
+    case "PAYMENT_FAILED":
+      return eventPage;
+    // Collaboration → the invite panel / the shared event
+    case "COLLAB_INVITE":
+      return "/organizer";
+    case "COLLAB_ACCEPTED":
+      return n.eventId ? `/organizer/events/${n.eventId}` : "/organizer";
+    // Organizer payouts
+    case "PAYOUT_COMPLETED":
+      return "/organizer/payments";
+    // Admin queues
+    case "KYC_SUBMITTED":
+      return "/admin/kyc";
+    case "BOOST_REQUESTED":
+      return "/admin/boosts";
+    case "DOOR_STAFF_REQUESTED":
+      return "/admin/door-staff";
+    case "PAYMENT_ALERT":
+      return "/admin/payments";
+    // Organizer-side KYC outcomes + boost updates
+    case "KYC_APPROVED":
+    case "KYC_REJECTED":
+    case "KYC_CLARIFICATION":
+    case "HERO_BOOST":
+      return "/organizer";
+    // Discovery — the event page itself
+    case "WAITLIST_OFFER":
+    case "TICKETS_AVAILABLE":
+    case "EVENT_UPDATE":
+    case "EVENT_REMINDER":
+    default:
+      return eventPage;
+  }
+}
+
 const TYPE_COLORS: Record<string, string> = {
   CANCELLATION: "text-red-500",
   POSTPONEMENT: "text-amber-500",
@@ -259,22 +312,25 @@ export function NotificationBell({
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
+                      <Link
+                        href={notificationHref(n)}
+                        onClick={() => {
+                          setOpen(false);
+                          void handleMarkRead(n.id);
+                        }}
+                        className="group min-w-0 flex-1"
+                      >
                         <p className={`text-xs font-bold ${TYPE_COLORS[n.type] ?? "text-violet-neon"}`}>
                           {TYPE_LABELS[n.type] ?? n.type}
                         </p>
                         {n.eventTitle ? (
-                          <Link
-                            href={`/events/${n.eventId}`}
-                            onClick={() => setOpen(false)}
-                            className="block truncate text-sm font-semibold hover:text-violet-neon"
-                          >
+                          <span className="block truncate text-sm font-semibold group-hover:text-violet-neon">
                             {n.eventTitle}
-                          </Link>
+                          </span>
                         ) : null}
                         <p className="mt-0.5 text-xs text-muted">{n.message}</p>
                         <p className="mt-1 text-[10px] text-muted">{formatDateTime(n.createdAt)}</p>
-                      </div>
+                      </Link>
                       {!n.read ? (
                         <button
                           type="button"
