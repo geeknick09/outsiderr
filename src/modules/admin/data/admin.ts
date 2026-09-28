@@ -191,7 +191,9 @@ export async function listAllAdminUsers(): Promise<AdminUser[]> {
 // ---------------------------------------------------------------- user analytics
 
 export async function adminDeleteEvent(eventId: string): Promise<void> {
-  const supabase = await createClient();
+  // Service role: no admin DELETE grant/policy on `events` — a user-context
+  // delete silently removes 0 rows. Admin verified by the action upstream.
+  const supabase = createServiceClient();
   const { error } = await supabase.from("events").delete().eq("id", eventId);
   if (error) throw new Error(error.message);
 }
@@ -234,7 +236,9 @@ export async function adminUpdateEvent(
     endsAt?: string;
   },
 ): Promise<void> {
-  const supabase = await createClient();
+  // Service role: `events` has no admin UPDATE RLS policy — a user-context
+  // write silently updates 0 rows. Admin is verified by the action upstream.
+  const supabase = createServiceClient();
   const update: Record<string, string | number | boolean | null> = {};
   if (data.title !== undefined) update.title = data.title;
   if (data.description !== undefined) update.description = data.description;

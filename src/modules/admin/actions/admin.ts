@@ -220,10 +220,18 @@ export async function adminUpdateEventFeesAction(
       return { error: null };
     }
 
-    // Update the event
+    // Update the event — service role: `events` has no admin UPDATE policy,
+    // so a user-context write is silently RLS-blocked (0 rows, no error),
+    // which made saved fees "revert to default". Fee columns are also
+    // privileged-grant only; service role writes after requireAdmin() above.
+    const serviceSupabase = createServiceClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await supabase.from("events").update(update as any).eq("id", eventId);
+    const { error, count } = await serviceSupabase
+      .from("events")
+      .update(update as any, { count: "exact" })
+      .eq("id", eventId);
     if (error) throw error;
+    if (count === 0) throw new Error("Event not found or update was blocked.");
 
     // Insert audit log entries
     for (const entry of auditEntries) {

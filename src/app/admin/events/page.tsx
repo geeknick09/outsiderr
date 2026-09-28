@@ -64,6 +64,7 @@ export default async function AdminEventsPage({
     category?: string;
     sort?: string;
     page?: string;
+    feeError?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -110,6 +111,12 @@ export default async function AdminEventsPage({
         <h1 className="text-2xl font-black">Events</h1>
         <p className="text-sm text-muted">{total} total · page {page + 1} of {pageCount}</p>
       </div>
+
+      {params.feeError ? (
+        <div className="rounded-2xl border border-red-300 bg-red-50 p-3 text-sm font-semibold text-red-700 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-300">
+          Fee update failed: {params.feeError}
+        </div>
+      ) : null}
 
       {/* Search + Filters */}
       <form className="flex flex-wrap gap-2" method="GET">
@@ -286,12 +293,16 @@ export default async function AdminEventsPage({
               ) : (
               <form action={async (formData: FormData) => {
                 "use server";
-                await adminUpdateEventFeesAction(event.id, {
+                const res = await adminUpdateEventFeesAction(event.id, {
                   commissionBps: Math.round(Number(formData.get("commissionBps") ?? 0) * 100),
                   commissionEnabled: formData.get("commissionEnabled") === "on",
                   convenienceFeeBps: Math.round(Number(formData.get("convenienceFeeBps") ?? 0) * 100),
                   convenienceFeeEnabled: formData.get("convenienceFeeEnabled") === "on",
                 }, String(formData.get("reason") ?? "").trim() || undefined);
+                if (res.error) {
+                  const { redirect } = await import("next/navigation");
+                  redirect(`/admin/events?feeError=${encodeURIComponent(res.error)}`);
+                }
               }} className="flex flex-wrap items-end gap-3 rounded-2xl bg-black/5 p-3 text-xs dark:bg-white/5">
                 <label className="space-y-1">
                   <span className="font-semibold text-muted">Commission (%)</span>
