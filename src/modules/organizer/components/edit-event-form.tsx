@@ -43,7 +43,7 @@ interface EditableTier {
   phaseClosesAt?: string;
 }
 
-export function EditEventForm({ event, pastEvents = [] }: { event: EventDetail; pastEvents?: Array<{ id: string; title: string; startsAt: string }> }) {
+export function EditEventForm({ event, pastEvents = [], lockLogistics = false }: { event: EventDetail; pastEvents?: Array<{ id: string; title: string; startsAt: string }>; /** Collaborators: city/venue/date fields are locked — owner only. */ lockLogistics?: boolean }) {
   const [state, formAction, pending] = useActionState<UpdateEventState, FormData>(
     updateEventAction,
     { error: null },
@@ -240,6 +240,23 @@ export function EditEventForm({ event, pastEvents = [] }: { event: EventDetail; 
       {/* Hidden event id */}
       <input type="hidden" name="eventId" value={event.id} />
 
+      {lockLogistics ? (
+        <p className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+          You&apos;re a co-organizer — city, venue and dates are locked. Only the event owner can change them.
+        </p>
+      ) : null}
+      {lockLogistics ? (
+        <>
+          {/* Locked fields don't submit when disabled — mirror current values */}
+          <input type="hidden" name="city" value={event.city} />
+          <input type="hidden" name="venueName" value={event.venueName} />
+          <input type="hidden" name="venueAddress" value={event.venueAddress} />
+          <input type="hidden" name="googleMapsLink" value={event.googleMapsLink ?? ""} />
+          <input type="hidden" name="startsAt" value={startsAt} />
+          <input type="hidden" name="endsAt" value={endsAt} />
+        </>
+      ) : null}
+
       <Field label="Title">
         <input
           name="title"
@@ -297,6 +314,7 @@ export function EditEventForm({ event, pastEvents = [] }: { event: EventDetail; 
             name="city"
             defaultValue={event.city}
             className={INPUT}
+            disabled={lockLogistics}
           >
             {CITIES.map((c) => (
               <option key={c.value} value={c.value} className="bg-white dark:bg-zinc-900">
@@ -324,6 +342,7 @@ export function EditEventForm({ event, pastEvents = [] }: { event: EventDetail; 
           required
           defaultValue={event.venueName}
           onChange={() => updateField()}
+          disabled={lockLogistics}
           className={INPUT}
         />
       </Field>
@@ -334,6 +353,7 @@ export function EditEventForm({ event, pastEvents = [] }: { event: EventDetail; 
           rows={2}
           defaultValue={event.venueAddress}
           onChange={() => updateField()}
+          disabled={lockLogistics}
           className={INPUT}
         />
       </Field>
@@ -341,6 +361,7 @@ export function EditEventForm({ event, pastEvents = [] }: { event: EventDetail; 
       <Field label="Google Maps link *">
         <input
           name="googleMapsLink"
+          disabled={lockLogistics}
           value={mapsLink}
           onChange={(e) => {
             setMapsLink(e.target.value);
@@ -366,7 +387,7 @@ export function EditEventForm({ event, pastEvents = [] }: { event: EventDetail; 
       <div className="space-y-2">
         <button
           type="button"
-          onClick={() => setShowMapPicker((v) => !v)}
+          onClick={() => !lockLogistics && setShowMapPicker((v) => !v)}
           className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted hover:text-violet-neon"
         >
           <MapPin className="h-4 w-4" />
@@ -404,6 +425,7 @@ export function EditEventForm({ event, pastEvents = [] }: { event: EventDetail; 
             type="datetime-local"
             name="startsAt"
             required
+            disabled={lockLogistics}
             value={startsAt}
             onChange={(e) => {
               setStartsAt(e.target.value);
@@ -418,6 +440,7 @@ export function EditEventForm({ event, pastEvents = [] }: { event: EventDetail; 
             type="datetime-local"
             name="endsAt"
             required
+            disabled={lockLogistics}
             min={startsAt}
             value={endsAt}
             onChange={(e) => {

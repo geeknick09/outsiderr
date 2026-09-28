@@ -166,12 +166,12 @@ export async function searchOrganizersAction(
 
 /**
  * Invite another organizer to collaborate on an event.
- * permission_level: VIEW_ONLY | ANALYTICS | SCAN | FULL
+ * permission_level: LIMITED | ANALYTICS | FULL
  */
 export async function inviteCollaboratorAction(
   eventId: string,
   organizerId: string,
-  permissionLevel: "VIEW_ONLY" | "ANALYTICS" | "SCAN" | "FULL" = "VIEW_ONLY",
+  permissionLevel: "LIMITED" | "ANALYTICS" | "FULL" = "LIMITED",
 ): Promise<{ error: string | null }> {
   const user = await getCurrentUser();
   if (!user) return { error: "Please log in." };
@@ -411,12 +411,12 @@ export async function removeCollaboratorAction(
 
 /**
  * Change a collaborator's permission level (event owner only).
- * permission_level: VIEW_ONLY | ANALYTICS | SCAN | FULL
+ * permission_level: LIMITED | ANALYTICS | FULL
  */
 export async function changeCollaboratorPermissionAction(
   eventId: string,
   collaboratorId: string,
-  permissionLevel: "VIEW_ONLY" | "ANALYTICS" | "SCAN" | "FULL",
+  permissionLevel: "LIMITED" | "ANALYTICS" | "FULL",
 ): Promise<{ error: string | null }> {
   const user = await getCurrentUser();
   if (!user) return { error: "Please log in." };

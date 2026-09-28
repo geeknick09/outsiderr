@@ -9,11 +9,23 @@ export async function getOrganizerEventAnalytics(
   eventId: string,
 ): Promise<import("@/modules/shared").EventAnalytics | null> {
   const { getEventAnalytics } = await import("./admin-analytics");
-  const { getEventAccessLevel, canViewAnalytics } = await import("@/modules/shared/server");
+  const { getEventAccessLevel, canViewAnalytics, canViewMoney } = await import("@/modules/shared/server");
   // Verify the event belongs to this organizer OR they are an accepted collaborator
   const accessLevel = await getEventAccessLevel(user, eventId);
   if (!accessLevel || !canViewAnalytics(accessLevel)) return null;
-  return getEventAnalytics(eventId);
+  const analytics = await getEventAnalytics(eventId);
+  // LIMITED collaborators get operational analytics without any money fields.
+  if (analytics && !canViewMoney(accessLevel)) {
+    return {
+      ...analytics,
+      grossRevenuePaise: 0,
+      commissionPaise: 0,
+      convenienceFeePaise: 0,
+      platformFeePaise: 0,
+      netPayoutPaise: 0,
+    };
+  }
+  return analytics;
 }
 
 /**

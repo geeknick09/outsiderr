@@ -114,7 +114,7 @@
 
 ### 3.2 Pricing Modes
 
-- [ ] Create FREE event → verify no price fields
+- [x] Create FREE event → verify no price fields
 - [ ] Create FLAT pricing event → verify single price field
 - [ ] Create PAID event with multiple tiers → verify tier add/remove works
 - [ ] Verify tier validation: name ≥2 chars, price ≥₹1, quantity ≥1
@@ -229,13 +229,13 @@
 - [ ] Select ticket tier and quantity
 - [ ] Fill RSVP form (email, gender if optional)
 - [ ] Verify checkout sidebar shows ticket subtotal + convenience fee + **total**
-- [ ] Razorpay Checkout opens — verify amount matches the sidebar total and the buyer's name/email/phone are prefilled
+- [ ] Razorpay Checkout opens — verify amount matches the sidebar total and the buyer’s name/email/phone are prefilled
 - [ ] Test card `4111 1111 1111 1111` (any CVV, future expiry) or UPI `success@razorpay` → payment succeeds
 - [ ] Verify `/checkout/status` flips to confirmed (Realtime or poll) and redirects to `/tickets`
 - [ ] Verify ticket appears with QR; order shows invoice `OUT-YYYYMM-XXXXX` + `pay_…` reference
-- [ ] Repeat with UPI `failure@razorpay` → verify "payment didn't complete" card, and the seat is released (tier availability returns)
+- [ ] Repeat with UPI `failure@razorpay` → verify “payment didn’t complete” card, and the seat is released (tier availability returns)
 - [ ] Close the Razorpay modal without paying → verify same release path
-- [ ] Let a reservation expire (don't pay for >15 min) → booking marked Expired, inventory returned, booking a new order still works
+- [ ] Let a reservation expire (don’t pay for >15 min) → booking marked Expired, inventory returned, booking a new order still works
 
 ### 5.2 Book a Free Ticket
 
@@ -330,11 +330,12 @@
 ### 8.1 Invite a Co-Organizer
 
 - [ ] As Organizer A, navigate to event management page (`/organizer/events/[id]`)
-- [ ] Find Collaboration Panel
-- [ ] Click “Invite” → search for Organizer B by name
-- [ ] Select permission level (VIEW\_ONLY / ANALYTICS / SCAN / FULL)
+- [ ] Find the Collaborators panel — the search box is always visible (no separate Invite button)
+- [ ] Search for Organizer B by name
+- [ ] Select permission level (Ops / Ops + Money / Full access)
 - [ ] Click “Invite” on the search result
-- [ ] Verify invite appears in collaborator list with “Pending” status
+- [ ] Verify the result button flips to “Invite sent” and the collaborator list shows the invite as “Invite sent”
+- [ ] After Organizer B accepts, verify it flips to “Invite accepted” in both places
 
 ### 8.2 Accept Collaboration Invite
 
@@ -352,58 +353,42 @@
 - [ ] Verify invite disappears from dashboard
 - [ ] Verify event does NOT appear in Organizer D’s event list
 
-### 8.4 Co-Organizer Access — VIEW\_ONLY
+### 8.4 Co-Organizer Access — Ops (LIMITED)
 
-- [ ] As Organizer A, invite Organizer B with VIEW\_ONLY
+- [ ] As Organizer A, invite Organizer B with LIMITED (Ops)
 - [ ] As Organizer B, open the collaborated event
-- [ ] Verify event details page loads
-- [ ] Verify “Co-organizer · VIEW\_ONLY” badge shows
-- [ ] Verify Analytics panel is HIDDEN
-- [ ] Verify Attendees/Orders section is HIDDEN
-- [ ] Verify Door Scanner button is HIDDEN
+- [ ] Verify event details page loads; “Co-organizer · LIMITED” badge shows
+- [ ] Verify Analytics panel is VISIBLE — but NO money cards (no gross revenue / convenience fee / net payout)
+- [ ] Verify Attendees/Orders section is VISIBLE
+- [ ] Verify Door Scanner + Staff Scanner buttons are VISIBLE
+- [ ] Verify Walk-in check-in + Door staff + Scanner PIN + Box-office PIN managers are VISIBLE (can generate/revoke PINs)
 - [ ] Verify Edit form is HIDDEN
-- [ ] Verify Cancel/Postpone is HIDDEN
-- [ ] Verify Collaboration Panel is HIDDEN (owner only)
+- [ ] Verify Cancel/Postpone is HIDDEN (owner only)
+- [ ] Verify Collaborators panel is VISIBLE read-only — shows other co-organizers with profile links; no invite/remove controls
 
-### 8.5 Co-Organizer Access — ANALYTICS
+### 8.5 Co-Organizer Access — Ops + Money (ANALYTICS)
 
 - [ ] As Organizer A, change Organizer B’s permission to ANALYTICS (via dropdown)
 - [ ] As Organizer B, reload the event page
-- [ ] Verify Analytics panel is VISIBLE
-- [ ] Verify Waitlist panel is VISIBLE
-- [ ] Verify Attendees/Orders section is VISIBLE
-- [ ] Verify Payment verification queue is VISIBLE (if pending orders)
-- [ ] Verify Door Scanner button is HIDDEN
-- [ ] Verify Walk-in check-in is HIDDEN
+- [ ] Verify Analytics panel is VISIBLE **with** money cards (gross revenue, convenience fee, net payout)
+- [ ] Verify Attendees/Orders + Waitlist + payment verification queue are VISIBLE
 - [ ] Verify Edit form is HIDDEN
 - [ ] Verify Cancel/Postpone is HIDDEN
-
-### 8.6 Co-Organizer Access — SCAN
-
-- [ ] As Organizer A, change Organizer B’s permission to SCAN
-- [ ] As Organizer B, reload the event page
-- [ ] Verify Door Scanner button is VISIBLE
-- [ ] Verify Walk-in check-in is VISIBLE
-- [ ] Verify Analytics panel is HIDDEN
-- [ ] Verify Attendees/Orders section is HIDDEN
-- [ ] Verify Edit form is HIDDEN
 
 ### 8.7 Co-Organizer Access — FULL
 
 - [ ] As Organizer A, change Organizer B’s permission to FULL
 - [ ] As Organizer B, reload the event page
-- [ ] Verify Analytics panel is VISIBLE
-- [ ] Verify Attendees/Orders is VISIBLE
-- [ ] Verify Door Scanner is VISIBLE
-- [ ] Verify Edit form is VISIBLE
+- [ ] Verify everything in ANALYTICS is VISIBLE (full money analytics, orders, pins, staff)
+- [ ] Verify Edit form is VISIBLE — but city, venue name/address, maps link and date/time inputs are LOCKED with the co-organizer notice
+- [ ] Verify ticket tiers are NOT editable (pricing/inventory stays owner-only)
+- [ ] Verify Cancel/Postpone is HIDDEN — only the owner can cancel or reschedule
 - [ ] Verify Hero Boost / Slot Boost is VISIBLE
-- [ ] Verify Cancel/Postpone is VISIBLE
-- [ ] Verify Collaboration Panel is HIDDEN (owner only)
 
 ### 8.8 Change Permission Level (Owner)
 
 - [ ] As Organizer A, use the permission dropdown on a collaborator
-- [ ] Change from VIEW\_ONLY → FULL
+- [ ] Change from LIMITED → FULL
 - [ ] Verify the dropdown updates
 - [ ] As Organizer B, reload → verify new permission level applies
 
@@ -452,14 +437,14 @@
 ### 9.3 Postpone Event (event stays live)
 
 - [ ] As Organizer A, postpone a published event (new date must be future)
-- [ ] Verify event stays PUBLISHED — no POSTPONED status, no "Postponed" section on the homepage; card/date just move
+- [ ] Verify event stays PUBLISHED — no POSTPONED status, no “Postponed” section on the homepage; card/date just move
 - [ ] Verify ticket holders + subscribers notified (POSTPONEMENT)
-- [ ] Ticket card shows "Event changed" panel → "Keep my ticket" clears it; "Request refund" → REFUND_REQUESTED + PENDING refund + ticket cancelled + seat returned
+- [ ] Ticket card shows “Event changed” panel → “Keep my ticket” clears it; “Request refund” → REFUND\_REQUESTED + PENDING refund + ticket cancelled + seat returned
 - [ ] Re-requesting a refund on the same order returns the existing refund (no duplicate)
 
 ### 9.3b Date / venue changes via edit
 
-- [ ] Edit an event's date → notified + ticket card offers refund/keep (same as postpone)
+- [ ] Edit an event’s date → notified + ticket card offers refund/keep (same as postpone)
 - [ ] Change city (e.g. KOLKATA → MUMBAI) → notified + refund/keep offer
 - [ ] Change venue within the same city → notified only, no refund offer (default keep)
 
@@ -531,16 +516,16 @@
 ### 11.2 Refund Request (organizer-side)
 
 - [ ] As Organizer A, open event → attendees table → Refund on a CONFIRMED paid order
-- [ ] Enter a reason (10+ chars) → verify request submitted, order shows "Refund" state
-- [ ] Try a second refund on the same order → blocked ("already in progress")
-- [ ] Navigate to `/organizer/refunds` → request appears under "In progress"
+- [ ] Enter a reason (10+ chars) → verify request submitted, order shows “Refund” state
+- [ ] Try a second refund on the same order → blocked (“already in progress”)
+- [ ] Navigate to `/organizer/refunds` → request appears under “In progress”
 - [ ] After admin approves → status moves to Completed when the gateway settles
 
 ### 11.3 Organizer Payments & Settlement
 
 - [ ] Navigate to `/organizer/payments` (organizer dashboard → Payments tab)
 - [ ] Verify summary cards: Gross earned, Liabilities, Paid out, Balance due
-- [ ] Verify ledger table lists each sale with gross/fees/net — "You get" column is green
+- [ ] Verify ledger table lists each sale with gross/fees/net — “You get” column is green
 - [ ] Verify completed payouts appear with method chip + bank ref + timestamps
 - [ ] After admin completes a payout → Balance due drops accordingly
 
@@ -577,7 +562,7 @@
 
 - [ ] As Organizer A, navigate to `/organizer/boost?event=[id]`
 - [ ] Pick event + slot + duration → verify total = per-day price × days
-- [ ] "Pay" → Razorpay Checkout opens with the same amount → pay with test card
+- [ ] “Pay” → Razorpay Checkout opens with the same amount → pay with test card
 - [ ] Verify boost activates instantly and the event appears in the featured carousel
 - [ ] Try to boost a slot that just got taken → payment succeeds but auto-refund lands (boost REJECTED, PENDING refund in admin queue)
 
@@ -685,16 +670,16 @@
 
 ### 16.6a Admin Payments (reconciliation monitor)
 
-- [ ] Navigate to `/admin/payments` — verify "Payments" in the admin sidebar
+- [ ] Navigate to `/admin/payments` — verify “Payments” in the admin sidebar
 - [ ] Verify webhook event log lists deliveries with `processed` flag
 - [ ] Verify stale-RESERVED monitor lists orders past their reservation window
 - [ ] Click Export `ledger` / `orders` / `refunds` → verify CSV downloads open in Excel/Sheets with joined names (event title, organizer name)
 
 ### 16.6b Admin Refunds queue
 
-- [ ] Navigate to `/admin/refunds` — verify "Refunds" in the admin sidebar
-- [ ] Organizer requests a refund on a confirmed attendee (attendees table → Refund → reason) → verify the request lands in the queue with status "Under review"/REQUESTED
-- [ ] Approve (ticket) → status moves to processing; buyer gets REFUND_APPROVED notification; tickets cancelled + inventory released
+- [ ] Navigate to `/admin/refunds` — verify “Refunds” in the admin sidebar
+- [ ] Organizer requests a refund on a confirmed attendee (attendees table → Refund → reason) → verify the request lands in the queue with status “Under review”/REQUESTED
+- [ ] Approve (ticket) → status moves to processing; buyer gets REFUND\_APPROVED notification; tickets cancelled + inventory released
 - [ ] Approve full → refund amount equals order total (incl. fees)
 - [ ] Reject with reason → order returns to CONFIRMED; buyer notified
 - [ ] Run refund worker now → pending refunds push to Razorpay and show `razorpay_refund_id`
@@ -703,14 +688,14 @@
 
 ### 16.6c Admin Payouts (manual settlement)
 
-- [ ] Navigate to `/admin/payouts` — verify "Payouts" in the admin sidebar
-- [ ] Verify "Due to organizers" card equals Σ ledger net-organizer minus in-flight payouts
+- [ ] Navigate to `/admin/payouts` — verify “Payouts” in the admin sidebar
+- [ ] Verify “Due to organizers” card equals Σ ledger net-organizer minus in-flight payouts
 - [ ] Owed organizers list shows name + due amount + Schedule payout form
 - [ ] Schedule a payout (amount, method NEFT/UPI/IMPS/RTGS/CASH/OTHER, note) → record appears as PENDING in history
 - [ ] Mark Processing → status chip updates
 - [ ] Mark completed without a bank reference → blocked with error; enter a UTR → COMPLETED, `completed_at` set
-- [ ] Verify organizer's `/organizer/payments` balance drops to 0 (payout writes a negative ledger row)
-- [ ] Mark a payout Failed with a reason → failure_reason visible on the record
+- [ ] Verify organizer’s `/organizer/payments` balance drops to 0 (payout writes a negative ledger row)
+- [ ] Mark a payout Failed with a reason → failure\_reason visible on the record
 - [ ] Invalid transition (COMPLETED → anything) → rejected
 - [ ] Export payouts CSV → includes method + bank reference + failure reasons
 

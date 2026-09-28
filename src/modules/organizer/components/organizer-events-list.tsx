@@ -196,7 +196,9 @@ export function OrganizerEventsList({
               </div>
               <div className="flex items-center gap-2">
                 {event.collaboratorPermission ? (
-                  <Badge tone="violet">Co-organizer · {event.collaboratorPermission}</Badge>
+                  <Badge tone="violet">
+                    Co-organizer · {({ LIMITED: "Ops", ANALYTICS: "Ops + Money", FULL: "Full" } as Record<string, string>)[event.collaboratorPermission] ?? event.collaboratorPermission}
+                  </Badge>
                 ) : null}
                 {event.status !== "DRAFT" ? (
                   <Badge tone="neutral">{event.registrationsCount} registered</Badge>

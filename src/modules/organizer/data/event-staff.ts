@@ -72,7 +72,6 @@ export async function listEventStaff(
     .from("event_staff")
     .select("*")
     .eq("event_id", eventId)
-    .eq("organizer_id", organizer.id)
     .order("created_at", { ascending: false });
 
   if (error || !data) return [];
@@ -108,12 +107,11 @@ export async function addEventStaff(
 
   const supabase = await createClient();
 
-  // Verify the event belongs to this organizer
+  // Event staff access = owner OR accepted collaborator (RLS enforces).
   const { data: event } = await supabase
     .from("events")
-    .select("id")
+    .select("id, organizer_id")
     .eq("id", eventId)
-    .eq("organizer_id", organizer.id)
     .maybeSingle();
 
   if (!event) return { success: false, error: "Event not found." };
@@ -123,7 +121,7 @@ export async function addEventStaff(
     .from("event_staff")
     .select("id")
     .eq("event_id", eventId)
-    .eq("organizer_id", organizer.id);
+    .eq("organizer_id", event.organizer_id);
 
   if (email) {
     query = query.eq("email", email);
@@ -151,7 +149,7 @@ export async function addEventStaff(
 
   const { error } = await supabase.from("event_staff").insert({
     event_id: eventId,
-    organizer_id: organizer.id,
+    organizer_id: event.organizer_id,
     email: email || null,
     phone: phone || null,
     user_id: userId,
@@ -177,8 +175,7 @@ export async function removeEventStaff(
   const { error } = await supabase
     .from("event_staff")
     .delete()
-    .eq("id", staffId)
-    .eq("organizer_id", organizer.id);
+    .eq("id", staffId);
 
   if (error) return { success: false, error: error.message };
 

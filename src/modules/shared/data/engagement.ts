@@ -208,7 +208,7 @@ export async function getEventCollaboratorsForOwner(
 > {
   const supabase = await createClient();
 
-  // Verify ownership
+  // Owner or accepted collaborator can see the roster.
   const { data: event } = await supabase
     .from("events")
     .select("organizer_id")
@@ -223,7 +223,18 @@ export async function getEventCollaboratorsForOwner(
     .eq("owner_id", user.id)
     .maybeSingle();
 
-  if (!myOrg || myOrg.id !== event.organizer_id) return [];
+  if (!myOrg) return [];
+  const isOwner = myOrg.id === event.organizer_id;
+  if (!isOwner) {
+    const { data: collab } = await supabase
+      .from("event_collaborators")
+      .select("id")
+      .eq("event_id", eventId)
+      .eq("organizer_id", myOrg.id)
+      .eq("status", "ACCEPTED")
+      .maybeSingle();
+    if (!collab) return [];
+  }
 
   const { data } = await supabase
     .from("event_collaborators")
@@ -248,7 +259,7 @@ export async function getEventCollaboratorsForOwner(
     organizerName: orgMap.get(c.organizer_id)?.name ?? "Unknown",
     organizerPhotoUrl: orgMap.get(c.organizer_id)?.avatar_url ?? null,
     status: c.status,
-    permissionLevel: c.permission_level ?? "VIEW_ONLY",
+    permissionLevel: c.permission_level ?? "LIMITED",
     createdAt: c.created_at,
   }));
 }
@@ -257,7 +268,7 @@ export async function getEventCollaboratorsForOwner(
 // Co-organizer access helpers
 // ================================================================
 
-export type CollaboratorPermission = "VIEW_ONLY" | "ANALYTICS" | "SCAN" | "FULL";
+export type CollaboratorPermission = "LIMITED" | "ANALYTICS" | "FULL";
 
 /**
  * Get the events the current user co-organizes (accepted invites only),
@@ -360,17 +371,25 @@ export async function getEventAccessLevel(
 
 /**
  * Permission helpers — given a permission level, what can the user do?
+ *   LIMITED   — view + orders + analytics (no money) + pins + scanner + box office
+ *   ANALYTICS — LIMITED + money in analytics
+ *   FULL      — ANALYTICS + event edit (never timing/venue/city — owner only)
  */
 export function canViewEvent(perm: "OWNER" | CollaboratorPermission | null): boolean {
   return perm !== null;
 }
 
+/** All collaborator levels get analytics — LIMITED gets the money-stripped view. */
 export function canViewAnalytics(perm: "OWNER" | CollaboratorPermission | null): boolean {
+  return perm !== null;
+}
+
+export function canViewMoney(perm: "OWNER" | CollaboratorPermission | null): boolean {
   return perm === "OWNER" || perm === "ANALYTICS" || perm === "FULL";
 }
 
 export function canScanTickets(perm: "OWNER" | CollaboratorPermission | null): boolean {
-  return perm === "OWNER" || perm === "SCAN" || perm === "FULL";
+  return perm !== null;
 }
 
 export function canEditEvent(perm: "OWNER" | CollaboratorPermission | null): boolean {
@@ -378,5 +397,10 @@ export function canEditEvent(perm: "OWNER" | CollaboratorPermission | null): boo
 }
 
 export function canManageOrders(perm: "OWNER" | CollaboratorPermission | null): boolean {
-  return perm === "OWNER" || perm === "ANALYTICS" || perm === "FULL";
+  return perm !== null;
+}
+
+/** Invite/remove collaborators — owner only. */
+export function canManageCollaborators(perm: "OWNER" | CollaboratorPermission | null): boolean {
+  return perm === "OWNER";
 }

@@ -140,7 +140,7 @@ export function createOutsiderrClient(opts: ApiClientOptions) {
     inviteCollaborator: (body: {
       eventId: string;
       organizerId: string;
-      permissionLevel?: "VIEW_ONLY" | "ANALYTICS" | "SCAN" | "FULL";
+      permissionLevel?: "LIMITED" | "ANALYTICS" | "FULL";
     }) => call<{ invited: boolean }>(opts, "/collab/invite", { body }),
     respondToCollab: (body: { eventId: string; collaboratorId: string; accept: boolean }) =>
       call<{ accepted: boolean }>(opts, "/collab/respond", { body }),

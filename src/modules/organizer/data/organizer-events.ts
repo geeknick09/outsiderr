@@ -166,7 +166,7 @@ export async function listCollaboratedEvents(
       pricingMode: (event.pricing_mode ?? "PAID") as PricingMode,
       totalCapacity,
       ticketsSold,
-      collaboratorPermission: permMap.get(event.id) ?? "VIEW_ONLY",
+      collaboratorPermission: permMap.get(event.id) ?? "LIMITED",
     };
   });
 }
@@ -437,14 +437,25 @@ export async function updateEvent(
   const organizer = await getOrganizerProfile(user);
   if (!organizer) throw new Error("No organizer profile.");
 
-  const supabase = await createClient();
+  // Owner edits via the user-context client (RLS-checked). FULL collaborators
+  // edit via the service client with a field whitelist — timing, venue and
+  // city are stripped no matter what the request contains.
+  const { getEventAccessLevel } = await import("../../shared/server");
+  const accessLevel = await getEventAccessLevel(user, eventId);
+  if (!accessLevel) throw new Error("Event not found or not owned by you.");
+  const isOwner = accessLevel === "OWNER";
+  const isCollabFull = accessLevel === "FULL";
+  if (!isOwner && !isCollabFull) throw new Error("Not authorised to edit this event.");
+
+  const supabase = isCollabFull ? createServiceClient() : await createClient();
 
   // Fetch current event to detect changes for notifications
   const { data: currentEvent } = await supabase
     .from("events")
-    .select("venue_name, city, starts_at, ends_at, status")
+    .select("venue_name, city, starts_at, ends_at, status, organizer_id")
     .eq("id", eventId)
     .maybeSingle();
+  const eventOrganizerId = currentEvent?.organizer_id ?? null;
 
   // Server-side 2-hour edit lock — prevents forged requests from bypassing the UI.
   // Drafts are exempt: they never went live, so nobody depends on their schedule.
@@ -461,15 +472,20 @@ export async function updateEvent(
     .update({
       title: input.title,
       description: input.description,
-      venue_name: input.venueName,
-      venue_address: input.venueAddress,
-      latitude: input.latitude,
-      longitude: input.longitude,
-      google_maps_link: input.googleMapsLink,
-      ...(input.startsAt ? { starts_at: input.startsAt } : {}),
-      ...(input.endsAt !== undefined ? { ends_at: input.endsAt } : {}),
+      // Venue + city + timing are owner-only — collaborators can't move where/when.
+      ...(isCollabFull
+        ? {}
+        : {
+            venue_name: input.venueName,
+            venue_address: input.venueAddress,
+            latitude: input.latitude,
+            longitude: input.longitude,
+            google_maps_link: input.googleMapsLink,
+          }),
+      ...(isCollabFull ? {} : input.startsAt ? { starts_at: input.startsAt } : {}),
+      ...(isCollabFull ? {} : input.endsAt !== undefined ? { ends_at: input.endsAt } : {}),
       tags: input.tags,
-      ...(input.city !== undefined ? { city: input.city } : {}),
+      ...(isCollabFull ? {} : input.city !== undefined ? { city: input.city } : {}),
       ...(input.category !== undefined ? { category: input.category } : {}),
       ...(input.categories !== undefined ? { categories: input.categories } : {}),
       ...(input.photoUrls !== undefined ? { photo_urls: input.photoUrls } : {}),
@@ -492,7 +508,8 @@ export async function updateEvent(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
     .eq("id", eventId)
-    .eq("organizer_id", organizer.id)
+    // Owner path scopes by org; the collaborator path already checked access.
+    .eq("organizer_id", isCollabFull ? eventOrganizerId! : organizer.id)
     .select("id")
     .maybeSingle();
   if (error) throw error;
@@ -577,8 +594,8 @@ export async function updateEvent(
     }
   }
 
-  // Update tiers if provided
-  if (input.tiers) {
+  // Update tiers if provided — owner only (pricing/inventory is money).
+  if (input.tiers && !isCollabFull) {
     // Get existing tier IDs for this event
     const { data: existingTiers } = await supabase
       .from("ticket_tiers")

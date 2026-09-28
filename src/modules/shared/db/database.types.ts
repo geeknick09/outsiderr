@@ -538,7 +538,7 @@ export type EventCollaboratorRow = {
   organizer_id: string;
   invited_by: string;
   status: string;
-  permission_level: string; // VIEW_ONLY | ANALYTICS | SCAN | FULL
+  permission_level: string; // LIMITED | ANALYTICS | FULL
   created_at: string;
   updated_at: string;
 }

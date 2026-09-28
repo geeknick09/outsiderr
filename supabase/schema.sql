@@ -452,7 +452,7 @@ create table if not exists public.event_collaborators (
   organizer_id     uuid        not null references public.organizers(id) on delete cascade,
   invited_by       uuid        not null references public.organizers(id) on delete cascade,
   status           text        not null default 'PENDING',  -- PENDING | ACCEPTED | REJECTED
-  permission_level text        not null default 'VIEW_ONLY', -- VIEW_ONLY | ANALYTICS | SCAN | FULL
+  permission_level text        not null default 'LIMITED',   -- LIMITED | ANALYTICS | FULL
   created_at       timestamptz not null default now(),
   updated_at       timestamptz not null default now(),
   unique (event_id, organizer_id)
@@ -943,6 +943,24 @@ as $$
   );
 $$;
 
+create or replace function public.is_event_owner(p_event_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.events e
+    join public.organizers o on o.id = e.organizer_id
+    where e.id = p_event_id and o.owner_id = auth.uid()
+  ) or public.is_current_user_admin();
+$$;
+
+-- Event staff = owner/admin OR named door staff OR accepted collaborator.
+-- Owner-only writes (tiers, timing/venue/city, delete/cancel/postpone) use
+-- is_event_owner() — collaborators never reach them.
 create or replace function public.is_event_staff(p_event_id uuid)
 returns boolean
 language sql
@@ -960,6 +978,14 @@ as $$
     select 1
     from public.event_staff es
     where es.event_id = p_event_id and es.user_id = auth.uid()
+  )
+  or exists (
+    select 1
+    from public.event_collaborators ec
+    join public.organizers co on co.id = ec.organizer_id
+    where ec.event_id = p_event_id
+      and ec.status = 'ACCEPTED'
+      and co.owner_id = auth.uid()
   )
   or public.is_current_user_admin();
 $$;
@@ -1068,10 +1094,8 @@ declare
 begin
   select organizer_id into v_organizer_id from public.events where id = p_event_id;
   if not found then raise exception 'Event not found'; end if;
-  -- Verify caller owns this event
-  if not public.is_current_user_admin() and not exists (
-    select 1 from public.organizers where id = v_organizer_id and owner_id = auth.uid()
-  ) then
+  -- Owner, admin, or accepted collaborator
+  if not public.is_event_staff(p_event_id) then
     raise exception 'Not authorised to manage scanner PINs for this event';
   end if;
 
@@ -1106,10 +1130,7 @@ declare
 begin
   select * into v_pin from public.scanner_pins where id = p_pin_id;
   if not found then return false; end if;
-  -- Verify caller owns this event or is admin
-  if not public.is_current_user_admin() and not exists (
-    select 1 from public.organizers o where o.id = v_pin.organizer_id and o.owner_id = auth.uid()
-  ) then
+  if not public.is_event_staff(v_pin.event_id) then
     raise exception 'Not authorised to revoke this PIN';
   end if;
   update public.scanner_pins set is_active = false where id = p_pin_id;
@@ -1178,15 +1199,13 @@ declare
 begin
   select organizer_id into v_organizer_id from public.events where id = p_event_id;
   if not found then raise exception 'Event not found'; end if;
-  -- ORGANIZER role: caller must own the event. ADMIN role: caller must be admin.
+  -- ADMIN role stays admin-only; ORGANIZER pins allow event staff incl. collaborators.
   if p_role = 'ADMIN' then
     if not public.is_current_user_admin() then
       raise exception 'Not authorised to create admin box office PINs';
     end if;
   else
-    if not public.is_current_user_admin() and not exists (
-      select 1 from public.organizers where id = v_organizer_id and owner_id = auth.uid()
-    ) then
+    if not public.is_event_staff(p_event_id) then
       raise exception 'Not authorised to manage box office PINs for this event';
     end if;
   end if;
@@ -1218,9 +1237,7 @@ declare
 begin
   select * into v_pin from public.box_office_pins where id = p_pin_id;
   if not found then return false; end if;
-  if not public.is_current_user_admin() and not exists (
-    select 1 from public.organizers o where o.id = v_pin.organizer_id and o.owner_id = auth.uid()
-  ) then
+  if not public.is_event_staff(v_pin.event_id) then
     raise exception 'Not authorised to revoke this PIN';
   end if;
   update public.box_office_pins set is_active = false where id = p_pin_id;
@@ -2571,11 +2588,11 @@ drop policy if exists "tiers organizer insert" on public.ticket_tiers;
 drop policy if exists "tiers organizer update" on public.ticket_tiers;
 drop policy if exists "tiers organizer delete" on public.ticket_tiers;
 create policy "tiers organizer insert" on public.ticket_tiers
-  for insert with check (public.is_event_staff(event_id));
+  for insert with check (public.is_event_owner(event_id));
 create policy "tiers organizer update" on public.ticket_tiers
-  for update using (public.is_event_staff(event_id));
+  for update using (public.is_event_owner(event_id));
 create policy "tiers organizer delete" on public.ticket_tiers
-  for delete using (public.is_event_staff(event_id));
+  for delete using (public.is_event_owner(event_id));
 
 -- orders
 drop policy if exists "orders are visible to buyer and organizer" on public.orders;
@@ -3018,6 +3035,41 @@ create policy "admin insert box office pins" on public.box_office_pins
 drop policy if exists "admin delete box office pins" on public.box_office_pins;
 create policy "admin delete box office pins" on public.box_office_pins
   for delete using (public.is_current_user_admin());
+
+-- --------------------------------------------- collaborator ops policies
+-- Accepted collaborators get event-scoped access to staff + PIN tables via
+-- is_event_staff() (which now includes collaborators). Owner policies above
+-- remain; these add the collaborator path for every collaborator level.
+
+drop policy if exists "collab read event staff" on public.event_staff;
+create policy "collab read event staff" on public.event_staff
+  for select using (public.is_event_staff(event_id));
+drop policy if exists "collab insert event staff" on public.event_staff;
+create policy "collab insert event staff" on public.event_staff
+  for insert with check (public.is_event_staff(event_id));
+drop policy if exists "collab delete event staff" on public.event_staff;
+create policy "collab delete event staff" on public.event_staff
+  for delete using (public.is_event_staff(event_id));
+
+drop policy if exists "collab read scanner pins" on public.scanner_pins;
+create policy "collab read scanner pins" on public.scanner_pins
+  for select using (public.is_event_staff(event_id));
+drop policy if exists "collab insert scanner pins" on public.scanner_pins;
+create policy "collab insert scanner pins" on public.scanner_pins
+  for insert with check (public.is_event_staff(event_id));
+drop policy if exists "collab update scanner pins" on public.scanner_pins;
+create policy "collab update scanner pins" on public.scanner_pins
+  for update using (public.is_event_staff(event_id));
+
+drop policy if exists "collab read box office pins" on public.box_office_pins;
+create policy "collab read box office pins" on public.box_office_pins
+  for select using (public.is_event_staff(event_id));
+drop policy if exists "collab insert box office pins" on public.box_office_pins;
+create policy "collab insert box office pins" on public.box_office_pins
+  for insert with check (public.is_event_staff(event_id));
+drop policy if exists "collab update box office pins" on public.box_office_pins;
+create policy "collab update box office pins" on public.box_office_pins
+  for update using (public.is_event_staff(event_id));
 
 -- --------------------------------------------- webhook_events RLS
 -- Only admins can read webhook events; inserts happen via service role (webhook route)

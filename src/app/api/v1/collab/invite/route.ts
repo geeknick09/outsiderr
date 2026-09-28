@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 const bodySchema = z.object({
   eventId: z.string().uuid(),
   organizerId: z.string().uuid(),
-  permissionLevel: z.enum(["VIEW_ONLY", "ANALYTICS", "SCAN", "FULL"]).default("VIEW_ONLY"),
+  permissionLevel: z.enum(["LIMITED", "ANALYTICS", "FULL"]).default("LIMITED"),
 });
 
 /**

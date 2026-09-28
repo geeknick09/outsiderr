@@ -60,7 +60,6 @@ export async function listEventScannerPins(
     .from("scanner_pins")
     .select("*")
     .eq("event_id", eventId)
-    .eq("organizer_id", organizer.id)
     .order("created_at", { ascending: false });
 
   if (error || !data) return [];

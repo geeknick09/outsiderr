@@ -8,11 +8,14 @@ export function AnalyticsPanel({
   capacity,
   ticketsSold,
   eventId,
+  showMoney = true,
 }: {
   analytics: EventAnalytics;
   capacity?: number;
   ticketsSold?: number;
   eventId?: string;
+  /** LIMITED collaborators get analytics without money figures. */
+  showMoney?: boolean;
 }) {
   const sold = ticketsSold ?? analytics.confirmedOrders;
   const cap = capacity ?? 0;
@@ -25,17 +28,21 @@ export function AnalyticsPanel({
       value: String(analytics.confirmedOrders),
       sub: `${analytics.pendingOrders} pending · ${analytics.rejectedOrders} rejected`,
     },
-    { label: "Gross revenue", value: formatPaise(analytics.grossRevenuePaise) },
-    {
-      label: "Convenience fee",
-      value: formatPaise(analytics.convenienceFeePaise),
-      sub: "Paid by buyer",
-    },
-    {
-      label: "Net payout",
-      value: formatPaise(analytics.netPayoutPaise),
-      sub: `Commission −${formatPaise(analytics.commissionPaise)}`,
-    },
+    ...(showMoney
+      ? [
+          { label: "Gross revenue", value: formatPaise(analytics.grossRevenuePaise) },
+          {
+            label: "Convenience fee",
+            value: formatPaise(analytics.convenienceFeePaise),
+            sub: "Paid by buyer",
+          },
+          {
+            label: "Net payout",
+            value: formatPaise(analytics.netPayoutPaise),
+            sub: `Commission −${formatPaise(analytics.commissionPaise)}`,
+          },
+        ]
+      : []),
     {
       label: "Tickets sold",
       value: String(sold),

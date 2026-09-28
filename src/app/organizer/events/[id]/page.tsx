@@ -30,7 +30,7 @@ import { listEventStaff } from "@/modules/organizer/server";
 import { listEventScannerPins } from "@/modules/shared/server";
 import { listBoxOfficePinsForEvent } from "@/modules/shared/server";
 import { getOrganizerEventAnalytics } from "@/modules/analytics/server";
-import { getEventCollaboratorsForOwner, getEventAccessLevel, canViewAnalytics, canScanTickets, canEditEvent, canManageOrders } from "@/modules/shared/server";
+import { getEventCollaboratorsForOwner, getEventAccessLevel, canViewAnalytics, canViewMoney, canScanTickets, canEditEvent, canManageOrders } from "@/modules/shared/server";
 import { listEventOrders, listEventTickets } from "@/modules/shared/server";
 import { expireWaitlistOffers, listEventWaitlist } from "@/modules/shared/server";
 
@@ -261,11 +261,11 @@ export default async function ManageEventPage({
         ) : null}
       </div>
 
-      {/* Analytics — hidden when the collaborator lacks analytics permission */}
+      {/* Analytics — LIMITED sees it without money figures */}
       {canView && analytics ? (
         <section className="space-y-3">
           <h2 className="text-lg font-bold">Analytics</h2>
-          <AnalyticsPanel analytics={analytics} eventId={event.id} />
+          <AnalyticsPanel analytics={analytics} eventId={event.id} showMoney={canViewMoney(accessLevel)} />
         </section>
       ) : null}
 
@@ -310,7 +310,7 @@ export default async function ManageEventPage({
 
       {/* Edit form — disabled for cancelled, past, and events starting within 2 hours */}
       {canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast && (startMs - nowMs) > 2 * 60 * 60 * 1000 ? (
-        <EditEventForm event={event} pastEvents={pastEventsForLinking} />
+        <EditEventForm event={event} pastEvents={pastEventsForLinking} lockLogistics={!isOwner} />
       ) : canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast && (startMs - nowMs) <= 2 * 60 * 60 * 1000 ? (
         <div className="glass rounded-3xl p-5">
           <h2 className="mb-2 text-base font-bold">Edit Event</h2>
@@ -369,28 +369,28 @@ export default async function ManageEventPage({
         </section>
       ) : null */}
 
-      {/* Collaboration panel — invite co-organizers (owner only) */}
-      {!eventPast && isOwner ? (
-        <CollaborationPanel eventId={event.id} collaborators={collaborators} />
+      {/* Collaboration — everyone on the event sees the roster; only the owner invites/removes */}
+      {!eventPast && collaborators !== null ? (
+        <CollaborationPanel eventId={event.id} collaborators={collaborators} canManage={isOwner} />
       ) : null}
 
-      {/* Door staff management — disabled for past events */}
-      {canEdit && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
+      {/* Door staff management — every collaborator level gets ops access */}
+      {canScan && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
         <EventStaffManager eventId={event.id} staff={eventStaff} />
       ) : null}
 
-      {/* Scanner PIN management — disabled for past events */}
-      {canEdit && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
+      {/* Scanner PIN management — every collaborator level */}
+      {canScan && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
         <ScannerPinManager eventId={event.id} pins={scannerPins} />
       ) : null}
 
-      {/* Box office PIN management — disabled for past events */}
-      {canEdit && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
+      {/* Box office PIN management — every collaborator level */}
+      {canScan && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
         <BoxOfficePinManager eventId={event.id} pins={boxOfficePins} />
       ) : null}
 
-      {/* Cancel / Postpone — disabled for past events */}
-      {canEdit && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
+      {/* Cancel / Postpone — owner only, never a collaborator */}
+      {isOwner && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
         <section className="rounded-3xl border border-red-500/30 p-5">
           <h2 className="text-base font-bold text-red-500">Event actions</h2>
           <p className="mt-1 text-sm text-muted">

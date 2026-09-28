@@ -610,7 +610,7 @@ const spec = {
       post: {
         tags: ["API v1"], summary: "Invite an organizer as collaborator", operationId: "v1CollabInvite",
         security: [{ SupabaseAuth: [] }],
-        requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["eventId", "organizerId"], properties: { eventId: { type: "string", format: "uuid" }, organizerId: { type: "string", format: "uuid" }, permissionLevel: { type: "string", enum: ["VIEW_ONLY", "ANALYTICS", "SCAN", "FULL"] } } } } } },
+        requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["eventId", "organizerId"], properties: { eventId: { type: "string", format: "uuid" }, organizerId: { type: "string", format: "uuid" }, permissionLevel: { type: "string", enum: ["LIMITED", "ANALYTICS", "FULL"] } } } } } },
         responses: { "200": { description: "Invited", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiOk" } } } }, "400": { $ref: "#/components/responses/BadRequest" }, "401": { $ref: "#/components/responses/Unauthorized" } },
       },
     },
