@@ -55,6 +55,9 @@ export function EditEventForm({ event, pastEvents = [], lockLogistics = false }:
   const [phaseError, setPhaseError] = useState<string | null>(null);
   const [mapsLink, setMapsLink] = useState(event.googleMapsLink ?? "");
   const [mapsError, setMapsError] = useState<string | null>(null);
+  const [venueMode, setVenueMode] = useState<"NOW" | "TBA">(
+    event.venueName === "TBA" ? "TBA" : "NOW",
+  );
   const [dirty, setDirty] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [lat, setLat] = useState(event.latitude ? String(event.latitude) : "");
@@ -252,6 +255,7 @@ export function EditEventForm({ event, pastEvents = [], lockLogistics = false }:
           <input type="hidden" name="venueName" value={event.venueName} />
           <input type="hidden" name="venueAddress" value={event.venueAddress} />
           <input type="hidden" name="googleMapsLink" value={event.googleMapsLink ?? ""} />
+          <input type="hidden" name="venueMode" value={event.venueName === "TBA" ? "TBA" : "NOW"} />
           <input type="hidden" name="startsAt" value={startsAt} />
           <input type="hidden" name="endsAt" value={endsAt} />
         </>
@@ -335,49 +339,95 @@ export function EditEventForm({ event, pastEvents = [], lockLogistics = false }:
         />
       </Field>
 
-      <Field label="Venue name">
-        <input type="hidden" name="venueMode" value="NOW" />
-        <input
-          name="venueName"
-          required
-          defaultValue={event.venueName}
-          onChange={() => updateField()}
-          disabled={lockLogistics}
-          className={INPUT}
-        />
-      </Field>
+      <input type="hidden" name="venueMode" value={lockLogistics ? (event.venueName === "TBA" ? "TBA" : "NOW") : venueMode} />
+      {!lockLogistics ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => setVenueMode("NOW")}
+            className={cn(
+              "rounded-2xl border p-4 text-left transition-all",
+              venueMode === "NOW"
+                ? "border-violet-neon bg-violet-neon/5"
+                : "border-zinc-200 dark:border-white/10",
+            )}
+          >
+            <p className="text-sm font-bold">Venue confirmed</p>
+            <p className="text-xs text-muted">Name, address, and Google Maps link</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setVenueMode("TBA")}
+            className={cn(
+              "rounded-2xl border p-4 text-left transition-all",
+              venueMode === "TBA"
+                ? "border-violet-neon bg-violet-neon/5"
+                : "border-zinc-200 dark:border-white/10",
+            )}
+          >
+            <p className="text-sm font-bold">Venue TBA</p>
+            <p className="text-xs text-muted">Announce later (deadline applies)</p>
+          </button>
+        </div>
+      ) : null}
 
-      <Field label="Venue address">
-        <textarea
-          name="venueAddress"
-          rows={2}
-          defaultValue={event.venueAddress}
-          onChange={() => updateField()}
-          disabled={lockLogistics}
-          className={INPUT}
-        />
-      </Field>
+      {venueMode === "TBA" && !lockLogistics ? (
+        <div className="rounded-xl bg-amber-500/10 p-3 text-xs text-amber-600 dark:text-amber-400">
+          <p className="font-bold">Venue to be announced</p>
+          <p className="mt-1">
+            You must announce the venue at least <strong>48 hours</strong> before the event
+            starts, or the event may be cancelled and all tickets refunded.
+          </p>
+          <input type="hidden" name="venueName" value="TBA" />
+          <input type="hidden" name="venueAddress" value="" />
+          <input type="hidden" name="googleMapsLink" value="" />
+        </div>
+      ) : (
+        <>
+          <Field label="Venue name">
+            <input
+              name="venueName"
+              required
+              defaultValue={event.venueName === "TBA" ? "" : event.venueName}
+              onChange={() => updateField()}
+              disabled={lockLogistics}
+              className={INPUT}
+            />
+          </Field>
 
-      <Field label="Google Maps link *">
-        <input
-          name="googleMapsLink"
-          disabled={lockLogistics}
-          value={mapsLink}
-          onChange={(e) => {
-            setMapsLink(e.target.value);
-            if (e.target.value && !isGoogleMapsLink(e.target.value)) {
-              setMapsError("Link must be a Google Maps URL (maps.google.com or maps.app.goo.gl)");
-            } else {
-              setMapsError(null);
-            }
-            updateField();
-          }}
-          required
-          placeholder="https://maps.app.goo.gl/… or https://maps.google.com/…"
-          className={`${INPUT} ${mapsError ? "border-red-500" : ""}`}
-        />
-        {mapsError ? <span className="block text-xs text-red-500">{mapsError}</span> : null}
-      </Field>
+          <Field label="Venue address">
+            <textarea
+              name="venueAddress"
+              rows={2}
+              defaultValue={event.venueAddress}
+              onChange={() => updateField()}
+              disabled={lockLogistics}
+              className={INPUT}
+            />
+          </Field>
+
+          <Field label="Google Maps link *">
+            <input
+              name="googleMapsLink"
+              disabled={lockLogistics}
+              value={mapsLink}
+              onChange={(e) => {
+                setMapsLink(e.target.value);
+                if (e.target.value && !isGoogleMapsLink(e.target.value)) {
+                  setMapsError("Link must be a Google Maps URL (maps.google.com or maps.app.goo.gl)");
+                } else {
+                  setMapsError(null);
+                }
+                updateField();
+              }}
+              required
+              placeholder="https://maps.app.goo.gl/… or https://maps.google.com/…"
+              className={`${INPUT} ${mapsError ? "border-red-500" : ""}`}
+            />
+            {mapsError ? <span className="block text-xs text-red-500">{mapsError}</span> : null}
+          </Field>
+        </>
+      )}
 
       {/* Hidden inputs for lat/lng */}
       <input type="hidden" name="latitude" value={lat} />

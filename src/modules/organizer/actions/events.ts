@@ -615,8 +615,8 @@ export async function updateEventAction(
     await updateEvent(user, eventId, {
       title,
       description: String(formData.get("description") ?? "").trim(),
-      venueName: String(formData.get("venueName") ?? "").trim(),
-      venueAddress: String(formData.get("venueAddress") ?? "").trim(),
+      venueName: venueMode === "TBA" ? "TBA" : String(formData.get("venueName") ?? "").trim(),
+      venueAddress: venueMode === "TBA" ? "" : String(formData.get("venueAddress") ?? "").trim(),
       latitude: latitude ? Number(latitude) : null,
       longitude: longitude ? Number(longitude) : null,
       googleMapsLink,
