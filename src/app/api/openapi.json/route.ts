@@ -81,7 +81,7 @@ const spec = {
           "using `RAZORPAY_WEBHOOK_SECRET`, then processes the event idempotently.\n\n" +
           "**Handled events:**\n" +
           "- `payment.captured` / `order.paid` → confirms order, mints tickets, inserts payment_ledger\n" +
-          "- `payment.failed` → marks order as FAILED\n" +
+          "- `payment.failed` → records the attempt (order stays RESERVED for retry)\n" +
           "- `refund.processed` → updates refund status to COMPLETED, inserts refund ledger entry\n" +
           "- `refund.failed` → updates refund status to FAILED\n\n" +
           "**Idempotency:** The `webhook_events` table keyed on `razorpay_event_id` prevents " +

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/modules/shared/server";
@@ -31,11 +30,6 @@ export default async function CheckoutStatusPage({
       <div className="mt-6">
         <PaymentStatusPoller orderId={order} eventId={eventId ?? null} />
       </div>
-      <p className="mt-6 text-center">
-        <Link href={eventId ? `/events/${eventId}` : "/"} className="text-xs text-muted hover:text-violet-neon">
-          {eventId ? "← Back to event" : "← Back home"}
-        </Link>
-      </p>
     </div>
   );
 }

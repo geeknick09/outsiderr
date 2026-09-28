@@ -152,3 +152,21 @@ All gated by `CRON_SECRET` bearer + timing-safe compare.
 - Late-capture auto-refund probe → **PASS**
 - `vitest` → **125/125**
 - `tsc --noEmit` → clean; `next build` → green
+
+## §12 Retry-attempt failure semantics (STEP 40 — applied live)
+
+`payment.failed` is PER-ATTEMPT — Razorpay fires it for every failed try inside
+one checkout session, while the modal stays open for a retry. It must never
+kill the order.
+
+- [ ] Webhook `payment.failed` → `apply_failed_payment` returns
+      `ATTEMPT_RECORDED:*`, bumps `payment_intents.failed_attempts` + `last_error`,
+      order stays RESERVED, intent stays CREATED — verified live
+- [ ] Old 1-arg `apply_failed_payment(text)` overload dropped live (it failed orders)
+- [ ] Client `payment.failed` → soft in-modal warning only; reservation released
+      on modal dismiss or TTL expiry, never on an attempt failure
+- [ ] Reproduce the bug: fail attempt 1 (bad card) → retry succeeds → order
+      CONFIRMED + tickets minted, NO refund row created
+- [ ] Client verify racing the webhook → redirected to `/checkout/status`,
+      poller settles — never shows a false failure
+- [ ] Status page has no back link + popstate trap + "don't go back/refresh" note

@@ -115,11 +115,20 @@ export async function POST(request: Request) {
       }
 
       case "payment.failed": {
+        // Per-attempt failure — NOT terminal. The Razorpay modal offers a
+        // retry with another method; the order stays RESERVED until the user
+        // gives up or the reservation TTL expires. Failing it here was what
+        // turned successful retries into phantom late-capture refunds.
+        const failureReason =
+          paymentEntity?.error_description ??
+          paymentEntity?.error_reason ??
+          "payment.failed";
         const { data: outcome, error } = await supabase.rpc("apply_failed_payment", {
           p_razorpay_order_id: razorpayOrderId,
+          p_error: typeof failureReason === "string" ? failureReason : "payment.failed",
         });
         if (error) throw new Error(`apply_failed_payment: ${error.message}`);
-        logger.info({ eventId, outcome }, "failed payment applied");
+        logger.info({ eventId, outcome, reason: failureReason }, "failed payment attempt recorded");
         break;
       }
 
@@ -213,6 +222,8 @@ interface RazorpayWebhookPayload {
         status?: string;
         fee?: number;
         tax?: number;
+        error_description?: string;
+        error_reason?: string;
       };
     };
     order?: {

@@ -50,6 +50,17 @@ export function PaymentStatusPoller({
     [router],
   );
 
+  // Trap the browser back button while we wait on the gateway — navigating
+  // away mid-confirm is how users end up double-paying. The trap releases
+  // the moment the order reaches a terminal state.
+  useEffect(() => {
+    if (phase !== "polling") return;
+    history.pushState({ paymentHold: true }, "", location.href);
+    const onPopState = () => history.pushState({ paymentHold: true }, "", location.href);
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [phase]);
+
   // Poll every 3s for 2 minutes
   useEffect(() => {
     const started = Date.now();
@@ -164,6 +175,10 @@ export function PaymentStatusPoller({
       <div className="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-2 border-violet-300 border-t-violet-600" />
       <h2 className="text-lg font-black">Confirming payment…</h2>
       <p className="mt-2 text-sm text-muted">Almost there — hang on.</p>
+      <p className="mt-3 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-3 text-xs font-semibold text-amber-700 dark:text-amber-300">
+        Please don&apos;t press the back button or refresh this page — your
+        payment is being confirmed and you won&apos;t be charged twice.
+      </p>
     </div>
   );
 }

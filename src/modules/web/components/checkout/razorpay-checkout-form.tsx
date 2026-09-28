@@ -64,6 +64,7 @@ export function RazorpayCheckoutForm({
         verifyAction={verifyPaymentAction}
         failureAction={handlePaymentFailureAction}
         successRedirect={`/checkout/status?order=${session.orderId}`}
+        statusRedirect={`/checkout/status?order=${session.orderId}&event=${eventId}`}
         onError={(msg) => {
           setSession(null);
           setError(msg);

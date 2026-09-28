@@ -76,6 +76,12 @@ interface RazorpayCheckoutProps {
    * Hero Boost redirects to /organizer?boost=success.
    */
   successRedirect?: string;
+  /**
+   * Where to send ticket-order checkouts when client-side verify races the
+   * webhook (e.g. /checkout/status?order=…&event=…). Non-order payables omit
+   * this and get a "received, confirming" message instead — never an error.
+   */
+  statusRedirect?: string;
 }
 
 const SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
@@ -108,6 +114,7 @@ export function RazorpayCheckout({
   verifyAction,
   failureAction,
   successRedirect,
+  statusRedirect,
 }: RazorpayCheckoutProps) {
   const router = useRouter();
   const [status, setStatus] = useState<"idle" | "loading" | "verifying" | "done" | "error">("loading");
@@ -196,11 +203,23 @@ export function RazorpayCheckout({
             setStatus("done");
             setMessage("Payment successful! Redirecting…");
             router.push(successRedirect ?? "/tickets?success=1");
+          } else if (statusRedirect) {
+            // Verify raced the webhook — never fail the reservation here.
+            // The status page polls + Realtime-subscribes and settles correctly.
+            router.push(statusRedirect);
           } else {
-            handleFailure(result.error ?? "Payment verification failed.");
+            // Non-order payable — money may still confirm via webhook; show a
+            // "received, confirming" state rather than releasing the payable.
+            setStatus("verifying");
+            setMessage("Payment received — confirming. It'll reflect shortly.");
           }
-        } catch (err) {
-          handleFailure(err instanceof Error ? err.message : "Payment verification failed.");
+        } catch {
+          if (statusRedirect) {
+            router.push(statusRedirect);
+          } else {
+            setStatus("verifying");
+            setMessage("Payment received — confirming. It'll reflect shortly.");
+          }
         }
       },
       modal: {
@@ -216,15 +235,19 @@ export function RazorpayCheckout({
 
     const rzp = new window.Razorpay(options);
 
-    // Handle payment failures within the modal
-    rzp.on("payment.failed", (resp: unknown) => {
-      const response = resp as { error?: { description?: string } };
-      const reason = response?.error?.description ?? "Payment failed. Please try again.";
-      handleFailure(reason);
+    // payment.failed fires PER ATTEMPT — with retry enabled the modal stays
+    // open so the user can pick another method. Only show a soft warning;
+    // killing the reservation here turned successful retries into phantom
+    // late-capture refunds. The reservation is released on dismiss or by TTL.
+    rzp.on("payment.failed", () => {
+      setStatus("idle");
+      setMessage(
+        "That attempt didn't go through — pick another payment method in the popup, or close it to cancel.",
+      );
     });
 
     rzp.open();
-  }, [session, router, handleFailure, onCancel, getVerifyAction, successRedirect]);
+  }, [session, router, handleFailure, onCancel, getVerifyAction, successRedirect, statusRedirect]);
 
   // Auto-open on mount
   useEffect(() => {
@@ -276,7 +299,12 @@ export function RazorpayCheckout({
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-center">
       <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-violet-600" />
-      <p className="text-sm text-muted">Opening secure payment…</p>
+      <p className="text-sm text-muted">
+        {message || "Opening secure payment…"}
+      </p>
+      <p className="mt-2 text-xs font-semibold text-amber-600">
+        Please don&apos;t press the back button or refresh the page while paying.
+      </p>
     </div>
   );
 }
