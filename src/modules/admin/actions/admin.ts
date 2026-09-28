@@ -225,9 +225,9 @@ export async function adminUpdateEventFeesAction(
     // which made saved fees "revert to default". Fee columns are also
     // privileged-grant only; service role writes after requireAdmin() above.
     const serviceSupabase = createServiceClient();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error, count } = await serviceSupabase
       .from("events")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .update(update as any, { count: "exact" })
       .eq("id", eventId);
     if (error) throw error;
