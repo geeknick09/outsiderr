@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { BrandedLoader } from "./branded-loader";
 
 /**
  * A thin top-of-page progress bar that appears during route transitions.
@@ -24,10 +25,14 @@ export function NavigationProgress() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
+  // Full-screen branded overlay — only appears when a navigation outlives a
+  // short threshold, so instant/prefetched hops never flash it.
+  const [showOverlay, setShowOverlay] = useState(false);
   // Store timer refs so we can cancel stale ones
   const completeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const overlayTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevPath = useRef(pathname + searchParams.toString());
 
   // Disable browser scroll restoration — it fights with Next.js and causes
@@ -51,10 +56,22 @@ export function NavigationProgress() {
       // Snap to near-complete — CSS will animate
       setProgress(80);
     }, 50);
+    // Center-screen branded loader kicks in only if the nav is still going
+    // after 150ms — prefetch-instant navigations never show it.
+    if (overlayTimer.current) clearTimeout(overlayTimer.current);
+    overlayTimer.current = setTimeout(() => setShowOverlay(true), 150);
+    // Safety: never leave the overlay stuck if nothing navigates.
+    if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
+    fallbackTimer.current = setTimeout(() => {
+      finishProgress();
+      setShowOverlay(false);
+    }, 12000);
   }
 
   function finishProgress() {
     if (completeTimer.current) clearTimeout(completeTimer.current);
+    if (overlayTimer.current) clearTimeout(overlayTimer.current);
+    setShowOverlay(false);
     setProgress(100);
     fadeTimer.current = setTimeout(() => {
       setLoading(false);
@@ -81,15 +98,50 @@ export function NavigationProgress() {
     };
   }, [pathname, searchParams]);
 
-  // Detect form submissions (server actions)
+  // Start on internal link clicks — the old version only reacted AFTER the
+  // route changed, so slow server renders showed nothing while fetching.
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const anchor = (e.target as HTMLElement).closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!anchor || anchor.target === "_blank" || anchor.hasAttribute("download")) return;
+      const href = anchor.getAttribute("href") ?? "";
+      if (href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) return;
+      let url: URL;
+      try {
+        url = new URL(anchor.href);
+      } catch {
+        return;
+      }
+      if (url.origin !== location.origin) return;
+      // Same-page navigations (incl. searchParams-only like ?tab=) DO trigger
+      // a server render — start the bar for any URL that differs, even a tab.
+      const current = location.pathname + location.search;
+      const next = url.pathname + url.search;
+      if (current === next) return;
+      startProgress();
+    }
+    document.addEventListener("click", handleClick);
+    const onPop = () => startProgress();
+    window.addEventListener("popstate", onPop);
+    return () => {
+      document.removeEventListener("click", handleClick);
+      window.removeEventListener("popstate", onPop);
+    };
+  }, []);
+
+  // Detect form submissions (server actions + GET search forms)
   useEffect(() => {
     function handleSubmit(e: SubmitEvent) {
       const form = e.target as HTMLFormElement;
-      if (form?.method === "post") {
+      if (form) {
         startProgress();
         // Fallback: auto-hide after 8s in case page doesn't navigate
         if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
-        fallbackTimer.current = setTimeout(finishProgress, 8000);
+        fallbackTimer.current = setTimeout(() => {
+          finishProgress();
+          setShowOverlay(false);
+        }, 8000);
       }
     }
     document.addEventListener("submit", handleSubmit);
@@ -98,27 +150,38 @@ export function NavigationProgress() {
       if (completeTimer.current) clearTimeout(completeTimer.current);
       if (fadeTimer.current) clearTimeout(fadeTimer.current);
       if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
+      if (overlayTimer.current) clearTimeout(overlayTimer.current);
     };
   }, []);
 
-  if (!loading && progress === 0) return null;
+  if (!loading && progress === 0 && !showOverlay) return null;
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-0 z-[9999] h-[3px]">
-      <div
-        className="h-full bg-neon-gradient"
-        style={{
-          width: `${progress}%`,
-          opacity: progress >= 100 ? 0 : 1,
-          // Long transition when filling (600ms), short when completing (200ms), fade (300ms)
-          transition:
-            progress === 0
-              ? "none"
-              : progress >= 100
-                ? "width 0.2s ease-out, opacity 0.3s ease-out 0.1s"
-                : "width 0.6s ease-out, opacity 0.2s",
-        }}
-      />
-    </div>
+    <>
+      <div className="pointer-events-none fixed inset-x-0 top-0 z-[9999] h-[3px]">
+        <div
+          className="h-full bg-neon-gradient"
+          style={{
+            width: `${progress}%`,
+            opacity: progress >= 100 ? 0 : 1,
+            // Long transition when filling (600ms), short when completing (200ms), fade (300ms)
+            transition:
+              progress === 0
+                ? "none"
+                : progress >= 100
+                  ? "width 0.2s ease-out, opacity 0.3s ease-out 0.1s"
+                  : "width 0.6s ease-out, opacity 0.2s",
+          }}
+        />
+      </div>
+
+      {/* Center-screen branded loader for navigations that outlive ~150ms —
+          the moment a route swap lands, this unmounts with the tree. */}
+      {showOverlay ? (
+        <div className="pointer-events-none fixed inset-0 z-[9998] flex items-center justify-center bg-white/60 backdrop-blur-sm dark:bg-[#0a0a0e]/60">
+          <BrandedLoader size="lg" label="Loading page" />
+        </div>
+      ) : null}
+    </>
   );
 }
