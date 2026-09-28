@@ -100,6 +100,7 @@ export type EventRow = {
   allow_booking_during_event: boolean;
   terms: string[];
   registrations_count: number;
+  max_tickets_per_user?: number;
   tags: string[];
   photo_urls: string[];
   pricing_mode: PricingMode;

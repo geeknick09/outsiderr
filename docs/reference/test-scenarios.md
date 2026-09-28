@@ -392,6 +392,16 @@
 - [ ] Verify the dropdown updates
 - [ ] As Organizer B, reload → verify new permission level applies
 
+### 8.9a Organizer Events — Search + Pagination
+
+- [ ] Type in the search box → results span ALL states (published/draft/completed/cancelled), each with a state chip; clicking goes to the event manage page
+- [ ] More than 10 events → pager shows "Page 1 of N"; next/prev works, page resets on tab/sort/search change
+- [ ] Branded centered loader appears when switching tabs (events → create → analytics) and on event-page navigation
+- [ ] Create-event publish requires: About, Things to know, T&C, ≥1 category, city, ≥1 tag, contact email + phone (drafts exempt)
+- [ ] "Max tickets per person (1–10)" field on create + edit; cap enforced per-account across tiers — e.g. cap 4: buy 2 + 2 OK, +1 blocked; each ticket = one QR
+- [ ] Admin events: lifecycle filter (upcoming/completed/draft/cancelled), organizer-name filter, sort by latest/registrations/commission/convenience, 10-per-page pager, dropdowns render options correctly
+- [ ] Buyer mid-checkout when admin changes commission/convenience → in-flight order keeps locked prices (15-min reservation); event page shows new fees on next load
+
 ### 8.9 Remove Collaborator
 
 - [ ] As Organizer A, click X on a collaborator

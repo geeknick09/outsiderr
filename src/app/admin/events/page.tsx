@@ -47,28 +47,68 @@ function getStatusTone(status: string, startsAt: string, endsAt: string | null |
   return "neutral";
 }
 
+const SELECT_CLS =
+  "rounded-2xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-white/10 dark:bg-zinc-900 dark:text-white [&_option]:bg-white [&_option]:text-zinc-900 dark:[&_option]:bg-zinc-900 dark:[&_option]:text-white";
+
+const PAGE_SIZE = 10;
+
 export default async function AdminEventsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string; status?: string; city?: string; category?: string }>;
+  searchParams: Promise<{
+    search?: string;
+    organizer?: string;
+    status?: string;
+    lifecycle?: string;
+    city?: string;
+    category?: string;
+    sort?: string;
+    page?: string;
+  }>;
 }) {
   const params = await searchParams;
-  const events = await listAllAdminEvents({
+  const page = Math.max(0, Number(params.page ?? 0) || 0);
+  const { events, total, pageCount } = await listAllAdminEvents({
     search: params.search,
+    organizer: params.organizer,
     status: params.status as "all" | undefined,
+    lifecycle: (params.lifecycle ?? "all") as "all" | "upcoming" | "completed" | "draft" | "cancelled",
     city: params.city as "all" | undefined,
     category: params.category as "all" | undefined,
+    sort: (params.sort ?? "latest") as "latest" | "oldest" | "registrations" | "commission" | "convenience",
+    page,
+    pageSize: PAGE_SIZE,
   });
 
   const statuses = ["all", "DRAFT", "PUBLISHED", "CANCELLATION_REQUESTED", "CANCELLED", "POSTPONED"];
+  const lifecycles = ["all", "upcoming", "completed", "draft", "cancelled"];
+  const sorts = [
+    { value: "latest", label: "Latest first" },
+    { value: "oldest", label: "Oldest first" },
+    { value: "registrations", label: "Most registrations" },
+    { value: "commission", label: "Highest commission" },
+    { value: "convenience", label: "Highest convenience fee" },
+  ];
   const cities = ["all", ...Object.keys(CITY_LABELS)];
   const categories = ["all", ...Object.keys(CATEGORY_LABELS)];
+
+  const pageHref = (p: number) => {
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries({
+      search: params.search, organizer: params.organizer, status: params.status,
+      lifecycle: params.lifecycle, city: params.city, category: params.category, sort: params.sort,
+    })) {
+      if (v && v !== "all" && !(k === "sort" && v === "latest")) q.set(k, v);
+    }
+    if (p > 0) q.set("page", String(p));
+    return `/admin/events${q.size ? `?${q.toString()}` : ""}`;
+  };
 
   return (
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-black">Events</h1>
-        <p className="text-sm text-muted">{events.length} shown</p>
+        <p className="text-sm text-muted">{total} total · page {page + 1} of {pageCount}</p>
       </div>
 
       {/* Search + Filters */}
@@ -77,16 +117,28 @@ export default async function AdminEventsPage({
           name="search"
           defaultValue={params.search ?? ""}
           placeholder="Search by title…"
-          className="min-w-[200px] flex-1 rounded-2xl border border-zinc-200 bg-white px-4 py-2 text-sm outline-none focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white"
+          className="min-w-[160px] flex-1 rounded-2xl border border-zinc-200 bg-white px-4 py-2 text-sm outline-none focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white"
         />
-        <select name="status" defaultValue={params.status ?? "all"} className="rounded-2xl border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5 dark:text-white">
+        <input
+          name="organizer"
+          defaultValue={params.organizer ?? ""}
+          placeholder="Organizer name…"
+          className="min-w-[140px] rounded-2xl border border-zinc-200 bg-white px-4 py-2 text-sm outline-none focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white"
+        />
+        <select name="lifecycle" defaultValue={params.lifecycle ?? "all"} className={SELECT_CLS}>
+          {lifecycles.map((s) => <option key={s} value={s}>{s === "all" ? "All states" : s[0].toUpperCase() + s.slice(1)}</option>)}
+        </select>
+        <select name="status" defaultValue={params.status ?? "all"} className={SELECT_CLS}>
           {statuses.map((s) => <option key={s} value={s}>{s === "all" ? "All Status" : s.replace(/_/g, " ")}</option>)}
         </select>
-        <select name="city" defaultValue={params.city ?? "all"} className="rounded-2xl border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5 dark:text-white">
+        <select name="city" defaultValue={params.city ?? "all"} className={SELECT_CLS}>
           {cities.map((c) => <option key={c} value={c}>{c === "all" ? "All Cities" : CITY_LABELS[c as City] ?? c}</option>)}
         </select>
-        <select name="category" defaultValue={params.category ?? "all"} className="rounded-2xl border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5 dark:text-white">
+        <select name="category" defaultValue={params.category ?? "all"} className={SELECT_CLS}>
           {categories.map((c) => <option key={c} value={c}>{c === "all" ? "All Categories" : CATEGORY_LABELS[c as EventCategory] ?? c}</option>)}
+        </select>
+        <select name="sort" defaultValue={params.sort ?? "latest"} className={SELECT_CLS}>
+          {sorts.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
         <button type="submit" className="rounded-2xl bg-neon-gradient px-4 py-2 text-sm font-bold text-white">
           Filter
@@ -112,7 +164,12 @@ export default async function AdminEventsPage({
                 <p className="text-xs text-muted">
                   {event.organizerName} · {CATEGORY_LABELS[event.category]} · {CITY_LABELS[event.city]} · {formatDateTime(event.startsAt)}
                 </p>
-                <p className="text-xs text-muted">{event.registrationsCount} registrations</p>
+                <p className="text-xs text-muted">
+                  {event.registrationsCount} registrations
+                  {event.pricingMode !== "FREE"
+                    ? ` · commission ₹${((event.totalCommissionPaise ?? 0) / 100).toLocaleString("en-IN")} · convenience ₹${((event.totalConvenienceFeePaise ?? 0) / 100).toLocaleString("en-IN")}`
+                    : ""}
+                </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone={statusTone}>
@@ -299,6 +356,39 @@ export default async function AdminEventsPage({
           <p className="glass rounded-3xl p-5 text-sm text-muted">No events found.</p>
         ) : null}
       </div>
+
+      {/* Pagination */}
+      {pageCount > 1 ? (
+        <div className="flex items-center justify-center gap-2">
+          <Link
+            href={pageHref(page - 1)}
+            aria-disabled={page === 0}
+            className={`rounded-xl border border-zinc-200 px-3 py-1.5 text-xs font-semibold dark:border-white/10 ${page === 0 ? "pointer-events-none opacity-40" : "hover:border-violet-neon"}`}
+          >
+            ← Prev
+          </Link>
+          {Array.from({ length: pageCount }).map((_, i) => (
+            <Link
+              key={i}
+              href={pageHref(i)}
+              className={`rounded-xl border px-3 py-1.5 text-xs font-semibold ${
+                i === page
+                  ? "border-violet-neon bg-violet-neon/10 text-violet-neon"
+                  : "border-zinc-200 text-muted hover:border-violet-neon dark:border-white/10"
+              }`}
+            >
+              {i + 1}
+            </Link>
+          ))}
+          <Link
+            href={pageHref(page + 1)}
+            aria-disabled={page >= pageCount - 1}
+            className={`rounded-xl border border-zinc-200 px-3 py-1.5 text-xs font-semibold dark:border-white/10 ${page >= pageCount - 1 ? "pointer-events-none opacity-40" : "hover:border-violet-neon"}`}
+          >
+            Next →
+          </Link>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -97,6 +97,7 @@ function toSummary(row: EventRow, tiers: TicketTier[]): EventSummary {
     tags: row.tags ?? [],
     status: row.status,
     pricingMode: (row.pricing_mode ?? "PAID") as PricingMode,
+    maxTicketsPerUser: (row as { max_tickets_per_user?: number }).max_tickets_per_user ?? 5,
   };
 }
 

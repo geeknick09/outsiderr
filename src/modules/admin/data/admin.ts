@@ -52,16 +52,20 @@ export async function getAdminStats(): Promise<AdminStats> {
 
 export async function listAllAdminEvents(filters?: {
   search?: string;
+  organizer?: string;
   status?: EventStatus | "all";
+  lifecycle?: "all" | "upcoming" | "completed" | "draft" | "cancelled";
   city?: City | "all";
   category?: EventCategory | "all";
-}): Promise<AdminEvent[]> {
+  sort?: "latest" | "oldest" | "registrations" | "commission" | "convenience";
+  page?: number;
+  pageSize?: number;
+}): Promise<{ events: AdminEvent[]; total: number; pageCount: number }> {
   await requireAdminUser();
   const supabase = await createClient();
   let query = supabase
     .from("events")
-    .select("id, title, description, category, city, status, starts_at, ends_at, venue_name, venue_address, is_featured, registrations_count, organizer_id, pricing_mode, commission_bps, commission_enabled, convenience_fee_bps, convenience_fee_enabled")
-    .order("starts_at", { ascending: false });
+    .select("id, title, description, category, city, status, starts_at, ends_at, venue_name, venue_address, is_featured, registrations_count, organizer_id, pricing_mode, commission_bps, commission_enabled, convenience_fee_bps, convenience_fee_enabled, created_at");
 
   if (filters?.search) {
     query = query.ilike("title", `%${filters.search}%`);
@@ -75,6 +79,12 @@ export async function listAllAdminEvents(filters?: {
   if (filters?.category && filters.category !== "all") {
     query = query.eq("category", filters.category);
   }
+  // lifecycle overrides the raw status filter
+  const lifecycle = filters?.lifecycle ?? "all";
+  if (lifecycle === "draft") query = query.eq("status", "DRAFT");
+  else if (lifecycle === "cancelled") query = query.in("status", ["CANCELLED", "CANCELLATION_REQUESTED"]);
+  else if (lifecycle === "completed") query = query.eq("status", "PUBLISHED").lt("starts_at", new Date().toISOString());
+  else if (lifecycle === "upcoming") query = query.eq("status", "PUBLISHED").gte("starts_at", new Date().toISOString());
 
   const { data } = await query;
 
@@ -86,7 +96,24 @@ export async function listAllAdminEvents(filters?: {
     .in("id", organizerIds);
   const orgMap = Object.fromEntries((organizers ?? []).map((o) => [o.id, o.name]));
 
-  return (data ?? []).map((row) => ({
+  // Confirmed-order money aggregates per event (commission + convenience sort).
+  const eventIds = (data ?? []).map((r) => r.id);
+  const moneyMap = new Map<string, { commission: number; convenience: number }>();
+  if (eventIds.length > 0) {
+    const { data: orderAgg } = await supabase
+      .from("orders")
+      .select("event_id, commission_paise, convenience_fee_paise")
+      .in("event_id", eventIds)
+      .eq("status", "CONFIRMED");
+    for (const o of orderAgg ?? []) {
+      const m = moneyMap.get(o.event_id) ?? { commission: 0, convenience: 0 };
+      m.commission += o.commission_paise ?? 0;
+      m.convenience += o.convenience_fee_paise ?? 0;
+      moneyMap.set(o.event_id, m);
+    }
+  }
+
+  let rows = (data ?? []).map((row) => ({
     id: row.id, title: row.title,
     description: (row as { description?: string }).description ?? "",
     category: row.category as EventCategory,
@@ -104,7 +131,41 @@ export async function listAllAdminEvents(filters?: {
     commissionEnabled: (row as { commission_enabled?: boolean }).commission_enabled ?? true,
     convenienceFeeBps: (row as { convenience_fee_bps?: number }).convenience_fee_bps ?? 200,
     convenienceFeeEnabled: (row as { convenience_fee_enabled?: boolean }).convenience_fee_enabled ?? true,
+    totalCommissionPaise: moneyMap.get(row.id)?.commission ?? 0,
+    totalConvenienceFeePaise: moneyMap.get(row.id)?.convenience ?? 0,
   }));
+
+  // Organizer-name filter runs post-map (name lives on the joined table).
+  const orgFilter = filters?.organizer?.trim().toLowerCase();
+  if (orgFilter) {
+    rows = rows.filter((r) => r.organizerName.toLowerCase().includes(orgFilter));
+  }
+
+  // Sort (default: latest first)
+  const sort = filters?.sort ?? "latest";
+  rows.sort((a, b) => {
+    switch (sort) {
+      case "oldest":
+        return new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime();
+      case "registrations":
+        return b.registrationsCount - a.registrationsCount;
+      case "commission":
+        return (b.totalCommissionPaise ?? 0) - (a.totalCommissionPaise ?? 0);
+      case "convenience":
+        return (b.totalConvenienceFeePaise ?? 0) - (a.totalConvenienceFeePaise ?? 0);
+      case "latest":
+      default:
+        return new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime();
+    }
+  });
+
+  // Paginate
+  const pageSize = filters?.pageSize ?? 10;
+  const page = Math.max(0, filters?.page ?? 0);
+  const total = rows.length;
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const start = Math.min(page, pageCount - 1) * pageSize;
+  return { events: rows.slice(start, start + pageSize), total, pageCount };
 }
 
 export async function listAllAdminUsers(): Promise<AdminUser[]> {

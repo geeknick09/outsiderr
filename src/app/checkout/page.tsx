@@ -22,13 +22,16 @@ export default async function CheckoutPage({
   const { event: eventId, tier: tierId, qty } = await searchParams;
   if (!eventId || !tierId) redirect("/");
 
-  const quantity = Math.min(
-    Math.max(Number(qty ?? 1) || 1, 1),
-    MAX_TICKETS_PER_ORDER,
-  );
-
   // Fetch user and event in parallel — saves one sequential DB round-trip
   const [user, event] = await Promise.all([getCurrentUser(), getEvent(eventId)]);
+  const tier0 = event?.tiers.find((item) => item.id === tierId);
+  const perUserCap = Math.min(10, Math.max(1, event?.maxTicketsPerUser ?? 5));
+  const quantity = Math.min(
+    Math.max(Number(qty ?? 1) || 1, 1),
+    perUserCap,
+    MAX_TICKETS_PER_ORDER,
+    tier0 ? Math.max(1, tier0.quantity - tier0.quantitySold - (tier0.quantityReserved ?? 0)) : 1,
+  );
   const nextUrl = `/checkout?event=${eventId}&tier=${tierId}&qty=${quantity}`;
   const tier = event?.tiers.find((item) => item.id === tierId);
   if (!event || !tier) notFound();
@@ -60,19 +63,23 @@ export default async function CheckoutPage({
 
   const isFree = tier.pricePaise === 0;
 
-  // Check if user has already booked a ticket for this event
+  // Per-user ticket cap — count tickets HELD (sum of quantity across orders),
+  // not orders, since one order can carry up to the cap.
   const supabase = await createClient();
-  const { count: existingOrderCount } = await supabase
+  const { data: heldOrders } = await supabase
     .from("orders")
-    .select("id", { count: "exact", head: true })
+    .select("quantity")
     .eq("event_id", event.id)
     .eq("user_id", user.id)
     .in("status", ["CONFIRMED", "PENDING_VERIFICATION", "RESERVED", "REFUND_REQUESTED"]);
-  const alreadyBooked = (existingOrderCount ?? 0) > 0;
+  const ticketsHeld = (heldOrders ?? []).reduce((s, o) => s + (o.quantity ?? 0), 0);
+  const alreadyBooked = ticketsHeld + quantity > perUserCap;
+  const remainingCap = Math.max(0, perUserCap - ticketsHeld);
+  const allowedQuantity = Math.min(quantity, remainingCap || 1);
 
   // Server-side price preview — the DB recomputes these authoritatively in
   // create_reserved_order; this is display-only.
-  const price = calculatePrice(tier.pricePaise, quantity, event.feePayer, undefined, {
+  const price = calculatePrice(tier.pricePaise, allowedQuantity, event.feePayer, undefined, {
     commissionBps: event.commissionBps,
     commissionEnabled: event.commissionEnabled,
     convenienceFeeBps: event.convenienceFeeBps,
@@ -96,7 +103,8 @@ export default async function CheckoutPage({
               You have already booked the max number of tickets permissible
             </h2>
             <p className="mt-3 text-sm text-muted">
-              Each attendee can book up to {MAX_TICKETS_PER_ORDER} ticket{MAX_TICKETS_PER_ORDER > 1 ? "s" : ""} per event.
+              This event allows up to {perUserCap} ticket{perUserCap > 1 ? "s" : ""} per account
+              {ticketsHeld > 0 ? ` — you already hold ${ticketsHeld}` : ""}.
               Check your existing ticket for this event.
             </p>
             <Link
@@ -122,7 +130,7 @@ export default async function CheckoutPage({
             <CheckoutForm
               eventId={event.id}
               tierId={tier.id}
-              quantity={quantity}
+              quantity={allowedQuantity}
               defaultName={user?.name ?? ""}
               defaultPhone={user?.phone ?? ""}
               defaultEmail={user?.email ?? ""}
@@ -132,7 +140,7 @@ export default async function CheckoutPage({
             <RazorpayCheckoutForm
               eventId={event.id}
               tierId={tier.id}
-              quantity={quantity}
+              quantity={allowedQuantity}
               defaultName={user?.name ?? ""}
               defaultPhone={user?.phone ?? ""}
               defaultEmail={user?.email ?? ""}
@@ -149,7 +157,7 @@ export default async function CheckoutPage({
               {formatDateTime(event.startsAt)} · {event.venueName}
             </p>
             <dl className="mt-4 space-y-2 text-sm">
-              <Row label={`${tier.name} × ${quantity}`} value={isFree ? "Free" : formatPaise(price.subtotalPaise)} />
+              <Row label={`${tier.name} × ${allowedQuantity}`} value={isFree ? "Free" : formatPaise(price.subtotalPaise)} />
               {!isFree && buyerFee > 0 ? (
                 <Row
                   label={

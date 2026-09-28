@@ -177,6 +177,8 @@ export interface EventSummary {
   pricingMode: PricingMode;
   totalCapacity?: number;
   ticketsSold?: number;
+  /** Organizer-set per-account ticket cap for this event (1–10). */
+  maxTicketsPerUser?: number;
 }
 
 export interface EventDetail extends EventSummary {
@@ -413,6 +415,9 @@ export interface AdminEvent {
   commissionEnabled: boolean;
   convenienceFeeBps: number;
   convenienceFeeEnabled: boolean;
+  /** Confirmed-order aggregates — for admin sorting/reporting. */
+  totalCommissionPaise?: number;
+  totalConvenienceFeePaise?: number;
 }
 
 export interface AdminUser {

@@ -239,6 +239,8 @@ create table if not exists public.events (
   allow_booking_during_event boolean not null default false,
   terms               text[]          not null default '{}',
   registrations_count integer         not null default 0,
+  max_tickets_per_user integer        not null default 5
+    check (max_tickets_per_user between 1 and 10),
   pricing_mode        text            not null default 'PAID'
                       constraint events_pricing_mode_check check (pricing_mode in ('FREE','FLAT','PAID','PHASED')),
   commission_bps          integer     not null default 1000,  -- 10% organizer commission
@@ -3537,7 +3539,8 @@ grant update (title, description, things_to_know, tags, photo_urls, category, ca
               starts_at, ends_at, card_poster_url, banner_poster_url, teaser_video_url,
               fee_payer, needs_door_staff, waitlist_enabled, allow_booking_during_event,
               terms, pricing_mode, contact_email, contact_phone, instagram_url,
-              youtube_url, x_url, facebook_url, linkedin_url, linked_past_event_ids)
+              youtube_url, x_url, facebook_url, linkedin_url, linked_past_event_ids,
+              max_tickets_per_user)
   on public.events to authenticated;
 
 -- ---- 9. Sanitized public organizer view ----------------------------------------
@@ -3904,13 +3907,15 @@ begin
   end if;
 
   -- Prevent double booking: active orders include held Razorpay reservations.
-  select count(*) into v_existing_count
+  -- Per-user ticket cap (max_tickets_per_user, default 5, max 10)
+  select coalesce(sum(quantity), 0) into v_existing_count
   from public.orders
   where event_id = p_event_id
     and user_id = auth.uid()
     and status in ('CONFIRMED', 'PENDING_VERIFICATION', 'RESERVED');
-  if v_existing_count > 0 then
-    raise exception 'You have already booked a ticket for this event';
+  if v_existing_count + p_quantity > greatest(1, least(coalesce(v_event.max_tickets_per_user, 5), 10)) then
+    raise exception 'You can book at most % ticket(s) for this event (you already hold %)',
+      greatest(1, least(coalesce(v_event.max_tickets_per_user, 5), 10)), v_existing_count;
   end if;
 
   insert into public.orders (
@@ -3976,13 +3981,15 @@ begin
     raise exception 'Not enough tickets left';
   end if;
 
-  select count(*) into v_existing_count
+  -- Per-user ticket cap (max_tickets_per_user, default 5, max 10)
+  select coalesce(sum(quantity), 0) into v_existing_count
   from public.orders
   where event_id = p_event_id
     and user_id = auth.uid()
     and status in ('CONFIRMED', 'PENDING_VERIFICATION', 'RESERVED');
-  if v_existing_count > 0 then
-    raise exception 'You have already booked a ticket for this event';
+  if v_existing_count + p_quantity > greatest(1, least(coalesce(v_event.max_tickets_per_user, 5), 10)) then
+    raise exception 'You can book at most % ticket(s) for this event (you already hold %)',
+      greatest(1, least(coalesce(v_event.max_tickets_per_user, 5), 10)), v_existing_count;
   end if;
 
   insert into public.orders (
@@ -4298,16 +4305,17 @@ begin
     raise exception 'Waitlist is not enabled for this event';
   end if;
 
-  -- Per-user cap: when max_tickets_per_order is 1 (the default), a user who
-  -- already holds an active order can't join the waitlist — mirrors the
-  -- per-user-per-event guard in the order flow.
-  select (value #>> '{}')::int into v_cap
-    from public.platform_settings where key = 'max_tickets_per_order';
-  if coalesce(v_cap, 1) <= 1 and exists (
-    select 1 from public.orders
-     where event_id = p_event_id
-       and user_id = auth.uid()
-       and status in ('CONFIRMED', 'PENDING_VERIFICATION', 'RESERVED')
+  -- Per-user cap: block waitlist joins only once the user has hit
+  -- events.max_tickets_per_user for this event.
+  select greatest(1, least(coalesce(e.max_tickets_per_user, 5), 10)) into v_cap
+    from public.events e where e.id = p_event_id;
+  if exists (
+    select 1 from (
+      select coalesce(sum(quantity), 0) q
+        from public.orders
+       where event_id = p_event_id and user_id = auth.uid()
+         and status in ('CONFIRMED', 'PENDING_VERIFICATION', 'RESERVED')
+    ) s where s.q >= v_cap
   ) then
     raise exception 'You already have a ticket for this event';
   end if;
@@ -4415,13 +4423,15 @@ begin
   end if;
 
   -- Prevent double booking: active orders include held Razorpay reservations.
-  select count(*) into v_existing_count
+  -- Per-user ticket cap (max_tickets_per_user, default 5, max 10)
+  select coalesce(sum(quantity), 0) into v_existing_count
   from public.orders
   where event_id = p_event_id
     and user_id = auth.uid()
     and status in ('CONFIRMED', 'PENDING_VERIFICATION', 'RESERVED');
-  if v_existing_count > 0 then
-    raise exception 'You have already booked a ticket for this event';
+  if v_existing_count + p_quantity > greatest(1, least(coalesce(v_event.max_tickets_per_user, 5), 10)) then
+    raise exception 'You can book at most % ticket(s) for this event (you already hold %)',
+      greatest(1, least(coalesce(v_event.max_tickets_per_user, 5), 10)), v_existing_count;
   end if;
 
   -- Money: recompute server-side from tier price + event fee config.
@@ -4601,13 +4611,15 @@ begin
     raise exception 'Not enough tickets left';
   end if;
 
-  select count(*) into v_existing_count
+  -- Per-user ticket cap (max_tickets_per_user, default 5, max 10)
+  select coalesce(sum(quantity), 0) into v_existing_count
   from public.orders
   where event_id = p_event_id
     and user_id = auth.uid()
     and status in ('CONFIRMED', 'PENDING_VERIFICATION', 'RESERVED');
-  if v_existing_count > 0 then
-    raise exception 'You have already booked a ticket for this event';
+  if v_existing_count + p_quantity > greatest(1, least(coalesce(v_event.max_tickets_per_user, 5), 10)) then
+    raise exception 'You can book at most % ticket(s) for this event (you already hold %)',
+      greatest(1, least(coalesce(v_event.max_tickets_per_user, 5), 10)), v_existing_count;
   end if;
 
   insert into public.orders (

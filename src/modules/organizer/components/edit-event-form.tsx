@@ -729,6 +729,24 @@ export function EditEventForm({ event, pastEvents = [], lockLogistics = false }:
             </span>
           </label>
         </div>
+
+        <div className="mt-4 border-t border-zinc-100 pt-4 dark:border-white/5">
+          <Field label="Max tickets per person (1–10)">
+            <input
+              name="maxTicketsPerUser"
+              type="number"
+              min={1}
+              max={10}
+              defaultValue={event.maxTicketsPerUser ?? 5}
+              onChange={() => setDirty(true)}
+              className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-neon dark:border-white/10 dark:bg-white/5"
+            />
+          </Field>
+          <p className="mt-1.5 text-xs text-muted">
+            How many tickets one account can hold for this event — across all tiers and orders combined.
+            Each ticket gets its own QR.
+          </p>
+        </div>
       </div>
 
       {/* Allow booking during event toggle */}

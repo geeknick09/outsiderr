@@ -25,11 +25,14 @@ export function TicketTiers({
   feeBps,
   waitlistData = [],
   waitlistEnabled = true,
+  ticketsHeld = 0,
 }: {
   event: EventDetail;
   feeBps?: number;
   waitlistData?: WaitlistTierData[];
   waitlistEnabled?: boolean;
+  /** Tickets this user already holds for the event (server-computed). */
+  ticketsHeld?: number;
 }) {
   const router = useRouter();
   const nowMs = Date.now();
@@ -84,6 +87,11 @@ export function TicketTiers({
 
   const [selectedId, setSelectedId] = useState(bookableTiers[0]?.id ?? "");
 
+  // Per-user cap: event.maxTicketsPerUser (1–10) minus what they already hold.
+  const perUserCap = Math.min(10, Math.max(1, event.maxTicketsPerUser ?? 5));
+  const remainingCap = Math.max(0, perUserCap - ticketsHeld);
+  const [qtyRaw, setQty] = useState(1);
+
   const isFreeEvent = useMemo(
     () => tiers.length > 0 && tiers.every((t) => t.pricePaise === 0),
     [tiers],
@@ -94,28 +102,36 @@ export function TicketTiers({
     [bookableTiers, selectedId],
   );
 
+  // Effective qty is clamped to remaining cap + tier stock at render time —
+  // switching tiers can never leave the count out of bounds.
+  const tierLeft = selected
+    ? selected.quantity - selected.quantitySold - (selected.quantityReserved ?? 0)
+    : 0;
+  const maxQty = Math.min(remainingCap, tierLeft);
+  const qty = Math.min(Math.max(1, qtyRaw), Math.max(1, maxQty));
+
   const price = useMemo(
     () =>
       selected
-        ? calculatePrice(selected.pricePaise, 1, event.feePayer, undefined, {
+        ? calculatePrice(selected.pricePaise, qty, event.feePayer, undefined, {
             commissionBps: event.commissionBps,
             commissionEnabled: event.commissionEnabled,
             convenienceFeeBps: event.convenienceFeeBps,
             convenienceFeeEnabled: event.convenienceFeeEnabled,
           })
         : null,
-    [selected, event.feePayer, event.commissionBps, event.commissionEnabled, event.convenienceFeeBps, event.convenienceFeeEnabled],
+    [selected, qty, event.feePayer, event.commissionBps, event.commissionEnabled, event.convenienceFeeBps, event.convenienceFeeEnabled],
   );
 
   const hasPhases = phaseTiers.length > 0;
 
   // Memoized navigation handler
   const handleBook = useCallback(() => {
-    if (!selected) return;
+    if (!selected || remainingCap <= 0) return;
     startNavigation(() =>
-      router.push(`/checkout?event=${event.id}&tier=${selected.id}&qty=1`),
+      router.push(`/checkout?event=${event.id}&tier=${selected.id}&qty=${qty}`),
     );
-  }, [selected, event.id, router, startNavigation]);
+  }, [selected, qty, remainingCap, event.id, router, startNavigation]);
 
   // Sold-out phase state — computed once, not in an IIFE inside JSX
   const soldOutPhaseState = useMemo(() => {
@@ -147,7 +163,7 @@ export function TicketTiers({
         <h2 className="text-base font-bold">
           {isFreeEvent ? "Free Entry — RSVP" : "Select tickets"}
         </h2>
-        <span className="text-xs text-muted">1 ticket per order</span>
+        <span className="text-xs text-muted">Max {perUserCap} per person</span>
       </div>
 
       {/* Phase timeline — show all phases with their status */}
@@ -253,9 +269,37 @@ export function TicketTiers({
         <div className="mt-5 space-y-4 border-t border-zinc-200 pt-5 dark:border-white/10">
           <input type="hidden" value={1} readOnly />
 
+          {/* Quantity stepper — bounded by the per-user cap and tier stock */}
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-xs font-semibold text-muted">
+              Tickets{ticketsHeld > 0 ? ` (you hold ${ticketsHeld})` : ""}
+            </span>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                aria-label="Fewer tickets"
+                disabled={qty <= 1}
+                onClick={() => setQty(Math.max(1, qty - 1))}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 text-sm font-bold disabled:opacity-30 dark:border-white/10"
+              >
+                −
+              </button>
+              <span className="w-6 text-center text-sm font-black">{qty}</span>
+              <button
+                type="button"
+                aria-label="More tickets"
+                disabled={qty >= maxQty}
+                onClick={() => setQty(Math.min(maxQty, qty + 1))}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 text-sm font-bold disabled:opacity-30 dark:border-white/10"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
           {!isFreeEvent ? (
             <dl className="space-y-1.5 text-sm">
-              <Row label="Ticket subtotal" value={formatPaise(price.subtotalPaise)} />
+              <Row label={`Ticket subtotal ×${qty}`} value={formatPaise(price.subtotalPaise)} />
               {price.convenienceFeePaise > 0 ? (
                 <Row
                   label={`Convenience fee (${Math.round((price.convenienceFeePaise / price.subtotalPaise) * 100)}%)`}
@@ -274,16 +318,22 @@ export function TicketTiers({
             </div>
           )}
 
-          <Button
-            className="w-full"
-            size="lg"
-            disabled={navigating}
-            loading={navigating}
-            loadingText={isFreeEvent ? "Opening RSVP…" : "Opening checkout…"}
-            onClick={handleBook}
-          >
-            {isFreeEvent ? "RSVP now" : "Book now"}
-          </Button>
+          {remainingCap <= 0 ? (
+            <p className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-3 text-center text-xs font-semibold text-amber-700 dark:text-amber-300">
+              You already hold the maximum {perUserCap} ticket{perUserCap > 1 ? "s" : ""} for this event.
+            </p>
+          ) : (
+            <Button
+              className="w-full"
+              size="lg"
+              disabled={navigating}
+              loading={navigating}
+              loadingText={isFreeEvent ? "Opening RSVP…" : "Opening checkout…"}
+              onClick={handleBook}
+            >
+              {isFreeEvent ? "RSVP now" : "Book now"}
+            </Button>
+          )}
         </div>
       ) : bookableTiers.length === 0 ? (
         <div className="mt-5 space-y-3">

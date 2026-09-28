@@ -83,7 +83,7 @@ export function TagPicker({ initialTags = [] }: { initialTags?: string[] }) {
   return (
     <div className="space-y-2">
       <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-        Tags <span className="normal-case text-zinc-400">(tap to select)</span>
+        Tags * <span className="normal-case text-zinc-400">(tap to select, at least one)</span>
       </span>
       <div className="flex flex-wrap gap-2">
         {PREDEFINED_EVENT_TAGS.map((tag) => {
@@ -184,6 +184,7 @@ export function EventForm({
       facebookUrl: draftEvent.facebookUrl ?? "",
       linkedinUrl: draftEvent.linkedinUrl ?? "",
       linkedPastEventIds: draftEvent.linkedPastEventIds ?? [],
+      maxTicketsPerUser: String(draftEvent.maxTicketsPerUser ?? 5),
     };
   }, [draftEvent]);
 
@@ -332,7 +333,7 @@ export function EventForm({
         </Field>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Categories (select all that apply)">
+          <Field label="Categories (select all that apply) *">
             <div className="flex flex-wrap gap-2 rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
               {CATEGORIES.filter((c) => c.value !== "ALL").map((cat) => {
                 const selectedCats = (sv?.categories as string[] | undefined) ?? (sv?.category ? [sv.category] : []);
@@ -375,7 +376,7 @@ export function EventForm({
             {/* Hidden single category field for backward compat — uses first selected */}
             <input type="hidden" name="category" value={(sv?.categories as string[] | undefined)?.[0] ?? sv?.category ?? "OTHER"} readOnly />
           </Field>
-          <Field label="City">
+          <Field label="City *">
             <select
               name="city"
               className={INPUT}
@@ -554,18 +555,20 @@ export function EventForm({
         </>
       )}
 
-        <Field label="About the event">
+        <Field label="About the event *">
           <textarea
             name="description"
             rows={4}
+            required
             defaultValue={sv?.description ?? ""}
             className={INPUT}
           />
         </Field>
-        <Field label="Things to know (one per line)">
+        <Field label="Things to know (one per line) *">
           <textarea
             name="thingsToKnow"
             rows={3}
+            required
             defaultValue={sv?.thingsToKnow ?? ""}
             className={INPUT}
           />
@@ -574,10 +577,11 @@ export function EventForm({
         {/* Tag chip picker */}
         <TagPicker initialTags={sv?.tags ? sv.tags.split(",").filter(Boolean) : []} />
 
-        <Field label="Terms & conditions (one per line, defaults applied when empty)">
+        <Field label="Terms & conditions (one per line) *">
           <textarea
             name="terms"
             rows={3}
+            required
             defaultValue={sv?.terms ?? ""}
             className={INPUT}
           />
@@ -642,6 +646,23 @@ export function EventForm({
             </span>
           </label>
         </div>
+
+        <div className="mt-4 border-t border-zinc-100 pt-4 dark:border-white/5">
+          <Field label="Max tickets per person (1–10)">
+            <input
+              name="maxTicketsPerUser"
+              type="number"
+              min={1}
+              max={10}
+              defaultValue={sv?.maxTicketsPerUser ?? 5}
+              className={INPUT}
+            />
+          </Field>
+          <p className="mt-1.5 text-xs text-muted">
+            How many tickets one account can hold for this event — across all tiers and orders combined.
+            Each ticket gets its own QR.
+          </p>
+        </div>
       </section>
 
       {/* Gallery + Contact */}
@@ -658,17 +679,18 @@ export function EventForm({
         />
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Contact email (for attendee queries)">
+          <Field label="Contact email (for attendee queries) *">
             <input
               name="contactEmail"
               type="email"
+              required
               defaultValue={sv?.contactEmail ?? ""}
               placeholder="organizer@email.com"
               className={INPUT}
             />
           </Field>
-          <Field label="Contact phone (for attendee queries)">
-            <PhoneInput name="contactPhone" defaultValue={sv?.contactPhone ?? ""} />
+          <Field label="Contact phone (for attendee queries) *">
+            <PhoneInput name="contactPhone" required defaultValue={sv?.contactPhone ?? ""} />
           </Field>
         </div>
 

@@ -19,7 +19,7 @@ import { UpdateMeButton } from "@/modules/web";
 import { FollowOrganizerButton } from "@/modules/web";
 import { Badge } from "@/modules/shared";
 import { CATEGORY_LABELS, CITY_LABELS } from "@/modules/shared";
-import { getCurrentUser } from "@/modules/shared/server";
+import { getCurrentUser, createClient } from "@/modules/shared/server";
 import { getEvent, getLinkedPastEvents } from "@/modules/shared/server";
 import { getEventReviews } from "@/modules/shared/server";
 import { isSubscribedToEvent, getEventCollaborators } from "@/modules/shared/server";
@@ -99,6 +99,19 @@ export default async function EventDetailsPage({
   const startMs = new Date(event.startsAt).getTime();
   const endMs = event.endsAt ? new Date(event.endsAt).getTime() : startMs;
   const eventEnded = endMs <= nowMs;
+
+  // Tickets this user already holds — drives the per-user cap in TicketTiers.
+  let ticketsHeld = 0;
+  if (user) {
+    const supabase = await createClient();
+    const { data: heldOrders } = await supabase
+      .from("orders")
+      .select("quantity")
+      .eq("event_id", event.id)
+      .eq("user_id", user.id)
+      .in("status", ["CONFIRMED", "PENDING_VERIFICATION", "RESERVED", "REFUND_REQUESTED"]);
+    ticketsHeld = (heldOrders ?? []).reduce((s, o) => s + (o.quantity ?? 0), 0);
+  }
 
   const [linkedPastEvents, eventReviews, isSubscribed, collaborators, followerCount, isFollowing, organizerRating] = await Promise.all([
     event.linkedPastEventIds.length > 0
@@ -514,7 +527,7 @@ export default async function EventDetailsPage({
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-          <TicketTiers event={event} waitlistData={waitlistData} waitlistEnabled={event.waitlistEnabled} />
+          <TicketTiers event={event} waitlistData={waitlistData} waitlistEnabled={event.waitlistEnabled} ticketsHeld={ticketsHeld} />
 
           {/* Update Me button — only for logged-in non-ticket-holders */}
           {user && !eventEnded ? <UpdateMeButton eventId={event.id} isSubscribed={isSubscribed} /> : null}

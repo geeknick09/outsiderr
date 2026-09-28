@@ -50,6 +50,8 @@ export interface CreateEventInput {
   linkedinUrl: string | null;
   linkedPastEventIds?: string[];
   status?: import("@/modules/shared").EventStatus;
+  /** Per-account ticket cap (1–10, default 5). */
+  maxTicketsPerUser?: number;
 }
 
 export async function listOrganizerEvents(
@@ -99,6 +101,7 @@ export async function listOrganizerEvents(
       pricingMode: (event.pricing_mode ?? "PAID") as PricingMode,
       totalCapacity,
       ticketsSold,
+      maxTicketsPerUser: (event as { max_tickets_per_user?: number }).max_tickets_per_user ?? 5,
     };
   });
 }
@@ -166,6 +169,7 @@ export async function listCollaboratedEvents(
       pricingMode: (event.pricing_mode ?? "PAID") as PricingMode,
       totalCapacity,
       ticketsSold,
+      maxTicketsPerUser: (event as { max_tickets_per_user?: number }).max_tickets_per_user ?? 5,
       collaboratorPermission: permMap.get(event.id) ?? "LIMITED",
     };
   });
@@ -218,6 +222,7 @@ export async function createEvent(
       facebook_url: input.facebookUrl ?? null,
       linkedin_url: input.linkedinUrl ?? null,
       linked_past_event_ids: input.linkedPastEventIds ?? [],
+      max_tickets_per_user: input.maxTicketsPerUser ?? 5,
       pricing_mode: input.pricingMode,
       status: input.status ?? "PUBLISHED",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -426,6 +431,8 @@ export interface UpdateEventInput {
   teaserVideoUrl?: string | null;
   linkedPastEventIds?: string[];
   pricingMode?: PricingMode;
+  /** Per-account ticket cap for this event — clamped to 1–10. */
+  maxTicketsPerUser?: number;
 }
 
 
@@ -505,6 +512,9 @@ export async function updateEvent(
       ...(input.teaserVideoUrl !== undefined ? { teaser_video_url: input.teaserVideoUrl } : {}),
       ...(input.linkedPastEventIds !== undefined ? { linked_past_event_ids: input.linkedPastEventIds } : {}),
       ...(input.pricingMode !== undefined ? { pricing_mode: input.pricingMode } : {}),
+      ...(input.maxTicketsPerUser !== undefined
+        ? { max_tickets_per_user: Math.min(10, Math.max(1, input.maxTicketsPerUser)) }
+        : {}),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
     .eq("id", eventId)

@@ -49,6 +49,7 @@ export interface CreateEventState {
     facebookUrl: string;
     linkedinUrl: string;
     linkedPastEventIds: string[];
+    maxTicketsPerUser: string;
   };
 }
 
@@ -129,6 +130,7 @@ function extractFormValues(formData: FormData): CreateEventState["values"] {
     facebookUrl: String(formData.get("facebookUrl") ?? ""),
     linkedinUrl: String(formData.get("linkedinUrl") ?? ""),
     linkedPastEventIds: formData.getAll("linkedPastEventIds").map(String).filter(Boolean),
+    maxTicketsPerUser: String(formData.get("maxTicketsPerUser") ?? ""),
   };
 }
 
@@ -291,6 +293,38 @@ export async function createEventAction(
       };
     }
 
+    // Mandatory event details on publish (drafts stay skippable)
+    if (!String(formData.get("description") ?? "").trim()) {
+      return { error: "About the event is required.", values: extractFormValues(formData) };
+    }
+    if (!String(formData.get("thingsToKnow") ?? "").trim()) {
+      return { error: "Things to know is required.", values: extractFormValues(formData) };
+    }
+    if (!String(formData.get("terms") ?? "").trim()) {
+      return { error: "Event terms & conditions are required.", values: extractFormValues(formData) };
+    }
+    const categoriesSel = formData.getAll("categories").map(String).filter(Boolean);
+    const categorySel = String(formData.get("category") ?? "");
+    if (categoriesSel.length === 0 && !categorySel) {
+      return { error: "Select at least one category.", values: extractFormValues(formData) };
+    }
+    if (!String(formData.get("city") ?? "").trim()) {
+      return { error: "City is required.", values: extractFormValues(formData) };
+    }
+    if (!String(formData.get("tags") ?? "").trim()) {
+      return { error: "Add at least one tag.", values: extractFormValues(formData) };
+    }
+    const contactEmail = String(formData.get("contactEmail") ?? "").trim();
+    if (!contactEmail) {
+      return { error: "Contact email is required.", values: extractFormValues(formData) };
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
+      return { error: "Contact email looks invalid.", values: extractFormValues(formData) };
+    }
+    if (!String(formData.get("contactPhone") ?? "").trim()) {
+      return { error: "Contact phone number is required.", values: extractFormValues(formData) };
+    }
+
     // Validate door staff terms
     const doorStaffTerms = formData.get("doorStaffTerms") === "on";
     if (needsDoorStaff && !doorStaffTerms) {
@@ -374,6 +408,7 @@ export async function createEventAction(
         teaserVideoUrl: String(formData.get("teaserVideoUrl") ?? "") || null,
         linkedPastEventIds: formData.getAll("linkedPastEventIds").map(String).filter(Boolean),
         pricingMode,
+        maxTicketsPerUser: Math.min(10, Math.max(1, Number(formData.get("maxTicketsPerUser") ?? 5) || 5)),
       });
       eventId = draftEventId;
 
@@ -418,6 +453,7 @@ export async function createEventAction(
       facebookUrl: String(formData.get("facebookUrl") ?? "").trim() || null,
       linkedinUrl: String(formData.get("linkedinUrl") ?? "").trim() || null,
       linkedPastEventIds: formData.getAll("linkedPastEventIds").map(String).filter(Boolean),
+      maxTicketsPerUser: Math.min(10, Math.max(1, Number(formData.get("maxTicketsPerUser") ?? 5) || 5)),
       status: isDraft ? "DRAFT" : "PUBLISHED",
     });
     }
@@ -610,6 +646,7 @@ export async function updateEventAction(
       bannerPosterUrl: String(formData.get("bannerPosterUrl") ?? "") || null,
       teaserVideoUrl: String(formData.get("teaserVideoUrl") ?? "") || null,
       linkedPastEventIds: formData.getAll("linkedPastEventIds").map(String).filter(Boolean),
+      maxTicketsPerUser: Math.min(10, Math.max(1, Number(formData.get("maxTicketsPerUser") ?? 5) || 5)),
     });
   } catch (error) {
     return {

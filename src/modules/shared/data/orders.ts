@@ -63,18 +63,18 @@ export async function createFreeOrder(
     throw new Error("This event has started. Online booking is closed. Please buy tickets on spot at the venue.");
   }
 
-  // Prevent double booking — 1 ticket per user per event (unless MAX_TICKETS_PER_ORDER > 1)
+  // Per-user ticket cap (pre-check — the RPC enforces the same cap authoritatively)
   const supabase = await createClient();
-  if (MAX_TICKETS_PER_ORDER === 1) {
-    const { count } = await supabase
-      .from("orders")
-      .select("id", { count: "exact", head: true })
-      .eq("event_id", event.id)
-      .eq("user_id", user.id)
-      .in("status", ["CONFIRMED", "PENDING_VERIFICATION", "RESERVED"]);
-    if (count && count > 0) {
-      throw new Error("You have already booked a ticket for this event.");
-    }
+  const cap = Math.min(10, Math.max(1, event.maxTicketsPerUser ?? 5));
+  const { data: held } = await supabase
+    .from("orders")
+    .select("quantity")
+    .eq("event_id", event.id)
+    .eq("user_id", user.id)
+    .in("status", ["CONFIRMED", "PENDING_VERIFICATION", "RESERVED", "REFUND_REQUESTED"]);
+  const ticketsHeld = (held ?? []).reduce((s, o) => s + (o.quantity ?? 0), 0);
+  if (ticketsHeld + input.quantity > cap) {
+    throw new Error(`You can book at most ${cap} ticket(s) for this event. You already hold ${ticketsHeld}.`);
   }
 
   // Supabase: use the create_free_order RPC (auto-confirms + mints tickets)
@@ -529,17 +529,17 @@ export async function createReservedOrder(
 
   const supabase = await createClient();
 
-  // Prevent double booking — same check as free orders
-  if (MAX_TICKETS_PER_ORDER === 1) {
-    const { count } = await supabase
-      .from("orders")
-      .select("id", { count: "exact", head: true })
-      .eq("event_id", event.id)
-      .eq("user_id", user.id)
-      .in("status", ["CONFIRMED", "PENDING_VERIFICATION", "RESERVED"]);
-    if (count && count > 0) {
-      throw new Error("You have already booked a ticket for this event.");
-    }
+  // Per-user ticket cap (pre-check — the RPC enforces the same cap authoritatively)
+  const cap = Math.min(10, Math.max(1, event.maxTicketsPerUser ?? 5));
+  const { data: held } = await supabase
+    .from("orders")
+    .select("quantity")
+    .eq("event_id", event.id)
+    .eq("user_id", user.id)
+    .in("status", ["CONFIRMED", "PENDING_VERIFICATION", "RESERVED", "REFUND_REQUESTED"]);
+  const ticketsHeld = (held ?? []).reduce((s, o) => s + (o.quantity ?? 0), 0);
+  if (ticketsHeld + input.quantity > cap) {
+    throw new Error(`You can book at most ${cap} ticket(s) for this event. You already hold ${ticketsHeld}.`);
   }
 
   // Money is computed inside the RPC (subtotal/commission/convenience/gateway
