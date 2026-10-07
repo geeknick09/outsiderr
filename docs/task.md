@@ -1,7 +1,7 @@
 | Completed || Completed || Completed || Completed || Completed |# Tasks — Outsiderr tracker
 
 One-sentence purpose: the single source of truth for what is done, in progress, blocked, and planned — replaces `BACKLOG.md`.
-Last updated: 2025-09-20
+Last updated: 2026-10-07
 
 **Status values:** `Not started` · `In progress` · `Completed` · `Blocked`
 **How to update:** tick the row, add a dated remark. Every task keeps `Module | Status | Blockers | Remarks`.
@@ -63,6 +63,12 @@ Grouped by domain. Full detail was in `BACKLOG.md` (now superseded); test cases 
 | Staging env (E11) | Not started | manual Supabase+Vercel setup | steps preserved below |
 | GitHub Actions cron config | Partial | repo secrets `CRON_SECRET` + `APP_URL` | `.github/workflows/cron.yml` — reservations+waitlist `*/5min`, backups daily/weekly, teaser cleanup daily |
 | Production hardening & QA pass | In progress | — | run `docs/reference/test-scenarios.md` |
+
+## Organizer event sections — In progress
+
+| Task | Status | Blockers | Remarks |
+|---|---|---|---|
+| Section navigation for create, draft, and published event editors | In progress | — | Initial navigation and anchored field groups added to `event-form.tsx` and `edit-event-form.tsx`. Existing FormData names and server actions are unchanged. Remaining: dedicated section save/cancel state, organizer management sections, public event-page organizer editing, media replacement/deletion semantics, browser smoke test, and docs sync. |
 
 ## Phase 3 — Post-launch
 

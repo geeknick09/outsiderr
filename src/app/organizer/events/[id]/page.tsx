@@ -9,11 +9,10 @@ import { AttendeesTable } from "@/modules/organizer";
 import { EditEventForm } from "@/modules/organizer";
 import { CancelPostponeButtons } from "@/modules/organizer";
 import { DoorStaffPaymentPanel } from "@/modules/organizer";
-import { DoorStaffRequest } from "@/modules/organizer";
-import { EventStaffManager } from "@/modules/organizer";
-import { CollaborationPanel } from "@/modules/organizer";
-import { ScannerPinManager } from "@/modules/organizer";
-import { BoxOfficePinManager } from "@/modules/organizer";
+        <section id="manage-analytics" className="scroll-mt-36 space-y-3">
+          <h2 className="text-lg font-bold">Analytics</h2>
+          <AnalyticsPanel analytics={analytics} eventId={event.id} showMoney={canViewMoney(accessLevel)} />
+        </section>
 import { HeroBoostPanel } from "@/modules/organizer";
 import { PastEventGalleryManager } from "@/modules/organizer";
 import { ShareButton } from "@/modules/web";
@@ -262,8 +261,28 @@ export default async function ManageEventPage({
       </div>
 
       {/* Analytics — LIMITED sees it without money figures */}
+
+      <nav aria-label="Event management sections" className="sticky top-16 z-20 -mx-4 flex gap-2 overflow-x-auto border-y border-zinc-200 bg-zinc-50/95 px-4 py-2 backdrop-blur-sm dark:border-white/10 dark:bg-ink/95">
+        {[
+          ["manage-analytics", "Overview"],
+          ["manage-attendees", "Attendees"],
+          ["manage-edit", "Event details"],
+          ["manage-promotion", "Promotion"],
+          ["manage-collaboration", "Collaborators"],
+          ["manage-operations", "Operations"],
+          ["manage-lifecycle", "Event actions"],
+        ].map(([sectionId, label]) => (
+          <a
+            key={sectionId}
+            href={`#${sectionId}`}
+            className="shrink-0 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10"
+          >
+            {label}
+          </a>
+        ))}
+      </nav>
       {canView && analytics ? (
-        <section className="space-y-3">
+        <section id="manage-analytics" className="scroll-mt-36 space-y-3">
           <h2 className="text-lg font-bold">Analytics</h2>
           <AnalyticsPanel analytics={analytics} eventId={event.id} showMoney={canViewMoney(accessLevel)} />
         </section>
@@ -296,7 +315,7 @@ export default async function ManageEventPage({
 
       {/* Attendees / Orders list */}
       {canOrders ? (
-      <section className="space-y-3">
+      <section id="manage-attendees" className="scroll-mt-36 space-y-3">
         <h2 className="text-lg font-bold">Attendees ({orders.length})</h2>
         {orders.length === 0 ? (
           <div className="glass rounded-2xl p-5 text-sm text-muted">
@@ -310,7 +329,9 @@ export default async function ManageEventPage({
 
       {/* Edit form — disabled for cancelled, past, and events starting within 2 hours */}
       {canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast && (startMs - nowMs) > 2 * 60 * 60 * 1000 ? (
-        <EditEventForm event={event} pastEvents={pastEventsForLinking} lockLogistics={!isOwner} />
+        <div id="manage-edit" className="scroll-mt-36">
+          <EditEventForm event={event} pastEvents={pastEventsForLinking} lockLogistics={!isOwner} />
+        </div>
       ) : canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast && (startMs - nowMs) <= 2 * 60 * 60 * 1000 ? (
         <div className="glass rounded-3xl p-5">
           <h2 className="mb-2 text-base font-bold">Edit Event</h2>
@@ -322,33 +343,31 @@ export default async function ManageEventPage({
 
       {/* Front Row — disabled for cancelled and past events */}
       {canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast ? (
-        <HeroBoostPanel
-          eventId={event.id}
-          boost={heroBoost}
-          pricePaise={heroBoostPrice}
-          durationDays={heroBoostDuration}
-          eventStartsAt={event.startsAt}
-          platformUpiId={process.env.NEXT_PUBLIC_PLATFORM_UPI_ID ?? "outsiderr@upi"}
-        />
-      ) : null}
-
-      {/* Slot Boost — link to boost page, disabled for past events */}
-      {canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast ? (
-        <section className="glass rounded-3xl p-5">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-base font-bold">Slot Boost</h2>
-              <p className="mt-1 text-sm text-muted">
-                Get your event featured in the homepage carousel slots.
-              </p>
+        <section id="manage-promotion" className="scroll-mt-36 space-y-4">
+          <HeroBoostPanel
+            eventId={event.id}
+            boost={heroBoost}
+            pricePaise={heroBoostPrice}
+            durationDays={heroBoostDuration}
+            eventStartsAt={event.startsAt}
+            platformUpiId={process.env.NEXT_PUBLIC_PLATFORM_UPI_ID ?? "outsiderr@upi"}
+          />
+          <section className="glass rounded-3xl p-5">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-base font-bold">Slot Boost</h2>
+                <p className="mt-1 text-sm text-muted">
+                  Get your event featured in the homepage carousel slots.
+                </p>
+              </div>
+              <Link
+                href={`/organizer/boost?event=${event.id}`}
+                className="shrink-0 rounded-full bg-neon-gradient px-5 py-2.5 text-sm font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90"
+              >
+                Boost Event
+              </Link>
             </div>
-            <Link
-              href={`/organizer/boost?event=${event.id}`}
-              className="shrink-0 rounded-full bg-neon-gradient px-5 py-2.5 text-sm font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90"
-            >
-              Boost Event
-            </Link>
-          </div>
+          </section>
         </section>
       ) : null}
 
@@ -371,27 +390,23 @@ export default async function ManageEventPage({
 
       {/* Collaboration — everyone on the event sees the roster; only the owner invites/removes */}
       {!eventPast && collaborators !== null ? (
+        <section id="manage-collaboration" className="scroll-mt-36">
         <CollaborationPanel eventId={event.id} collaborators={collaborators} canManage={isOwner} />
+        </section>
       ) : null}
 
       {/* Door staff management — every collaborator level gets ops access */}
       {canScan && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
-        <EventStaffManager eventId={event.id} staff={eventStaff} />
-      ) : null}
-
-      {/* Scanner PIN management — every collaborator level */}
-      {canScan && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
-        <ScannerPinManager eventId={event.id} pins={scannerPins} />
-      ) : null}
-
-      {/* Box office PIN management — every collaborator level */}
-      {canScan && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
-        <BoxOfficePinManager eventId={event.id} pins={boxOfficePins} />
+        <section id="manage-operations" className="scroll-mt-36 space-y-4">
+          <EventStaffManager eventId={event.id} staff={eventStaff} />
+          <ScannerPinManager eventId={event.id} pins={scannerPins} />
+          <BoxOfficePinManager eventId={event.id} pins={boxOfficePins} />
+        </section>
       ) : null}
 
       {/* Cancel / Postpone — owner only, never a collaborator */}
       {isOwner && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
-        <section className="rounded-3xl border border-red-500/30 p-5">
+        <section id="manage-lifecycle" className="scroll-mt-36 rounded-3xl border border-red-500/30 p-5">
           <h2 className="text-base font-bold text-red-500">Event actions</h2>
           <p className="mt-1 text-sm text-muted">
             Cancel or postpone this event. Ticket holders will be notified automatically.

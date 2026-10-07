@@ -238,10 +238,32 @@ export function EditEventForm({ event, pastEvents = [], lockLogistics = false }:
 
   return (
     <form action={formAction} className="glass space-y-4 rounded-3xl p-5">
-      <h2 className="text-base font-bold">Edit event details</h2>
+      <div>
+        <h2 className="text-base font-bold">Manage event details</h2>
+        <p className="mt-1 text-xs text-muted">Changes are submitted together so the event stays consistent.</p>
+      </div>
 
       {/* Hidden event id */}
       <input type="hidden" name="eventId" value={event.id} />
+
+      <nav aria-label="Event sections" className="sticky top-16 z-20 -mx-1 flex gap-2 overflow-x-auto bg-zinc-50/95 px-1 py-2 backdrop-blur-sm dark:bg-ink/95">
+        {[
+          ["event-details", "Details"],
+          ["event-schedule", "Schedule & venue"],
+          ["event-media", "Media"],
+          ["event-information", "Information"],
+          ["event-contact", "Contact"],
+          ["event-tickets", "Tickets"],
+        ].map(([id, label]) => (
+          <a
+            key={id}
+            href={`#${id}`}
+            className="shrink-0 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10"
+          >
+            {label}
+          </a>
+        ))}
+      </nav>
 
       {lockLogistics ? (
         <p className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
@@ -261,6 +283,8 @@ export function EditEventForm({ event, pastEvents = [], lockLogistics = false }:
         </>
       ) : null}
 
+      <section id="event-details" className="scroll-mt-36 space-y-4 rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
+      <h3 className="text-sm font-bold">Event details</h3>
       <Field label="Title">
         <input
           name="title"
@@ -339,6 +363,12 @@ export function EditEventForm({ event, pastEvents = [], lockLogistics = false }:
         />
       </Field>
 
+      <TagPicker initialTags={event.tags} />
+      </section>
+
+      <section id="event-schedule" className="scroll-mt-36 space-y-4 rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
+      <h3 className="text-sm font-bold">Schedule & venue</h3>
+      <div id="event-venue" className="scroll-mt-36 space-y-4">
       <input type="hidden" name="venueMode" value={lockLogistics ? (event.venueName === "TBA" ? "TBA" : "NOW") : venueMode} />
       {!lockLogistics ? (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -468,6 +498,7 @@ export function EditEventForm({ event, pastEvents = [], lockLogistics = false }:
           </div>
         ) : null}
       </div>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Starts at">
@@ -504,9 +535,10 @@ export function EditEventForm({ event, pastEvents = [], lockLogistics = false }:
       </div>
       {dateError ? <p className="text-sm text-red-500">{dateError}</p> : null}
 
-      {/* Tag chip picker pre-seeded with existing tags */}
-      <TagPicker initialTags={event.tags} />
+      </section>
 
+      <section id="event-media" className="scroll-mt-36 space-y-4 rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
+      <h3 className="text-sm font-bold">Media & gallery</h3>
       {/* Gallery */}
       <div className="space-y-2">
         <span className="text-xs font-semibold uppercase tracking-wide text-muted">
@@ -554,7 +586,10 @@ export function EditEventForm({ event, pastEvents = [], lockLogistics = false }:
           initialValue={event.teaserVideoUrl ?? ""}
         />
       </div>
+      </section>
 
+      <section id="event-information" className="scroll-mt-36 space-y-4 rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
+      <h3 className="text-sm font-bold">Event information</h3>
       {/* Things to know */}
       <Field label="Things to know (one per line)">
         <textarea
@@ -578,7 +613,10 @@ export function EditEventForm({ event, pastEvents = [], lockLogistics = false }:
           className={INPUT}
         />
       </Field>
+      </section>
 
+      <section id="event-contact" className="scroll-mt-36 space-y-4 rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
+      <h3 className="text-sm font-bold">Contact & social</h3>
       {/* Contact details */}
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Contact email (for attendee queries)">
@@ -641,7 +679,10 @@ export function EditEventForm({ event, pastEvents = [], lockLogistics = false }:
           />
         </Field>
       </div>
+      </section>
 
+      <section id="event-tickets" className="scroll-mt-36 space-y-4 rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
+      <h3 className="text-sm font-bold">Tickets & booking</h3>
       {/* Ticket tier editing — dynamic add/remove */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
@@ -861,6 +902,7 @@ export function EditEventForm({ event, pastEvents = [], lockLogistics = false }:
           </div>
         </div>
       )}
+      </section>
 
       <Button type="submit" disabled={pending || !!dateError || !!phaseError || !!mapsError || !!tierError || !dirty} loading={pending} loadingText="Saving…">
         Save changes

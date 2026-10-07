@@ -311,6 +311,25 @@ export function EventForm({
       <input type="hidden" name="pricingMode" value={pricingMode} />
       {draftEvent ? <input type="hidden" name="draftEventId" value={draftEvent.id} /> : null}
 
+      <nav aria-label="Event sections" className="sticky top-16 z-20 -mx-1 flex gap-2 overflow-x-auto bg-zinc-50/95 px-1 py-2 backdrop-blur-sm dark:bg-ink/95">
+        {[
+          ["create-details", "Details"],
+          ["create-schedule", "Schedule & venue"],
+          ["create-information", "Information"],
+          ["create-media", "Media"],
+          ["create-contact", "Contact"],
+          ["create-tickets", "Tickets"],
+        ].map(([id, label]) => (
+          <a
+            key={id}
+            href={`#${id}`}
+            className="shrink-0 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10"
+          >
+            {label}
+          </a>
+        ))}
+      </nav>
+
       {draftEvent ? (
         <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-700 dark:text-amber-300">
           You&apos;re editing a <strong>draft</strong> — it isn&apos;t visible to anyone. Drafts are
@@ -318,7 +337,7 @@ export function EventForm({
         </div>
       ) : null}
 
-      <section className="glass space-y-4 rounded-3xl p-5">
+      <section id="create-details" className="glass scroll-mt-36 space-y-4 rounded-3xl p-5">
         <h2 className="text-base font-bold">Event details</h2>
 
         <Field label="Title">
@@ -392,6 +411,7 @@ export function EventForm({
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
+          <div id="create-schedule" className="scroll-mt-36 contents">
           <Field label="Starts at">
             <input
               type="datetime-local"
@@ -420,6 +440,7 @@ export function EventForm({
               className={INPUT}
             />
           </Field>
+          </div>
         </div>
         {dateError ? (
           <p className="text-sm text-red-500">{dateError}</p>
@@ -564,6 +585,7 @@ export function EventForm({
             className={INPUT}
           />
         </Field>
+        <div id="create-information" className="scroll-mt-36 space-y-4">
         <Field label="Things to know (one per line) *">
           <textarea
             name="thingsToKnow"
@@ -586,9 +608,11 @@ export function EventForm({
             className={INPUT}
           />
         </Field>
+        </div>
       </section>
 
       {/* Poster & description guidelines */}
+      <div id="create-media" className="scroll-mt-36 space-y-4">
       <PosterGuidelines />
 
       <section className="glass grid gap-4 rounded-3xl p-5 sm:grid-cols-2">
@@ -623,6 +647,7 @@ export function EventForm({
           initialValue={sv?.teaserVideoUrl ?? ""}
         />
       </section>
+      </div>
 
       {/* Waitlist toggle */}
       <section className="glass rounded-3xl p-5">
@@ -666,7 +691,7 @@ export function EventForm({
       </section>
 
       {/* Gallery + Contact */}
-      <section className="glass space-y-4 rounded-3xl p-5">
+      <section id="create-contact" className="glass scroll-mt-36 space-y-4 rounded-3xl p-5">
         <div>
           <h3 className="text-sm font-bold">Event gallery</h3>
           <p className="text-xs text-muted">Add up to 8 photos of past events, venue, or promo shots.</p>
@@ -744,7 +769,7 @@ export function EventForm({
       </section>
 
       {/* ── Pricing mode + tickets ── */}
-      <section className="glass space-y-4 rounded-3xl p-5">
+      <section id="create-tickets" className="glass scroll-mt-36 space-y-4 rounded-3xl p-5">
         <h2 className="text-base font-bold">Tickets</h2>
 
         {/* Pricing mode selector */}

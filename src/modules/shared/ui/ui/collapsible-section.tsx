@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Pencil, X, Check } from "lucide-react";
-import { cn } from "@/modules/shared";
 
 interface CollapsibleSectionProps {
   title: string;
@@ -29,29 +28,30 @@ export function CollapsibleSection({
 
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white dark:border-white/10 dark:bg-zinc-900">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between rounded-t-2xl px-4 py-3 text-left transition-colors hover:bg-zinc-50 dark:hover:bg-white/5"
-      >
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between rounded-t-2xl px-4 py-3 transition-colors hover:bg-zinc-50 dark:hover:bg-white/5">
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+        >
           <span className="text-sm font-bold">{title}</span>
           {isEditing && (
             <span className="text-[10px] font-semibold uppercase tracking-wide text-violet-neon">
               Editing
             </span>
           )}
-        </div>
-        <div className="flex items-center gap-2">
+        </button>
+        <div className="ml-2 flex shrink-0 items-center gap-2">
           {onEdit && !isEditing && !disabled && (
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
+              onClick={() => {
+                setOpen(true);
                 onEdit();
               }}
               className="rounded-lg p-1 text-muted hover:text-violet-neon"
-              aria-label="Edit"
+              aria-label={`Edit ${title}`}
             >
               <Pencil className="h-3.5 w-3.5" />
             </button>
@@ -60,35 +60,37 @@ export function CollapsibleSection({
             <>
               <button
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCancel?.();
-                }}
+                onClick={() => onCancel?.()}
                 className="rounded-lg p-1 text-muted hover:text-red-500"
-                aria-label="Cancel"
+                aria-label={`Cancel editing ${title}`}
               >
                 <X className="h-3.5 w-3.5" />
               </button>
               <button
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSave?.();
-                }}
+                onClick={() => onSave?.()}
                 className="rounded-lg p-1 text-muted hover:text-emerald-500"
-                aria-label="Save"
+                aria-label={`Save ${title}`}
               >
                 <Check className="h-3.5 w-3.5" />
               </button>
             </>
           )}
-          {open ? (
-            <ChevronUp className="h-4 w-4 text-muted" />
-          ) : (
-            <ChevronDown className="h-4 w-4 text-muted" />
-          )}
+          <button
+            type="button"
+            aria-label={`${open ? "Collapse" : "Expand"} ${title}`}
+            aria-expanded={open}
+            onClick={() => setOpen(!open)}
+            className="rounded p-1 text-muted"
+          >
+            {open ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </button>
         </div>
-      </button>
+      </div>
 
       {open && (
         <div className="border-t border-zinc-200 p-4 dark:border-white/10">

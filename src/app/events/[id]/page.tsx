@@ -26,6 +26,7 @@ import { isSubscribedToEvent, getEventCollaborators } from "@/modules/shared/ser
 import { getOrganizerFollowerCount, isFollowingOrganizer } from "@/modules/shared/server";
 import { getOrganizerRating } from "@/modules/shared/server";
 import { getWaitlistEntry, getWaitlistCount } from "@/modules/shared/server";
+import { getEventAccessLevel, canEditEvent } from "@/modules/shared/server";
 import { formatDateRange, mapsLink } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
@@ -125,6 +126,8 @@ export default async function EventDetailsPage({
     getOrganizerRating(event.organizer.id),
   ]);
   const isOwnEvent = !!user && event.organizer.ownerId === user.id;
+  const organizerAccess = user ? await getEventAccessLevel(user, event.id) : null;
+  const canManageEvent = canEditEvent(organizerAccess);
 
   // Per-co-organizer stats: follower count, rating, viewer's follow state
   const collabDetails = await Promise.all(
@@ -210,6 +213,14 @@ export default async function EventDetailsPage({
                 {event.organizer.name}
               </Link>
             </p>
+            {canManageEvent ? (
+              <Link
+                href={`/organizer/events/${event.id}`}
+                className="inline-flex items-center rounded-full border border-violet-neon/40 px-3 py-1.5 text-xs font-semibold text-violet-neon transition-colors hover:bg-violet-neon/10"
+              >
+                Manage event
+              </Link>
+            ) : null}
 
             <div className="flex flex-col gap-2 pt-2 text-sm">
               <span className="flex items-center gap-2">

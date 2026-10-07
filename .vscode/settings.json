@@ -8,6 +8,14 @@
             "approve": true,
             "matchCommandLine": true
         },
-        "npx tsc": true
+        "npx tsc": true,
+        "/^Set-Location 'C:\\\\Users\\\\Anurag Shaw\\\\Desktop\\\\Upcoming projects\\\\Outsiderr\\\\outsiderr'; npx\\.cmd tsc --noEmit$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^& 'C:\\\\Program Files\\\\nodejs\\\\npx\\.cmd' tsc --noEmit$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
     }
 }
