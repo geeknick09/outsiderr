@@ -5,7 +5,13 @@ import { useActionState, useState } from "react";
 import { updateEventAction, type UpdateEventState } from "../actions/events";
 import { GalleryUploader } from "./gallery-uploader";
 import { PosterGuidelines } from "./poster-guidelines";
-import { PosterField, TeaserVideoField } from "./event-form";\nimport { EditDetailsSection, EditTimeSection, EditVenueSection, EditTicketsSection } from "./edit-sections";
+import { PosterField, TeaserVideoField } from "./event-form";
+import {
+  EditDetailsSection,
+  EditTimeSection,
+  EditVenueSection,
+  EditTicketsSection,
+} from "./edit-sections";
 import { Button } from "@/modules/shared";
 import { PhoneInput } from "@/modules/shared";
 import { CATEGORIES } from "@/modules/shared";
