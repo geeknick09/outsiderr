@@ -28,6 +28,7 @@ export * from "./lib/upi";
 export * from "./lib/event-lifecycle";
 export * from "./lib/organizer-eligibility";
 export * from "./lib/rate-limit";
+export * from "./lib/image-compress";
 
 // ---- client-side upload + supabase browser client + env config ----
 export * from "./lib/upload";

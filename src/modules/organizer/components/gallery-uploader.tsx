@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { ImagePlus, Trash2, Upload } from "lucide-react";
 
-import { uploadPublicFile } from "@/modules/shared";
-import { cn } from "@/modules/shared";
+import { uploadPublicFile, compressImage, cn } from "@/modules/shared";
 
 const MAX_PHOTOS = 8;
 
@@ -37,7 +36,8 @@ export function GalleryUploader({
     setUploading(true);
     setError(null);
     try {
-      const url = await uploadPublicFile(file, folder);
+      const compressed = await compressImage(file, 1_000_000);
+      const url = await uploadPublicFile(compressed, folder);
       if (url) {
         setUrls((prev) => [...prev, url]);
       } else {

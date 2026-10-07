@@ -11,7 +11,7 @@ import { GalleryUploader } from "./gallery-uploader";
 import { PosterGuidelines } from "./poster-guidelines";
 import { CATEGORIES, CITIES, PREDEFINED_EVENT_TAGS } from "@/modules/shared";
 import { nowISTInput, utcToISTInput } from "@/modules/shared";
-import { uploadPublicFile } from "@/modules/shared";
+import { uploadPublicFile, compressImage } from "@/modules/shared";
 import { ImageCropper } from "@/modules/shared";
 import { isGoogleMapsLink } from "@/modules/shared";
 import { cn } from "@/modules/shared";
@@ -1585,7 +1585,8 @@ export function PosterField({
     setPendingFile(null);
     setUploading(true);
     try {
-      const uploaded = await uploadPublicFile(cropped, folder);
+      const compressed = await compressImage(cropped, 1_000_000);
+      const uploaded = await uploadPublicFile(compressed, folder);
       if (uploaded) setUrl(uploaded);
       else setUploadError(true);
     } catch {
