@@ -8,7 +8,7 @@ import { Button } from "@/modules/shared";
 import { ImageUploadWithCrop } from "@/modules/shared";
 import { PhoneInput } from "@/modules/shared";
 import { CATEGORIES, PREDEFINED_EVENT_TAGS } from "@/modules/shared";
-import { uploadPublicFile } from "@/modules/shared";
+import { uploadPublicFile, compressImage } from "@/modules/shared";
 import { cn } from "@/modules/shared";
 
 const INPUT =
@@ -97,7 +97,8 @@ export function EditProfileForm({
     setUploading(true);
     setUploadError(null);
     try {
-      const url = await uploadPublicFile(file, "avatars");
+      const compressed = await compressImage(file);
+      const url = await uploadPublicFile(compressed, "avatars");
       if (url) setAvatarUrl(url);
       else setUploadError("Upload failed. Please try again.");
     } catch (err) {
@@ -138,8 +139,6 @@ export function EditProfileForm({
             <ImageUploadWithCrop
               onCropped={handleAvatarUpload}
               aspect={1}
-              maxFileSizeBytes={1 * 1024 * 1024}
-              onSizeError={(msg) => setUploadError(msg)}
               label={
                 <span className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-2.5 text-sm text-muted hover:border-violet-neon dark:border-white/15">
                   <Upload className="h-4 w-4" />

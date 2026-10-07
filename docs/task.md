@@ -116,6 +116,7 @@ Sequencing when mobile lands: Scanner → Outsiderr → Organizer. React Native/
 
 ## Known issues / action required
 
+- **Photo uploads:** profile, organizer profile, onboarding avatar, event poster/banner, and gallery photo inputs no longer reject oversized source files. All photo uploads pass through `compressImage()` before storage; the existing 1 MB compressor target, 8-photo gallery cap, and separate KYC/video limits remain unchanged.
 - **Migrations:** all pending SQL lives in `supabase/migrations/fix_all.sql` — run `node scripts/_apply_fix_all.mjs`. Last applied to live DB: 2025-09-20 (includes scanner `staff_email`/`staff_phone`, `organizers.kyc_*`, KYC notification enum values, `event_notifications.event_id` now nullable, `generate_scanner_pins` 4-arg signature — old 2-arg overload was dropped).
 - **Env vars to set:** `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `NEXT_PUBLIC_RAZORPAY_KEY_ID`, `CRON_SECRET`, `SUPABASE_SERVICE_ROLE_KEY` (`.env.example`).
 - **Razorpay webhook:** `https://<domain>/api/razorpay/webhook`, subscribe `payment.captured`, `order.paid`, `payment.failed`, `refund.processed`, `refund.failed`.

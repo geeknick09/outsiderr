@@ -8,7 +8,7 @@ import { createOrganizerAction, type CreateOrganizerState } from "../actions/org
 import { Button } from "@/modules/shared";
 import { ImageUploadWithCrop } from "@/modules/shared";
 import { QrCode } from "@/modules/shared";
-import { uploadPublicFile } from "@/modules/shared";
+import { uploadPublicFile, compressImage } from "@/modules/shared";
 import { upiIntent, validateUpiId } from "@/modules/shared";
 
 // ─── Shared input style ───────────────────────────────────────────────────────
@@ -98,7 +98,8 @@ export function BecomeOrganizerForm() {
     setUploading(true);
     setUploadError(null);
     try {
-      const url = await uploadPublicFile(file, `${safeOrg}/profile`);
+      const compressed = await compressImage(file);
+      const url = await uploadPublicFile(compressed, `${safeOrg}/profile`);
       if (url) setAvatarUrl(url);
       else setUploadError("Upload failed. Paste an image URL instead.");
     } catch (err) {
@@ -361,8 +362,6 @@ export function BecomeOrganizerForm() {
                       <ImageUploadWithCrop
                         onCropped={handleAvatar}
                         aspect={1}
-                        maxFileSizeBytes={1024 * 1024}
-                        onSizeError={(msg) => setUploadError(msg)}
                         label={
                           <span className="flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-3 text-sm text-muted hover:border-violet-neon dark:border-white/15">
                             <Upload className="h-4 w-4" />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ImagePlus, Trash2, Upload } from "lucide-react";
+import { GripVertical, ImagePlus, Trash2, Upload } from "lucide-react";
 
 import { uploadPublicFile, compressImage, cn } from "@/modules/shared";
 
@@ -21,6 +21,7 @@ export function GalleryUploader({
   const [urls, setUrls] = useState<string[]>(initialUrls);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   // Build path: organizer-name/event-title/gallery
   const safeOrg = organizerName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "organizer";
@@ -66,6 +67,16 @@ export function GalleryUploader({
     setUrls((prev) => prev.map((u, i) => (i === index ? value : u)));
   }
 
+  function moveUrl(fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex) return;
+    setUrls((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  }
+
   return (
     <div className="space-y-3">
       {/* Photo grid */}
@@ -74,8 +85,28 @@ export function GalleryUploader({
           {urls.map((url, index) => (
             <div
               key={index}
-              className="group relative aspect-square overflow-hidden rounded-xl border border-zinc-200 dark:border-white/10"
+              draggable
+              onDragStart={(event) => {
+                setDraggedIndex(index);
+                event.dataTransfer.effectAllowed = "move";
+                event.dataTransfer.setData("text/plain", String(index));
+              }}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                const sourceIndex = draggedIndex ?? Number(event.dataTransfer.getData("text/plain"));
+                moveUrl(sourceIndex, index);
+                setDraggedIndex(null);
+              }}
+              onDragEnd={() => setDraggedIndex(null)}
+              className={cn(
+                "group relative aspect-square overflow-hidden rounded-xl border border-zinc-200 transition-opacity dark:border-white/10",
+                draggedIndex === index && "opacity-40",
+              )}
             >
+              <span className="pointer-events-none absolute left-1 top-1 z-10 flex h-6 w-6 cursor-grab items-center justify-center rounded-full bg-black/60 text-white opacity-70 active:cursor-grabbing">
+                <GripVertical className="h-3.5 w-3.5" />
+              </span>
               {url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={url} alt={`Gallery ${index + 1}`} className="h-full w-full object-cover" />

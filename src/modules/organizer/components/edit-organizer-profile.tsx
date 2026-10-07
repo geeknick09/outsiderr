@@ -7,7 +7,7 @@ import { updateOrganizerAction, type UpdateOrganizerState } from "../actions/org
 import { Button } from "@/modules/shared";
 import { ImageUploadWithCrop } from "@/modules/shared";
 import { QrCode } from "@/modules/shared";
-import { uploadPublicFile } from "@/modules/shared";
+import { uploadPublicFile, compressImage } from "@/modules/shared";
 import { upiIntent, validateUpiId } from "@/modules/shared";
 import type { Organizer } from "@/modules/shared";
 
@@ -106,7 +106,8 @@ export function EditOrganizerProfile({
     setUploading(true);
     setUploadError(null);
     try {
-      const url = await uploadPublicFile(file, "organizer-profiles");
+      const compressed = await compressImage(file);
+      const url = await uploadPublicFile(compressed, "organizer-profiles");
       if (url) setAvatarUrl(url);
       else setUploadError("Upload failed. Paste an image URL instead.");
     } catch (err) {

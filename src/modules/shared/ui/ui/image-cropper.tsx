@@ -17,16 +17,12 @@ export function ImageCropper({
   onCropComplete,
   onCancel,
   title = "Adjust image",
-  maxFileSizeBytes,
-  onSizeError,
 }: {
   file: File;
   aspect?: number;
   onCropComplete: (croppedFile: File) => void;
   onCancel: () => void;
   title?: string;
-  maxFileSizeBytes?: number;
-  onSizeError?: (message: string) => void;
 }) {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -73,12 +69,6 @@ export function ImageCropper({
     setError(null);
     try {
       const cropped = await cropImage(file, croppedAreaPixels);
-      if (maxFileSizeBytes && cropped.size > maxFileSizeBytes) {
-        const msg = `Cropped image is too large (${(cropped.size / 1024 / 1024).toFixed(1)} MB). Please choose a smaller image or crop a smaller area.`;
-        if (onSizeError) onSizeError(msg);
-        else setError(msg);
-        return;
-      }
       onCropComplete(cropped);
     } finally {
       setProcessing(false);
@@ -210,29 +200,18 @@ export function ImageUploadWithCrop({
   label = "Upload image",
   className = "",
   accept = "image/*",
-  maxFileSizeBytes,
-  onSizeError,
 }: {
   onCropped: (file: File) => void;
   aspect?: number;
   label?: React.ReactNode;
   className?: string;
   accept?: string;
-  maxFileSizeBytes?: number;
-  onSizeError?: (message: string) => void;
 }) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) {
-      if (maxFileSizeBytes && file.size > maxFileSizeBytes) {
-        const msg = `Image too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Please choose a file under ${(maxFileSizeBytes / 1024 / 1024).toFixed(0)} MB.`;
-        if (onSizeError) onSizeError(msg);
-      } else {
-        setSelectedFile(file);
-      }
-    }
+    if (file) setSelectedFile(file);
     // Reset input so same file can be re-selected
     e.target.value = "";
   }
@@ -252,8 +231,6 @@ export function ImageUploadWithCrop({
         <ImageCropper
           file={selectedFile}
           aspect={aspect}
-          maxFileSizeBytes={maxFileSizeBytes}
-          onSizeError={onSizeError}
           onCropComplete={(cropped) => {
             onCropped(cropped);
             setSelectedFile(null);

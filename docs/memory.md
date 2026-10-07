@@ -2,7 +2,11 @@
 
 One-sentence purpose: append-only knowledge so agents never re-derive a past fix — check here before debugging.
 Format: `Date · Area · What happened/decision → Fix/rule · Files`. Newest entries go on top.
-Last updated: 2026-09-26
+Last updated: 2026-10-07
+
+## 2026-10-07 — Photo upload size limits
+
+- **Photo uploads · oversized images were rejected before the compressor ran** — removed the cropper's output-size rejection and added compressor-first uploads for user profile, organizer profile, onboarding avatar, event poster/banner, and gallery photos. The existing 1 MB compression target, 8-photo gallery cap, and separate KYC/video limits remain unchanged. Files: `shared/ui/ui/image-cropper.tsx`, web profile form, organizer profile forms, event form, gallery uploader.
 
 ## 2026-09-26 — Cropper modal viewport clipping
 

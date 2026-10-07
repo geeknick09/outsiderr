@@ -1622,8 +1622,6 @@ export function PosterField({
           file={pendingFile}
           aspect={aspect}
           title={`Crop ${label.toLowerCase()}`}
-          maxFileSizeBytes={MAX_FILE_BYTES}
-          onSizeError={() => setSizeError(true)}
           onCropComplete={(cropped) => void handleCropped(cropped)}
           onCancel={() => setPendingFile(null)}
         />
