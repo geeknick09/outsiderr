@@ -214,6 +214,11 @@ export function TicketTiers({
                   <span className="font-bold">
                     {p.tier.pricePaise === 0 ? "Free" : formatPaise(p.tier.pricePaise)}
                   </span>
+                  {p.carryForward > 0 ? (
+                    <span className="text-[10px] text-muted">
+                      +{p.carryForward} carried
+                    </span>
+                  ) : null}
                 </div>
                 <div className="flex items-center gap-2">
                   {isCurrent ? (

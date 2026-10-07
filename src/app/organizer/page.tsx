@@ -38,15 +38,12 @@ export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Organizer — Outsiderr" };
 
-type Tab = "events" | "create" | "verify" | "analytics" | "clubs";
+type Tab = "events" | "analytics" | "clubs";
 
 const TABS: { value: Tab; label: string }[] = [
   { value: "events", label: "My Events" },
-  { value: "create", label: "Create Event" },
-  { value: "verify", label: "Verification" },
   { value: "analytics", label: "Analytics" },
-  // Clubs & Crews disabled for this release — kept in admin only
-  // { value: "clubs", label: "Clubs & Crews" },
+  { value: "clubs", label: "Clubs" },
 ];
 
 export default async function OrganizerPage({
@@ -199,21 +196,23 @@ export default async function OrganizerPage({
         hasPendingChanges={Object.keys(organizerProfile.pendingKyc ?? {}).length > 0}
       />
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {TABS.map((t) => (
           <TabLink
             key={t.value}
             href={`/organizer?tab=${t.value}`}
-            label={
-              t.value === "verify" && pending.length
-                ? `${t.label} (${pending.length})`
-                : t.label
-            }
+            label={t.label}
             active={tab === t.value}
           />
         ))}
         <TabLink href="/organizer/payments" label="Payments" active={false} />
         <TabLink href="/organizer/refunds" label="Refunds" active={false} />
+        <Link
+          href="/organizer/create"
+          className="rounded-full bg-neon-gradient px-4 py-2 text-sm font-semibold text-white shadow-glow-violet"
+        >
+          Create Event
+        </Link>
       </div>
 
       {/* Collaboration invites — shown at top of dashboard if any pending */}
@@ -221,25 +220,6 @@ export default async function OrganizerPage({
 
       {tab === "events" ? (
         <OrganizerEventsList events={allEvents} analyticsMap={analyticsMap} />
-      ) : tab === "create" ? (
-        <Suspense
-          fallback={
-            <div className="glass flex h-96 items-center justify-center rounded-3xl">
-              <p className="text-sm text-muted">Loading event form…</p>
-            </div>
-          }
-        >
-          <EventForm
-            organizerName={organizerProfile.name}
-            termsVersion={termsVersion}
-            doorStaffPricing={doorStaffPricing}
-            doorStaffMax={Math.min(doorStaffMax, doorStaffAvailable)}
-            pastEvents={pastEventsForLinking}
-            draftRetentionDays={draftRetentionDays}
-          />
-        </Suspense>
-      ) : tab === "verify" ? (
-        <OrderMonitor orders={allOrders} organizerEventIds={organizerEventIds} />
       ) : tab === "analytics" ? (
         <div className="space-y-6">
           {/* Aggregated analytics across all events (exclude drafts) */}
