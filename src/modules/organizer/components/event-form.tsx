@@ -1558,7 +1558,6 @@ export function PosterField({
   const [url, setUrl] = useState(initialValue ?? "");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(false);
-  const [sizeError, setSizeError] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
 
   // Build path: organizer-name/event-title/subFolder/filename
@@ -1567,17 +1566,9 @@ export function PosterField({
   const safeTitle = eventTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "untitled-event";
   const folder = `${safeOrg}/${safeTitle}/${subFolder}`;
 
-  const MAX_FILE_BYTES = 1.5 * 1024 * 1024; // 1.5 MB
-
-  // On select: validate size, then open the cropper so the user can center
-  // the image within the target aspect before it uploads.
+  // On select: compression handles size limits internally, so just open the cropper
   function handleSelect(file: File | undefined) {
     if (!file) return;
-    setSizeError(false);
-    if (file.size > MAX_FILE_BYTES) {
-      setSizeError(true);
-      return;
-    }
     setPendingFile(file);
   }
 
@@ -1603,7 +1594,7 @@ export function PosterField({
       </span>
       <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-zinc-300 px-4 py-4 text-sm text-muted hover:border-violet-neon dark:border-white/15">
         <Upload className="h-4 w-4" />
-        {uploading ? "Uploading…" : url ? "Uploaded" : "Choose image (max 1.5 MB)"}
+        {uploading ? "Uploading…" : url ? "Uploaded" : "Choose image"}
         <input
           type="file"
           accept="image/png,image/jpeg"
@@ -1614,9 +1605,9 @@ export function PosterField({
           }}
         />
       </label>
-      {sizeError ? (
+      {uploadError ? (
         <p className="text-xs font-semibold text-red-500">
-          File too large. Maximum size is 1.5 MB.
+          Upload failed. Please try again.
         </p>
       ) : null}
       <input
