@@ -42,11 +42,11 @@ export function computePhaseAvailability(
   if (phases.length === 0) return [];
 
   const nowMs = now.getTime();
-  let carryForward = 0;
+  let carryForward = 0; // What is carried INTO the current phase
   // For phase 1, there's no previous phase to wait for — it's "ready"
   let prevPhaseEnded = true;
 
-  return phases.map((tier, index) => {
+  const results = phases.map((tier, index) => {
     const opensAt = tier.phaseOpensAt ? new Date(tier.phaseOpensAt).getTime() : null;
     // If phaseClosesAt is not set, the phase implicitly closes when the NEXT phase opens
     const nextOpensAt = phases[index + 1]?.phaseOpensAt
@@ -77,9 +77,10 @@ export function computePhaseAvailability(
     // Remember for the next iteration whether this phase has ended
     prevPhaseEnded = hasEnded;
 
-    // Update carry-forward for next phase: carry the EFFECTIVE unsold
-    // (includes carry-forward from previous phases, not just this tier's own unsold)
-    carryForward = Math.max(0, effectiveAvailable);
+    // Carry forward: pass the TIER's unsold (not the available after carry) to the next phase.
+    // This ensures raw tier inventory carries: EB1 7 qty, 5 sold → 2 unsold → EB2 gets 2.
+    const tierUnsold = Math.max(0, tier.quantity - tier.quantitySold - (tier.quantityReserved ?? 0));
+    carryForward = tierUnsold;
 
     const isUpcoming = !hasOpened && !isTimeOver;
     const isPast = isTimeOver && !isActive;
@@ -92,7 +93,7 @@ export function computePhaseAvailability(
 
     return {
       tier,
-      carryForward: effectiveQuantity - tier.quantity,
+      carryForward: effectiveQuantity - tier.quantity, // What came INTO this phase
       effectiveQuantity,
       effectiveAvailable: Math.max(0, effectiveAvailable),
       isActive,
@@ -101,6 +102,8 @@ export function computePhaseAvailability(
       status,
     };
   });
+
+  return results;
 }
 
 /**
