@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp, Pencil, X, Check } from "lucide-react";
 
 interface CollapsibleSectionProps {
+  id?: string;
   title: string;
   defaultOpen?: boolean;
   children: React.ReactNode;
@@ -15,6 +16,7 @@ interface CollapsibleSectionProps {
 }
 
 export function CollapsibleSection({
+  id,
   title,
   defaultOpen = false,
   children,
@@ -27,7 +29,7 @@ export function CollapsibleSection({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white dark:border-white/10 dark:bg-zinc-900">
+    <div id={id} className="scroll-mt-36 rounded-2xl border border-zinc-200 bg-white dark:border-white/10 dark:bg-zinc-900">
       <div className="flex items-center justify-between rounded-t-2xl px-4 py-3 transition-colors hover:bg-zinc-50 dark:hover:bg-white/5">
         <button
           type="button"

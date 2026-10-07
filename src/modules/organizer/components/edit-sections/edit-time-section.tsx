@@ -10,10 +10,10 @@ interface EditTimeSectionProps {
     endsAt: string | null;
   };
   lockLogistics?: boolean;
-  onDirtyChange: () => void;
+  onSave: () => void;
 }
 
-export function EditTimeSection({ event, lockLogistics, onDirtyChange }: EditTimeSectionProps) {
+export function EditTimeSection({ event, lockLogistics, onSave }: EditTimeSectionProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [startsAt, setStartsAt] = useState(utcToISTInput(event.startsAt));
   const [endsAt, setEndsAt] = useState(event.endsAt ? utcToISTInput(event.endsAt) : "");
@@ -31,7 +31,7 @@ export function EditTimeSection({ event, lockLogistics, onDirtyChange }: EditTim
   function handleSave() {
     if (dateError) return;
     setIsEditing(false);
-    onDirtyChange();
+    onSave();
   }
 
   function handleCancel() {
@@ -43,6 +43,7 @@ export function EditTimeSection({ event, lockLogistics, onDirtyChange }: EditTim
 
   return (
     <CollapsibleSection
+      id="event-schedule"
       title="Event Time"
       defaultOpen={false}
       onEdit={() => setIsEditing(true)}

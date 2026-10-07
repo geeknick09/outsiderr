@@ -4,6 +4,11 @@ One-sentence purpose: append-only knowledge so agents never re-derive a past fix
 Format: `Date · Area · What happened/decision → Fix/rule · Files`. Newest entries go on top.
 Last updated: 2026-10-07
 
+## 2026-10-07 — Organizer event editor sections
+
+- **Organizer editor · reusable section editing was integrated** — details, schedule, venue, and ticket tiers now use a shared collapsible section with sibling edit/cancel/save controls, while the parent keeps the existing full-form update action and authorization boundary. Section-local state prevents duplicate FormData fields and stale parent values; phase dates use timezone-correct conversion; map coordinates are restored from persisted event data. Files: `organizer/components/edit-event-form.tsx`, `organizer/components/edit-sections/*`, `shared/ui/ui/collapsible-section.tsx`, `shared/index.ts`.
+- **Verification · TypeScript, Vitest, and ESLint passed** — no TypeScript diagnostics; Vitest 125/125; ESLint exited successfully. The direct Next.js 15.5.23 production build reached optimized compilation and emitted only the existing Sentry config deprecation warning, but it did not complete or create `.next/BUILD_ID`; production-build success remains unverified and no deployment/push occurred.
+
 ## 2026-10-07 — Photo upload size limits
 
 - **Photo uploads · oversized images were rejected before the compressor ran** — removed the cropper's output-size rejection and added compressor-first uploads for user profile, organizer profile, onboarding avatar, event poster/banner, and gallery photos. The existing 1 MB compression target, 8-photo gallery cap, and separate KYC/video limits remain unchanged. Files: `shared/ui/ui/image-cropper.tsx`, web profile form, organizer profile forms, event form, gallery uploader.

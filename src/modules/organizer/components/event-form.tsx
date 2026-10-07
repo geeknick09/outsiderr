@@ -1534,34 +1534,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function FeeOption({
-  value,
-  title,
-  description,
-  defaultChecked,
-}: {
-  value: string;
-  title: string;
-  description: string;
-  defaultChecked?: boolean;
-}) {
-  return (
-    <label className="flex cursor-pointer gap-3 rounded-2xl border border-zinc-200 p-4 text-sm transition-colors hover:border-violet-neon dark:border-white/10">
-      <input
-        type="radio"
-        name="feePayer"
-        value={value}
-        defaultChecked={defaultChecked}
-        className="mt-1 h-4 w-4 accent-violet-neon"
-      />
-      <span>
-        <span className="block font-semibold">{title}</span>
-        <span className="block text-xs text-muted">{description}</span>
-      </span>
-    </label>
-  );
-}
-
 export function PosterField({
   name,
   label,

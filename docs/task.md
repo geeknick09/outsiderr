@@ -68,7 +68,7 @@ Grouped by domain. Full detail was in `BACKLOG.md` (now superseded); test cases 
 
 | Task | Status | Blockers | Remarks |
 |---|---|---|---|
-| Section navigation for create, draft, and published event editors | In progress | — | Initial navigation and anchored field groups added to `event-form.tsx` and `edit-event-form.tsx`. Existing FormData names and server actions are unchanged. Remaining: dedicated section save/cancel state, organizer management sections, public event-page organizer editing, media replacement/deletion semantics, browser smoke test, and docs sync. |
+| Section navigation for create, draft, and published event editors | In progress | Production build completion | Reusable details, schedule, venue, and ticket sections are integrated with local edit state and the existing full-form `updateEventAction` persistence boundary. TypeScript diagnostics are clean, Vitest is 125/125 green, and ESLint passes. The final Next.js production build reached compilation but did not produce a `BUILD_ID` or completion output, so deployment readiness remains blocked until a clean build completes. Browser gallery drag-and-drop, media replacement/deletion, and section save/cancel smoke tests remain. |
 
 ## Phase 3 — Post-launch
 

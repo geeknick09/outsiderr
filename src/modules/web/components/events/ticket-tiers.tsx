@@ -22,13 +22,11 @@ export interface WaitlistTierData {
 
 export function TicketTiers({
   event,
-  feeBps,
   waitlistData = [],
   waitlistEnabled = true,
   ticketsHeld = 0,
 }: {
   event: EventDetail;
-  feeBps?: number;
   waitlistData?: WaitlistTierData[];
   waitlistEnabled?: boolean;
   /** Tickets this user already holds for the event (server-computed). */

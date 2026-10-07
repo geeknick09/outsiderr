@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CollapsibleSection } from "@/modules/shared";
+import { CollapsibleSection, utcToISTInput } from "@/modules/shared";
 import { Plus, Trash2 } from "lucide-react";
 import type { EventDetail } from "@/modules/shared";
 
@@ -19,10 +19,11 @@ interface EditableTier {
 
 interface EditTicketsSectionProps {
   event: EventDetail;
-  onDirtyChange: () => void;
+  lockLogistics?: boolean;
+  onSave: () => void;
 }
 
-export function EditTicketsSection({ event, onDirtyChange }: EditTicketsSectionProps) {
+export function EditTicketsSection({ event, lockLogistics, onSave }: EditTicketsSectionProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [tiers, setTiers] = useState<EditableTier[]>(
     event.tiers.map((t) => ({
@@ -53,7 +54,7 @@ export function EditTicketsSection({ event, onDirtyChange }: EditTicketsSectionP
   function handleSave() {
     if (tierError) return;
     setIsEditing(false);
-    onDirtyChange();
+    onSave();
   }
 
   function handleCancel() {
@@ -97,12 +98,14 @@ export function EditTicketsSection({ event, onDirtyChange }: EditTicketsSectionP
 
   return (
     <CollapsibleSection
+      id="event-tickets"
       title="Ticket Details"
       defaultOpen={false}
       onEdit={() => setIsEditing(true)}
       isEditing={isEditing}
       onCancel={handleCancel}
       onSave={handleSave}
+      disabled={lockLogistics}
     >
       <div className="space-y-4">
         {!isEditing ? (
@@ -162,12 +165,30 @@ export function EditTicketsSection({ event, onDirtyChange }: EditTicketsSectionP
                     <button
                       type="button"
                       onClick={() => removeTier(tier.id)}
-                      disabled={tier.quantitySold > 0}
+                      disabled={lockLogistics || tier.quantitySold > 0}
                       className="self-center rounded-lg p-1 text-muted hover:text-red-500 disabled:opacity-50"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
+                  {tier.tierType === "FLAT_PHASE" ? (
+                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                      <input
+                        type="datetime-local"
+                        value={tier.phaseOpensAt ? utcToISTInput(tier.phaseOpensAt) : ""}
+                        onChange={(e) => updateTier(tier.id, { phaseOpensAt: e.target.value })}
+                        placeholder="Phase opens"
+                        className="w-full min-w-0 box-border rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon [color-scheme:light] dark:[color-scheme:dark] dark:border-white/10 dark:bg-white/5 dark:text-white"
+                      />
+                      <input
+                        type="datetime-local"
+                        value={tier.phaseClosesAt ? utcToISTInput(tier.phaseClosesAt) : ""}
+                        onChange={(e) => updateTier(tier.id, { phaseClosesAt: e.target.value })}
+                        placeholder="Phase closes"
+                        className="w-full min-w-0 box-border rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon [color-scheme:light] dark:[color-scheme:dark] dark:border-white/10 dark:bg-white/5 dark:text-white"
+                      />
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -188,6 +209,12 @@ export function EditTicketsSection({ event, onDirtyChange }: EditTicketsSectionP
         ))}
         {tiers.map((tier) => (
           <input key={`qty-${tier.id}`} type="hidden" name={`tierQty[]`} value={tier.quantity} />
+        ))}
+        {tiers.map((tier) => (
+          <input key={`phase-open-${tier.id}`} type="hidden" name="tierPhaseOpensAt[]" value={tier.phaseOpensAt ?? ""} />
+        ))}
+        {tiers.map((tier) => (
+          <input key={`phase-close-${tier.id}`} type="hidden" name="tierPhaseClosesAt[]" value={tier.phaseClosesAt ?? ""} />
         ))}
       </div>
     </CollapsibleSection>

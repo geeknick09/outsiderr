@@ -3,7 +3,6 @@ import type { CheckoutSession } from "../lib/types";
 import {
   abandonPayment,
   applyCapturedPayment,
-  applyFailedPayment,
   attachRazorpayOrder,
   createPaymentIntent,
   findIntentById,

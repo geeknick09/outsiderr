@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { BrandedLoader } from "./branded-loader";
 
@@ -46,29 +46,7 @@ export function NavigationProgress() {
     window.scrollTo(0, 0);
   }, []);
 
-  function startProgress() {
-    if (completeTimer.current) clearTimeout(completeTimer.current);
-    if (fadeTimer.current) clearTimeout(fadeTimer.current);
-    setLoading(true);
-    // Jump to 20% immediately, then CSS transition fills to 80% over 600ms
-    setProgress(20);
-    completeTimer.current = setTimeout(() => {
-      // Snap to near-complete — CSS will animate
-      setProgress(80);
-    }, 50);
-    // Center-screen branded loader kicks in only if the nav is still going
-    // after 150ms — prefetch-instant navigations never show it.
-    if (overlayTimer.current) clearTimeout(overlayTimer.current);
-    overlayTimer.current = setTimeout(() => setShowOverlay(true), 150);
-    // Safety: never leave the overlay stuck if nothing navigates.
-    if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
-    fallbackTimer.current = setTimeout(() => {
-      finishProgress();
-      setShowOverlay(false);
-    }, 12000);
-  }
-
-  function finishProgress() {
+  const finishProgress = useCallback(() => {
     if (completeTimer.current) clearTimeout(completeTimer.current);
     if (overlayTimer.current) clearTimeout(overlayTimer.current);
     setShowOverlay(false);
@@ -77,7 +55,22 @@ export function NavigationProgress() {
       setLoading(false);
       setProgress(0);
     }, 300);
-  }
+  }, []);
+
+  const startProgress = useCallback(() => {
+    if (completeTimer.current) clearTimeout(completeTimer.current);
+    if (fadeTimer.current) clearTimeout(fadeTimer.current);
+    setLoading(true);
+    setProgress(20);
+    completeTimer.current = setTimeout(() => setProgress(80), 50);
+    if (overlayTimer.current) clearTimeout(overlayTimer.current);
+    overlayTimer.current = setTimeout(() => setShowOverlay(true), 150);
+    if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
+    fallbackTimer.current = setTimeout(() => {
+      finishProgress();
+      setShowOverlay(false);
+    }, 12000);
+  }, [finishProgress]);
 
   useEffect(() => {
     const currentPath = pathname + searchParams.toString();
@@ -96,7 +89,7 @@ export function NavigationProgress() {
       cancelAnimationFrame(raf);
       timers.forEach(clearTimeout);
     };
-  }, [pathname, searchParams]);
+  }, [finishProgress, pathname, searchParams]);
 
   // Start on internal link clicks — the old version only reacted AFTER the
   // route changed, so slow server renders showed nothing while fetching.
@@ -128,7 +121,7 @@ export function NavigationProgress() {
       document.removeEventListener("click", handleClick);
       window.removeEventListener("popstate", onPop);
     };
-  }, []);
+  }, [startProgress]);
 
   // Detect form submissions (server actions + GET search forms)
   useEffect(() => {
@@ -152,7 +145,7 @@ export function NavigationProgress() {
       if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
       if (overlayTimer.current) clearTimeout(overlayTimer.current);
     };
-  }, []);
+  }, [finishProgress, startProgress]);
 
   if (!loading && progress === 0 && !showOverlay) return null;
 

@@ -1,8 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import dynamic from "next/dynamic";
+import { Suspense, useState } from "react";
 import { CollapsibleSection } from "@/modules/shared";
 import { cn, isGoogleMapsLink } from "@/modules/shared";
+import { MapPin } from "lucide-react";
+
+const MapPicker = dynamic(
+  () => import("../map-picker").then((m) => m.MapPicker),
+  { ssr: false },
+);
 
 interface EditVenueSectionProps {
   event: {
@@ -12,14 +19,25 @@ interface EditVenueSectionProps {
     city: string;
   };
   lockLogistics?: boolean;
-  onDirtyChange: () => void;
+  latitude: string;
+  longitude: string;
+  onLocationChange: (latitude: number, longitude: number) => void;
+  onSave: () => void;
 }
 
-export function EditVenueSection({ event, lockLogistics, onDirtyChange }: EditVenueSectionProps) {
+export function EditVenueSection({
+  event,
+  lockLogistics,
+  latitude,
+  longitude,
+  onLocationChange,
+  onSave,
+}: EditVenueSectionProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [venueMode, setVenueMode] = useState<"NOW" | "TBA">(
     event.venueName === "TBA" ? "TBA" : "NOW",
   );
+  const [showMapPicker, setShowMapPicker] = useState(false);
   const [venueName, setVenueName] = useState(event.venueName === "TBA" ? "" : event.venueName);
   const [venueAddress, setVenueAddress] = useState(event.venueAddress);
   const [mapsLink, setMapsLink] = useState(event.googleMapsLink ?? "");
@@ -36,7 +54,7 @@ export function EditVenueSection({ event, lockLogistics, onDirtyChange }: EditVe
     }
     setMapsError(null);
     setIsEditing(false);
-    onDirtyChange();
+    onSave();
   }
 
   function handleCancel() {
@@ -50,6 +68,7 @@ export function EditVenueSection({ event, lockLogistics, onDirtyChange }: EditVe
 
   return (
     <CollapsibleSection
+      id="event-venue"
       title="Venue Details"
       defaultOpen={false}
       onEdit={() => setIsEditing(true)}
@@ -150,12 +169,39 @@ export function EditVenueSection({ event, lockLogistics, onDirtyChange }: EditVe
         </div>
       )}
 
+      <div className="space-y-2">
+        <button
+          type="button"
+          onClick={() => !lockLogistics && setShowMapPicker((value) => !value)}
+          className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted hover:text-violet-neon"
+        >
+          <MapPin className="h-4 w-4" />
+          {showMapPicker ? "Hide map picker" : "Choose location on map (optional)"}
+        </button>
+        {showMapPicker ? (
+          <Suspense
+            fallback={
+              <div className="flex h-64 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 dark:border-white/10 dark:bg-white/5">
+                <p className="text-xs text-muted">Loading map…</p>
+              </div>
+            }
+          >
+            <MapPicker
+              initialLat={latitude || undefined}
+              initialLng={longitude || undefined}
+              onLocationChange={onLocationChange}
+            />
+          </Suspense>
+        ) : null}
+      </div>
+
       {/* Hidden form fields */}
       <input type="hidden" name="venueMode" value={venueMode} />
       <input type="hidden" name="venueName" value={venueMode === "TBA" ? "TBA" : venueName} />
       <input type="hidden" name="venueAddress" value={venueMode === "TBA" ? "" : venueAddress} />
       <input type="hidden" name="googleMapsLink" value={venueMode === "TBA" ? "" : mapsLink} />
-      <input type="hidden" name="city" value={event.city} />
+      <input type="hidden" name="latitude" value={latitude} />
+      <input type="hidden" name="longitude" value={longitude} />
     </CollapsibleSection>
   );
 }
