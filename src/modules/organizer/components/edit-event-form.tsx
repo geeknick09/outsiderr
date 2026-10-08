@@ -40,6 +40,8 @@ export function EditEventForm({ event, lockLogistics = false }: { event: EventDe
 
       {/* Hidden event id */}
       <input type="hidden" name="eventId" value={event.id} />
+      <input type="hidden" name="latitude" value={event.latitude ?? ""} />
+      <input type="hidden" name="longitude" value={event.longitude ?? ""} />
 
       <nav aria-label="Event sections" className="sticky top-16 z-20 -mx-1 flex gap-2 overflow-x-auto bg-zinc-50/95 px-1 py-2 backdrop-blur-sm dark:bg-ink/95">
         {[

@@ -23,7 +23,7 @@ import { getEventCollaboratorsForOwner, getEventAccessLevel, canViewAnalytics, c
 import { listEventOrders, listEventTickets } from "@/modules/shared/server";
 import { expireWaitlistOffers, listEventWaitlist } from "@/modules/shared/server";
 
-import { getCancellationChargePercent, getPostponementChargePercent, getDoorStaffPricing, getDoorStaffAvailable, getHeroBoostPrice, getHeroBoostDurationDays } from "@/modules/shared/server";
+import { getCancellationChargePercent, getPostponementChargePercent, getDoorStaffPricing, getDoorStaffAvailable, getHeroBoostPrice, getHeroBoostDurationDays, getDoorStaffOrder } from "@/modules/shared/server";
 import { getHeroBoostForEvent } from "@/modules/shared/server";
 import { formatDateRange, isEventEnded } from "@/modules/shared";
 import { CATEGORY_LABELS } from "@/modules/shared";
@@ -208,7 +208,7 @@ export default async function ManageEventPage({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Badge tone="violet">{CATEGORY_LABELS[event.category]}</Badge>
+        <Badge tone="violet">{CATEGORY_LABELS[event.category as keyof typeof CATEGORY_LABELS] || event.category}</Badge>
         <Badge tone={statusTone}>{statusLabel}</Badge>
         {event.isFeatured ? <Badge tone="lime">Boosted</Badge> : null}
         {!isOwner ? <Badge tone="violet">Co-organizer · {accessLevel}</Badge> : null}
@@ -286,7 +286,7 @@ export default async function ManageEventPage({
         <section className="space-y-3">
           <h2 className="text-lg font-bold">Payment Verification</h2>
           <VerificationQueue
-            orders={orders.filter((o) => o.status === "PENDING_VERIFICATION")}
+            orders={orders.filter((o: { status: string }) => o.status === "PENDING_VERIFICATION")}
             organizerEventIds={[event.id]}
           />
         </section>
