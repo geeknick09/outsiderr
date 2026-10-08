@@ -2236,6 +2236,7 @@ $$;
 -- ----------------------------------------------------------------
 -- STEP 16: request_postponement_refund RPC
 -- ----------------------------------------------------------------
+drop function if exists public.request_postponement_refund(uuid, uuid);
 create or replace function public.request_postponement_refund(
   p_event_id uuid,
   p_user_id uuid
@@ -3328,6 +3329,7 @@ grant select on public.organizers_public to anon, authenticated;
 
 drop policy if exists "organizers are publicly readable" on public.organizers;
 drop policy if exists "organizers are public" on public.organizers;
+drop policy if exists "organizers owner/admin read" on public.organizers;
 create policy "organizers owner/admin read" on public.organizers
   for select using (owner_id = auth.uid() or public.is_current_user_admin());
 
@@ -3410,6 +3412,7 @@ grant execute on function public.submit_kyc(uuid) to authenticated, service_role
 -- Fixes: caller could pass any p_user_id (forced refunds), no row lock
 -- (double-refund race), ambiguous column refs (function was broken outright),
 -- no idempotency, no inventory release.
+drop function if exists public.request_postponement_refund(uuid, uuid);
 create or replace function public.request_postponement_refund(
   p_event_id uuid,
   p_user_id uuid
@@ -4461,6 +4464,7 @@ grant execute on function public.set_event_status(uuid, text) to authenticated, 
 
 -- c) request_postponement_refund: qualify tickets.order_id — the OUT param
 --    `order_id` (RETURNS TABLE) shadows the column → "ambiguous" on every call.
+drop function if exists public.request_postponement_refund(uuid, uuid);
 create or replace function public.request_postponement_refund(
   p_event_id uuid,
   p_user_id uuid
@@ -5235,10 +5239,10 @@ grant  execute on function public.set_razorpay_order_id(uuid, text) to service_r
 grant  execute on function public.expire_reserved_orders()     to service_role;
 
 --    User-facing but internally gated → authenticated only (never anon/public).
-revoke execute on function public.create_reserved_order(uuid, uuid, integer, integer, integer, integer, integer, integer, integer, integer, text, text, text, text, text) from public, anon;
+revoke execute on function public.create_reserved_order(uuid, uuid, integer, text, text, text, text, text) from public, anon;
 revoke execute on function public.cancel_event(uuid, text, integer) from public, anon;
 revoke execute on function public.request_postponement_refund(uuid, uuid) from public, anon;
-grant  execute on function public.create_reserved_order(uuid, uuid, integer, integer, integer, integer, integer, integer, integer, integer, text, text, text, text, text) to authenticated;
+grant  execute on function public.create_reserved_order(uuid, uuid, integer, text, text, text, text, text) to authenticated;
 grant  execute on function public.cancel_event(uuid, text, integer) to authenticated;
 grant  execute on function public.request_postponement_refund(uuid, uuid) to authenticated;
 
@@ -5840,7 +5844,7 @@ begin
 end;
 $$;
 
-revoke execute on function public.apply_failed_payment(text) from public, anon, authenticated;
+drop function if exists public.apply_failed_payment(text);
 revoke execute on function public.apply_failed_payment(text, text) from public, anon, authenticated;
 grant execute on function public.apply_failed_payment(text, text) to service_role;
 
@@ -6460,3 +6464,8 @@ begin
 end;
 $$;
 
+-- create_reserved_order: retire the obsolete 15-arg overload, then set privileges on
+-- the 8-arg live signature. Kept at the end so the function exists before these run.
+drop function if exists public.create_reserved_order(uuid, uuid, integer, integer, integer, integer, integer, integer, integer, integer, text, text, text, text, text);
+revoke execute on function public.create_reserved_order(uuid, uuid, integer, text, text, text, text, text) from public, anon;
+grant  execute on function public.create_reserved_order(uuid, uuid, integer, text, text, text, text, text) to authenticated;
