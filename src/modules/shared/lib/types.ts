@@ -272,7 +272,7 @@ export interface Ticket {
   organizerContactEmail?: string | null;
 }
 
-export type ScanOutcome = "VALID" | "ALREADY_USED" | "INVALID";
+export type ScanOutcome = "VALID" | "ALREADY_USED" | "INVALID" | "CANCELLED" | "WRONG_EVENT" | "DUPLICATE_CONFLICT";
 
 export interface ScanResult {
   outcome: ScanOutcome;

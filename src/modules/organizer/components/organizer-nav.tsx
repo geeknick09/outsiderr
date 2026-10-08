@@ -10,6 +10,7 @@ const ITEMS: { href: string; label: string; exact?: boolean }[] = [
   { href: "/organizer/clubs", label: "Clubs" },
   { href: "/organizer/payments", label: "Payments" },
   { href: "/organizer/refunds", label: "Refunds" },
+  { href: "/organizer/staff", label: "Box Office Staff" },
 ];
 
 /**

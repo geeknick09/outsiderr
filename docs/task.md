@@ -71,13 +71,13 @@ Plan: `C:\Users\Anurag Shaw\.devin\plans\plan-e9605775583d9b9f.md` (5 phases). D
 | Phase | Status | Remarks |
 |---|---|---|
 | 0 — current-bug fixes | Completed (local commit, not pushed) | Walk-in ledger + capacity + tier-required + client sale key; PIN-gated offline cache (paginated, no PII); local USED marking; organizer payout view. Live DB: `create_walkin_order` applied via `_apply_phase0_walkin.mjs`, 9 live checks pass (rolled back). Full `fix_all.sql` bundle still doesn't apply in one shot (see memory.md 2026-10-09). |
-| 1 — staff registry | Not started | `staff_members`, `staff_event_assignments`, admin + organizer pages, legacy `box_office_pins` read-only |
-| 2 — counter sales | Not started | Staff login, Razorpay path, cash RPC, ticket link, cash handover |
-| 3 — scan attribution | Not started | `scan_log`, scanner session token (replaces per-scan PIN in queue), WRONG_EVENT outcome |
-| 4 — offline hardening | Not started | Signed QR, batch sync with `client_scan_id`, DUPLICATE_CONFLICT, device status UI |
-| 5 — cleanup | Not started | Retire legacy PIN writes, openapi, copy |
+| 1 — staff registry | Completed (pushed) | bcrypt-hashed personal PINs, shown once; admin (any event) and organizer (own events) staff at /admin/box-office-staff and /organizer/staff. Live RPC checks pass. Legacy box_office_pins not migrated (no phone on them); their counter page still works for existing PINs.
+| 2 — counter sales | Completed for cash (pushed) | /box-office: phone + PIN sign-in (12h token), assigned events only, cash sale through create_walkin_order with attribution, ticket link, cash-to-collect and handover on the staff page. **Razorpay at the counter is NOT built** (needs a counter reserve RPC and a verify path without a buyer session; needs Razorpay test keys to verify). SMS/WhatsApp delivery is not built either (adapters are stubs).
+| 3 — scan attribution | Completed (pushed) | scan_log on every token scan; door sessions (12h) bound to one event; WRONG_EVENT names the ticket real event; organizer scan log at /organizer/events/[id]/scan-log. Offline queue no longer stores the PIN. Legacy PIN check path kept for entries queued before this change.
+| 4 — offline hardening | Partly completed | DUPLICATE_CONFLICT for offline scans used elsewhere; cache refresh every 3 min; cache holds no PII. **Not built, on purpose:** signed QR. qr_hash is a random token, and an offline device only accepts hashes from its own cache, so forgery offline needs the random value. Signing would mean reissuing every printed ticket. **Not built:** batch sync endpoint (scans sync one by one). **Not run:** airplane-mode device test.
+| 5 — cleanup | Partly completed | Organizer event page no longer issues legacy box-office PINs (links to staff page). Legacy /organizer/box-office counter kept for existing PINs. openapi: no new /api/v1 routes added, so nothing to document yet.
 
-- **Pending before Phase 2:** confirm fee-payer=ORGANIZER convenience treatment for counter cash; fix the three pre-existing bundle issues so `fix_all.sql` applies in one shot.
+- **Open:** Razorpay counter path; SMS/WhatsApp ticket delivery; device airplane-mode test; legacy box-office PIN counter retirement (after existing PINs expire).
 
 ## Organizer event sections — In progress
 

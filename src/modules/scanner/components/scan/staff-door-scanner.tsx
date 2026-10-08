@@ -12,7 +12,8 @@ import {
   History,
 } from "lucide-react";
 
-import { checkInTicketAction } from "@/modules/scanner/actions/check-in";
+import { checkInWithTokenAction } from "@/modules/scanner/actions/check-in";
+import { scannerLoginAction } from "@/modules/scanner/actions/scan";
 import { useRealtime } from "@/modules/shared";
 import { formatDateRange } from "@/modules/shared";
 import { ScannerSyncManager, type SyncStatus } from "../../offline/sync-manager";
@@ -65,6 +66,22 @@ export function StaffDoorScanner({
   const scannerRef = useRef<{ start: () => void; stop: () => void } | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const syncManagerRef = useRef<ScannerSyncManager | null>(null);
+  // Event-scoped door session. The PIN signs in once; scans send only this token.
+  const [token, setToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!pin || !selectedEventId) return;
+    let cancelled = false;
+    setToken(null);
+    scannerLoginAction(selectedEventId, pin).then((r) => {
+      if (cancelled) return;
+      if (r.error || !r.token) setError(r.error ?? "Could not start the door session.");
+      else setToken(r.token);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [pin, selectedEventId]);
 
   const selectedEvent = events.find((e) => e.id === selectedEventId);
 
@@ -84,9 +101,9 @@ export function StaffDoorScanner({
 
   // Offline sync manager - initialize when PIN is provided
   useEffect(() => {
-    if (!pin || !selectedEventId) return;
+    if (!token || !selectedEventId) return;
 
-    const manager = new ScannerSyncManager(selectedEventId, pin);
+    const manager = new ScannerSyncManager(selectedEventId, token);
     syncManagerRef.current = manager;
 
     const unsubscribe = manager.subscribe(setSyncStatus);
@@ -102,7 +119,7 @@ export function StaffDoorScanner({
       manager.stop();
       syncManagerRef.current = null;
     };
-  }, [pin, selectedEventId]);
+  }, [token, selectedEventId]);
 
   // Play audio feedback
   const playSound = useCallback((type: "success" | "error") => {
@@ -210,10 +227,14 @@ export function StaffDoorScanner({
       }
 
       // Online - process directly via server action
-      const result = await checkInTicketAction(hash.trim(), selectedEventId, pin);
+      if (!token) {
+        setError("Door session is still connecting. Try again in a moment.");
+        return;
+      }
+      const result = await checkInWithTokenAction(hash.trim(), token, crypto.randomUUID());
       handleScanResult(result, hash.trim());
     },
-    [selectedEventId, handleScanResult, pin, selectedEvent],
+    [selectedEventId, handleScanResult, token, selectedEvent],
   );
 
   // Initialize camera scanner

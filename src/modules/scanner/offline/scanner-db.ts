@@ -132,7 +132,8 @@ export interface QueuedScan {
   id?: number;
   qr_hash: string;
   event_id: string;
-  pin: string;
+  pin?: string;
+  client_scan_id?: string;
   timestamp: string;
 }
 

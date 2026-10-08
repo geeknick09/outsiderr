@@ -1,0 +1,80 @@
+import "server-only";
+
+import { createServiceClient } from "@/modules/shared/server";
+import type { ScanOutcome, ScanResult } from "@/modules/shared";
+
+/** Event a door session belongs to, or null when the token is unknown or expired. */
+export async function resolveScannerSessionEvent(token: string): Promise<string | null> {
+  if (!token || token.length !== 64) return null;
+  const { data } = await createServiceClient().rpc("scanner_session_event", { p_token: token });
+  return (data as string | null) ?? null;
+}
+
+const MESSAGES: Record<string, string> = {
+  VALID: "Checked in.",
+  ALREADY_USED: "This ticket has already been checked in.",
+  INVALID: "Ticket not recognised.",
+  CANCELLED: "This ticket was cancelled.",
+  WRONG_EVENT: "This ticket is for a different event.",
+  DUPLICATE_CONFLICT: "Already checked in on another door while this scan was offline.",
+};
+
+/**
+ * Token-scoped check-in. Shares the same rules as the database check (one event per door
+ * session, every attempt logged). The screen gets the holder name only, never phone or email.
+ */
+export async function checkInWithScannerToken(
+  qrHash: string,
+  token: string,
+  clientScanId: string,
+  source: "ONLINE" | "OFFLINE_SYNC" = "ONLINE",
+): Promise<ScanResult> {
+  const { data, error } = await createServiceClient().rpc("check_in_ticket_by_token", {
+    p_qr_hash: qrHash,
+    p_token: token,
+    p_client_scan_id: clientScanId,
+    p_source: source,
+  });
+  if (error) throw new Error(error.message);
+  const row = (data as { outcome: string; event_title: string | null; tier_name: string | null; holder_name: string | null; checked_in_at: string | null }[] | null)?.[0];
+  const outcome = (row?.outcome ?? "INVALID") as ScanOutcome;
+  if (outcome === "INVALID" || !row) return { outcome: "INVALID", message: MESSAGES.INVALID };
+  return {
+    outcome,
+    message: MESSAGES[outcome] ?? MESSAGES.INVALID,
+    ticket: {
+      eventTitle: row.event_title ?? "Event",
+      tierName: row.tier_name ?? "",
+      holderName: row.holder_name,
+      holderEmail: null,
+      holderPhone: null,
+      quantity: 1,
+      checkedInAt: row.checked_in_at,
+    },
+  };
+}
+
+export interface ScanLogEntry {
+  id: string;
+  outcome: string;
+  source: string;
+  actorName: string | null;
+  scannedAt: string;
+}
+
+/** Recent door scans for one event, newest first. */
+export async function listEventScanLog(eventId: string, limit = 300): Promise<ScanLogEntry[]> {
+  const { data } = await createServiceClient()
+    .from("scan_log")
+    .select("id, outcome, source, actor_name, scanned_at")
+    .eq("event_id", eventId)
+    .order("scanned_at", { ascending: false })
+    .limit(limit);
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    outcome: r.outcome,
+    source: r.source,
+    actorName: r.actor_name,
+    scannedAt: r.scanned_at,
+  }));
+}

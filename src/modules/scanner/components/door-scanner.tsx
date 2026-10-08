@@ -21,6 +21,21 @@ const OUTCOME_STYLES = {
     title: "ALREADY USED",
     className: "border-amber-500/50 bg-amber-500/15 text-amber-600 dark:text-amber-300",
   },
+  DUPLICATE_CONFLICT: {
+    icon: CircleSlash,
+    title: "DUPLICATE - CHECK DOOR LOG",
+    className: "border-amber-500/50 bg-amber-500/15 text-amber-600 dark:text-amber-300",
+  },
+  WRONG_EVENT: {
+    icon: XCircle,
+    title: "WRONG EVENT",
+    className: "border-red-500/50 bg-red-500/15 text-red-600 dark:text-red-300",
+  },
+  CANCELLED: {
+    icon: XCircle,
+    title: "CANCELLED",
+    className: "border-red-500/50 bg-red-500/15 text-red-600 dark:text-red-300",
+  },
   INVALID: {
     icon: XCircle,
     title: "INVALID",

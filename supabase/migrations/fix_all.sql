@@ -6469,3 +6469,554 @@ $$;
 drop function if exists public.create_reserved_order(uuid, uuid, integer, integer, integer, integer, integer, integer, integer, integer, text, text, text, text, text);
 revoke execute on function public.create_reserved_order(uuid, uuid, integer, text, text, text, text, text) from public, anon;
 grant  execute on function public.create_reserved_order(uuid, uuid, integer, text, text, text, text, text) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Phase 1 (box-office redesign): named staff registry.
+--  - staff_members: admin-owned (ADMIN) or organizer-owned (ORGANIZER)
+--  - personal 6-digit PIN, bcrypt-hashed (pgcrypto), shown once on create/reset
+--  - staff_event_assignments: which events a staff member may work
+--  - RLS on, no policies: only service-role code (server actions) reads or writes
+-- ---------------------------------------------------------------------------
+create table if not exists public.staff_members (
+  id           uuid        primary key default gen_random_uuid(),
+  owner_type   text        not null check (owner_type in ('ADMIN', 'ORGANIZER')),
+  organizer_id uuid        references public.organizers(id) on delete cascade,
+  name         text        not null,
+  email        text,
+  phone        text        not null,
+  pin_hash     text        not null,
+  pin_set_at   timestamptz not null default now(),
+  is_active    boolean     not null default true,
+  created_by   uuid        references auth.users(id) on delete set null,
+  created_at   timestamptz not null default now(),
+  constraint staff_members_owner_chk check (
+    (owner_type = 'ADMIN' and organizer_id is null)
+    or (owner_type = 'ORGANIZER' and organizer_id is not null)
+  )
+);
+create unique index if not exists staff_members_admin_phone_idx
+  on public.staff_members(phone) where owner_type = 'ADMIN';
+create unique index if not exists staff_members_org_phone_idx
+  on public.staff_members(organizer_id, phone) where owner_type = 'ORGANIZER';
+
+create table if not exists public.staff_event_assignments (
+  staff_id   uuid        not null references public.staff_members(id) on delete cascade,
+  event_id   uuid        not null references public.events(id) on delete cascade,
+  is_active  boolean     not null default true,
+  created_at timestamptz not null default now(),
+  primary key (staff_id, event_id)
+);
+create index if not exists staff_event_assignments_event_idx on public.staff_event_assignments(event_id);
+
+alter table public.staff_members enable row level security;
+alter table public.staff_event_assignments enable row level security;
+
+-- 6-digit PIN from pgcrypto's CSPRNG (no modulo-bias concern at this scale).
+create or replace function public._new_staff_pin()
+returns text
+language sql
+volatile
+set search_path = public, extensions
+as $$
+  select lpad(((('x' || encode(extensions.gen_random_bytes(4), 'hex'))::bit(32)::bigint & 2147483647) % 1000000)::text, 6, '0');
+$$;
+
+create or replace function public.staff_register(
+  p_owner_type   text,
+  p_organizer_id uuid,
+  p_name         text,
+  p_email        text,
+  p_phone        text,
+  p_actor        uuid
+) returns table (staff_id uuid, pin text)
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_pin text := public._new_staff_pin();
+  v_id  uuid;
+begin
+  insert into public.staff_members (owner_type, organizer_id, name, email, phone, pin_hash, created_by)
+  values (p_owner_type, p_organizer_id, btrim(p_name), nullif(btrim(coalesce(p_email, '')), ''),
+          p_phone, extensions.crypt(v_pin, extensions.gen_salt('bf', 8)), p_actor)
+  returning id into v_id;
+  return query select v_id, v_pin;
+end;
+$$;
+
+create or replace function public.staff_reset_pin(p_staff_id uuid)
+returns text
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_pin text := public._new_staff_pin();
+begin
+  update public.staff_members
+     set pin_hash = extensions.crypt(v_pin, extensions.gen_salt('bf', 8)), pin_set_at = now()
+   where id = p_staff_id;
+  if not found then raise exception 'Staff member not found'; end if;
+  return v_pin;
+end;
+$$;
+
+create or replace function public.staff_set_assignment(
+  p_staff_id uuid,
+  p_event_id uuid,
+  p_active   boolean
+) returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_owner text;
+  v_org   uuid;
+  v_event_org uuid;
+begin
+  select owner_type, organizer_id into v_owner, v_org from public.staff_members where id = p_staff_id;
+  if not found then raise exception 'Staff member not found'; end if;
+  select organizer_id into v_event_org from public.events where id = p_event_id;
+  if not found then raise exception 'Event not found'; end if;
+  -- Organizer-owned staff can only work their own organizer's events.
+  if v_owner = 'ORGANIZER' and v_org <> v_event_org then
+    raise exception 'This staff member can only be assigned to your own events';
+  end if;
+  insert into public.staff_event_assignments (staff_id, event_id, is_active)
+  values (p_staff_id, p_event_id, p_active)
+  on conflict (staff_id, event_id) do update set is_active = excluded.is_active;
+end;
+$$;
+
+-- Privileges: server actions call these with the service role after authorising.
+revoke execute on function public._new_staff_pin() from public, anon, authenticated;
+revoke execute on function public.staff_register(text, uuid, text, text, text, uuid) from public, anon, authenticated;
+revoke execute on function public.staff_reset_pin(uuid) from public, anon, authenticated;
+revoke execute on function public.staff_set_assignment(uuid, uuid, boolean) from public, anon, authenticated;
+grant  execute on function public.staff_register(text, uuid, text, text, text, uuid) to service_role;
+grant  execute on function public.staff_reset_pin(uuid) to service_role;
+grant  execute on function public.staff_set_assignment(uuid, uuid, boolean) to service_role;
+
+-- ---------------------------------------------------------------------------
+-- Phase 2 (box-office redesign): counter sales by named staff (cash channel).
+--  - staff_sessions: hashed bearer tokens for counter devices (12h)
+--  - orders get sale attribution (who sold, when, through which channel)
+--  - cash_handovers: organizer/admin confirm cash given to them, per staff per event
+-- ---------------------------------------------------------------------------
+create table if not exists public.staff_sessions (
+  id           uuid        primary key default gen_random_uuid(),
+  staff_id     uuid        not null references public.staff_members(id) on delete cascade,
+  token_hash   text        not null unique,
+  expires_at   timestamptz not null,
+  created_at   timestamptz not null default now(),
+  last_used_at timestamptz
+);
+create index if not exists staff_sessions_staff_idx on public.staff_sessions(staff_id);
+alter table public.staff_sessions enable row level security;
+
+alter table public.orders add column if not exists sold_by_staff_id uuid references public.staff_members(id) on delete set null;
+alter table public.orders add column if not exists sold_at timestamptz;
+alter table public.orders add column if not exists sale_channel text;
+create index if not exists orders_sold_by_staff_idx on public.orders(sold_by_staff_id, event_id);
+
+create table if not exists public.cash_handovers (
+  id           uuid        primary key default gen_random_uuid(),
+  event_id     uuid        not null references public.events(id) on delete cascade,
+  staff_id     uuid        not null references public.staff_members(id) on delete cascade,
+  amount_paise integer     not null check (amount_paise >= 0),
+  order_count  integer     not null check (order_count >= 0),
+  confirmed_by uuid        references auth.users(id) on delete set null,
+  confirmed_at timestamptz not null default now()
+);
+create index if not exists cash_handovers_event_staff_idx on public.cash_handovers(event_id, staff_id);
+alter table public.cash_handovers enable row level security;
+
+-- Login: phone + personal PIN -> bearer token. Phones can repeat across owners, so
+-- every active match is checked against the PIN.
+create or replace function public.staff_login_session(p_phone text, p_pin text)
+returns table (token text, staff_id uuid, name text, owner_type text, organizer_id uuid)
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_staff public.staff_members;
+  v_token text;
+begin
+  for v_staff in
+    select * from public.staff_members where phone = p_phone and is_active = true
+  loop
+    if extensions.crypt(p_pin, v_staff.pin_hash) = v_staff.pin_hash then
+      v_token := encode(extensions.gen_random_bytes(32), 'hex');
+      insert into public.staff_sessions (staff_id, token_hash, expires_at)
+      values (v_staff.id, encode(extensions.digest(v_token, 'sha256'), 'hex'), now() + interval '12 hours');
+      return query select v_token, v_staff.id, v_staff.name, v_staff.owner_type, v_staff.organizer_id;
+      return;
+    end if;
+  end loop;
+  return;
+end;
+$$;
+
+-- Resolve a bearer token to an active staff member (or nothing).
+create or replace function public.staff_session_staff(p_token text)
+returns table (staff_id uuid, name text, owner_type text, organizer_id uuid)
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_session public.staff_sessions;
+begin
+  select * into v_session from public.staff_sessions
+   where token_hash = encode(extensions.digest(p_token, 'sha256'), 'hex')
+     and expires_at > now();
+  if not found then return; end if;
+  update public.staff_sessions set last_used_at = now() where id = v_session.id;
+  return query
+    select s.id, s.name, s.owner_type, s.organizer_id
+      from public.staff_members s
+     where s.id = v_session.staff_id and s.is_active = true;
+end;
+$$;
+
+-- Counter cash sale: the normal walk-in pricing and capacity rules, plus attribution.
+create or replace function public.create_counter_cash_sale(
+  p_staff_id        uuid,
+  p_event_id        uuid,
+  p_tier_id         uuid,
+  p_buyer_name      text,
+  p_buyer_phone     text,
+  p_buyer_email     text,
+  p_mode            text,
+  p_idempotency_key text
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_ok    boolean;
+  v_res   jsonb;
+  v_order uuid;
+begin
+  if not exists (
+    select 1 from public.staff_members s
+      join public.staff_event_assignments a on a.staff_id = s.id
+     where s.id = p_staff_id and s.is_active and a.event_id = p_event_id and a.is_active
+  ) then
+    raise exception 'You are not assigned to this event';
+  end if;
+
+  v_res := public.create_walkin_order(p_event_id, p_buyer_name, p_buyer_phone, p_tier_id,
+                                      nullif(p_buyer_email, ''), 0, p_mode, p_idempotency_key);
+  v_order := (v_res->>'orderId')::uuid;
+
+  update public.orders
+     set sold_by_staff_id = p_staff_id, sold_at = coalesce(sold_at, now()), sale_channel = 'COUNTER_CASH'
+   where id = v_order and sale_channel is null;
+  update public.payment_ledger
+     set notes = 'Box office cash sale'
+   where order_id = v_order and notes = 'Box office sale';
+
+  return v_res;
+end;
+$$;
+
+-- Cash still held by a staff member for an event (sales minus confirmed handovers).
+create or replace function public.staff_cash_outstanding(p_staff_id uuid, p_event_id uuid)
+returns table (order_count bigint, amount_paise bigint)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select
+    (select count(*) from public.orders o
+      where o.sold_by_staff_id = p_staff_id and o.event_id = p_event_id and o.sale_channel = 'COUNTER_CASH'),
+    (select coalesce(sum(o.total_paise), 0) from public.orders o
+      where o.sold_by_staff_id = p_staff_id and o.event_id = p_event_id and o.sale_channel = 'COUNTER_CASH')
+    - (select coalesce(sum(h.amount_paise), 0) from public.cash_handovers h
+        where h.staff_id = p_staff_id and h.event_id = p_event_id);
+$$;
+
+-- Organizer/admin confirms the cash handed over. Amount is computed here, never supplied.
+create or replace function public.confirm_cash_handover(
+  p_staff_id uuid,
+  p_event_id uuid,
+  p_actor    uuid
+) returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_count  bigint;
+  v_amount bigint;
+begin
+  perform pg_advisory_xact_lock(hashtextextended(p_staff_id::text || ':' || p_event_id::text, 0));
+  select order_count, amount_paise into v_count, v_amount
+    from public.staff_cash_outstanding(p_staff_id, p_event_id);
+  if v_amount is null or v_amount <= 0 then
+    raise exception 'No cash is outstanding for this staff member and event';
+  end if;
+  insert into public.cash_handovers (event_id, staff_id, amount_paise, order_count, confirmed_by)
+  values (p_event_id, p_staff_id, v_amount, v_count, p_actor);
+  return v_amount::integer;
+end;
+$$;
+
+revoke execute on function public.staff_login_session(text, text) from public, anon, authenticated;
+revoke execute on function public.staff_session_staff(text) from public, anon, authenticated;
+revoke execute on function public.create_counter_cash_sale(uuid, uuid, uuid, text, text, text, text, text) from public, anon, authenticated;
+revoke execute on function public.staff_cash_outstanding(uuid, uuid) from public, anon, authenticated;
+revoke execute on function public.confirm_cash_handover(uuid, uuid, uuid) from public, anon, authenticated;
+grant  execute on function public.staff_login_session(text, text) to service_role;
+grant  execute on function public.staff_session_staff(text) to service_role;
+grant  execute on function public.create_counter_cash_sale(uuid, uuid, uuid, text, text, text, text, text) to service_role;
+grant  execute on function public.staff_cash_outstanding(uuid, uuid) to service_role;
+grant  execute on function public.confirm_cash_handover(uuid, uuid, uuid) to service_role;
+
+-- ---------------------------------------------------------------------------
+-- Phase 3 (box-office redesign): scan attribution and event-scoped scanner sessions.
+--  - scan_log: one row per scan attempt (append-only in practice), with who scanned
+--    and the device time. client_scan_id makes replays idempotent (Phase 4 relies on it).
+--  - scanner_sessions: hashed bearer tokens minted by a door PIN for ONE event (12h).
+--    The door device sends the token, never the PIN, after login.
+--  - WRONG_EVENT: a ticket for a different event is reported, not hidden as INVALID.
+-- ---------------------------------------------------------------------------
+create table if not exists public.scan_log (
+  id             uuid        primary key default gen_random_uuid(),
+  event_id       uuid        not null references public.events(id) on delete cascade,
+  ticket_id      uuid        references public.tickets(id) on delete set null,
+  qr_hash        text        not null,
+  outcome        text        not null check (outcome in ('VALID','ALREADY_USED','INVALID','WRONG_EVENT','CANCELLED','DUPLICATE_CONFLICT')),
+  source         text        not null default 'ONLINE' check (source in ('ONLINE','OFFLINE_SYNC')),
+  actor_type     text        not null check (actor_type in ('DOOR_PIN','STAFF','ORGANIZER')),
+  actor_id       uuid,
+  actor_name     text,
+  client_scan_id uuid        unique,
+  scanned_at     timestamptz not null default now()
+);
+create index if not exists scan_log_event_idx on public.scan_log(event_id, scanned_at desc);
+create index if not exists scan_log_ticket_idx on public.scan_log(ticket_id);
+alter table public.scan_log enable row level security;
+
+create table if not exists public.scanner_sessions (
+  id             uuid        primary key default gen_random_uuid(),
+  scanner_pin_id uuid        not null references public.scanner_pins(id) on delete cascade,
+  event_id       uuid        not null references public.events(id) on delete cascade,
+  staff_name     text        not null,
+  token_hash     text        not null unique,
+  expires_at     timestamptz not null,
+  created_at     timestamptz not null default now()
+);
+alter table public.scanner_sessions enable row level security;
+
+-- Door PIN -> event-scoped session token.
+create or replace function public.scanner_login_session(p_event_id uuid, p_pin text)
+returns table (token text, event_id uuid, staff_name text)
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_pin  public.scanner_pins;
+  v_hash text;
+  v_token text;
+begin
+  v_hash := encode(extensions.digest(p_event_id::text || ':' || p_pin, 'sha256'), 'hex');
+  select * into v_pin from public.scanner_pins sp
+   where sp.event_id = p_event_id and sp.pin_hash = v_hash and sp.is_active = true;
+  if not found then return; end if;
+
+  v_token := encode(extensions.gen_random_bytes(32), 'hex');
+  insert into public.scanner_sessions (scanner_pin_id, event_id, staff_name, token_hash, expires_at)
+  values (v_pin.id, p_event_id, v_pin.staff_name,
+          encode(extensions.digest(v_token, 'sha256'), 'hex'), now() + interval '12 hours');
+  update public.scanner_pins set last_used_at = now() where id = v_pin.id;
+  return query select v_token, p_event_id, v_pin.staff_name;
+end;
+$$;
+
+-- Token-scoped check-in. Every attempt is logged. A repeated client_scan_id returns the
+-- original outcome without changing the ticket again.
+create or replace function public.check_in_ticket_by_token(
+  p_qr_hash      text,
+  p_token        text,
+  p_client_scan_id uuid default null,
+  p_source       text default 'ONLINE'
+)
+returns table (
+  outcome       text,
+  event_title   text,
+  tier_name     text,
+  holder_name   text,
+  checked_in_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_session public.scanner_sessions;
+  v_ticket  public.tickets;
+  v_ticket_id uuid;
+  v_outcome text;
+  v_prior   text;
+begin
+  select * into v_session from public.scanner_sessions
+   where token_hash = encode(extensions.digest(p_token, 'sha256'), 'hex') and expires_at > now();
+  if not found then raise exception 'Scanner session expired. Sign in again.'; end if;
+
+  if p_client_scan_id is not null then
+    select sl.outcome into v_prior from public.scan_log sl where sl.client_scan_id = p_client_scan_id;
+    if found then
+      -- Replay: report the stored outcome, change nothing.
+      v_outcome := v_prior;
+    end if;
+  end if;
+
+  if v_outcome is null then
+    select * into v_ticket from public.tickets t where t.qr_hash = p_qr_hash for update;
+    if found then v_ticket_id := v_ticket.id; end if;
+    if not found then
+      v_outcome := 'INVALID';
+    elsif v_ticket.event_id <> v_session.event_id then
+      v_outcome := 'WRONG_EVENT';
+    elsif v_ticket.status::text = 'CANCELLED' then
+      v_outcome := 'CANCELLED';
+    elsif v_ticket.status::text = 'USED' then
+      v_outcome := 'ALREADY_USED';
+    elsif v_ticket.status::text = 'VALID' then
+      update public.tickets set status = 'USED', checked_in_at = now(), checked_in_by = null
+       where id = v_ticket.id
+       returning * into v_ticket;
+      v_outcome := 'VALID';
+    else
+      v_outcome := 'INVALID';
+    end if;
+
+    insert into public.scan_log (event_id, ticket_id, qr_hash, outcome, source,
+                                 actor_type, actor_id, actor_name, client_scan_id)
+    values (v_session.event_id, v_ticket_id,
+            p_qr_hash, v_outcome, case when p_source = 'OFFLINE_SYNC' then 'OFFLINE_SYNC' else 'ONLINE' end,
+            'DOOR_PIN', v_session.scanner_pin_id, v_session.staff_name, p_client_scan_id)
+    on conflict (client_scan_id) do nothing;
+  end if;
+
+  -- Ticket details for the screen. Wrong-event tickets show their real event.
+  return query
+    select
+      v_outcome,
+      e.title,
+      t.name,
+      coalesce(o.buyer_name, p.full_name),
+      v.checked_in_at
+    from (select 1) as anchor
+    left join public.tickets v on v.qr_hash = p_qr_hash
+    left join public.events e on e.id = v.event_id
+    left join public.ticket_tiers t on t.id = v.tier_id
+    left join public.orders o on o.id = v.order_id
+    left join public.profiles p on p.id = v.user_id;
+end;
+$$;
+
+revoke execute on function public.scanner_login_session(uuid, text) from public, anon, authenticated;
+revoke execute on function public.check_in_ticket_by_token(text, text, uuid, text) from public, anon, authenticated;
+grant  execute on function public.scanner_login_session(uuid, text) to service_role;
+grant  execute on function public.check_in_ticket_by_token(text, text, uuid, text) to service_role;
+
+
+-- Event a scanner session belongs to (null when the token is unknown or expired).
+create or replace function public.scanner_session_event(p_token text)
+returns uuid
+language sql
+security definer
+set search_path = public, extensions
+stable
+as $$
+  select s.event_id from public.scanner_sessions s
+   where s.token_hash = encode(extensions.digest(p_token, 'sha256'), 'hex') and s.expires_at > now();
+$$;
+
+revoke execute on function public.scanner_session_event(text) from public, anon, authenticated;
+grant  execute on function public.scanner_session_event(text) to service_role;
+
+-- Phase 4: an offline scan that syncs after the ticket was used elsewhere is a
+-- DUPLICATE_CONFLICT (two doors took the same ticket while offline), not a plain repeat.
+create or replace function public.check_in_ticket_by_token(
+  p_qr_hash      text,
+  p_token        text,
+  p_client_scan_id uuid default null,
+  p_source       text default 'ONLINE'
+)
+returns table (
+  outcome       text,
+  event_title   text,
+  tier_name     text,
+  holder_name   text,
+  checked_in_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_session public.scanner_sessions;
+  v_ticket  public.tickets;
+  v_ticket_id uuid;
+  v_outcome text;
+  v_prior   text;
+begin
+  select * into v_session from public.scanner_sessions
+   where token_hash = encode(extensions.digest(p_token, 'sha256'), 'hex') and expires_at > now();
+  if not found then raise exception 'Scanner session expired. Sign in again.'; end if;
+
+  if p_client_scan_id is not null then
+    select sl.outcome into v_prior from public.scan_log sl where sl.client_scan_id = p_client_scan_id;
+    if found then v_outcome := v_prior; end if;
+  end if;
+
+  if v_outcome is null then
+    select * into v_ticket from public.tickets t where t.qr_hash = p_qr_hash for update;
+    if found then v_ticket_id := v_ticket.id; end if;
+    if not found then
+      v_outcome := 'INVALID';
+    elsif v_ticket.event_id <> v_session.event_id then
+      v_outcome := 'WRONG_EVENT';
+    elsif v_ticket.status::text = 'CANCELLED' then
+      v_outcome := 'CANCELLED';
+    elsif v_ticket.status::text = 'USED' then
+      v_outcome := case when p_source = 'OFFLINE_SYNC' then 'DUPLICATE_CONFLICT' else 'ALREADY_USED' end;
+    elsif v_ticket.status::text = 'VALID' then
+      update public.tickets set status = 'USED', checked_in_at = now(), checked_in_by = null
+       where id = v_ticket.id
+       returning * into v_ticket;
+      v_outcome := 'VALID';
+    else
+      v_outcome := 'INVALID';
+    end if;
+
+    insert into public.scan_log (event_id, ticket_id, qr_hash, outcome, source,
+                                 actor_type, actor_id, actor_name, client_scan_id)
+    values (v_session.event_id, v_ticket_id, p_qr_hash, v_outcome,
+            case when p_source = 'OFFLINE_SYNC' then 'OFFLINE_SYNC' else 'ONLINE' end,
+            'DOOR_PIN', v_session.scanner_pin_id, v_session.staff_name, p_client_scan_id)
+    on conflict (client_scan_id) do nothing;
+  end if;
+
+  return query
+    select v_outcome, e.title, t.name, coalesce(o.buyer_name, p.full_name), v.checked_in_at
+      from (select 1) as anchor
+      left join public.tickets v on v.qr_hash = p_qr_hash
+      left join public.events e on e.id = v.event_id
+      left join public.ticket_tiers t on t.id = v.tier_id
+      left join public.orders o on o.id = v.order_id
+      left join public.profiles p on p.id = v.user_id;
+end;
+$$;
+
+-- scan_log outcome check must allow DUPLICATE_CONFLICT (already in the table definition).

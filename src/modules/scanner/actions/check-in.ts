@@ -165,3 +165,27 @@ export async function updateWalkinOrderAction(formData: FormData): Promise<{ err
   revalidatePath(`/organizer/events/${orderRow.event_id}`);
   return { error: null, success: true };
 }
+
+/** Door check-in with a session token (Phase 3). The PIN is not sent on scans. */
+export async function checkInWithTokenAction(
+  qrHash: string,
+  token: string,
+  clientScanId: string,
+  source: "ONLINE" | "OFFLINE_SYNC" = "ONLINE",
+): Promise<ScanResult> {
+  if (!UUID_RE.test(clientScanId)) return { outcome: "INVALID", message: "Scan could not be recorded. Please scan again." };
+  const { headers } = await import("next/headers");
+  const h = await headers();
+  const rl = rateLimit(`check-in:${getRateLimitIdentifier(h)}`, RATE_LIMITS.CHECK_IN);
+  if (rl.limited) return { outcome: "INVALID", message: "Too many scans. Please slow down." };
+  const { checkInWithScannerToken } = await import("../data/scan-token");
+  try {
+    return await checkInWithScannerToken(qrHash.trim(), token, clientScanId, source);
+  } catch (error) {
+    const expired = error instanceof Error && error.message.includes("session expired");
+    return {
+      outcome: "INVALID",
+      message: expired ? "Your door session has ended. Sign in again to continue." : "Scan failed. Please try again.",
+    };
+  }
+}

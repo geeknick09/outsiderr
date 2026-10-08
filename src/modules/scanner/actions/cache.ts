@@ -1,34 +1,21 @@
 "use server";
 
-import { headers } from "next/headers";
-import { createClient, createServiceClient } from "@/modules/shared/server";
-import { validate, verifyScannerPinSchema, rateLimit, getRateLimitIdentifier, RATE_LIMITS } from "@/modules/shared";
+import { createServiceClient } from "@/modules/shared/server";
 import type { CacheTicketRow } from "../offline/cache-mapper";
+import { resolveScannerSessionEvent } from "../data/scan-token";
 
 const PAGE = 1000;
 
 /**
- * Offline door cache for one event. PIN-gated (the door device has no Supabase
- * session). Returns only what the gate needs: status, tier and holder name.
- * No phone, no email. Pages past PostgREST's 1000-row default cap.
+ * Offline door cache for the event a door session belongs to. Token-gated: the door
+ * device sends its session token, never the PIN. Returns only what the gate needs
+ * (status, tier name, holder name). No phone, no email. Pages past PostgREST's cap.
  */
 export async function downloadScannerCacheAction(
-  eventId: string,
-  pin: string,
+  token: string,
 ): Promise<{ error: string | null; tickets?: CacheTicketRow[] }> {
-  const v = validate(verifyScannerPinSchema, { eventId, pin });
-  if (!v.success) return { error: v.error };
-
-  const h = await headers();
-  const rl = rateLimit(`pin-verify:${getRateLimitIdentifier(h)}`, RATE_LIMITS.PIN_VERIFY);
-  if (rl.limited) return { error: "Too many attempts. Please try again in a minute." };
-
-  const { data: pinRows, error: pinError } = await (await createClient()).rpc("verify_scanner_pin", {
-    p_event_id: v.data.eventId,
-    p_pin: v.data.pin,
-  });
-  if (pinError) return { error: pinError.message };
-  if (!pinRows?.[0]?.event_id) return { error: "Invalid PIN for this event." };
+  const eventId = await resolveScannerSessionEvent(token);
+  if (!eventId) return { error: "Your door session has ended. Sign in again." };
 
   const svc = createServiceClient();
 
@@ -37,7 +24,7 @@ export async function downloadScannerCacheAction(
     const { data, error } = await svc
       .from("tickets")
       .select("qr_hash, event_id, status, tier_id, order_id, checked_in_at")
-      .eq("event_id", v.data.eventId)
+      .eq("event_id", eventId)
       .in("status", ["VALID", "USED"])
       .range(from, from + PAGE - 1);
     if (error) return { error: error.message };
@@ -45,8 +32,8 @@ export async function downloadScannerCacheAction(
     if ((data ?? []).length < PAGE) break;
   }
 
-  const tiers = await fetchAllTiers(svc, v.data.eventId);
-  const names = await fetchAllBuyerNames(svc, v.data.eventId);
+  const tiers = await fetchAllTiers(svc, eventId);
+  const names = await fetchAllBuyerNames(svc, eventId);
   const tierName = new Map(tiers.map((t) => [t.id, t.name]));
   const buyerName = new Map(names.map((o) => [o.id, o.buyer_name]));
 

@@ -21,14 +21,15 @@ export type SyncStatusCallback = (status: SyncStatus) => void;
 
 export class ScannerSyncManager {
   private eventId: string;
-  private pin: string;
+  private token: string;
   private status: SyncStatus;
   private callbacks: Set<SyncStatusCallback> = new Set();
   private syncInProgress = false;
+  private refreshTimer: ReturnType<typeof setInterval> | null = null;
 
-  constructor(eventId: string, pin: string) {
+  constructor(eventId: string, token: string) {
     this.eventId = eventId;
-    this.pin = pin;
+    this.token = token;
     this.status = {
       online: typeof navigator !== "undefined" ? navigator.onLine : true,
       syncing: false,
@@ -57,6 +58,13 @@ export class ScannerSyncManager {
     // Initial queue count
     this.refreshQueueCount();
 
+    // Keep the offline cache fresh: sales and check-ins made elsewhere show up within minutes.
+    if (!this.refreshTimer) {
+      this.refreshTimer = setInterval(() => {
+        if (navigator.onLine) this.downloadTickets();
+      }, 3 * 60 * 1000);
+    }
+
     // If online, try to sync immediately
     if (navigator.onLine) {
       this.syncQueue();
@@ -64,6 +72,8 @@ export class ScannerSyncManager {
   }
 
   stop() {
+    if (this.refreshTimer) clearInterval(this.refreshTimer);
+    this.refreshTimer = null;
     if (typeof window === "undefined") return;
     window.removeEventListener("online", this.handleOnline);
     window.removeEventListener("offline", this.handleOffline);
@@ -90,10 +100,10 @@ export class ScannerSyncManager {
     if (!navigator.onLine) return;
 
     try {
-      // PIN-gated server route: door devices have no Supabase session, and the
+      // Token-gated server route: door devices have no Supabase session, and the
       // cache carries no buyer phone or email.
       const { downloadScannerCacheAction } = await import("../actions/cache");
-      const { error, tickets } = await downloadScannerCacheAction(this.eventId, this.pin);
+      const { error, tickets } = await downloadScannerCacheAction(this.token);
       if (error || !tickets) {
         console.error("[sync] downloadTickets:", error);
         return;
@@ -132,7 +142,7 @@ export class ScannerSyncManager {
     await queueScan({
       qr_hash: qrHash,
       event_id: this.eventId,
-      pin: this.pin,
+      client_scan_id: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
     });
     await this.refreshQueueCount();
@@ -156,13 +166,16 @@ export class ScannerSyncManager {
 
       console.log(`[sync] Syncing ${queued.length} queued scans`);
 
-      const { checkInTicketAction } = await import("@/modules/scanner/actions/check-in");
+      const { checkInTicketAction, checkInWithTokenAction } = await import("@/modules/scanner/actions/check-in");
 
       for (const scan of queued) {
         const scanId = scan.id;
         if (scanId === undefined) continue;
         try {
-          const result = await checkInTicketAction(scan.qr_hash, scan.event_id, scan.pin);
+          // Scans queued before Phase 3 still carry a PIN; new scans use this device's session token.
+          const result = scan.pin
+            ? await checkInTicketAction(scan.qr_hash, scan.event_id, scan.pin)
+            : await checkInWithTokenAction(scan.qr_hash, this.token, scan.client_scan_id ?? crypto.randomUUID(), "OFFLINE_SYNC");
           // ALREADY_USED is treated as a successful sync - the ticket was
           // already checked in (e.g. scanned online while offline scan was
           // queued, or a duplicate offline scan). The check-in RPC is

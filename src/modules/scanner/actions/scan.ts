@@ -1,7 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
-import { createClient } from "@/modules/shared/server";
+import { createClient, createServiceClient } from "@/modules/shared/server";
 import { validate, verifyScannerPinSchema, rateLimit, getRateLimitIdentifier, RATE_LIMITS } from "@/modules/shared";
 
 export async function verifyScannerPinAction(
@@ -76,4 +76,26 @@ export async function verifyScannerPinAction(
       staffName: row.staff_name ?? "",
     },
   };
+}
+
+/** Door PIN -> event-scoped session token. The door device sends the token from now on, never the PIN. */
+export async function scannerLoginAction(
+  eventId: string,
+  pin: string,
+): Promise<{ error: string | null; token?: string }> {
+  const v = validate(verifyScannerPinSchema, { eventId, pin });
+  if (!v.success) return { error: v.error };
+  const h = await headers();
+  const rl = rateLimit(`pin-verify:${getRateLimitIdentifier(h)}`, RATE_LIMITS.PIN_VERIFY);
+  if (rl.limited) return { error: "Too many attempts. Please try again in a minute." };
+
+  const supabase = createServiceClient();
+  const { data, error } = await supabase.rpc("scanner_login_session", {
+    p_event_id: v.data.eventId,
+    p_pin: v.data.pin,
+  });
+  if (error) return { error: error.message };
+  const token = data?.[0]?.token;
+  if (!token) return { error: "Invalid PIN for this event." };
+  return { error: null, token };
 }

@@ -30,6 +30,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
   { href: "/admin/kyc", label: "KYC Review", icon: BadgeCheck },
   { href: "/admin/scanner-pins", label: "Scanner PINs", icon: KeyRound },
   { href: "/admin/box-office", label: "Box Office", icon: Store },
+  { href: "/admin/box-office-staff", label: "Box Office Staff", icon: Users },
   { href: "/admin/box-office-pins", label: "Box Office PINs", icon: Store },
   { href: "/admin/settings", label: "Settings", icon: Settings },
   { href: "/admin/legal", label: "Legal Pages", icon: FileText },

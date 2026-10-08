@@ -257,6 +257,41 @@ export type LegalPageRow = {
   updated_by: string | null;
 }
 
+export type StaffMemberRow = {
+  id: string;
+  owner_type: "ADMIN" | "ORGANIZER";
+  organizer_id: string | null;
+  name: string;
+  email: string | null;
+  phone: string;
+  pin_hash: string;
+  pin_set_at: string;
+  is_active: boolean;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type ScanLogRow = {
+  id: string;
+  event_id: string;
+  ticket_id: string | null;
+  qr_hash: string;
+  outcome: string;
+  source: string;
+  actor_type: "DOOR_PIN" | "STAFF" | "ORGANIZER";
+  actor_id: string | null;
+  actor_name: string | null;
+  client_scan_id: string | null;
+  scanned_at: string;
+};
+
+export type StaffEventAssignmentRow = {
+  staff_id: string;
+  event_id: string;
+  is_active: boolean;
+  created_at: string;
+};
+
 export type OrganizerPremiumPurchaseRow = {
   id: string;
   organizer_id: string;
@@ -607,6 +642,9 @@ export type Database = {
       organizer_follows: Table<OrganizerFollowRow, "organizer_id" | "follower_id">;
       event_collaborators: Table<EventCollaboratorRow, "event_id" | "organizer_id" | "invited_by">;
       organizer_premium_purchases: Table<OrganizerPremiumPurchaseRow, "organizer_id" | "user_id" | "status">;
+      staff_members: Table<StaffMemberRow, "owner_type" | "name" | "phone" | "pin_hash">;
+      staff_event_assignments: Table<StaffEventAssignmentRow, "staff_id" | "event_id">;
+      scan_log: Table<ScanLogRow, "event_id" | "qr_hash" | "outcome" | "actor_type">;
     };
     Views: {
       /** Sanitized public organizer projection - no PAN/bank/KYC columns. */
@@ -1036,6 +1074,50 @@ export type Database = {
       revoke_box_office_pin: {
         Args: { p_pin_id: string };
         Returns: boolean;
+      };
+      staff_register: {
+        Args: { p_owner_type: string; p_organizer_id: string | undefined; p_name: string; p_email: string | null; p_phone: string; p_actor: string };
+        Returns: { staff_id: string; pin: string }[];
+      };
+      staff_reset_pin: {
+        Args: { p_staff_id: string };
+        Returns: string;
+      };
+      staff_set_assignment: {
+        Args: { p_staff_id: string; p_event_id: string; p_active: boolean };
+        Returns: undefined;
+      };
+      staff_login_session: {
+        Args: { p_phone: string; p_pin: string };
+        Returns: { token: string; staff_id: string; name: string; owner_type: string; organizer_id: string | null }[];
+      };
+      staff_session_staff: {
+        Args: { p_token: string };
+        Returns: { staff_id: string; name: string; owner_type: string; organizer_id: string | null }[];
+      };
+      create_counter_cash_sale: {
+        Args: { p_staff_id: string; p_event_id: string; p_tier_id: string; p_buyer_name: string; p_buyer_phone: string; p_buyer_email: string | null; p_mode: string; p_idempotency_key: string };
+        Returns: { orderId: string; ticketId: string; totalPaise: number };
+      };
+      staff_cash_outstanding: {
+        Args: { p_staff_id: string; p_event_id: string };
+        Returns: { order_count: number; amount_paise: number }[];
+      };
+      confirm_cash_handover: {
+        Args: { p_staff_id: string; p_event_id: string; p_actor: string | null };
+        Returns: number;
+      };
+      scanner_login_session: {
+        Args: { p_event_id: string; p_pin: string };
+        Returns: { token: string; event_id: string; staff_name: string }[];
+      };
+      scanner_session_event: {
+        Args: { p_token: string };
+        Returns: string | null;
+      };
+      check_in_ticket_by_token: {
+        Args: { p_qr_hash: string; p_token: string; p_client_scan_id: string | null; p_source: string };
+        Returns: { outcome: string; event_title: string | null; tier_name: string | null; holder_name: string | null; checked_in_at: string | null }[];
       };
     };
     Enums: Record<string, never>;

@@ -45,6 +45,15 @@ export const boxOfficeOrderSchema = z.object({
   mode: z.enum(["WALKIN_PREEVENT", "WALKIN_QR", "WALKIN_INSTANT"]),
 });
 
+// ─── Box office staff registry ───────────────────────────────────────
+export const staffRegisterSchema = z.object({
+  name: z.string().trim().min(2, "Name must be at least 2 characters").max(100, "Name too long"),
+  email,
+  phone,
+});
+
+export const staffIdSchema = z.object({ staffId: uuid });
+
 // ─── Scanner PIN verify ──────────────────────────────────────────────
 export const verifyScannerPinSchema = z.object({
   eventId: uuid,
