@@ -54,6 +54,11 @@ export const staffRegisterSchema = z.object({
 
 export const staffIdSchema = z.object({ staffId: uuid });
 
+/** Stored phone: the last 10 digits, ignoring spaces, dashes and the +91 prefix. */
+export function normalisePhone(raw: string): string {
+  return raw.replace(/\D/g, "").slice(-10);
+}
+
 // ─── Scanner PIN verify ──────────────────────────────────────────────
 export const verifyScannerPinSchema = z.object({
   eventId: uuid,

@@ -1,7 +1,8 @@
 import "server-only";
 
 import { createServiceClient } from "@/modules/shared/server";
-import type { ScanOutcome, ScanResult } from "@/modules/shared";
+import type { ScanResult } from "@/modules/shared";
+import { toScanResult } from "../lib/scan-result";
 
 /** Event a door session belongs to, or null when the token is unknown or expired. */
 export async function resolveScannerSessionEvent(token: string): Promise<string | null> {
@@ -10,18 +11,9 @@ export async function resolveScannerSessionEvent(token: string): Promise<string 
   return (data as string | null) ?? null;
 }
 
-const MESSAGES: Record<string, string> = {
-  VALID: "Checked in.",
-  ALREADY_USED: "This ticket has already been checked in.",
-  INVALID: "Ticket not recognised.",
-  CANCELLED: "This ticket was cancelled.",
-  WRONG_EVENT: "This ticket is for a different event.",
-  DUPLICATE_CONFLICT: "Already checked in on another door while this scan was offline.",
-};
-
 /**
  * Token-scoped check-in. Shares the same rules as the database check (one event per door
- * session, every attempt logged). The screen gets the holder name only, never phone or email.
+ * session, every attempt logged).
  */
 export async function checkInWithScannerToken(
   qrHash: string,
@@ -36,22 +28,8 @@ export async function checkInWithScannerToken(
     p_source: source,
   });
   if (error) throw new Error(error.message);
-  const row = (data as { outcome: string; event_title: string | null; tier_name: string | null; holder_name: string | null; checked_in_at: string | null }[] | null)?.[0];
-  const outcome = (row?.outcome ?? "INVALID") as ScanOutcome;
-  if (outcome === "INVALID" || !row) return { outcome: "INVALID", message: MESSAGES.INVALID };
-  return {
-    outcome,
-    message: MESSAGES[outcome] ?? MESSAGES.INVALID,
-    ticket: {
-      eventTitle: row.event_title ?? "Event",
-      tierName: row.tier_name ?? "",
-      holderName: row.holder_name,
-      holderEmail: null,
-      holderPhone: null,
-      quantity: 1,
-      checkedInAt: row.checked_in_at,
-    },
-  };
+  const rows = data as { outcome: string; event_title: string | null; tier_name: string | null; holder_name: string | null; checked_in_at: string | null }[] | null;
+  return toScanResult(rows?.[0]);
 }
 
 export interface ScanLogEntry {

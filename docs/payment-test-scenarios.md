@@ -214,3 +214,18 @@ lock and per-section editing.
 | 14.13 | Cache download with a wrong PIN | Refused. No tickets returned. |
 
 **Automated:** `tests/scanner-phase0.test.ts` (decisions, cache shape, sale key, UUID check). **Live DB:** `scripts/_verify_walkin_phase0.mjs` (rolled back; covers 14.2, 14.5, 14.6, 14.7, 14.1). **Manual (device):** 14.9 and 14.10 require airplane mode with a real door PIN. Not yet run.
+
+## §15 Automated coverage for box office (2026-10-09)
+
+| Area | Test |
+|---|---|
+| Walk-in price, fees, single ledger row, sale-key replay, no-tier refusal, sold-out | `tests/box-office.db.test.ts` (live DB, rolled back) |
+| Staff register, PIN hashed, sign-in right/wrong PIN, unassigned refusal | same |
+| Counter cash sale attributed, cash outstanding, handover once, cross-organizer assignment refused | same |
+| Door PIN scoped to one event, VALID then ALREADY_USED, replay logged once, DUPLICATE_CONFLICT offline, WRONG_EVENT, CANCELLED, INVALID, expired session refused, every attempt logged | same |
+| Door result carries no phone or email; outcome wording; phone normalising; staff input rules | `tests/box-office-units.test.ts` |
+| Retry keeps the sale key, a changed sale starts fresh; offline decisions; cache has no PII | `tests/scanner-phase0.test.ts` |
+| Counter and door screens render; PIN fields limited to six digits; admin and organizer pages closed to signed-out visitors; scan log closed | `e2e/box-office.spec.ts` (`npm run test:e2e`, after `npm run build`) |
+| Counter sign-in error and phone retention | `e2e/box-office.spec.ts`, **fixme** (known server issue) |
+
+Not automated: a real Razorpay counter payment, SMS/WhatsApp delivery, and the airplane-mode device test (§14.9, §14.10).

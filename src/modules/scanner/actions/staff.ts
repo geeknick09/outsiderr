@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser, createClient, createServiceClient, getOrganizerProfile } from "@/modules/shared/server";
-import { validate, staffRegisterSchema, staffIdSchema, UUID_RE } from "@/modules/shared";
+import { validate, staffRegisterSchema, staffIdSchema, UUID_RE, normalisePhone } from "@/modules/shared";
 import { getStaffOwner, type StaffOwnerType } from "../data/staff";
 
 interface Actor {
@@ -40,9 +40,6 @@ async function ensureOwns(actor: Actor, staffId: string): Promise<string | null>
   return null;
 }
 
-function normalisePhone(raw: string): string {
-  return raw.replace(/\D/g, "").slice(-10);
-}
 
 function revalidateStaff() {
   revalidatePath("/admin/box-office-staff");

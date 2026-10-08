@@ -78,6 +78,8 @@ Plan: `C:\Users\Anurag Shaw\.devin\plans\plan-e9605775583d9b9f.md` (5 phases). D
 | 5 — cleanup | Partly completed | Organizer event page no longer issues legacy box-office PINs (links to staff page). Legacy /organizer/box-office counter kept for existing PINs. openapi: no new /api/v1 routes added, so nothing to document yet.
 
 - **Open:** Razorpay counter path; SMS/WhatsApp ticket delivery; device airplane-mode test; legacy box-office PIN counter retirement (after existing PINs expire).
+- **Known issue (found by E2E, 2026-10-09):** the first counter sign-in after a server start fails on the server with `window is not defined`. Leaflet's browser-only code (from the organizer map picker) ends up in a server chunk that the counter action loads. The action then fails and the form resets with no message. Other pages render fine. Fix direction: keep Leaflet out of the server graph (lazy-load it on the client only, or move the map picker to a client-only route). Test: `e2e/box-office.spec.ts` ("counter sign-in ..." is marked `fixme`).
+- **Tests (2026-10-09):** `tests/box-office-units.test.ts` (scan results without PII, phone normalisation, staff input), `tests/box-office.db.test.ts` (19 steps of the whole flow against the live DB, one rolled-back transaction, skipped without DB credentials; mutation-checked), `e2e/box-office.spec.ts` (Playwright on the production build: `npm run build`, then `npm run test:e2e`).
 
 ## Organizer event sections — In progress
 

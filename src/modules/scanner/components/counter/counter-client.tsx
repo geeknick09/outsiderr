@@ -101,7 +101,10 @@ export function CounterClient() {
   if (!token || !staff) {
     return (
       <form
-        action={(f) => signIn(f)}
+        onSubmit={(e) => {
+          e.preventDefault();
+          signIn(new FormData(e.currentTarget));
+        }}
         className="glass mx-auto max-w-sm space-y-4 rounded-3xl p-6"
       >
         <div>

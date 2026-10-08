@@ -3,3 +3,4 @@ import "server-only";
 export * from "./data/staff";
 export * from "./data/counter";
 export * from "./data/scan-token";
+export * from "./lib/scan-result";

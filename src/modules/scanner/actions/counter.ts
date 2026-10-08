@@ -11,11 +11,9 @@ import {
   UUID_RE,
   staffRegisterSchema,
 } from "@/modules/shared";
+import { normalisePhone } from "@/modules/shared";
 import { listCounterEvents, resolveCounterStaff, type CounterEvent, type CounterStaff } from "../data/counter";
 
-function normalisePhone(raw: string): string {
-  return raw.replace(/\D/g, "").slice(-10);
-}
 
 /** Phone + personal PIN -> counter session token (12h). Rate limited per device. */
 export async function counterLoginAction(

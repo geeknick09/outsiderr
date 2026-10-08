@@ -4,6 +4,16 @@ One-sentence purpose: append-only knowledge so agents never re-derive a past fix
 Format: `Date · Area · What happened/decision → Fix/rule · Files`. Newest entries go on top.
 Last updated: 2026-10-08
 
+## Box office tests and E2E (2026-10-09)
+
+- **Tests added:** `tests/box-office-units.test.ts`, `tests/box-office.db.test.ts`, `e2e/box-office.spec.ts`. Pure logic moved out of server-only files so it can be unit-tested: `scanner/lib/scan-result.ts` (outcome wording, no phone/email on the door), `shared/lib/validation.ts` (`normalisePhone`).
+- **Mutation-checked:** changing one expected value in the DB test makes it fail; restoring it passes.
+- **Browser tests run against the production build on a fresh server.** Two pitfalls: `pkill` does not stop Windows processes, so a stale server kept serving an old build (stuck "Loading"); and redirects for signed-out visitors are streamed after a Supabase round trip, so URL assertions need a longer timeout (`expect.timeout` 20s in `playwright.config.ts`).
+- **Found and fixed:** the counter sign-in form cleared the phone number after a wrong PIN (React form actions reset inputs). Now a submit handler, so the number stays.
+- **Found, not fixed (known issue in task.md):** `window is not defined` in the server bundle on the first counter sign-in. Leaflet is reachable from a shared server chunk. The e2e test for that path is `fixme`.
+- **Added `@types/pg@8.23.0` (exact)** so the DB test typechecks. Published 2026-08-17, past the 7-day rule.
+- **Vercel insights script 404s locally** (`/_vercel/insights/script.js`). Expected: it exists only on Vercel.
+
 ## Box office Phases 1-4 — staff registry, counter cash, token scanning
 
 - **Bundle now applies in one transaction.** Fixed: missing `;` after three function bodies; `drop function` before `request_postponement_refund` (return type changed); `drop policy if exists` before the organizers policy; retired the obsolete 15-arg `create_reserved_order` overload and moved its privilege lines after the live 8-arg definition; dropped the obsolete `apply_failed_payment(text)`. `scripts/_dryrun_fix_all.mjs` runs the whole file in a rolled-back transaction (`--apply` commits). Not yet tested on a fresh empty database.
