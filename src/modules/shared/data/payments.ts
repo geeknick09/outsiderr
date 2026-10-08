@@ -28,7 +28,8 @@ export interface PaymentIntent {
   id: string;
   kind: PaymentKind;
   refId: string;
-  userId: string;
+  /** NULL for guest sales (box-office counter) - no buyer account. */
+  userId: string | null;
   amountPaise: number;
   currency: string;
   razorpayOrderId: string | null;

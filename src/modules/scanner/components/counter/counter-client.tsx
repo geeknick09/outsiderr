@@ -4,9 +4,16 @@ import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { Ticket } from "lucide-react";
 
-import { counterLoginAction, counterSaleAction, loadCounterAction } from "../../actions/counter";
+import {
+  counterAbandonRazorpayAction,
+  counterLoginAction,
+  counterSaleAction,
+  counterStartRazorpayAction,
+  counterVerifyRazorpayAction,
+  loadCounterAction,
+} from "../../actions/counter";
 import type { CounterEvent, CounterStaff } from "../../data/counter";
-import { formatPaise, nextSaleAttempt, type SaleAttempt } from "@/modules/shared";
+import { formatPaise, nextSaleAttempt, RazorpayCheckout, type CheckoutSession, type SaleAttempt } from "@/modules/shared";
 
 const TOKEN_KEY = "outsiderr-counter-token";
 const INPUT =
@@ -24,11 +31,13 @@ export function CounterClient() {
   const [eventId, setEventId] = useState("");
   const [tierId, setTierId] = useState("");
   const [mode, setMode] = useState<"WALKIN_QR" | "WALKIN_INSTANT">("WALKIN_QR");
+  const [payMethod, setPayMethod] = useState<"CASH" | "RAZORPAY">("CASH");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [attempt, setAttempt] = useState<SaleAttempt | null>(null);
   const [done, setDone] = useState<{ ticketId: string; totalPaise: number } | null>(null);
+  const [rzpSession, setRzpSession] = useState<CheckoutSession | null>(null);
 
   useEffect(() => {
     const saved = window.sessionStorage.getItem(TOKEN_KEY);
@@ -74,7 +83,7 @@ export function CounterClient() {
     if (!eventId || !tierId) return setError("Choose an event and a ticket tier.");
     if (!name.trim() || !phone.trim()) return setError("Buyer name and phone are required.");
     setError(null);
-    const next = nextSaleAttempt(attempt, [eventId, tierId, name.trim(), phone.trim(), email.trim(), mode].join("|"));
+    const next = nextSaleAttempt(attempt, [eventId, tierId, name.trim(), phone.trim(), email.trim(), mode, payMethod].join("|"));
     setAttempt(next);
     const fd = new FormData();
     fd.set("token", token);
@@ -85,7 +94,17 @@ export function CounterClient() {
     fd.set("buyerName", name.trim());
     fd.set("buyerPhone", phone.trim());
     fd.set("buyerEmail", email.trim());
+    if (payMethod === "RAZORPAY" && selectedEvent && selectedTier) {
+      fd.set("eventTitle", selectedEvent.title);
+      fd.set("tierName", selectedTier.name);
+    }
     startTransition(async () => {
+      if (payMethod === "RAZORPAY") {
+        const res = await counterStartRazorpayAction(fd);
+        if (res.error || !res.session) return setError(res.error ?? "Could not start the payment.");
+        setRzpSession(res.session);
+        return;
+      }
       const res = await counterSaleAction(fd);
       if (res.error || !res.ticketId) return setError(res.error ?? "Could not create the ticket.");
       setDone({ ticketId: res.ticketId, totalPaise: res.totalPaise ?? 0 });
@@ -133,7 +152,27 @@ export function CounterClient() {
         <button type="button" onClick={signOut} className="text-xs font-semibold text-muted hover:text-red-500">Sign out</button>
       </div>
 
-      {done ? (
+      {rzpSession ? (
+        <div className="glass space-y-4 rounded-3xl p-5">
+          <RazorpayCheckout
+            session={rzpSession}
+            verifyAction={(input) => counterVerifyRazorpayAction(token, input)}
+            failureAction={(input) => counterAbandonRazorpayAction(token, input)}
+            successRedirect={`/box-office/order/${rzpSession.orderId}`}
+            statusRedirect={`/box-office/order/${rzpSession.orderId}`}
+            onCancel={() => {
+              setRzpSession(null);
+              setAttempt(null);
+              setError("Payment cancelled. The seat was released.");
+            }}
+            onError={(message) => {
+              setRzpSession(null);
+              setAttempt(null);
+              setError(message);
+            }}
+          />
+        </div>
+      ) : done ? (
         <div className="glass space-y-3 rounded-3xl p-5">
           <p className="flex items-center gap-2 font-bold text-emerald-500"><Ticket className="h-4 w-4" /> Ticket issued - {formatPaise(done.totalPaise)} cash taken</p>
           <Link href={`/box-office/ticket/${done.ticketId}/print`} target="_blank" className="inline-block rounded-full bg-neon-gradient px-4 py-2 text-sm font-bold text-white">
@@ -165,21 +204,33 @@ export function CounterClient() {
             <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="Buyer phone" className={INPUT} />
           </div>
           <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Buyer email (optional)" className={INPUT} />
+          {payMethod === "CASH" ? (
+            <div className="grid gap-2 sm:grid-cols-2">
+              <label className="flex items-center gap-2 rounded-2xl border border-zinc-200 p-3 text-sm dark:border-white/10">
+                <input type="radio" checked={mode === "WALKIN_QR"} onChange={() => setMode("WALKIN_QR")} /> Issue ticket (scan at the door)
+              </label>
+              <label className="flex items-center gap-2 rounded-2xl border border-zinc-200 p-3 text-sm dark:border-white/10">
+                <input type="radio" checked={mode === "WALKIN_INSTANT"} onChange={() => setMode("WALKIN_INSTANT")} /> Check in now
+              </label>
+            </div>
+          ) : null}
           <div className="grid gap-2 sm:grid-cols-2">
             <label className="flex items-center gap-2 rounded-2xl border border-zinc-200 p-3 text-sm dark:border-white/10">
-              <input type="radio" checked={mode === "WALKIN_QR"} onChange={() => setMode("WALKIN_QR")} /> Issue ticket (scan at the door)
+              <input type="radio" checked={payMethod === "CASH"} onChange={() => setPayMethod("CASH")} /> Cash
             </label>
             <label className="flex items-center gap-2 rounded-2xl border border-zinc-200 p-3 text-sm dark:border-white/10">
-              <input type="radio" checked={mode === "WALKIN_INSTANT"} onChange={() => setMode("WALKIN_INSTANT")} /> Check in now
+              <input type="radio" checked={payMethod === "RAZORPAY"} onChange={() => setPayMethod("RAZORPAY")} /> Card / UPI (Razorpay)
             </label>
-          </div>
-          <div className="rounded-2xl border border-zinc-200 p-3 text-sm dark:border-white/10">
-            <p className="font-semibold">Payment: Cash</p>
-            <p className="text-xs text-muted">Card and UPI at the counter are not available yet.</p>
           </div>
           {error ? <p className="text-sm text-red-500">{error}</p> : null}
           <button type="button" disabled={pending || !selectedTier} onClick={sell} className="w-full rounded-full bg-neon-gradient py-2.5 text-sm font-bold text-white disabled:opacity-50">
-            {pending ? "Issuing..." : selectedTier ? `Take ${formatPaise(selectedTier.pricePaise)} cash and issue ticket` : "Choose an event and tier"}
+            {pending
+              ? "Please wait..."
+              : !selectedTier
+                ? "Choose an event and tier"
+                : payMethod === "CASH"
+                  ? `Take ${formatPaise(selectedTier.pricePaise)} cash and issue ticket`
+                  : `Collect ${formatPaise(selectedTier.pricePaise)} via Razorpay`}
           </button>
         </div>
       )}

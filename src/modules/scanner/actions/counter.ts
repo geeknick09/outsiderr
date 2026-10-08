@@ -11,8 +11,13 @@ import {
   UUID_RE,
   staffRegisterSchema,
 } from "@/modules/shared";
-import { normalisePhone } from "@/modules/shared";
+import { normalisePhone, type CheckoutSession } from "@/modules/shared";
 import { listCounterEvents, resolveCounterStaff, type CounterEvent, type CounterStaff } from "../data/counter";
+import {
+  abandonCounterRazorpaySale,
+  startCounterRazorpaySale,
+  verifyCounterRazorpaySale,
+} from "../data/counter-payment";
 
 
 /** Phone + personal PIN -> counter session token (12h). Rate limited per device. */
@@ -91,4 +96,61 @@ export async function counterSaleAction(formData: FormData): Promise<CounterSale
   const res = (data ?? {}) as { orderId?: string; ticketId?: string; totalPaise?: number };
   revalidatePath("/box-office");
   return { error: null, orderId: res.orderId, ticketId: res.ticketId, totalPaise: res.totalPaise };
+}
+
+/** Counter card/UPI sale: reserve the seat and create the Razorpay order for Checkout.js. */
+export async function counterStartRazorpayAction(
+  formData: FormData,
+): Promise<{ error: string | null; session?: CheckoutSession }> {
+  const token = String(formData.get("token") ?? "");
+  const staff = await resolveCounterStaff(token);
+  if (!staff) return { error: "Your session has ended. Please sign in again." };
+
+  const eventId = String(formData.get("eventId") ?? "");
+  const tierId = String(formData.get("tierId") ?? "");
+  const clientSaleId = String(formData.get("clientSaleId") ?? "");
+  if (!UUID_RE.test(eventId) || !UUID_RE.test(tierId)) return { error: "Choose an event and a ticket tier." };
+  if (!UUID_RE.test(clientSaleId)) return { error: "Missing sale reference. Please try again." };
+
+  const v = validate(staffRegisterSchema.pick({ name: true, phone: true, email: true }), {
+    name: String(formData.get("buyerName") ?? ""),
+    phone: normalisePhone(String(formData.get("buyerPhone") ?? "")),
+    email: String(formData.get("buyerEmail") ?? "").trim(),
+  });
+  if (!v.success) return { error: v.error };
+  if (v.data.phone.length !== 10) return { error: "Enter the buyer's 10-digit phone number." };
+
+  const res = await startCounterRazorpaySale(staff.id, {
+    eventId,
+    tierId,
+    eventTitle: String(formData.get("eventTitle") ?? "Event"),
+    tierName: String(formData.get("tierName") ?? "Ticket"),
+    buyerName: v.data.name,
+    buyerPhone: v.data.phone,
+    buyerEmail: v.data.email,
+    idempotencyKey: clientSaleId,
+  });
+  if (res.error || !res.session) return { error: res.error ?? "Could not start the payment." };
+  revalidatePath("/box-office");
+  return { error: null, session: res.session };
+}
+
+/** Razorpay Checkout.js success callback for a counter sale. */
+export async function counterVerifyRazorpayAction(
+  token: string,
+  input: { razorpayOrderId: string; razorpayPaymentId: string; razorpaySignature: string },
+): Promise<{ success: boolean; error?: string; ticketId?: string }> {
+  const staff = await resolveCounterStaff(token);
+  if (!staff) return { success: false, error: "Your session has ended. Please sign in again." };
+  return verifyCounterRazorpaySale(staff.id, input);
+}
+
+/** Buyer/staff dismissed the Razorpay modal - release the reserved seat. */
+export async function counterAbandonRazorpayAction(
+  token: string,
+  input: { razorpayOrderId: string },
+): Promise<{ success: boolean; error?: string }> {
+  const staff = await resolveCounterStaff(token);
+  if (!staff) return { success: false, error: "Your session has ended. Please sign in again." };
+  return abandonCounterRazorpaySale(staff.id, input.razorpayOrderId);
 }

@@ -3838,9 +3838,12 @@ begin
       insert into public.refunds (order_id, event_id, user_id, amount_paise, platform_fee_paise, status, reason, initiated_at)
       values (v_order.id, v_order.event_id, v_order.user_id, v_order.total_paise, v_order.platform_fee_paise,
               'PENDING', 'Payment captured after order ' || lower(v_order.status::text) || ' — auto-refund', now());
-      insert into public.event_notifications (event_id, user_id, type, message)
-      values (v_order.event_id, v_order.user_id, 'REFUND_INITIATED',
-              'Your payment was received after the booking window closed — a refund has been initiated automatically.');
+      -- Guest (counter) orders have no account to notify.
+      if v_order.user_id is not null then
+        insert into public.event_notifications (event_id, user_id, type, message)
+        values (v_order.event_id, v_order.user_id, 'REFUND_INITIATED',
+                'Your payment was received after the booking window closed — a refund has been initiated automatically.');
+      end if;
       return;
     end if;
     raise exception 'Order is %, cannot confirm', v_order.status;
@@ -3864,8 +3867,11 @@ begin
    where id = v_order.event_id;
   delete from public.waitlist
    where tier_id = v_order.tier_id and user_id = v_order.user_id;
-  insert into public.event_notifications (event_id, user_id, type, message)
-  values (v_order.event_id, v_order.user_id, 'ORDER_CONFIRMED', 'Payment confirmed — your ticket is ready.');
+  -- Guest (counter) orders have no account to notify.
+  if v_order.user_id is not null then
+    insert into public.event_notifications (event_id, user_id, type, message)
+    values (v_order.event_id, v_order.user_id, 'ORDER_CONFIRMED', 'Payment confirmed — your ticket is ready.');
+  end if;
   return query
     insert into public.tickets (order_id, event_id, tier_id, user_id, qr_hash)
     select
@@ -7020,3 +7026,139 @@ end;
 $$;
 
 -- scan_log outcome check must allow DUPLICATE_CONFLICT (already in the table definition).
+
+-- ---------------------------------------------------------------------------
+-- Counter Razorpay sale (box-office redesign): card/UPI at the counter.
+-- A guest sale with no buyer account: the reserved order and its payment
+-- intent carry user_id = NULL. Authorization is the staff assignment, and the
+-- confirm path (webhook or client verify) is the same apply_captured_payment
+-- dispatcher online orders use - it never reads orders.user_id.
+-- ---------------------------------------------------------------------------
+alter table public.payment_intents alter column user_id drop not null;
+-- Guest orders can late-capture into the auto-refund path, which writes
+-- refunds.user_id; the refund is identified by order_id, not the (absent) user.
+alter table public.refunds alter column user_id drop not null;
+
+create or replace function public.create_counter_reserved_order(
+  p_staff_id        uuid,
+  p_event_id        uuid,
+  p_tier_id         uuid,
+  p_buyer_name      text,
+  p_buyer_phone     text,
+  p_buyer_email     text default null,
+  p_buyer_gender    text default null,
+  p_idempotency_key text default null
+) returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order        public.orders;
+  v_tier         public.ticket_tiers;
+  v_event        public.events;
+  v_subtotal     integer;
+  v_commission   integer;
+  v_convenience  integer;
+  v_gateway      integer;
+  v_gateway_bps  integer;
+  v_ttl_min      integer;
+  v_platform_fee integer;
+  v_total        integer;
+  v_payout       integer;
+  v_fee_payer    public.fee_payer;
+begin
+  -- Staff must be active and assigned to this event.
+  if not exists (
+    select 1 from public.staff_members s
+      join public.staff_event_assignments a on a.staff_id = s.id
+     where s.id = p_staff_id and s.is_active and a.event_id = p_event_id and a.is_active
+  ) then
+    raise exception 'You are not assigned to this event';
+  end if;
+
+  -- Idempotency replay: same key + staff member -> same order back.
+  if p_idempotency_key is not null then
+    select * into v_order from public.orders
+     where idempotency_key = p_idempotency_key and sold_by_staff_id = p_staff_id;
+    if found then
+      if v_order.status in ('RESERVED', 'CONFIRMED') then return v_order; end if;
+      -- Dead order already holds the key; free it for a fresh sale.
+      p_idempotency_key := null;
+    end if;
+  end if;
+
+  select * into v_event from public.events where id = p_event_id;
+  if not found then raise exception 'Event not found'; end if;
+  if v_event.status not in ('PUBLISHED', 'POSTPONED') then
+    raise exception 'This event is not open for sales';
+  end if;
+  -- No online booking cutoff: the counter sells at the venue, same as cash.
+
+  select * into v_tier from public.ticket_tiers where id = p_tier_id for update;
+  if not found then raise exception 'Ticket tier not found'; end if;
+  if v_tier.event_id <> p_event_id then raise exception 'Ticket tier does not belong to this event'; end if;
+  if v_tier.price_paise = 0 then raise exception 'Free tickets do not need a Razorpay payment'; end if;
+  if v_tier.quantity - v_tier.quantity_sold - coalesce(v_tier.quantity_reserved, 0) < 1 then
+    raise exception 'Sold out for this ticket tier';
+  end if;
+
+  -- Money: identical to create_reserved_order, gateway gross-up included -
+  -- a real gateway fee is charged on card/UPI sales.
+  v_gateway_bps := public._setting_int('gateway_fee_bps', 236);
+  v_ttl_min     := public._setting_int('reservation_ttl_minutes', 15);
+  v_subtotal    := v_tier.price_paise;
+  v_commission  := case when coalesce(v_event.commission_enabled, true)
+                        then round(v_subtotal * coalesce(v_event.commission_bps, 1000) / 10000.0)
+                        else 0 end;
+  v_convenience := case when coalesce(v_event.convenience_fee_enabled, true)
+                        then round(v_subtotal * coalesce(v_event.convenience_fee_bps, 200) / 10000.0)
+                        else 0 end;
+  v_gateway     := round((v_subtotal + v_convenience) * v_gateway_bps / (10000.0 - v_gateway_bps));
+  v_platform_fee := v_commission + v_convenience;
+  v_fee_payer   := coalesce(v_event.fee_payer, 'BUYER');
+  if v_fee_payer = 'ORGANIZER' then
+    v_total  := v_subtotal;
+    v_payout := v_subtotal - v_commission - v_convenience - v_gateway;
+  else
+    v_total  := v_subtotal + v_convenience + v_gateway;
+    v_payout := v_subtotal - v_commission;
+  end if;
+
+  update public.ticket_tiers
+     set quantity_reserved = quantity_reserved + 1
+   where id = p_tier_id;
+
+  insert into public.orders (
+    event_id, tier_id, user_id, quantity,
+    unit_price_paise, subtotal_paise, platform_fee_paise,
+    commission_paise, convenience_fee_paise, gateway_fee_paise, organizer_payout_paise,
+    total_paise, fee_payer, status, order_source,
+    buyer_name, buyer_phone, buyer_email, buyer_gender,
+    is_box_office, sold_by_staff_id, sold_at, sale_channel,
+    reserved_at, reservation_expires_at, idempotency_key
+  ) values (
+    p_event_id, p_tier_id, null, 1,
+    v_tier.price_paise, v_subtotal, v_platform_fee,
+    v_commission, v_convenience, v_gateway, v_payout,
+    v_total, v_fee_payer, 'RESERVED', 'BOX_OFFICE',
+    p_buyer_name, p_buyer_phone, nullif(p_buyer_email, ''), p_buyer_gender,
+    true, p_staff_id, now(), 'COUNTER_RAZORPAY',
+    now(), now() + make_interval(mins => v_ttl_min),
+    p_idempotency_key
+  )
+  returning * into v_order;
+
+  insert into public.payment_intents (
+    kind, ref_id, user_id, amount_paise, idempotency_key, expires_at
+  ) values (
+    'TICKET_ORDER', v_order.id, null, v_order.total_paise,
+    p_idempotency_key, v_order.reservation_expires_at
+  );
+
+  return v_order;
+end;
+$$;
+
+revoke execute on function public.create_counter_reserved_order(uuid, uuid, uuid, text, text, text, text, text) from public, anon, authenticated;
+grant  execute on function public.create_counter_reserved_order(uuid, uuid, uuid, text, text, text, text, text) to service_role;

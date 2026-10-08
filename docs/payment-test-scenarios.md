@@ -215,6 +215,22 @@ lock and per-section editing.
 
 **Automated:** `tests/scanner-phase0.test.ts` (decisions, cache shape, sale key, UUID check). **Live DB:** `scripts/_verify_walkin_phase0.mjs` (rolled back; covers 14.2, 14.5, 14.6, 14.7, 14.1). **Manual (device):** 14.9 and 14.10 require airplane mode with a real door PIN. Not yet run.
 
+## §16 Counter Razorpay (card/UPI at the counter — 2026-10-09)
+
+| # | Scenario | Expected |
+|---|---|---|
+| 16.1 | Staff picks Card/UPI and submits | Seat RESERVED (same math as online incl. gateway gross-up), a `payment_intents` row (user_id NULL) and a Razorpay order are created. Checkout modal opens on the counter device. |
+| 16.2 | Buyer pays in the modal | `counterVerifyRazorpayAction` checks the signature + staff ownership, fetches amount/method/fee from Razorpay, then `apply_captured_payment` → order CONFIRMED, one ticket minted, one TICKET_SALE ledger row with the **actual** gateway fee. |
+| 16.3 | Webhook lands before the client verify (or twice) | `apply_captured_payment` returns ALREADY_PAID; still one ledger row, one ticket. |
+| 16.4 | Staff dismisses the modal | `abandon_payment` → order FAILED, `quantity_reserved` released immediately. |
+| 16.5 | Payment captures after the reservation died | `confirm_razorpay_order` auto-refund path (guest order → `refunds.user_id` NULL, no in-app notification). |
+| 16.6 | Same clientSaleId retry | Same RESERVED order back; no second order or intent. |
+| 16.7 | Unassigned staff calls the RPC | "You are not assigned to this event". |
+| 16.8 | Ledger view | `sale_channel = 'COUNTER_RAZORPAY'`, `razorpay_fee_paise` = the real fee Razorpay charged (not the estimate). Counter cash sales keep `razorpay_fee_paise = 0`. |
+| 16.9 | Staff A verifies a sale made by staff B | Refused: "This payment does not belong to your sale." (sold_by_staff_id check). |
+
+**Automated:** `tests/box-office.db.test.ts` (live DB, rolled back; covers 16.1 money math + intent, 16.2 confirm + ticket + ledger, 16.3 replay/no-op, 16.4 abandon + release, 16.6, 16.7). **Live script:** `scripts/_verify_counter_razorpay.mjs`. **Manual:** a real swipe needs Razorpay test keys and the modal in a browser — test-key connectivity verified (`orders.create` returns a live test order).
+
 ## §15 Automated coverage for box office (2026-10-09)
 
 | Area | Test |
@@ -228,4 +244,4 @@ lock and per-section editing.
 | Counter and door screens render; PIN fields limited to six digits; admin and organizer pages closed to signed-out visitors; scan log closed | `e2e/box-office.spec.ts` (`npm run test:e2e`, after `npm run build`) |
 | Counter sign-in error and phone retention | `e2e/box-office.spec.ts`, **fixme** (known server issue) |
 
-Not automated: a real Razorpay counter payment, SMS/WhatsApp delivery, and the airplane-mode device test (§14.9, §14.10).
+Not automated: a real swipe in the Razorpay modal (test keys verified for connectivity), SMS/WhatsApp delivery, and the airplane-mode device test (§14.9, §14.10).

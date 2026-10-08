@@ -4,6 +4,13 @@ One-sentence purpose: append-only knowledge so agents never re-derive a past fix
 Format: `Date · Area · What happened/decision → Fix/rule · Files`. Newest entries go on top.
 Last updated: 2026-10-08
 
+## Counter Razorpay sales (2026-10-09)
+
+- **What:** card/UPI at the counter. Simpler than feared — the webhook + `apply_captured_payment` dispatcher already confirms payments without a buyer session. New work is only `create_counter_reserved_order` (guest RESERVED order + TICKET_ORDER intent, staff assignment check, same money math as online) + a thin counter service (`scanner/data/counter-payment.ts`) reusing `attach_razorpay_order`/`abandon_payment`/`apply_captured_payment` + the shared `RazorpayCheckout` component (injected verify/failure actions). `/box-office/order/[orderId]` is the success/status landing page.
+- **Guest-order gotchas hit on live:** `payment_intents.user_id` and `refunds.user_id` were NOT NULL (dropped); `confirm_razorpay_order` crashed on `event_notifications` (user_id NOT NULL) — notification inserts now guarded by `v_order.user_id is not null`. The task doc's claim that event_notifications.user_id is nullable was wrong on live.
+- **Verify ownership:** counter verify checks `orders.sold_by_staff_id = staff.id` (no user account). Signature + amount/method/fee still come from Razorpay.
+- **Files:** fix_all.sql (RPC + 2 nullable alters + 2 notification guards), `scanner/data/counter-payment.ts`, `scanner/actions/counter.ts` (3 actions), `counter-client.tsx` (Cash/Card-UPI toggle), `app/box-office/order/[orderId]/page.tsx`, `database.types.ts` (OrderRow Phase-2 columns, PaymentIntentRow.user_id nullable, create_counter_reserved_order). 6 live checks pass (rolled back); 2 db tests added. Razorpay test keys verified against the sandbox.
+
 ## Box office tests and E2E (2026-10-09)
 
 - **Tests added:** `tests/box-office-units.test.ts`, `tests/box-office.db.test.ts`, `e2e/box-office.spec.ts`. Pure logic moved out of server-only files so it can be unit-tested: `scanner/lib/scan-result.ts` (outcome wording, no phone/email on the door), `shared/lib/validation.ts` (`normalisePhone`).

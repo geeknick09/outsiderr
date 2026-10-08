@@ -168,6 +168,9 @@ export type OrderRow = {
   reviewed_at: string | null;
   order_source: string | null;
   is_box_office: boolean;
+  sold_by_staff_id: string | null;
+  sold_at: string | null;
+  sale_channel: string | null;
   idempotency_key: string | null;
   refund_offered: boolean;
   refund_offer_reason: string | null;
@@ -467,7 +470,8 @@ export type PaymentIntentRow = {
   id: string;
   kind: "TICKET_ORDER" | "HERO_BOOST" | "SLOT_BOOST" | "DOOR_STAFF" | "CLUB_MEMBERSHIP" | "ORGANIZER_PREMIUM";
   ref_id: string;
-  user_id: string;
+  /** NULL for guest sales (box-office counter) - the buyer has no account. */
+  user_id: string | null;
   amount_paise: number;
   currency: string;
   razorpay_order_id: string | null;
@@ -1098,6 +1102,19 @@ export type Database = {
       create_counter_cash_sale: {
         Args: { p_staff_id: string; p_event_id: string; p_tier_id: string; p_buyer_name: string; p_buyer_phone: string; p_buyer_email: string | null; p_mode: string; p_idempotency_key: string };
         Returns: { orderId: string; ticketId: string; totalPaise: number };
+      };
+      create_counter_reserved_order: {
+        Args: {
+          p_staff_id: string;
+          p_event_id: string;
+          p_tier_id: string;
+          p_buyer_name: string;
+          p_buyer_phone: string;
+          p_buyer_email?: string | null;
+          p_buyer_gender?: string | null;
+          p_idempotency_key?: string | null;
+        };
+        Returns: OrderRow;
       };
       staff_cash_outstanding: {
         Args: { p_staff_id: string; p_event_id: string };

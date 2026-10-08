@@ -153,6 +153,101 @@ describe.skipIf(!connectionString)("box office - end to end on the database", ()
     await client.query("rollback to savepoint again");
   });
 
+  it("a counter Razorpay sale reserves, confirms through the shared dispatcher, and abandons cleanly", async () => {
+    // Staff is already assigned to evA from the cash sale test.
+    const saleKey = randomUUID();
+    const [o] = await q(
+      `select * from public.create_counter_reserved_order($1,$2,$3,'Card Buyer','9000000008',null,null,$4)`,
+      [s.staffId, s.evA.id, s.evA.tier_id, saleKey],
+    );
+    expect(o.status).toBe("RESERVED");
+    expect(o.user_id).toBeNull();
+    expect(o.sale_channel).toBe("COUNTER_RAZORPAY");
+    expect(o.sold_by_staff_id).toBe(s.staffId);
+    expect(o.order_source).toBe("BOX_OFFICE");
+    expect(o.reservation_expires_at).not.toBeNull();
+
+    // Same pricing as online: subtotal + convenience + gateway gross-up
+    // (mirrors the RPC's own math, including the fee-enabled flags).
+    const [ev] = await q(
+      `select commission_enabled, commission_bps, convenience_fee_enabled, convenience_fee_bps, fee_payer
+         from public.events where id=$1`,
+      [s.evA.id],
+    );
+    const sub = s.evA.price_paise;
+    const comm = ev.commission_enabled !== false ? Math.round((sub * Number(ev.commission_bps ?? 1000)) / 10000) : 0;
+    const conv = ev.convenience_fee_enabled !== false ? Math.round((sub * Number(ev.convenience_fee_bps ?? 200)) / 10000) : 0;
+    const gw = Math.round(((sub + conv) * 236) / (10000 - 236));
+    const expectedTotal = (ev.fee_payer ?? "BUYER") === "ORGANIZER" ? sub : sub + conv + gw;
+    expect(o.subtotal_paise).toBe(sub);
+    expect(o.commission_paise).toBe(comm);
+    expect(o.total_paise).toBe(expectedTotal);
+
+    const [intent] = await q(`select * from public.payment_intents where ref_id=$1 and kind='TICKET_ORDER'`, [o.id]);
+    expect(intent.user_id).toBeNull();
+    expect(intent.amount_paise).toBe(o.total_paise);
+    expect(intent.status).toBe("CREATED");
+
+    // Replay with the same key returns the same order - no double reservation.
+    const [replay] = await q(
+      `select * from public.create_counter_reserved_order($1,$2,$3,'Card Buyer','9000000008',null,null,$4)`,
+      [s.staffId, s.evA.id, s.evA.tier_id, saleKey],
+    );
+    expect(replay.id).toBe(o.id);
+
+    // Simulate the gateway capture (what verifyCounterRazorpaySale / the webhook call).
+    await q(`select public.attach_razorpay_order($1,$2)`, [intent.id, "order_E2Ectr"]);
+    const [applied] = await q(`select public.apply_captured_payment('order_E2Ectr','pay_E2Ectr',$1,'INR','card',250,45,'sig')`, [o.total_paise]);
+    expect(applied.apply_captured_payment).toMatch(/^APPLIED/);
+
+    const [confirmed] = await q(`select status, payment_method from public.orders where id=$1`, [o.id]);
+    expect(confirmed.status).toBe("CONFIRMED");
+    expect(confirmed.payment_method).toBe("card");
+    const [ticket] = await q(`select id, status, user_id from public.tickets where order_id=$1`, [o.id]);
+    expect(ticket.status).toBe("VALID");
+    expect(ticket.user_id).toBeNull();
+    const [ledger] = await q(`select razorpay_fee_paise, gross_amount_paise from public.payment_ledger where order_id=$1`, [o.id]);
+    expect(ledger.gross_amount_paise).toBe(sub);
+    expect(ledger.razorpay_fee_paise).toBe(250); // actual gateway fee, not the estimate
+
+    // Second delivery of the same payment is a no-op.
+    const [again] = await q(`select public.apply_captured_payment('order_E2Ectr','pay_E2Ectr',$1,'INR','card',250,45,'sig')`, [o.total_paise]);
+    expect(again.apply_captured_payment).toBe("ALREADY_PAID");
+    const [{ n: ledgerRows }] = await q(`select count(*)::int as n from public.payment_ledger where order_id=$1`, [o.id]);
+    expect(ledgerRows).toBe(1);
+
+    // A dismissed checkout releases the reserved seat.
+    const [o2] = await q(
+      `select * from public.create_counter_reserved_order($1,$2,$3,'Abandon','9000000009',null,null,$4)`,
+      [s.staffId, s.evA.id, s.evA.tier_id, randomUUID()],
+    );
+    const [i2] = await q(`select * from public.payment_intents where ref_id=$1`, [o2.id]);
+    await q(`select public.attach_razorpay_order($1,$2)`, [i2.id, "order_E2Ectr2"]);
+    const [ab] = await q(`select public.abandon_payment('order_E2Ectr2')`, []);
+    expect(ab.abandon_payment).toMatch(/^ABANDONED/);
+    const [dead] = await q(`select status from public.orders where id=$1`, [o2.id]);
+    expect(dead.status).toBe("FAILED");
+    const [{ n: held }] = await q(
+      `select coalesce(quantity_reserved,0)::int as n from public.ticket_tiers where id=$1`,
+      [s.evA.tier_id],
+    );
+    const [{ n: live }] = await q(
+      `select coalesce(sum(quantity),0)::int as n from public.orders where tier_id=$1 and status='RESERVED'`,
+      [s.evA.tier_id],
+    );
+    expect(held).toBe(live);
+  });
+
+  it("unassigned staff cannot start a counter Razorpay sale either", async () => {
+    const [reg] = await q(`select * from public.staff_register('ADMIN', null, 'No Access', null, $1, null)`, ["6" + String(Date.now()).slice(-9)]);
+    await client.query("savepoint rzp_unassigned");
+    await expect(
+      q(`select * from public.create_counter_reserved_order($1,$2,$3,'X','9000000010',null,null,$4)`,
+        [reg.staff_id, s.evA.id, s.evA.tier_id, randomUUID()]),
+    ).rejects.toThrow(/not assigned/);
+    await client.query("rollback to savepoint rzp_unassigned");
+  });
+
   it("organizer staff cannot be assigned to another organizer's event", async () => {
     const orgOwner = s.evA.organizer_id;
     const [reg] = await q(`select * from public.staff_register('ORGANIZER', $1, 'Org Staff', null, $2, null)`, [orgOwner, "7" + String(Date.now()).slice(-9)]);
