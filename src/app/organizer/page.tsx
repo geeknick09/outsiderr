@@ -40,8 +40,6 @@ export default async function OrganizerPage({
   const collaboratedEvents = collabEvents.filter((e) => !ownedIds.has(e.id));
   const allEvents = [...events, ...collaboratedEvents];
 
-  const followerCount = await getOrganizerFollowerCount(organizerProfile.id);
-
   // Per-event analytics power the events-list sorting (waitlist/revenue chips).
   const analyticsData = await Promise.all(
     allEvents.map((event) => getOrganizerEventAnalytics(user, event.id)),
@@ -54,8 +52,6 @@ export default async function OrganizerPage({
   return (
     <div className="space-y-6 py-6">
       <OrganizerKycRealtimeRefresher userId={user.id} />
-
-      <OrganizerHeader organizer={organizerProfile} followerCount={followerCount} />
 
       <KycStatusBanner
         kycStatus={organizerProfile.kycStatus ?? "NOT_SUBMITTED"}

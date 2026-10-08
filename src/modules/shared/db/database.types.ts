@@ -257,6 +257,17 @@ export type LegalPageRow = {
   updated_by: string | null;
 }
 
+export type OrganizerPremiumPurchaseRow = {
+  id: string;
+  organizer_id: string;
+  user_id: string;
+  months: number;
+  amount_paise: number;
+  status: "PENDING" | "PAID" | "CANCELLED" | "EXPIRED";
+  created_at: string;
+  paid_at: string | null;
+};
+
 export type HeroBoostRow = {
   id: string;
   event_id: string;
@@ -454,7 +465,7 @@ export type PaymentLedgerRow = {
   order_id: string | null;
   event_id: string | null;
   organizer_id: string | null;
-  type: "TICKET_SALE" | "BOOST_SALE" | "REFUND" | "PAYOUT" | "ADJUSTMENT";
+  type: "TICKET_SALE" | "BOOST_SALE" | "DOOR_STAFF_SALE" | "CLUB_FEE" | "PREMIUM_SALE" | "REFUND" | "PAYOUT" | "ADJUSTMENT";
   gross_amount_paise: number;
   commission_paise: number;
   convenience_fee_paise: number;
@@ -595,6 +606,7 @@ export type Database = {
       event_subscriptions: Table<EventSubscriptionRow, "event_id" | "user_id">;
       organizer_follows: Table<OrganizerFollowRow, "organizer_id" | "follower_id">;
       event_collaborators: Table<EventCollaboratorRow, "event_id" | "organizer_id" | "invited_by">;
+      organizer_premium_purchases: Table<OrganizerPremiumPurchaseRow, "organizer_id" | "user_id" | "status">;
     };
     Views: {
       /** Sanitized public organizer projection - no PAN/bank/KYC columns. */

@@ -1,9 +1,5 @@
-import { BrandedLoader } from "@/modules/shared";
+import { BrandedPageLoader } from "@/modules/shared";
 
-export default function OrganizerScanLoading() {
-  return (
-    <div className="flex min-h-[50vh] items-center justify-center py-6">
-      <BrandedLoader size="lg" label="Loading scanner" />
-    </div>
-  );
+export default function ScanLoading() {
+  return <BrandedPageLoader label="Loading scanner" />;
 }

@@ -1,5 +1,5 @@
-import { BrandedLoader } from "@/modules/shared";
+import { BrandedPageLoader } from "@/modules/shared";
 
-export default function Loading() {
-  return <BrandedLoader />;
+export default function PaymentsLoading() {
+  return <BrandedPageLoader label="Loading payments" />;
 }

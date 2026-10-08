@@ -10,7 +10,6 @@ import Link from "next/link";
  */
 export default function ManageEventError({
   error,
-  reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
@@ -24,19 +23,12 @@ export default function ManageEventError({
       <div className="glass max-w-md rounded-3xl p-8">
         <h2 className="text-xl font-bold">Could not load event</h2>
         <p className="mt-2 text-sm text-muted">
-          There was a problem loading your event management page. Your event may
-          still have been created successfully.
+          There was a problem loading your event management page.
         </p>
         {error.digest ? (
           <p className="mt-1 font-mono text-xs text-zinc-400">Ref: {error.digest}</p>
         ) : null}
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <button
-            onClick={reset}
-            className="rounded-full bg-violet-neon px-5 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90"
-          >
-            Try again
-          </button>
+        <div className="mt-6 flex justify-center">
           <Link
             href="/organizer"
             className="rounded-full border border-zinc-200 px-5 py-2.5 text-sm font-semibold text-muted transition-all hover:border-violet-neon dark:border-white/10"

@@ -1,9 +1,5 @@
-import { BrandedLoader } from "@/modules/shared";
+import { BrandedPageLoader } from "@/modules/shared";
 
-export default function EventScanLoading() {
-  return (
-    <div className="flex min-h-[50vh] items-center justify-center py-6">
-      <BrandedLoader size="lg" label="Starting scanner" />
-    </div>
-  );
+export default function ScanLoading() {
+  return <BrandedPageLoader label="Starting scanner" />;
 }

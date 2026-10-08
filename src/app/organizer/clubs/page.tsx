@@ -1,11 +1,9 @@
 import { ClubForm } from "@/modules/shared";
 import { ClubMembersPanel } from "@/modules/shared";
 import { KycStatusBanner } from "@/modules/organizer";
-import { OrganizerHeader } from "@/modules/organizer";
 import { OrganizerKycRealtimeRefresher } from "@/modules/organizer";
 import { listClubMembers, listMyClubs } from "@/modules/shared/server";
 import { getOrganizerGateContext } from "@/modules/organizer/server";
-import { getOrganizerFollowerCount } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
 
@@ -16,18 +14,13 @@ export default async function OrganizerClubsPage() {
   if ("gate" in ctx) return ctx.gate;
   const { user, organizerProfile } = ctx;
 
-  const [followerCount, myClubs] = await Promise.all([
-    getOrganizerFollowerCount(organizerProfile.id),
-    listMyClubs(user),
-  ]);
+  const myClubs = await listMyClubs(user);
   const membersArrays = await Promise.all(myClubs.map((c) => listClubMembers(c.id)));
   const clubMembersMap = Object.fromEntries(myClubs.map((c, i) => [c.id, membersArrays[i]]));
 
   return (
     <div className="space-y-6 py-6">
       <OrganizerKycRealtimeRefresher userId={user.id} />
-
-      <OrganizerHeader organizer={organizerProfile} followerCount={followerCount} />
 
       <KycStatusBanner
         kycStatus={organizerProfile.kycStatus ?? "NOT_SUBMITTED"}

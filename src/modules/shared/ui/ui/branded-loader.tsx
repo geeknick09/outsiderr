@@ -46,13 +46,11 @@ export function BrandedLoader({
  */
 export function BrandedPageLoader({ label = "Loading" }: { label?: string }) {
   return (
-    <div className="flex min-h-[75vh] items-center justify-center px-4 py-12">
-      <div className="glass flex flex-col items-center justify-center gap-2 rounded-3xl px-6 py-5 shadow-lg shadow-violet-500/10">
-        <BrandedLoader size="sm" label={label} />
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">
-          {label}
-        </p>
-      </div>
+    <div className="flex min-h-[75vh] flex-col items-center justify-center gap-2 px-4 py-12">
+      <BrandedLoader size="md" label={label} />
+      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">
+        {label}
+      </p>
     </div>
   );
 }

@@ -1,12 +1,9 @@
-import Link from "next/link";
-
 import { AggregatedAnalytics, AudienceAnalytics } from "@/modules/analytics";
 import { KycStatusBanner } from "@/modules/organizer";
-import { OrganizerHeader } from "@/modules/organizer";
 import { OrganizerKycRealtimeRefresher } from "@/modules/organizer";
 import { PremiumGate } from "@/modules/organizer";
+import { LatestEventsList } from "@/modules/organizer";
 import { getPremiumPlans, isPremiumGateEnabled } from "@/modules/organizer/actions/premium";
-import { formatDateRange } from "@/modules/shared";
 import {
   getOrganizerEventAnalytics,
   getOrganizerDailyRevenue,
@@ -14,7 +11,6 @@ import {
 } from "@/modules/analytics/server";
 import { listOrganizerEvents, listCollaboratedEvents } from "@/modules/organizer/server";
 import { getOrganizerGateContext } from "@/modules/organizer/server";
-import { getOrganizerFollowerCount } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
 
@@ -32,12 +28,16 @@ export default async function OrganizerAnalyticsPage() {
   const ownedIds = new Set(events.map((e) => e.id));
   const allEvents = [...events, ...collabEvents.filter((e) => !ownedIds.has(e.id))];
 
-  const [followerCount, analyticsData, dailyRevenue, audience, premiumGate, premiumPlans] =
+  const isPremium =
+    !!organizerProfile.premiumUntil &&
+    new Date(organizerProfile.premiumUntil).getTime() > Date.now();
+  const windowDays = isPremium ? 180 : 90;
+
+  const [analyticsData, dailyRevenue, audience, premiumGate, premiumPlans] =
     await Promise.all([
-      getOrganizerFollowerCount(organizerProfile.id),
       Promise.all(allEvents.map((event) => getOrganizerEventAnalytics(user, event.id))),
-      getOrganizerDailyRevenue(user),
-      getOrganizerAudienceAnalytics(user),
+      getOrganizerDailyRevenue(user, 30),
+      getOrganizerAudienceAnalytics(user, windowDays),
       isPremiumGateEnabled(),
       getPremiumPlans(),
     ]);
@@ -56,8 +56,6 @@ export default async function OrganizerAnalyticsPage() {
     <div className="space-y-6 py-6">
       <OrganizerKycRealtimeRefresher userId={user.id} />
 
-      <OrganizerHeader organizer={organizerProfile} followerCount={followerCount} />
-
       <KycStatusBanner
         kycStatus={organizerProfile.kycStatus ?? "NOT_SUBMITTED"}
         hasPendingChanges={Object.keys(organizerProfile.pendingKyc ?? {}).length > 0}
@@ -75,7 +73,12 @@ export default async function OrganizerAnalyticsPage() {
 
         {audience ? (
           <div>
-            <h2 className="mb-3 text-lg font-bold">Audience Insights</h2>
+            <h2 className="mb-1 text-lg font-bold">Audience Insights</h2>
+            <p className="mb-3 text-xs text-muted">
+              {isPremium
+                ? "Showing the last 6 months - Premium unlocks extended history."
+                : "Showing the last 3 months - Premium unlocks 6 months of history."}
+            </p>
             <PremiumGate
               gateEnabled={premiumGate}
               premiumUntil={organizerProfile.premiumUntil ?? null}
@@ -92,21 +95,7 @@ export default async function OrganizerAnalyticsPage() {
             <p className="mb-2 text-xs text-muted">
               Open an event to see its per-event analytics and print the report.
             </p>
-            <div className="space-y-1.5">
-              {nonDraftEvents.slice(0, 10).map((event) => (
-                <Link
-                  key={event.id}
-                  href={`/organizer/events/${event.id}`}
-                  target="_blank"
-                  className="flex items-center justify-between rounded-xl border border-zinc-200 px-4 py-2.5 text-sm font-semibold transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10"
-                >
-                  <span className="truncate">{event.title}</span>
-                  <span className="ml-3 shrink-0 text-xs text-muted">
-                    {formatDateRange(event.startsAt, event.endsAt ?? null)} ↗
-                  </span>
-                </Link>
-              ))}
-            </div>
+            <LatestEventsList events={nonDraftEvents} />
           </div>
         ) : null}
       </div>

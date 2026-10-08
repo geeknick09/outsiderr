@@ -34,6 +34,7 @@ export async function getOrganizerEventAnalytics(
  */
 export async function getOrganizerDailyRevenue(
   user: CurrentUser,
+  days = 30,
 ): Promise<{ date: string; revenuePaise: number; orderCount: number }[]> {
   const organizer = await getOrganizerProfile(user);
   if (!organizer) return [];
@@ -55,6 +56,7 @@ export async function getOrganizerDailyRevenue(
     .select("total_paise, created_at")
     .in("event_id", eventIds)
     .eq("status", "CONFIRMED")
+    .gte("created_at", new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString())
     .order("created_at", { ascending: false });
 
   const ords = orders ?? [];
@@ -73,7 +75,7 @@ export async function getOrganizerDailyRevenue(
   // Build last 30 days array
   const now = new Date();
   const dailyRevenue: { date: string; revenuePaise: number; orderCount: number }[] = [];
-  for (let i = 29; i >= 0; i--) {
+  for (let i = days - 1; i >= 0; i--) {
     const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
     const day = d.toISOString().slice(0, 10);
     const entry = revenueMap.get(day);
@@ -119,6 +121,7 @@ function ageBand(birthDate: string | null): string {
  */
 export async function getOrganizerAudienceAnalytics(
   user: CurrentUser,
+  windowDays = 90,
 ): Promise<OrganizerAudienceAnalytics | null> {
   const organizer = await getOrganizerProfile(user);
   if (!organizer) return null;
@@ -129,7 +132,8 @@ export async function getOrganizerAudienceAnalytics(
     .from("orders")
     .select("user_id, events!inner(category, city), profiles!inner(birth_date, gender)")
     .eq("status", "CONFIRMED")
-    .eq("events.organizer_id", organizer.id);
+    .eq("events.organizer_id", organizer.id)
+    .gte("created_at", new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000).toISOString());
 
   if (!orders || orders.length === 0) {
     return {

@@ -1,9 +1,15 @@
-import { OrganizerNav } from "@/modules/organizer";
+import { OrganizerChrome } from "@/modules/organizer";
+import { getCurrentUser } from "@/modules/shared/server";
+import { getOrganizerProfile, getOrganizerFollowerCount } from "@/modules/shared/server";
 
-export default function OrganizerLayout({ children }: { children: React.ReactNode }) {
+export default async function OrganizerLayout({ children }: { children: React.ReactNode }) {
+  const user = await getCurrentUser();
+  const organizer = user ? await getOrganizerProfile(user) : null;
+  const followerCount = organizer ? await getOrganizerFollowerCount(organizer.id) : 0;
+
   return (
     <div>
-      <OrganizerNav />
+      <OrganizerChrome organizer={organizer} followerCount={followerCount} />
       {children}
     </div>
   );
