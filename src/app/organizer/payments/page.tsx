@@ -41,9 +41,6 @@ type LedgerRow = {
   id: string;
   type: string;
   gross_amount_paise: number;
-  commission_paise: number;
-  convenience_fee_paise: number;
-  razorpay_fee_paise: number;
   net_organizer_paise: number;
   net_platform_paise: number;
   razorpay_payment_id: string | null;
@@ -76,7 +73,7 @@ export default async function OrganizerPaymentsPage() {
     supabase
       .from("payment_ledger")
       .select(
-        "id, type, gross_amount_paise, commission_paise, convenience_fee_paise, razorpay_fee_paise, net_organizer_paise, net_platform_paise, razorpay_payment_id, notes, created_at, events(title)",
+        "id, type, gross_amount_paise, net_organizer_paise, razorpay_payment_id, notes, created_at, events(title)",
       )
       .eq("organizer_id", organizer.id)
       .order("created_at", { ascending: false })
@@ -114,7 +111,7 @@ export default async function OrganizerPaymentsPage() {
         <div>
           <h1 className="text-2xl font-black tracking-tight">Payments &amp; settlement</h1>
           <p className="text-sm text-muted">
-            Every rupee accounted for - sales, fees, refunds and payouts against your events.
+            Every rupee accounted for - sales, deductions, refunds and payouts against your events.
           </p>
         </div>
         <Link href="/organizer" className="text-sm text-muted hover:text-violet-neon">
@@ -178,14 +175,14 @@ export default async function OrganizerPaymentsPage() {
                   <th className="px-3 py-2 font-semibold text-muted">Type</th>
                   <th className="hidden px-3 py-2 font-semibold text-muted sm:table-cell">Event</th>
                   <th className="px-3 py-2 text-right font-semibold text-muted">Gross</th>
-                  <th className="hidden px-3 py-2 text-right font-semibold text-muted md:table-cell">Fees</th>
+                  <th className="hidden px-3 py-2 text-right font-semibold text-muted md:table-cell">Deductions</th>
                   <th className="px-3 py-2 text-right font-semibold text-muted">You get</th>
                   <th className="hidden px-3 py-2 font-semibold text-muted lg:table-cell">Ref</th>
                 </tr>
               </thead>
               <tbody>
                 {ledgerRows.map((r) => {
-                  const fees = r.commission_paise + r.convenience_fee_paise + r.razorpay_fee_paise;
+                  const deductions = r.type === "TICKET_SALE" ? Math.abs(r.gross_amount_paise) - r.net_organizer_paise : 0;
                   return (
                     <tr key={r.id} className="border-b border-zinc-100 dark:border-white/5">
                       <td className="px-3 py-2">
@@ -198,7 +195,7 @@ export default async function OrganizerPaymentsPage() {
                         {r.gross_amount_paise ? formatPaise(Math.abs(r.gross_amount_paise)) : "-"}
                       </td>
                       <td className="hidden px-3 py-2 text-right font-mono text-muted md:table-cell">
-                        {fees ? formatPaise(fees) : "-"}
+                        {deductions ? formatPaise(deductions) : "-"}
                       </td>
                       <td
                         className={`px-3 py-2 text-right font-mono font-bold ${

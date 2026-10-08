@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser, checkInTicket, checkInTicketWithPin } from "@/modules/shared/server";
-import { validate, checkInWithPinSchema, boxOfficeOrderSchema, rateLimit, getRateLimitIdentifier, RATE_LIMITS } from "@/modules/shared";
+import { validate, checkInWithPinSchema, boxOfficeOrderSchema, rateLimit, getRateLimitIdentifier, RATE_LIMITS, UUID_RE } from "@/modules/shared";
 import type { ScanResult } from "@/modules/shared";
 
 export async function checkInTicketAction(qrHash: string, eventId: string, pin?: string): Promise<ScanResult> {
@@ -58,9 +58,12 @@ export async function createWalkinOrderAction(formData: FormData): Promise<Walki
   const buyerName = String(formData.get("buyerName") ?? "").trim();
   const buyerPhone = String(formData.get("buyerPhone") ?? "").trim();
   const buyerEmail = String(formData.get("buyerEmail") ?? "").trim() || null;
-  const amountRupees = Number(formData.get("amount") ?? 0);
-  const amountPaise = Math.round(amountRupees * 100);
+  const clientSaleId = String(formData.get("clientSaleId") ?? "");
+  const amountPaise = 0; // price always comes from the tier, never from the client
   const mode = String(formData.get("mode") ?? "WALKIN_PREEVENT");
+
+  if (!tierId) return { error: "Select a ticket tier.", success: false };
+  if (!UUID_RE.test(clientSaleId)) return { error: "Missing sale reference. Please try again.", success: false };
 
   const v = validate(boxOfficeOrderSchema, {
     eventId,
@@ -99,7 +102,7 @@ export async function createWalkinOrderAction(formData: FormData): Promise<Walki
     p_buyer_email: validEmail,
     p_amount_paise: validAmount,
     p_mode: validMode,
-    p_idempotency_key: crypto.randomUUID(),
+    p_idempotency_key: clientSaleId,
   });
 
   if (error) return { error: error.message, success: false };

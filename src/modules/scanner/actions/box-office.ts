@@ -2,7 +2,7 @@
 
 import { headers } from "next/headers";
 import { createClient } from "@/modules/shared/server";
-import { validate, verifyBoxOfficePinSchema, boxOfficeOrderSchema, rateLimit, getRateLimitIdentifier, RATE_LIMITS } from "@/modules/shared";
+import { validate, verifyBoxOfficePinSchema, boxOfficeOrderSchema, rateLimit, getRateLimitIdentifier, RATE_LIMITS, UUID_RE } from "@/modules/shared";
 
 export async function verifyBoxOfficePinAction(
   eventId: string,
@@ -91,9 +91,12 @@ export async function createBoxOfficeOrderAction(formData: FormData): Promise<{
   const buyerName = String(formData.get("buyerName") ?? "").trim();
   const buyerPhone = String(formData.get("buyerPhone") ?? "").trim();
   const buyerEmail = String(formData.get("buyerEmail") ?? "").trim() || null;
-  const amountRupees = Number(formData.get("amount") ?? 0);
-  const amountPaise = Math.round(amountRupees * 100);
+  const clientSaleId = String(formData.get("clientSaleId") ?? "");
+  const amountPaise = 0; // price always comes from the tier, never from the client
   const mode = String(formData.get("mode") ?? "WALKIN_PREEVENT");
+
+  if (!tierId) return { error: "Select a ticket tier.", success: false };
+  if (!UUID_RE.test(clientSaleId)) return { error: "Missing sale reference. Please try again.", success: false };
 
   const v = validate(boxOfficeOrderSchema, {
     eventId,
@@ -132,7 +135,6 @@ export async function createBoxOfficeOrderAction(formData: FormData): Promise<{
   // Generate idempotency key to prevent duplicate orders from double-clicks
   // create_walkin_order is service-role only - PIN verified above.
   const { createServiceClient } = await import("@/modules/shared/server");
-  const idempotencyKey = crypto.randomUUID();
   const { data: result, error } = await createServiceClient().rpc("create_walkin_order", {
     p_event_id: validEventId,
     p_buyer_name: validName,
@@ -141,7 +143,7 @@ export async function createBoxOfficeOrderAction(formData: FormData): Promise<{
     p_buyer_email: validEmail,
     p_amount_paise: validAmount,
     p_mode: validMode,
-    p_idempotency_key: idempotencyKey,
+    p_idempotency_key: clientSaleId,
   });
 
   if (error) return { error: error.message, success: false };

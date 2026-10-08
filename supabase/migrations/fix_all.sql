@@ -5645,7 +5645,7 @@ begin
 
   return v_order;
 end;
-$function$
+$function$;
 
 
 -- ---------------------------------------------------------------------------
@@ -5733,7 +5733,7 @@ begin
 
   return v_order;
 end;
-$function$
+$function$;
 
 
 -- ---------------------------------------------------------------------------
@@ -5785,7 +5785,7 @@ begin
   end if;
   return v_entry;
 end;
-$function$
+$function$;
 
 
 
@@ -6314,3 +6314,149 @@ $$;
 
 revoke execute on function public.apply_captured_payment(text, text, integer, text, text, integer, integer, text) from public, anon, authenticated;
 grant  execute on function public.apply_captured_payment(text, text, integer, text, text, integer, integer, text) to service_role;
+
+-- ---------------------------------------------------------------------------
+-- Phase 0 (box-office redesign): counter walk-in sales.
+--  - tier REQUIRED: the client amount is no longer trusted
+--  - capacity locked (FOR UPDATE) and checked: no oversell
+--  - same fee math as online sales (convenience + gateway gross-up)
+--  - cash never touches a gateway, so razorpay_fee_paise = 0 and the
+--    gateway portion stays with the platform (admin-side revenue)
+--  - writes a TICKET_SALE ledger row so payouts and revenue include it
+-- ---------------------------------------------------------------------------
+create or replace function public.create_walkin_order(
+  p_event_id    uuid,
+  p_buyer_name  text,
+  p_buyer_phone text,
+  p_tier_id     uuid    default null,
+  p_buyer_email text    default null,
+  p_amount_paise integer default 0,
+  p_mode        text    default 'WALKIN_PREEVENT',
+  p_idempotency_key text default null
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_event         public.events;
+  v_tier          public.ticket_tiers;
+  v_subtotal      integer;
+  v_commission    integer;
+  v_convenience   integer;
+  v_gateway_bps   integer;
+  v_gateway       integer;
+  v_platform_fee  integer;
+  v_total         integer;
+  v_payout        integer;
+  v_order_id      uuid;
+  v_ticket_id     uuid;
+  v_ticket_status text;
+  v_existing      public.orders;
+begin
+  -- Idempotency: a repeated client_sale_id returns the original sale.
+  if p_idempotency_key is not null then
+    select * into v_existing from public.orders
+      where idempotency_key = p_idempotency_key limit 1;
+    if v_existing.id is not null then
+      select id into v_ticket_id from public.tickets where order_id = v_existing.id limit 1;
+      return jsonb_build_object(
+        'orderId', v_existing.id,
+        'ticketId', v_ticket_id,
+        'subtotalPaise', v_existing.subtotal_paise,
+        'commissionPaise', v_existing.commission_paise,
+        'payoutPaise', v_existing.organizer_payout_paise,
+        'totalPaise', v_existing.total_paise,
+        'ticketStatus', case when v_existing.order_source = 'WALKIN_INSTANT' then 'USED' else 'VALID' end
+      );
+    end if;
+  end if;
+
+  if p_mode not in ('WALKIN_PREEVENT', 'WALKIN_QR', 'WALKIN_INSTANT') then
+    raise exception 'Invalid walk-in mode';
+  end if;
+  if p_tier_id is null then raise exception 'Select a ticket tier'; end if;
+
+  select * into v_event from public.events where id = p_event_id;
+  if not found then raise exception 'Event not found'; end if;
+  if v_event.status::text not in ('PUBLISHED', 'POSTPONED') then
+    raise exception 'This event is not open for sales';
+  end if;
+
+  select * into v_tier from public.ticket_tiers
+   where id = p_tier_id and event_id = p_event_id
+   for update;
+  if not found then raise exception 'Tier not found'; end if;
+  if v_tier.quantity - v_tier.quantity_sold - coalesce(v_tier.quantity_reserved, 0) < 1 then
+    raise exception 'Sold out for this ticket tier';
+  end if;
+
+  -- Money: same formulas as create_reserved_order (online), recomputed here.
+  v_subtotal    := v_tier.price_paise;
+  v_commission  := case when coalesce(v_event.commission_enabled, true)
+                        then round(v_subtotal * coalesce(v_event.commission_bps, 1000) / 10000.0)
+                        else 0 end;
+  v_convenience := case when coalesce(v_event.convenience_fee_enabled, true)
+                        then round(v_subtotal * coalesce(v_event.convenience_fee_bps, 200) / 10000.0)
+                        else 0 end;
+  v_gateway_bps := public._setting_int('gateway_fee_bps', 236);
+  v_gateway     := round((v_subtotal + v_convenience) * v_gateway_bps / (10000.0 - v_gateway_bps));
+  v_platform_fee := v_commission + v_convenience;
+  if coalesce(v_event.fee_payer, 'BUYER') = 'ORGANIZER' then
+    v_total  := v_subtotal;
+    v_payout := v_subtotal - v_commission - v_convenience - v_gateway;
+  else
+    v_total  := v_subtotal + v_convenience + v_gateway;
+    v_payout := v_subtotal - v_commission;
+  end if;
+
+  v_ticket_status := case when p_mode = 'WALKIN_INSTANT' then 'USED' else 'VALID' end;
+
+  update public.ticket_tiers set quantity_sold = quantity_sold + 1
+    where id = p_tier_id;
+
+  insert into public.orders (
+    event_id, tier_id, user_id, quantity, unit_price_paise,
+    subtotal_paise, platform_fee_paise, commission_paise, convenience_fee_paise,
+    gateway_fee_paise, organizer_payout_paise, total_paise,
+    fee_payer, status, confirmed_at, buyer_name, buyer_phone, buyer_email,
+    order_source, is_box_office, idempotency_key
+  ) values (
+    p_event_id, p_tier_id, null, 1, v_subtotal,
+    v_subtotal, v_platform_fee, v_commission, v_convenience,
+    v_gateway, v_payout, v_total,
+    coalesce(v_event.fee_payer, 'BUYER'), 'CONFIRMED', now(), p_buyer_name, p_buyer_phone, p_buyer_email,
+    p_mode, true, p_idempotency_key
+  ) returning id into v_order_id;
+
+  insert into public.tickets (
+    order_id, event_id, tier_id, user_id, status, qr_hash, checked_in_at
+  ) values (
+    v_order_id, p_event_id, p_tier_id, null, v_ticket_status::ticket_status, gen_random_uuid()::text,
+    case when p_mode = 'WALKIN_INSTANT' then now() else null end
+  ) returning id into v_ticket_id;
+
+  if v_subtotal > 0 then
+    insert into public.payment_ledger (
+      order_id, event_id, organizer_id, type, gross_amount_paise,
+      commission_paise, convenience_fee_paise, razorpay_fee_paise,
+      net_organizer_paise, net_platform_paise, razorpay_payment_id, notes
+    ) values (
+      v_order_id, p_event_id, v_event.organizer_id, 'TICKET_SALE', v_subtotal,
+      v_commission, v_convenience + v_gateway, 0,
+      v_payout, v_platform_fee + v_gateway, null, 'Box office sale'
+    );
+  end if;
+
+  return jsonb_build_object(
+    'orderId', v_order_id,
+    'ticketId', v_ticket_id,
+    'subtotalPaise', v_subtotal,
+    'commissionPaise', v_commission,
+    'payoutPaise', v_payout,
+    'totalPaise', v_total,
+    'ticketStatus', v_ticket_status
+  );
+end;
+$$;
+

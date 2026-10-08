@@ -5,7 +5,7 @@ import { CheckCircle2, Loader2, Ticket, UserCheck } from "lucide-react";
 
 import { createWalkinOrderAction } from "@/modules/scanner/actions/check-in";
 import { Button } from "@/modules/shared";
-import { formatPaise } from "@/modules/shared";
+import { formatPaise, nextSaleAttempt, type SaleAttempt } from "@/modules/shared";
 import type { EventDetail } from "@/modules/shared";
 
 const INPUT =
@@ -22,7 +22,7 @@ export function WalkinCheckinForm({
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [tierId, setTierId] = useState<string>("");
-  const [customAmount, setCustomAmount] = useState<string>("");
+  const [attempt, setAttempt] = useState<SaleAttempt | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ ticketId: string; mode: string } | null>(null);
@@ -34,7 +34,7 @@ export function WalkinCheckinForm({
     setPhone("");
     setEmail("");
     setTierId("");
-    setCustomAmount("");
+    setAttempt(null);
   }
 
   async function handleSubmit(mode: "WALKIN_PREEVENT" | "WALKIN_QR" | "WALKIN_INSTANT") {
@@ -42,13 +42,16 @@ export function WalkinCheckinForm({
       setError("Name and phone are required.");
       return;
     }
-    if (!selectedTier && !customAmount) {
-      setError("Select a tier or enter a custom amount.");
+    if (!selectedTier) {
+      setError("Select a ticket tier.");
       return;
     }
 
     setSubmitting(true);
     setError(null);
+
+    const next = nextSaleAttempt(attempt, [event.id, selectedTier.id, name.trim(), phone.trim(), email.trim(), mode].join("|"));
+    setAttempt(next);
 
     const formData = new FormData();
     formData.set("eventId", event.id);
@@ -56,11 +59,8 @@ export function WalkinCheckinForm({
     formData.set("buyerPhone", phone.trim());
     formData.set("buyerEmail", email.trim());
     formData.set("mode", mode);
-    if (selectedTier) {
-      formData.set("tierId", selectedTier.id);
-    } else {
-      formData.set("amount", customAmount);
-    }
+    formData.set("tierId", selectedTier.id);
+    formData.set("clientSaleId", next.key);
 
     const result = await createWalkinOrderAction(formData);
     setSubmitting(false);
@@ -173,14 +173,11 @@ export function WalkinCheckinForm({
           </label>
           <select
             value={tierId}
-            onChange={(e) => {
-              setTierId(e.target.value);
-              setCustomAmount("");
-            }}
+            onChange={(e) => setTierId(e.target.value)}
             className={INPUT}
             disabled={submitting}
           >
-            <option value="">Custom amount (no tier)</option>
+            <option value="">Select a tier</option>
             {event.tiers.map((tier) => (
               <option key={tier.id} value={tier.id}>
                 {tier.name} - {tier.pricePaise === 0 ? "Free" : formatPaise(tier.pricePaise)}
@@ -190,16 +187,15 @@ export function WalkinCheckinForm({
         </div>
         <div>
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
-            Amount (₹) {selectedTier ? "(from tier)" : ""}
+            Price (₹, from tier)
           </label>
           <input
             type="number"
-            value={selectedTier ? (selectedTier.pricePaise / 100).toFixed(0) : customAmount}
-            onChange={(e) => setCustomAmount(e.target.value)}
+            value={selectedTier ? (selectedTier.pricePaise / 100).toFixed(0) : ""}
+            readOnly
             placeholder="0"
             className={INPUT}
-            disabled={submitting || !!selectedTier}
-            min={0}
+            disabled
           />
         </div>
       </div>

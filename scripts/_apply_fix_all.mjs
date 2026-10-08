@@ -31,8 +31,10 @@ async function main() {
   await client.connect();
   console.log("Connected to database. Applying fix_all.sql...\n");
 
+  let applied = false;
   try {
     await client.query(sql);
+    applied = true;
     console.log("✅ fix_all.sql applied successfully!\n");
   } catch (err) {
     // Some statements may fail if they already exist — that's OK with idempotent SQL
@@ -40,7 +42,8 @@ async function main() {
     console.error("❌ Error applying fix_all.sql:");
     console.error(err.message);
     if (err.where) console.error("At:", err.where);
-    // Don't exit — some statements may have succeeded
+    // The bundle runs as one transaction: a failure means NOTHING was applied.
+    process.exitCode = 1;
   }
 
   // Verify key changes
@@ -132,6 +135,11 @@ async function main() {
     }
   }
 
+  if (!applied) {
+    console.log("\n❌ fix_all.sql was NOT applied. Checks above ran against the previous state.");
+    await client.end();
+    return;
+  }
   console.log(`\n${allPassed ? "✅ All checks passed!" : "⚠️  Some checks failed — review above"}`);
   await client.end();
 }

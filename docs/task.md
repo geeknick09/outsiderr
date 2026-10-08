@@ -64,6 +64,21 @@ Grouped by domain. Full detail was in `BACKLOG.md` (now superseded); test cases 
 | GitHub Actions cron config | Partial | repo secrets `CRON_SECRET` + `APP_URL` | `.github/workflows/cron.yml` — reservations+waitlist `*/5min`, backups daily/weekly, teaser cleanup daily |
 | Production hardening & QA pass | In progress | — | run `docs/reference/test-scenarios.md` |
 
+## Box office & door scanning redesign — In progress
+
+Plan: `C:\Users\Anurag Shaw\.devin\plans\plan-e9605775583d9b9f.md` (5 phases). Decisions: named staff (phone + personal PIN), counter pay via Razorpay or cash (same fee rules; cash gateway portion kept by platform), door scanning offline / sales online, admin staff any event / organizer staff own events, ticket by phone link only, organizers see payout + total deduction only.
+
+| Phase | Status | Remarks |
+|---|---|---|
+| 0 — current-bug fixes | Completed (local commit, not pushed) | Walk-in ledger + capacity + tier-required + client sale key; PIN-gated offline cache (paginated, no PII); local USED marking; organizer payout view. Live DB: `create_walkin_order` applied via `_apply_phase0_walkin.mjs`, 9 live checks pass (rolled back). Full `fix_all.sql` bundle still doesn't apply in one shot (see memory.md 2026-10-09). |
+| 1 — staff registry | Not started | `staff_members`, `staff_event_assignments`, admin + organizer pages, legacy `box_office_pins` read-only |
+| 2 — counter sales | Not started | Staff login, Razorpay path, cash RPC, ticket link, cash handover |
+| 3 — scan attribution | Not started | `scan_log`, scanner session token (replaces per-scan PIN in queue), WRONG_EVENT outcome |
+| 4 — offline hardening | Not started | Signed QR, batch sync with `client_scan_id`, DUPLICATE_CONFLICT, device status UI |
+| 5 — cleanup | Not started | Retire legacy PIN writes, openapi, copy |
+
+- **Pending before Phase 2:** confirm fee-payer=ORGANIZER convenience treatment for counter cash; fix the three pre-existing bundle issues so `fix_all.sql` applies in one shot.
+
 ## Organizer event sections — In progress
 
 | Task | Status | Blockers | Remarks |

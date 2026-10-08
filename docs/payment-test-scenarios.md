@@ -194,3 +194,23 @@ lock and per-section editing.
 - `tsc --noEmit` → clean
 - `vitest run` → 125/125
 - `next build` → exit 0
+
+## §14 Counter (box office) sales & offline door cache (Phase 0 — 2026-10-09)
+
+| # | Scenario | Expected |
+|---|---|---|
+| 14.1 | Counter sale with no tier selected | Refused: "Select a ticket tier". Client-typed amount is never used. |
+| 14.2 | Double-click "Generate ticket" | One order, one ticket. Same `clientSaleId` on both calls. |
+| 14.3 | Network drops after the sale commits, staff retries | Retry returns the original sale. No second ticket. |
+| 14.4 | Staff changes tier/buyer after a failed attempt, then submits | New sale key. The earlier attempt is not reused. |
+| 14.5 | Last seat sold at the counter | Next counter sale refused: "Sold out for this ticket tier". |
+| 14.6 | Counter sale totals | Buyer total and organizer payout match online pricing for the same tier (convenience + gateway gross-up, commission). |
+| 14.7 | Ledger for counter sale | One `TICKET_SALE` row; `razorpay_fee_paise = 0`; net organizer + net platform = buyer total. Appears on organizer payments and admin revenue. |
+| 14.8 | Organizer payments page | Single "Deductions" column (gross minus net). No commission, convenience, or gateway columns. |
+| 14.9 | Door device goes offline after cache download | Valid cached ticket accepted once. Second scan on the same device: "Already checked in (offline cache)". |
+| 14.10 | Ticket already USED on server before cache download | Shows "already used", not "not found". |
+| 14.11 | Cache contents (IndexedDB) | No buyer phone or email fields. |
+| 14.12 | Cache download for an event with > 1000 tickets | All tickets present (paginated). |
+| 14.13 | Cache download with a wrong PIN | Refused. No tickets returned. |
+
+**Automated:** `tests/scanner-phase0.test.ts` (decisions, cache shape, sale key, UUID check). **Live DB:** `scripts/_verify_walkin_phase0.mjs` (rolled back; covers 14.2, 14.5, 14.6, 14.7, 14.1). **Manual (device):** 14.9 and 14.10 require airplane mode with a real door PIN. Not yet run.

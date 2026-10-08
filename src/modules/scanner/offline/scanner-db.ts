@@ -3,6 +3,8 @@
 // IndexedDB wrapper for offline scanner sync.
 // Stores: tickets_cache (valid tickets for current event), scan_queue (pending scans), scan_history (all scans).
 
+import type { CachedTicketRecord } from "./cache-mapper";
+
 const DB_NAME = "outsiderr-scanner";
 const DB_VERSION = 1;
 
@@ -70,15 +72,16 @@ async function tx<T>(
 
 // --- Tickets cache ---
 
-export interface CachedTicket {
-  qr_hash: string;
-  event_id: string;
-  status: string;
-  tier_name: string | null;
-  holder_name: string | null;
-  buyer_phone: string | null;
-  buyer_email: string | null;
-  cached_at: number;
+export type CachedTicket = CachedTicketRecord;
+
+export async function markCachedTicketUsed(qrHash: string): Promise<void> {
+  try {
+    const cached = await getCachedTicket(qrHash);
+    if (!cached) return;
+    await tx(STORES.TICKETS_CACHE, "readwrite", (store) => store.put({ ...cached, status: "USED" }));
+  } catch (err) {
+    console.error("[scanner-db] markCachedTicketUsed error:", err);
+  }
 }
 
 export async function cacheTickets(tickets: CachedTicket[]): Promise<void> {

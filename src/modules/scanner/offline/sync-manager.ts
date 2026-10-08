@@ -6,8 +6,9 @@ import {
   getQueuedScans,
   deleteQueuedScan,
   addHistoryScan,
-  type CachedTicket,
+  markCachedTicketUsed,
 } from "./scanner-db";
+import { decideLocalScan, toCachedRecord } from "./cache-mapper";
 
 export interface SyncStatus {
   online: boolean;
@@ -89,52 +90,18 @@ export class ScannerSyncManager {
     if (!navigator.onLine) return;
 
     try {
-      // Fetch valid tickets for this event via Supabase client
-      const { createClient } = await import("@/modules/shared");
-      const supabase = createClient();
-      const { data: tickets } = await supabase
-        .from("tickets")
-        .select(`
-          qr_hash,
-          event_id,
-          status,
-          tier_id,
-          order_id
-        `)
-        .eq("event_id", this.eventId)
-        .eq("status", "VALID");
+      // PIN-gated server route: door devices have no Supabase session, and the
+      // cache carries no buyer phone or email.
+      const { downloadScannerCacheAction } = await import("../actions/cache");
+      const { error, tickets } = await downloadScannerCacheAction(this.eventId, this.pin);
+      if (error || !tickets) {
+        console.error("[sync] downloadTickets:", error);
+        return;
+      }
 
-      if (!tickets || tickets.length === 0) return;
-
-      // Fetch tier names and order buyer names
-      const tierIds = [...new Set(tickets.map((t) => t.tier_id).filter(Boolean))] as string[];
-      const orderIds = [...new Set(tickets.map((t) => t.order_id).filter(Boolean))] as string[];
-
-      const [tierRes, orderRes] = await Promise.all([
-        tierIds.length > 0
-          ? supabase.from("ticket_tiers").select("id, name").in("id", tierIds)
-          : { data: null },
-        orderIds.length > 0
-          ? supabase.from("orders").select("id, buyer_name, buyer_phone, buyer_email").in("id", orderIds)
-          : { data: null },
-      ]);
-
-      const tierMap = Object.fromEntries((tierRes.data ?? []).map((t) => [t.id, t.name]));
-      const orderMap = Object.fromEntries((orderRes.data ?? []).map((o) => [o.id, o]));
-
-      const cachedTickets: CachedTicket[] = tickets.map((t) => ({
-        qr_hash: t.qr_hash,
-        event_id: t.event_id,
-        status: t.status,
-        tier_name: t.tier_id ? tierMap[t.tier_id] ?? null : null,
-        holder_name: t.order_id ? orderMap[t.order_id]?.buyer_name ?? null : null,
-        buyer_phone: t.order_id ? orderMap[t.order_id]?.buyer_phone ?? null : null,
-        buyer_email: t.order_id ? orderMap[t.order_id]?.buyer_email ?? null : null,
-        cached_at: Date.now(),
-      }));
-
-      await cacheTickets(cachedTickets);
-      console.log(`[sync] Cached ${cachedTickets.length} valid tickets for offline use`);
+      const now = Date.now();
+      await cacheTickets(tickets.map((t) => toCachedRecord(t, now)));
+      console.log(`[sync] Cached ${tickets.length} tickets for offline use`);
     } catch (err) {
       console.error("[sync] downloadTickets error:", err);
     }
@@ -150,23 +117,18 @@ export class ScannerSyncManager {
     tierName: string | null;
   }> {
     const cached = await getCachedTicket(qrHash);
-    if (!cached) {
-      return { outcome: "INVALID", holderName: null, tierName: null };
-    }
-    if (cached.event_id !== this.eventId) {
-      return { outcome: "INVALID", holderName: null, tierName: null };
-    }
-    if (cached.status !== "VALID") {
-      return { outcome: "ALREADY_USED", holderName: cached.holder_name, tierName: cached.tier_name };
-    }
-    return { outcome: "VALID", holderName: cached.holder_name, tierName: cached.tier_name };
+    const outcome = decideLocalScan(cached, this.eventId);
+    if (outcome === "INVALID") return { outcome, holderName: null, tierName: null };
+    return { outcome, holderName: cached?.holder_name ?? null, tierName: cached?.tier_name ?? null };
   }
 
   /**
-   * Queue a scan for later syncing (when offline).
+   * Queue a VALID local scan for later syncing (when offline). Marks the cached
+   * ticket USED straight away so a second scan on this device is refused.
    */
   async queueScan(qrHash: string): Promise<void> {
     const { queueScan } = await import("./scanner-db");
+    await markCachedTicketUsed(qrHash);
     await queueScan({
       qr_hash: qrHash,
       event_id: this.eventId,
