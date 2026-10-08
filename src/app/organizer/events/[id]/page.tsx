@@ -7,7 +7,7 @@ import { lazy, Suspense } from "react";
 
 import { AnalyticsPanel } from "@/modules/analytics";
 import { AttendeesTable } from "@/modules/organizer";
-import { EditEventForm, CancelPostponeButtons, CollaborationPanel, EventStaffManager, ScannerPinManager, BoxOfficePinManager, HeroBoostPanel, PastEventGalleryManager, WaitlistPanel, VerificationQueue, EventOverview, ManageTabs } from "@/modules/organizer";
+import { EditEventForm, CancelPostponeButtons, CollaborationPanel, ScannerPinManager, BoxOfficePinManager, HeroBoostPanel, PastEventGalleryManager, WaitlistPanel, VerificationQueue, EventOverview, ManageTabs } from "@/modules/organizer";
 import { ShareButton } from "@/modules/web";
 import { Badge } from "@/modules/shared";
 import { Button } from "@/modules/shared";
@@ -15,7 +15,6 @@ import { CollapseAllProvider, CollapsibleSection } from "@/modules/shared";
 
 import { getCurrentUser } from "@/modules/shared/server";
 import { getEvent, getOrganizerPastEventsForLinking } from "@/modules/shared/server";
-import { listEventStaff } from "@/modules/organizer/server";
 import { listEventScannerPins } from "@/modules/shared/server";
 import { listBoxOfficePinsForEvent } from "@/modules/shared/server";
 import { getOrganizerEventAnalytics } from "@/modules/analytics/server";
@@ -57,7 +56,7 @@ export default async function ManageEventPage({
 
   // Load all page data in parallel. Log the real error server-side before letting
   // the route-level error.tsx handle the fallback UI for the user.
-  const [event, analytics, cancelChargePct, postponeChargePct, heroBoost, heroBoostPrice, heroBoostDuration, orders, tickets, waitlistEntries, eventStaff, scannerPins, boxOfficePins, collaborators] = await Promise.all([
+  const [event, analytics, cancelChargePct, postponeChargePct, heroBoost, heroBoostPrice, heroBoostDuration, orders, tickets, waitlistEntries, scannerPins, boxOfficePins, collaborators] = await Promise.all([
     getEvent(id),
     getOrganizerEventAnalytics(user, id),
     getCancellationChargePercent(),
@@ -68,7 +67,6 @@ export default async function ManageEventPage({
     listEventOrders(id),
     listEventTickets(id),
     listEventWaitlist(id),
-    listEventStaff(user, id),
     listEventScannerPins(user, id),
     listBoxOfficePinsForEvent(user, id),
     getEventCollaboratorsForOwner(user, id),
@@ -224,176 +222,148 @@ export default async function ManageEventPage({
         />
       </div>
 
-      {/* Analytics / Attendees tabs */}
-      {canView && analytics ? (
-        <ManageTabs
-          tabs={[
-            {
-              id: "analytics",
-              label: "Analytics",
-              content: (
+      {/* Analytics / Attendees / Details tabs */}
+      {(() => {
+        const detailsContent = (
+          <CollapseAllProvider defaultOpen>
+            <div className="space-y-3">
+              {/* Edit form - read-only overview when locked (within 2h), cancelled, or past */}
+              {canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast && (startMs - nowMs) > 2 * 60 * 60 * 1000 ? (
+                <EditEventForm event={event} pastEvents={pastEventsForLinking} lockLogistics={!isOwner} />
+              ) : (
                 <div className="space-y-3">
-                  <div className="flex justify-end">
-                    <Link
-                      href={`/organizer/events/${event.id}/report`}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10"
-                    >
-                      <Printer className="h-3.5 w-3.5" /> Print report
-                    </Link>
-                  </div>
-                  <AnalyticsPanel analytics={analytics} eventId={event.id} showMoney={canViewMoney(accessLevel)} />
-                  {analytics.waitlistCount > 0 ? (
-                    <WaitlistPanel waitlistCount={analytics.waitlistCount} entries={waitlistEntries} />
-                  ) : null}
-                  {canOrders && orders.some((o) => o.status === "PENDING_VERIFICATION") ? (
-                    <VerificationQueue
-                      orders={orders.filter((o: { status: string }) => o.status === "PENDING_VERIFICATION")}
-                      organizerEventIds={[event.id]}
-                    />
-                  ) : null}
-                </div>
-              ),
-            },
-            ...(canOrders
-              ? [{
-                  id: "attendees",
-                  label: `Attendees (${orders.length})`,
-                  content: (
-                    <div className="space-y-3">
-                      <div className="flex justify-end">
-                        <Link
-                          href={`/organizer/events/${event.id}/report`}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10"
-                        >
-                          <Printer className="h-3.5 w-3.5" /> Print attendee list
-                        </Link>
-                      </div>
-                      {orders.length === 0 ? (
-                        <div className="glass rounded-2xl p-5 text-sm text-muted">
-                          No bookings yet.
-                        </div>
-                      ) : (
-                        <AttendeesTable orders={orders} tickets={tickets} />
-                      )}
+                  {canEdit && !eventPast && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" ? (
+                    <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                      Editing is locked within 2 hours of the event start time. If you need to make changes, please contact Outsiderr support.
                     </div>
-                  ),
-                }]
-              : []),
-          ]}
-        />
-      ) : canOrders ? (
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold">Attendees ({orders.length})</h2>
-            <Link
-              href={`/organizer/events/${event.id}/report`}
-              className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10"
-            >
-              <Printer className="h-3.5 w-3.5" /> Print attendee list
-            </Link>
-          </div>
-          {orders.length === 0 ? (
-            <div className="glass rounded-2xl p-5 text-sm text-muted">No bookings yet.</div>
-          ) : (
-            <AttendeesTable orders={orders} tickets={tickets} />
-          )}
-        </section>
-      ) : null}
-
-      {/* Event sections - expanded by default, expand/collapse-all control */}
-      <CollapseAllProvider defaultOpen>
-
-      {/* Edit form - read-only overview when locked (within 2h), cancelled, or past */}
-      {canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast && (startMs - nowMs) > 2 * 60 * 60 * 1000 ? (
-        <EditEventForm event={event} pastEvents={pastEventsForLinking} lockLogistics={!isOwner} />
-      ) : (
-        <div className="space-y-3">
-          {canEdit && !eventPast && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" ? (
-            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
-              Editing is locked within 2 hours of the event start time. If you need to make changes, please contact Outsiderr support.
-            </div>
-          ) : null}
-          <EventOverview event={event} />
-        </div>
-      )}
-
-      {/* Featured & boost - collapsed by default */}
-      {canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast ? (
-        <div id="manage-promotion" className="scroll-mt-36">
-          <CollapsibleSection title="Featured & Boost" description="Hero rotation and homepage slot boosts.">
-            <div className="space-y-4">
-              <HeroBoostPanel
-                eventId={event.id}
-                boost={heroBoost}
-                pricePaise={heroBoostPrice}
-                durationDays={heroBoostDuration}
-                eventStartsAt={event.startsAt}
-                platformUpiId={process.env.NEXT_PUBLIC_PLATFORM_UPI_ID ?? "outsiderr@upi"}
-              />
-              <div className="flex items-center justify-between gap-4 rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
-                <div>
-                  <h3 className="text-sm font-bold">Slot Boost</h3>
-                  <p className="mt-1 text-xs text-muted">
-                    Get your event featured in the homepage carousel slots.
-                  </p>
+                  ) : null}
+                  <EventOverview event={event} />
                 </div>
-                <Link
-                  href={`/organizer/boost?event=${event.id}`}
-                  className="shrink-0 rounded-full bg-neon-gradient px-5 py-2.5 text-sm font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90"
-                >
-                  Boost Event
-                </Link>
-              </div>
+              )}
+
+              {canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast ? (
+                <CollapsibleSection title="Featured & Boost" description="Hero rotation and homepage slot boosts.">
+                  <div className="space-y-4">
+                    <HeroBoostPanel
+                      eventId={event.id}
+                      boost={heroBoost}
+                      pricePaise={heroBoostPrice}
+                      durationDays={heroBoostDuration}
+                      eventStartsAt={event.startsAt}
+                      platformUpiId={process.env.NEXT_PUBLIC_PLATFORM_UPI_ID ?? "outsiderr@upi"}
+                    />
+                    <div className="flex items-center justify-between gap-4 rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
+                      <div>
+                        <h3 className="text-sm font-bold">Slot Boost</h3>
+                        <p className="mt-1 text-xs text-muted">
+                          Get your event featured in the homepage carousel slots.
+                        </p>
+                      </div>
+                      <Link
+                        href={`/organizer/boost?event=${event.id}`}
+                        className="shrink-0 rounded-full bg-neon-gradient px-5 py-2.5 text-sm font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90"
+                      >
+                        Boost Event
+                      </Link>
+                    </div>
+                  </div>
+                </CollapsibleSection>
+              ) : null}
+
+              {!eventPast && collaborators !== null ? (
+                <CollapsibleSection title="Collaborators" description="Co-organizers, permissions and invites.">
+                  <CollaborationPanel eventId={event.id} collaborators={collaborators} canManage={isOwner} />
+                </CollapsibleSection>
+              ) : null}
+
+              {canScan && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
+                <>
+                  <CollapsibleSection title="Door Scanner PINs" description="PINs that open the door scanner at /scan - no account needed.">
+                    <ScannerPinManager eventId={event.id} pins={scannerPins} />
+                  </CollapsibleSection>
+                  <CollapsibleSection title="Box Office PINs" description="PINs for on-ground box-office sales.">
+                    <BoxOfficePinManager eventId={event.id} pins={boxOfficePins} />
+                  </CollapsibleSection>
+                </>
+              ) : null}
+
+              {isOwner && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
+                <CollapsibleSection title="Postpone / Cancel" description="Owner only. Ticket holders are notified automatically.">
+                  <div className="rounded-2xl border border-red-500/30 p-4">
+                    <CancelPostponeButtons
+                      event={event}
+                      cancellationChargePercent={cancelChargePct}
+                      postponementChargePercent={postponeChargePct}
+                    />
+                  </div>
+                </CollapsibleSection>
+              ) : null}
+
+              {eventPast && canEdit ? (
+                <PastEventGalleryManager eventId={event.id} photoUrls={event.photoUrls} />
+              ) : null}
             </div>
-          </CollapsibleSection>
-        </div>
-      ) : null}
+          </CollapseAllProvider>
+        );
 
-      {/* Collaboration - everyone on the event sees the roster; only the owner invites/removes */}
-      {!eventPast && collaborators !== null ? (
-        <div id="manage-collaboration" className="scroll-mt-36">
-          <CollapsibleSection title="Collaborators" description="Co-organizers, permissions and invites.">
-            <CollaborationPanel eventId={event.id} collaborators={collaborators} canManage={isOwner} />
-          </CollapsibleSection>
-        </div>
-      ) : null}
-
-      {/* Operations - door staff, scanner + box-office PINs */}
-      {canScan && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
-        <div id="manage-operations" className="scroll-mt-36 space-y-3">
-          <CollapsibleSection title="Door Staff & Scanner" description="Staff roster and gate scanner access PINs.">
-            <div className="space-y-4">
-              <EventStaffManager eventId={event.id} staff={eventStaff} />
-              <ScannerPinManager eventId={event.id} pins={scannerPins} />
-            </div>
-          </CollapsibleSection>
-          <CollapsibleSection title="Box Office PINs" description="PINs for on-ground box-office sales.">
-            <BoxOfficePinManager eventId={event.id} pins={boxOfficePins} />
-          </CollapsibleSection>
-        </div>
-      ) : null}
-
-      {/* Cancel / Postpone - owner only, never a collaborator */}
-      {isOwner && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
-        <div id="manage-lifecycle" className="scroll-mt-36">
-          <CollapsibleSection title="Postpone / Cancel" description="Owner only. Ticket holders are notified automatically.">
-            <div className="rounded-2xl border border-red-500/30 p-4">
-              <CancelPostponeButtons
-                event={event}
-                cancellationChargePercent={cancelChargePct}
-                postponementChargePercent={postponeChargePct}
-              />
-            </div>
-          </CollapsibleSection>
-        </div>
-      ) : null}
-
-      {/* Past events - allow gallery photo deletion only */}
-      {eventPast && canEdit ? (
-        <PastEventGalleryManager eventId={event.id} photoUrls={event.photoUrls} />
-      ) : null}
-
-      </CollapseAllProvider>
+        const tabs = [
+          ...(canView && analytics
+            ? [{
+                id: "analytics",
+                label: "Analytics",
+                content: (
+                  <div className="space-y-3">
+                    <div className="flex justify-end">
+                      <Link
+                        href={`/organizer/events/${event.id}/report`}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10"
+                      >
+                        <Printer className="h-3.5 w-3.5" /> Print report
+                      </Link>
+                    </div>
+                    <AnalyticsPanel analytics={analytics} eventId={event.id} showMoney={canViewMoney(accessLevel)} />
+                    {analytics.waitlistCount > 0 ? (
+                      <WaitlistPanel waitlistCount={analytics.waitlistCount} entries={waitlistEntries} />
+                    ) : null}
+                    {canOrders && orders.some((o) => o.status === "PENDING_VERIFICATION") ? (
+                      <VerificationQueue
+                        orders={orders.filter((o: { status: string }) => o.status === "PENDING_VERIFICATION")}
+                        organizerEventIds={[event.id]}
+                      />
+                    ) : null}
+                  </div>
+                ),
+              }]
+            : []),
+          ...(canOrders
+            ? [{
+                id: "attendees",
+                label: `Attendees (${orders.length})`,
+                content: (
+                  <div className="space-y-3">
+                    <div className="flex justify-end">
+                      <Link
+                        href={`/organizer/events/${event.id}/report`}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10"
+                      >
+                        <Printer className="h-3.5 w-3.5" /> Print attendee list
+                      </Link>
+                    </div>
+                    {orders.length === 0 ? (
+                      <div className="glass rounded-2xl p-5 text-sm text-muted">
+                        No bookings yet.
+                      </div>
+                    ) : (
+                      <AttendeesTable orders={orders} tickets={tickets} />
+                    )}
+                  </div>
+                ),
+              }]
+            : []),
+          { id: "details", label: "Details", content: detailsContent },
+        ];
+        return <ManageTabs tabs={tabs} />;
+      })()}
     </div>
   );
 }
