@@ -144,9 +144,10 @@ export function LocationSelector() {
                 type="button"
                 role="option"
                 aria-selected={option.value === city}
+                title={option.label}
                 onClick={() => applyCity(option.value)}
                 className={cn(
-                  "rounded-2xl border p-3 text-left text-sm font-semibold transition-all",
+                  "w-full truncate rounded-2xl border p-3 text-left text-sm font-semibold transition-all",
                   option.value === city
                     ? "border-violet-neon bg-violet-neon/10 text-violet-600 dark:text-violet-300"
                     : "border-zinc-200 hover:border-violet-neon/60 dark:border-white/10",
@@ -162,7 +163,7 @@ export function LocationSelector() {
                   applyCity(normalizeCityKey(filter));
                   setFilter("");
                 }}
-                className="col-span-2 rounded-2xl border border-dashed border-violet-neon/60 p-3 text-left text-sm font-semibold text-violet-600 dark:text-violet-300"
+                className="col-span-2 truncate rounded-2xl border border-dashed border-violet-neon/60 p-3 text-left text-sm font-semibold text-violet-600 dark:text-violet-300"
               >
                 Use &ldquo;{filter.trim()}&rdquo;
               </button>
