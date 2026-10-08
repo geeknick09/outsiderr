@@ -30,7 +30,11 @@ export function EditEventForm({ event, pastEvents = [], lockLogistics = false }:
   const [lat, setLat] = useState(event.latitude ? String(event.latitude) : "");
   const [lng, setLng] = useState(event.longitude ? String(event.longitude) : "");
 
-  function updateField() {\n    setDirty(true);\n  }\n\n  return (
+  function updateField() {
+    setDirty(true);
+  }
+
+  return (
     <form action={formAction} className="glass space-y-4 rounded-3xl p-5">
       <div>
         <h2 className="text-base font-bold">Manage event details</h2>

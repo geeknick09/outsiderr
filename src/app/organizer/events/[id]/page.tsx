@@ -3,28 +3,18 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { BarChart2, ChevronLeft, LayoutDashboard, ScanLine } from "lucide-react";
+import { lazy, Suspense } from "react";
 
 import { AnalyticsPanel } from "@/modules/analytics";
 import { AttendeesTable } from "@/modules/organizer";
-import { EditEventForm } from "@/modules/organizer";
-import { CancelPostponeButtons } from "@/modules/organizer";
-import { DoorStaffPaymentPanel } from "@/modules/organizer";
-        <section id="manage-analytics" className="scroll-mt-36 space-y-3">
-          <h2 className="text-lg font-bold">Analytics</h2>
-          <AnalyticsPanel analytics={analytics} eventId={event.id} showMoney={canViewMoney(accessLevel)} />
-        </section>
-import { HeroBoostPanel } from "@/modules/organizer";
-import { PastEventGalleryManager } from "@/modules/organizer";
+import { EditEventForm, CancelPostponeButtons, CollaborationPanel, EventStaffManager, ScannerPinManager, BoxOfficePinManager, HeroBoostPanel, PastEventGalleryManager } from "@/modules/organizer";
 import { ShareButton } from "@/modules/web";
-import { VerificationQueue } from "@/modules/organizer";
-import { WaitlistPanel } from "@/modules/organizer";
 import { WalkinCheckinForm } from "@/modules/scanner";
 import { Badge } from "@/modules/shared";
 import { Button } from "@/modules/shared";
 
 import { getCurrentUser } from "@/modules/shared/server";
 import { getEvent, getOrganizerPastEventsForLinking } from "@/modules/shared/server";
-import { getDoorStaffOrder } from "@/modules/shared/server";
 import { listEventStaff } from "@/modules/organizer/server";
 import { listEventScannerPins } from "@/modules/shared/server";
 import { listBoxOfficePinsForEvent } from "@/modules/shared/server";
@@ -38,7 +28,6 @@ import { getHeroBoostForEvent } from "@/modules/shared/server";
 import { formatDateRange, isEventEnded } from "@/modules/shared";
 import { CATEGORY_LABELS } from "@/modules/shared";
 import { getDraftRetentionDays } from "@/modules/shared/server";
-import { lazy, Suspense } from "react";
 
 // Lazy — EventForm pulls in Leaflet via MapPicker
 const EventForm = lazy(() =>

@@ -198,7 +198,7 @@ export function EditTicketsSection({ event, lockLogistics, onSave }: EditTickets
 
         {/* Hidden form fields */}
         <input type="hidden" name="maxTicketsPerUser" value={maxTicketsPerUser} />
-        {tiers.map((tier, i) => (
+        {tiers.map((tier) => (
           <input key={tier.id} type="hidden" name={`tierId[]`} value={tier.id} />
         ))}
         {tiers.map((tier) => (
