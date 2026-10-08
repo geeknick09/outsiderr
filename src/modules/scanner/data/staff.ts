@@ -76,6 +76,50 @@ export async function listAssignableEvents(organizerId: string | null): Promise<
   }));
 }
 
+export interface EventCounterStaff {
+  id: string;
+  name: string;
+  phone: string;
+  email: string | null;
+  isActive: boolean;
+  ownerType: StaffOwnerType;
+  cashOutstandingPaise: number;
+}
+
+/** Counter staff assigned to one event (admin + organizer owned), with their cash still held. */
+export async function listEventCounterStaff(eventId: string): Promise<EventCounterStaff[]> {
+  const svc = createServiceClient();
+  const { data: assignments } = await svc
+    .from("staff_event_assignments")
+    .select("staff_id")
+    .eq("event_id", eventId)
+    .eq("is_active", true);
+  const ids = (assignments ?? []).map((a) => a.staff_id);
+  if (ids.length === 0) return [];
+
+  const { data: staff } = await svc
+    .from("staff_members")
+    .select("id, owner_type, name, phone, email, is_active")
+    .in("id", ids)
+    .order("name", { ascending: true });
+
+  return Promise.all(
+    (staff ?? []).map(async (s) => {
+      const { data } = await svc.rpc("staff_cash_outstanding", { p_staff_id: s.id, p_event_id: eventId });
+      const row = data?.[0];
+      return {
+        id: s.id,
+        name: s.name,
+        phone: s.phone,
+        email: s.email,
+        isActive: s.is_active,
+        ownerType: s.owner_type as StaffOwnerType,
+        cashOutstandingPaise: Math.max(0, Number(row?.amount_paise ?? 0)),
+      };
+    }),
+  );
+}
+
 /** Owner of a staff member, for authorisation checks before any change. */
 export async function getStaffOwner(staffId: string): Promise<{ ownerType: StaffOwnerType; organizerId: string | null } | null> {
   const { data } = await createServiceClient()

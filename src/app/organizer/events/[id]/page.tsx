@@ -16,6 +16,8 @@ import { CollapseAllProvider, CollapsibleSection } from "@/modules/shared";
 import { getCurrentUser } from "@/modules/shared/server";
 import { getEvent, getOrganizerPastEventsForLinking } from "@/modules/shared/server";
 import { listEventScannerPins } from "@/modules/shared/server";
+import { EventCounterStaff } from "@/modules/scanner";
+import { listEventCounterStaff } from "@/modules/scanner/server";
 import { getOrganizerEventAnalytics } from "@/modules/analytics/server";
 import { getEventCollaboratorsForOwner, getEventAccessLevel, canViewAnalytics, canViewMoney, canScanTickets, canEditEvent, canManageOrders } from "@/modules/shared/server";
 import { listEventOrders, listEventTickets } from "@/modules/shared/server";
@@ -55,7 +57,7 @@ export default async function ManageEventPage({
 
   // Load all page data in parallel. Log the real error server-side before letting
   // the route-level error.tsx handle the fallback UI for the user.
-  const [event, analytics, cancelChargePct, postponeChargePct, heroBoost, heroBoostPrice, heroBoostDuration, orders, tickets, waitlistEntries, scannerPins, collaborators] = await Promise.all([
+  const [event, analytics, cancelChargePct, postponeChargePct, heroBoost, heroBoostPrice, heroBoostDuration, orders, tickets, waitlistEntries, scannerPins, collaborators, counterStaff] = await Promise.all([
     getEvent(id),
     getOrganizerEventAnalytics(user, id),
     getCancellationChargePercent(),
@@ -68,6 +70,7 @@ export default async function ManageEventPage({
     listEventWaitlist(id),
     listEventScannerPins(user, id),
     getEventCollaboratorsForOwner(user, id),
+    listEventCounterStaff(id),
   ]).catch((err: unknown) => {
     console.error("[ManageEventPage] Data load error for event", id, err);
     throw err; // Re-throw so the route error boundary (error.tsx) handles it
@@ -279,8 +282,8 @@ export default async function ManageEventPage({
                   <CollapsibleSection title="Door Scanner PINs" description="PINs that open the door scanner at /scan - no account needed.">
                     <ScannerPinManager eventId={event.id} pins={scannerPins} />
                   </CollapsibleSection>
-                  <CollapsibleSection title="Box Office" description="Counter staff are named people, each with their own PIN.">
-                    <Link href="/organizer/staff" className="text-sm font-semibold text-violet-neon hover:underline">Manage box office staff</Link>
+                  <CollapsibleSection title="Box Office" description="Counter staff sign in at /box-office with their phone + personal PIN and can take cash or card/UPI.">
+                    <EventCounterStaff eventId={event.id} staff={counterStaff} />
                   </CollapsibleSection>
                 </>
               ) : null}

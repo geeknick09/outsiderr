@@ -135,6 +135,91 @@ export async function setStaffAssignmentAction(
   return { error: null };
 }
 
+export interface AddCounterStaffState {
+  error: string | null;
+  pin?: string;
+  name?: string;
+  /** true when the phone matched an existing staff member - no new PIN was issued. */
+  reused?: boolean;
+}
+
+/**
+ * Event-page counter staff: register a new staff member (or reuse an existing
+ * one with the same phone) and assign them to this event in one step.
+ * The PIN is returned once for new staff; reused staff keep their current PIN
+ * (reset it to issue a fresh one).
+ */
+export async function addEventCounterStaffAction(formData: FormData): Promise<AddCounterStaffState> {
+  const actor = await resolveActor();
+  if ("error" in actor) return { error: actor.error };
+
+  const eventId = String(formData.get("eventId") ?? "");
+  if (!UUID_RE.test(eventId)) return { error: "Invalid event." };
+
+  const svc = createServiceClient();
+  if (actor.ownerType === "ORGANIZER") {
+    const { data: ev } = await svc.from("events").select("organizer_id").eq("id", eventId).maybeSingle();
+    if (!ev || ev.organizer_id !== actor.organizerId) {
+      return { error: "You can only add counter staff to your own events." };
+    }
+  }
+
+  const v = validate(staffRegisterSchema, {
+    name: String(formData.get("name") ?? ""),
+    email: String(formData.get("email") ?? "").trim(),
+    phone: normalisePhone(String(formData.get("phone") ?? "")),
+  });
+  if (!v.success) return { error: v.error };
+  if (v.data.phone.length !== 10) return { error: "Enter a 10-digit phone number." };
+
+  // Reuse an existing staff member with the same phone under this owner.
+  let staffId: string;
+  let pin: string | undefined;
+  let reused = false;
+  let query = svc
+    .from("staff_members")
+    .select("id, is_active")
+    .eq("owner_type", actor.ownerType)
+    .eq("phone", v.data.phone);
+  query = actor.ownerType === "ORGANIZER" ? query.eq("organizer_id", actor.organizerId!) : query.is("organizer_id", null);
+  const { data: existing } = await query.maybeSingle();
+
+  if (existing) {
+    staffId = existing.id;
+    reused = true;
+    if (!existing.is_active) {
+      await svc.from("staff_members").update({ is_active: true }).eq("id", staffId);
+    }
+  } else {
+    const { data, error } = await svc.rpc("staff_register", {
+      p_owner_type: actor.ownerType,
+      p_organizer_id: actor.organizerId ?? undefined,
+      p_name: v.data.name,
+      p_email: v.data.email,
+      p_phone: v.data.phone,
+      p_actor: actor.userId,
+    });
+    if (error) {
+      if (error.message.includes("duplicate key")) return { error: "This phone number is already registered as staff." };
+      return { error: error.message };
+    }
+    staffId = data?.[0]?.staff_id;
+    pin = data?.[0]?.pin;
+    if (!staffId) return { error: "Could not register the staff member." };
+  }
+
+  const { error } = await svc.rpc("staff_set_assignment", {
+    p_staff_id: staffId,
+    p_event_id: eventId,
+    p_active: true,
+  });
+  if (error) return { error: error.message };
+
+  revalidateStaff();
+  revalidatePath(`/organizer/events/${eventId}`);
+  return { error: null, pin, name: v.data.name, reused };
+}
+
 /** Organizer/admin confirms cash handed over. The amount is computed on the server. */
 export async function confirmCashHandoverAction(
   staffId: string,

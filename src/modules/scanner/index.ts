@@ -10,6 +10,7 @@ export * from "./components/scan/staff-door-scanner";
 export * from "./components/scan/staff-door-scanner-lazy";
 export * from "./components/box-office/box-office-page-client";
 export * from "./components/staff/staff-manager";
+export * from "./components/staff/event-counter-staff";
 export * from "./components/counter/counter-client";
 export * from "./components/door-scanner";
 export * from "./components/event-door-scanner";

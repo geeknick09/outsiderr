@@ -4,6 +4,12 @@ One-sentence purpose: append-only knowledge so agents never re-derive a past fix
 Format: `Date · Area · What happened/decision → Fix/rule · Files`. Newest entries go on top.
 Last updated: 2026-10-08
 
+## Box-office/door UX fixes (2026-10-09)
+
+- **Dark-mode `<select>` dropdowns looked blank** — options render on the OS light background, so `dark:text-white` was invisible until hover. One CSS rule fixes every select app-wide: `.dark select option { background:#18181b; color:#fafafa }` in globals.css.
+- **Door camera showed a grey box on `/scan`** — two bugs in staff-door-scanner.tsx: the camera effect depended on `processHash`, whose identity changes when the door-session token resolves, so the camera was stopped mid-start; and the reader div was `display:none` + unsized. Fixed via a `processHashRef`, deps `[scanning, selectedEventId]`, an always-sized `aspect-square` container, and an environment → user → default camera fallback (desktops have no rear camera).
+- **"Invalid box-office PIN":** organizers generated personal staff PINs at /organizer/staff but entered them on the legacy /organizer/box-office page, which verifies against the old `box_office_pins` table — always invalid. Retired that page (redirects to /box-office; only 1 legacy PIN exists, unused since 2026-09-26) and removed the user-menu + organizer-nav entries. Counter staff are now added inside the event page: `EventCounterStaff` panel + `addEventCounterStaffAction` (register-or-reuse by phone + `staff_set_assignment`) + `listEventCounterStaff` (assigned staff + `staff_cash_outstanding` per staff).
+
 ## Counter Razorpay sales (2026-10-09)
 
 - **What:** card/UPI at the counter. Simpler than feared — the webhook + `apply_captured_payment` dispatcher already confirms payments without a buyer session. New work is only `create_counter_reserved_order` (guest RESERVED order + TICKET_ORDER intent, staff assignment check, same money math as online) + a thin counter service (`scanner/data/counter-payment.ts`) reusing `attach_razorpay_order`/`abandon_payment`/`apply_captured_payment` + the shared `RazorpayCheckout` component (injected verify/failure actions). `/box-office/order/[orderId]` is the success/status landing page.

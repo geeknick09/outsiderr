@@ -99,6 +99,16 @@ body {
     @apply text-zinc-500 dark:text-zinc-400;
   }
 
+  /*
+   * <option> elements render on the OS light dropdown background even in dark
+   * mode, so dark-mode text colours need a matching dark background or the
+   * list looks blank until each row is hovered.
+   */
+  .dark select option {
+    background-color: #18181b;
+    color: #fafafa;
+  }
+
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }

@@ -85,11 +85,6 @@ export function UserMenu({
                 <ScanLine className="h-4 w-4" /> Door Scanner
               </MenuLink>
             ) : null}
-            {isOrganizer ? (
-              <MenuLink href="/organizer/box-office" onSelect={() => setOpen(false)}>
-                <Ticket className="h-4 w-4" /> Box Office
-              </MenuLink>
-            ) : null}
             <MenuLink
               href={isOrganizer ? "/organizer" : "/list-your-event"}
               onSelect={() => setOpen(false)}

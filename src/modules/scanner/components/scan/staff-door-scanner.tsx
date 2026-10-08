@@ -237,6 +237,11 @@ export function StaffDoorScanner({
     [selectedEventId, handleScanResult, token, selectedEvent],
   );
 
+  // The camera effect must not restart when processHash changes identity
+  // (token resolves async after scanning starts) - read it through a ref.
+  const processHashRef = useRef(processHash);
+  processHashRef.current = processHash;
+
   // Initialize camera scanner
   useEffect(() => {
     if (!scanning || !selectedEventId) return;
@@ -245,42 +250,54 @@ export function StaffDoorScanner({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let html5QrCode: any = null;
 
-    (async () => {
+    const startCamera = async () => {
+      const { Html5Qrcode } = await import("html5-qrcode");
+      if (cancelled) return;
+
+      const elementId = "staff-qr-reader";
+      html5QrCode = new Html5Qrcode(elementId);
+
+      scannerRef.current = {
+        start: () => {},
+        stop: async () => {
+          try {
+            await html5QrCode?.stop();
+            await html5QrCode?.clear();
+          } catch {
+            // ignore
+          }
+        },
+      };
+
+      const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+      const onScan = (decodedText: string) => {
+        void processHashRef.current(decodedText);
+      };
+      const onMiss = () => {};
+
+      // Prefer the rear camera, but fall back - desktops and some phones
+      // have no "environment" camera and would fail with a black box.
       try {
-        const { Html5Qrcode } = await import("html5-qrcode");
+        await html5QrCode.start({ facingMode: "environment" }, config, onScan, onMiss);
+      } catch {
         if (cancelled) return;
-
-        const elementId = "staff-qr-reader";
-        html5QrCode = new Html5Qrcode(elementId);
-
-        scannerRef.current = {
-          start: () => {},
-          stop: async () => {
-            try {
-              await html5QrCode?.stop();
-              await html5QrCode?.clear();
-            } catch {
-              // ignore
-            }
-          },
-        };
-
-        await html5QrCode.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          (decodedText: string) => {
-            processHash(decodedText);
-          },
-          () => {},
-        );
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? `Camera error: ${err.message}`
-            : "Could not access camera.",
-        );
+        try {
+          await html5QrCode.start({ facingMode: "user" }, config, onScan, onMiss);
+        } catch {
+          if (cancelled) return;
+          await html5QrCode.start({}, config, onScan, onMiss);
+        }
       }
-    })();
+    };
+
+    startCamera().catch((err) => {
+      if (cancelled) return;
+      setError(
+        err instanceof Error
+          ? `Camera error: ${err.message}`
+          : "Could not access camera.",
+      );
+    });
 
     return () => {
       cancelled = true;
@@ -292,7 +309,7 @@ export function StaffDoorScanner({
         }
       }
     };
-  }, [scanning, selectedEventId, processHash]);
+  }, [scanning, selectedEventId]);
 
   // Reset state when event changes
   useEffect(() => {
@@ -406,8 +423,7 @@ export function StaffDoorScanner({
 
         <div
           id="staff-qr-reader"
-          className="overflow-hidden rounded-2xl bg-black"
-          style={{ display: scanning ? "block" : "none" }}
+          className={`mx-auto aspect-square w-full max-w-sm overflow-hidden rounded-2xl bg-black/40 ${scanning ? "" : "hidden"}`}
         />
 
         {!scanning ? (
