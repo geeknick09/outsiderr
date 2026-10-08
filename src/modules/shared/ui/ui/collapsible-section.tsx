@@ -1,7 +1,39 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronDown, ChevronUp, Pencil, X, Loader2 } from "lucide-react";
+import { createContext, useContext, useEffect, useState } from "react";
+import { ChevronDown, ChevronUp, ChevronsDownUp, ChevronsUpDown, Pencil, X, Loader2 } from "lucide-react";
+
+/**
+ * Group context - lets a parent "Expand all / Collapse all" control every
+ * CollapsibleSection mounted under the provider. `version` bumps on each
+ * command so re-clicking the same action re-applies it.
+ */
+const CollapseGroupCtx = createContext<{ open: boolean; version: number }>({
+  open: true,
+  version: 0,
+});
+
+export function CollapseAllProvider({ children, defaultOpen = true }: { children: React.ReactNode; defaultOpen?: boolean }) {
+  const [state, setState] = useState({ open: defaultOpen, version: 0 });
+  return (
+    <CollapseGroupCtx.Provider value={state}>
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setState((s) => ({ open: !s.open, version: s.version + 1 }))}
+          className="flex items-center gap-1.5 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10"
+        >
+          {state.open ? (
+            <><ChevronsDownUp className="h-3.5 w-3.5" /> Collapse all</>
+          ) : (
+            <><ChevronsUpDown className="h-3.5 w-3.5" /> Expand all</>
+          )}
+        </button>
+      </div>
+      {children}
+    </CollapseGroupCtx.Provider>
+  );
+}
 
 interface CollapsibleSectionProps {
   title: string;
@@ -22,7 +54,7 @@ interface CollapsibleSectionProps {
 export function CollapsibleSection({
   title,
   description,
-  defaultOpen = false,
+  defaultOpen = true,
   children,
   onEdit,
   isEditing = false,
@@ -33,7 +65,13 @@ export function CollapsibleSection({
   error = null,
   saved = false,
 }: CollapsibleSectionProps) {
-  const [open, setOpen] = useState(defaultOpen);
+  const group = useContext(CollapseGroupCtx);
+  const [open, setOpen] = useState(defaultOpen ?? group.open);
+
+  // Expand-all / collapse-all signals from the group provider.
+  useEffect(() => {
+    if (group.version > 0) setOpen(group.open);
+  }, [group.version, group.open]);
 
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white dark:border-white/10 dark:bg-zinc-900">

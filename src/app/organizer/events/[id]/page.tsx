@@ -2,17 +2,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { BarChart2, ChevronLeft, LayoutDashboard, ScanLine } from "lucide-react";
+import { ChevronLeft, LayoutDashboard, Printer } from "lucide-react";
 import { lazy, Suspense } from "react";
 
 import { AnalyticsPanel } from "@/modules/analytics";
 import { AttendeesTable } from "@/modules/organizer";
-import { EditEventForm, CancelPostponeButtons, CollaborationPanel, EventStaffManager, ScannerPinManager, BoxOfficePinManager, HeroBoostPanel, PastEventGalleryManager, WaitlistPanel, VerificationQueue } from "@/modules/organizer";
+import { EditEventForm, CancelPostponeButtons, CollaborationPanel, EventStaffManager, ScannerPinManager, BoxOfficePinManager, HeroBoostPanel, PastEventGalleryManager, WaitlistPanel, VerificationQueue, EventOverview, ManageTabs } from "@/modules/organizer";
 import { ShareButton } from "@/modules/web";
-import { WalkinCheckinForm } from "@/modules/scanner";
 import { Badge } from "@/modules/shared";
 import { Button } from "@/modules/shared";
-import { CollapsibleSection } from "@/modules/shared";
+import { CollapseAllProvider, CollapsibleSection } from "@/modules/shared";
 
 import { getCurrentUser } from "@/modules/shared/server";
 import { getEvent, getOrganizerPastEventsForLinking } from "@/modules/shared/server";
@@ -24,7 +23,7 @@ import { getEventCollaboratorsForOwner, getEventAccessLevel, canViewAnalytics, c
 import { listEventOrders, listEventTickets } from "@/modules/shared/server";
 import { expireWaitlistOffers, listEventWaitlist } from "@/modules/shared/server";
 
-import { getCancellationChargePercent, getPostponementChargePercent, getDoorStaffPricing, getDoorStaffAvailable, getHeroBoostPrice, getHeroBoostDurationDays, getDoorStaffOrder } from "@/modules/shared/server";
+import { getCancellationChargePercent, getPostponementChargePercent, getHeroBoostPrice, getHeroBoostDurationDays } from "@/modules/shared/server";
 import { getHeroBoostForEvent } from "@/modules/shared/server";
 import { formatDateRange, isEventEnded } from "@/modules/shared";
 import { CATEGORY_LABELS } from "@/modules/shared";
@@ -58,14 +57,11 @@ export default async function ManageEventPage({
 
   // Load all page data in parallel. Log the real error server-side before letting
   // the route-level error.tsx handle the fallback UI for the user.
-  const [event, analytics, cancelChargePct, postponeChargePct, doorStaffOrder, doorStaffPricing, doorStaffAvailable, heroBoost, heroBoostPrice, heroBoostDuration, orders, tickets, waitlistEntries, eventStaff, scannerPins, boxOfficePins, collaborators] = await Promise.all([
+  const [event, analytics, cancelChargePct, postponeChargePct, heroBoost, heroBoostPrice, heroBoostDuration, orders, tickets, waitlistEntries, eventStaff, scannerPins, boxOfficePins, collaborators] = await Promise.all([
     getEvent(id),
     getOrganizerEventAnalytics(user, id),
     getCancellationChargePercent(),
     getPostponementChargePercent(),
-    getDoorStaffOrder(id),
-    getDoorStaffPricing(),
-    getDoorStaffAvailable(),
     getHeroBoostForEvent(user, id),
     getHeroBoostPrice(),
     getHeroBoostDurationDays(),
@@ -215,16 +211,10 @@ export default async function ManageEventPage({
         {!isOwner ? <Badge tone="violet">Co-organizer · {accessLevel}</Badge> : null}
       </div>
 
-      {/* Actions */}
+      {/* Actions - scanner/walkin live in the scanner + box-office surfaces */}
       <div className="flex flex-wrap gap-3">
         <Link href={`/events/${event.id}`} target="_blank">
           <Button variant="secondary" size="sm">View event page ↗</Button>
-        </Link>
-        <Link href={`/organizer/events/${event.id}/report`}>
-          <Button variant="secondary" size="sm">
-            <BarChart2 className="h-4 w-4" />
-            Print report
-          </Button>
         </Link>
         <ShareButton
           url={`/events/${event.id}`}
@@ -232,104 +222,100 @@ export default async function ManageEventPage({
           variant="secondary"
           size="sm"
         />
-        {eventPast ? null : canScan ? (
-          <Link href={`/organizer/events/${event.id}/scan`}>
-            <Button size="sm">
-              <ScanLine className="h-4 w-4" />
-              Door Scanner
-            </Button>
-          </Link>
-        ) : null}
-        {eventPast ? null : canScan ? (
-          <Link href="/scan">
-            <Button variant="secondary" size="sm">
-              <ScanLine className="h-4 w-4" />
-              Staff Scanner
-            </Button>
-          </Link>
-        ) : null}
       </div>
 
-      {/* Analytics - LIMITED sees it without money figures */}
-
-      <nav aria-label="Event management sections" className="sticky top-16 z-20 -mx-4 flex gap-2 overflow-x-auto border-y border-zinc-200 bg-zinc-50/95 px-4 py-2 backdrop-blur-sm dark:border-white/10 dark:bg-ink/95">
-        {[
-          ["manage-analytics", "Overview"],
-          ["manage-attendees", "Attendees"],
-          ["manage-edit", "Event details"],
-          ["manage-promotion", "Promotion"],
-          ["manage-collaboration", "Collaborators"],
-          ["manage-operations", "Operations"],
-          ["manage-lifecycle", "Event actions"],
-        ].map(([sectionId, label]) => (
-          <a
-            key={sectionId}
-            href={`#${sectionId}`}
-            className="shrink-0 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10"
-          >
-            {label}
-          </a>
-        ))}
-      </nav>
+      {/* Analytics / Attendees tabs */}
       {canView && analytics ? (
-        <section id="manage-analytics" className="scroll-mt-36 space-y-3">
-          <h2 className="text-lg font-bold">Analytics</h2>
-          <AnalyticsPanel analytics={analytics} eventId={event.id} showMoney={canViewMoney(accessLevel)} />
-        </section>
-      ) : null}
-
-      {canView && analytics && analytics.waitlistCount > 0 ? (
-        <WaitlistPanel waitlistCount={analytics.waitlistCount} entries={waitlistEntries} />
-      ) : null}
-
-      {/* Payment verification queue - for paid events with manual UPI flow */}
-      {canOrders && orders.some((o) => o.status === "PENDING_VERIFICATION") ? (
+        <ManageTabs
+          tabs={[
+            {
+              id: "analytics",
+              label: "Analytics",
+              content: (
+                <div className="space-y-3">
+                  <div className="flex justify-end">
+                    <Link
+                      href={`/organizer/events/${event.id}/report`}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10"
+                    >
+                      <Printer className="h-3.5 w-3.5" /> Print report
+                    </Link>
+                  </div>
+                  <AnalyticsPanel analytics={analytics} eventId={event.id} showMoney={canViewMoney(accessLevel)} />
+                  {analytics.waitlistCount > 0 ? (
+                    <WaitlistPanel waitlistCount={analytics.waitlistCount} entries={waitlistEntries} />
+                  ) : null}
+                  {canOrders && orders.some((o) => o.status === "PENDING_VERIFICATION") ? (
+                    <VerificationQueue
+                      orders={orders.filter((o: { status: string }) => o.status === "PENDING_VERIFICATION")}
+                      organizerEventIds={[event.id]}
+                    />
+                  ) : null}
+                </div>
+              ),
+            },
+            ...(canOrders
+              ? [{
+                  id: "attendees",
+                  label: `Attendees (${orders.length})`,
+                  content: (
+                    <div className="space-y-3">
+                      <div className="flex justify-end">
+                        <Link
+                          href={`/organizer/events/${event.id}/report`}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10"
+                        >
+                          <Printer className="h-3.5 w-3.5" /> Print attendee list
+                        </Link>
+                      </div>
+                      {orders.length === 0 ? (
+                        <div className="glass rounded-2xl p-5 text-sm text-muted">
+                          No bookings yet.
+                        </div>
+                      ) : (
+                        <AttendeesTable orders={orders} tickets={tickets} />
+                      )}
+                    </div>
+                  ),
+                }]
+              : []),
+          ]}
+        />
+      ) : canOrders ? (
         <section className="space-y-3">
-          <h2 className="text-lg font-bold">Payment Verification</h2>
-          <VerificationQueue
-            orders={orders.filter((o: { status: string }) => o.status === "PENDING_VERIFICATION")}
-            organizerEventIds={[event.id]}
-          />
-        </section>
-      ) : null}
-
-      {/* Walk-in / manual check-in - available before and during the event */}
-      {event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast && canScan ? (
-        <section className="space-y-3">
-          <h2 className="text-lg font-bold">
-            {isHappeningNow ? "Walk-in Check-in" : "Manual Walk-in Registration"}
-          </h2>
-          <WalkinCheckinForm event={event} isHappeningNow={isHappeningNow} />
-        </section>
-      ) : null}
-
-      {/* Attendees / Orders list */}
-      {canOrders ? (
-      <section id="manage-attendees" className="scroll-mt-36 space-y-3">
-        <h2 className="text-lg font-bold">Attendees ({orders.length})</h2>
-        {orders.length === 0 ? (
-          <div className="glass rounded-2xl p-5 text-sm text-muted">
-            No bookings yet.
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold">Attendees ({orders.length})</h2>
+            <Link
+              href={`/organizer/events/${event.id}/report`}
+              className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10"
+            >
+              <Printer className="h-3.5 w-3.5" /> Print attendee list
+            </Link>
           </div>
-        ) : (
-          <AttendeesTable orders={orders} tickets={tickets} />
-        )}
-      </section>
+          {orders.length === 0 ? (
+            <div className="glass rounded-2xl p-5 text-sm text-muted">No bookings yet.</div>
+          ) : (
+            <AttendeesTable orders={orders} tickets={tickets} />
+          )}
+        </section>
       ) : null}
 
-      {/* Edit form - disabled for cancelled, past, and events starting within 2 hours */}
+      {/* Event sections - expanded by default, expand/collapse-all control */}
+      <CollapseAllProvider defaultOpen>
+
+      {/* Edit form - read-only overview when locked (within 2h), cancelled, or past */}
       {canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast && (startMs - nowMs) > 2 * 60 * 60 * 1000 ? (
-        <div id="manage-edit" className="scroll-mt-36">
-          <EditEventForm event={event} pastEvents={pastEventsForLinking} lockLogistics={!isOwner} />
+        <EditEventForm event={event} pastEvents={pastEventsForLinking} lockLogistics={!isOwner} />
+      ) : (
+        <div className="space-y-3">
+          {canEdit && !eventPast && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" ? (
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+              Editing is locked within 2 hours of the event start time. If you need to make changes, please contact Outsiderr support.
+            </div>
+          ) : null}
+          <EventOverview event={event} />
         </div>
-      ) : canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast && (startMs - nowMs) <= 2 * 60 * 60 * 1000 ? (
-        <div className="glass rounded-3xl p-5">
-          <h2 className="mb-2 text-base font-bold">Edit Event</h2>
-          <p className="text-sm text-muted">
-            Editing is locked within 2 hours of the event start time. If you need to make changes, please contact Outsiderr support.
-          </p>
-        </div>
-      ) : null}
+      )}
 
       {/* Featured & boost - collapsed by default */}
       {canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast ? (
@@ -362,23 +348,6 @@ export default async function ManageEventPage({
           </CollapsibleSection>
         </div>
       ) : null}
-
-      {/* Door staff - disabled for this release (kept in admin only) */}
-      {/* eventPast ? null : doorStaffOrder ? (
-        <DoorStaffPaymentPanel
-          order={doorStaffOrder}
-          platformUpiId={process.env.NEXT_PUBLIC_PLATFORM_UPI_ID ?? "outsiderr@upi"}
-        />
-      ) : (event.status === "PUBLISHED" || event.status === "DRAFT") ? (
-        <section className="space-y-3">
-          <h2 className="text-lg font-bold">Door Staff</h2>
-          <DoorStaffRequest
-            eventId={event.id}
-            pricing={doorStaffPricing}
-            maxStaff={Math.min(5, doorStaffAvailable)}
-          />
-        </section>
-      ) : null */}
 
       {/* Collaboration - everyone on the event sees the roster; only the owner invites/removes */}
       {!eventPast && collaborators !== null ? (
@@ -423,6 +392,8 @@ export default async function ManageEventPage({
       {eventPast && canEdit ? (
         <PastEventGalleryManager eventId={event.id} photoUrls={event.photoUrls} />
       ) : null}
+
+      </CollapseAllProvider>
     </div>
   );
 }

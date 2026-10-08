@@ -12,6 +12,8 @@ export * from "./components/door-staff-request";
 export * from "./components/edit-event-form";
 export * from "./components/edit-organizer-profile";
 export * from "./components/event-form";
+export * from "./components/event-overview";
+export * from "./components/manage-tabs";
 export * from "./components/event-staff-manager";
 export * from "./components/gallery-uploader";
 export * from "./components/hero-boost-panel";
