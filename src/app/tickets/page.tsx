@@ -15,12 +15,12 @@ export const metadata = { title: "My Tickets - Outsiderr" };
 export default async function TicketsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ submitted?: string; review?: string }>;
+  searchParams: Promise<{ submitted?: string; review?: string; success?: string }>;
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=%2Ftickets");
 
-  const { submitted, review } = await searchParams;
+  const { submitted, review, success } = await searchParams;
   const [orders, tickets, refunds, whatsappNumber, reviewableEvents] = await Promise.all([
     listMyOrders(user),
     listMyTickets(user),
@@ -34,6 +34,22 @@ export default async function TicketsPage({
 
   return (
     <div>
+      {/* Booking confirmed - buyer auto-follows the organizer */}
+      {success === "1" && (
+        <div className="mx-auto max-w-3xl px-4 pt-4">
+          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+            <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">
+              Booking confirmed!
+            </p>
+            <p className="mt-1 text-xs text-muted">
+              You&apos;re now following this organizer - you&apos;ll be first to
+              know when they launch their next event. You can unfollow anytime
+              from their profile.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Review prompt for checked-in past events */}
       {reviewableEvents.length > 0 && !reviewEvent && (
         <div className="mx-auto max-w-3xl px-4 pt-4">

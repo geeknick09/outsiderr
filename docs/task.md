@@ -43,7 +43,7 @@ Grouped by domain. Full detail was in `BACKLOG.md` (now superseded); test cases 
 | Payments platform | `payment_intents` + `apply_captured_payment` dispatcher, `payment_ledger` (all money types), late-capture auto-refund, amount-mismatch lock + admin alert, refund state machine (requested→pending→initiated→completed), reconciliation cron | Completed |
 | Tickets | QR wallet, expandable cards, expired state, print, walk-in (3 modes), box-office | Completed |
 | Scanner | per-event PIN (hashed, rate-limited, staff name+email+phone), offline queue sync, per-event check-in | Completed |
-| Engagement | Update-Me subscriptions, follow organizers (display-only), co-organizer collab w/ 4 permission tiers | Completed |
+| Engagement | Update-Me subscriptions, follow organizers (manual + auto-follow on purchase; followers get NEW_EVENT on publish), co-organizer collab w/ 4 permission tiers | Completed |
 | Boosts | slot boosts (manual UPI, admin approve), hero boost (7d rotation, eligibility, ₹999 default, `?source=HERO_BOOST`) | Completed |
 | Clubs | create/join/members, cover photo, paid membership, admin verify | Completed |
 | Reviews | checked-in-only 1–5★ + text, organizer aggregate | Completed |

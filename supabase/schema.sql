@@ -5500,3 +5500,99 @@ grant  execute on function public.request_postponement_refund(uuid, uuid) to aut
 --    via auth.uid() + is_event_staff inside the definer body.
 revoke execute on function public.approve_order(uuid)        from public, anon;
 revoke execute on function public.reject_order(uuid, text)   from public, anon;
+
+-- ============================================================================
+-- BUILD A FOLLOWING (auto-follow on purchase + follower launch notifications)
+-- Mirrors the appended block in supabase/migrations/fix_all.sql.
+-- ============================================================================
+do $$ begin
+  alter type public.event_notification_type add value if not exists 'NEW_EVENT';
+exception when others then null; end $$;
+
+alter table public.events add column if not exists followers_notified_at timestamptz;
+
+create or replace function public.trg_orders_autofollow()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_org uuid;
+begin
+  if new.status <> 'CONFIRMED' or new.user_id is null then
+    return new;
+  end if;
+  if tg_op = 'UPDATE' and old.status = 'CONFIRMED' then
+    return new;
+  end if;
+  select organizer_id into v_org from public.events where id = new.event_id;
+  if v_org is null then return new; end if;
+  if exists (select 1 from public.organizers
+              where id = v_org and owner_id = new.user_id) then
+    return new;
+  end if;
+  insert into public.organizer_follows (organizer_id, follower_id)
+  values (v_org, new.user_id)
+  on conflict (organizer_id, follower_id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_orders_autofollow on public.orders;
+create trigger trg_orders_autofollow
+  after insert or update of status on public.orders
+  for each row execute function public.trg_orders_autofollow();
+
+create or replace function public.notify_event_followers(p_event_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.events
+     set followers_notified_at = now()
+   where id = p_event_id
+     and followers_notified_at is null;
+  if not found then return; end if;
+  insert into public.event_notifications (event_id, user_id, type, message)
+  select p_event_id, f.follower_id, 'NEW_EVENT',
+         o.name || ' just launched "' || e.title || '".'
+    from public.organizer_follows f
+    join public.events e on e.id = p_event_id
+    join public.organizers o on o.id = e.organizer_id
+   where f.organizer_id = e.organizer_id;
+end;
+$$;
+revoke execute on function public.notify_event_followers(uuid) from public, anon, authenticated;
+grant  execute on function public.notify_event_followers(uuid) to service_role;
+
+create or replace function public.set_event_status(
+  p_event_id uuid,
+  p_status   text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_event_manager(p_event_id) then
+    raise exception 'Not authorised to change this event status';
+  end if;
+  if p_status not in ('DRAFT','PUBLISHED','POSTPONED','CANCELLED','COMPLETED','SOLD_OUT') then
+    raise exception 'Invalid status: %', p_status;
+  end if;
+  if p_status = 'CANCELLED' then
+    raise exception 'Use cancel_event() — direct cancellation skips refunds and notifications';
+  end if;
+  update public.events set status = p_status::public.event_status
+   where id = p_event_id;
+  if not found then raise exception 'Event not found'; end if;
+  if p_status = 'PUBLISHED' then
+    perform public.notify_event_followers(p_event_id);
+  end if;
+end;
+$$;
+grant execute on function public.set_event_status(uuid, text) to authenticated, service_role;
