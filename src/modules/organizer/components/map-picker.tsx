@@ -1,5 +1,7 @@
 "use client";
 
+import "client-only"; // Leaflet touches window at import — fail the build if this file ever lands in a server bundle.
+
 import { useEffect, useRef, useState } from "react";
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";

@@ -73,7 +73,15 @@ async function ensureEvent(orgId, title, opts) {
   // A5 reset restores it; without this, every run would create a duplicate.
   // Oldest match wins so duplicates resolve deterministically.
   const { data: existing } = await admin.from("events").select("id").ilike("title", `${title}%`).order("created_at").limit(1).maybeSingle();
-  if (existing) return existing.id;
+  if (existing) {
+    // Dates drift into the past across runs — bump them forward on reuse
+    // or booking checks ("event has started") break the suite.
+    await admin.from("events").update({
+      starts_at: inDays(opts.daysAhead ?? 7),
+      ends_at: inDays((opts.daysAhead ?? 7) + 0.25),
+    }).eq("id", existing.id);
+    return existing.id;
+  }
   const { data, error } = await admin.from("events").insert({
     organizer_id: orgId, title, description: opts.description ?? "Seeded E2E test event",
     category: "JAM_GIG", categories: ["JAM_GIG"], city: "KOLKATA",

@@ -8,7 +8,7 @@ test.describe("box office and door screens - signed out", () => {
   // KNOWN ISSUE (docs/task.md): the first counter sign-in after a server start fails on the
   // server with "window is not defined" (Leaflet's browser code is in the server bundle), so
   // the form resets without a message. Re-enable when the bundling is fixed.
-  test.fixme("counter sign-in rejects an unknown phone and keeps the phone number", async ({ page }) => {
+  test("counter sign-in rejects an unknown phone and keeps the phone number", async ({ page }) => {
     const pageErrors: string[] = [];
     page.on("pageerror", (err) => pageErrors.push(err.message));
 

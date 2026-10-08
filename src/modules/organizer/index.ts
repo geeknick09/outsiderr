@@ -18,7 +18,8 @@ export * from "./components/event-staff-manager";
 export * from "./components/gallery-uploader";
 export * from "./components/hero-boost-panel";
 export * from "./components/kyc-status-banner";
-export * from "./components/map-picker";
+// map-picker is intentionally NOT in the barrel: it imports Leaflet (browser-only,
+// touches window at module load). Always dynamic-import it with ssr:false.
 export * from "./components/order-monitor";
 export * from "./components/organizer-events-list";
 export * from "./components/organizer-header";

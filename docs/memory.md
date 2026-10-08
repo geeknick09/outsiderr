@@ -23,7 +23,7 @@ Last updated: 2026-10-08
 - **Mutation-checked:** changing one expected value in the DB test makes it fail; restoring it passes.
 - **Browser tests run against the production build on a fresh server.** Two pitfalls: `pkill` does not stop Windows processes, so a stale server kept serving an old build (stuck "Loading"); and redirects for signed-out visitors are streamed after a Supabase round trip, so URL assertions need a longer timeout (`expect.timeout` 20s in `playwright.config.ts`).
 - **Found and fixed:** the counter sign-in form cleared the phone number after a wrong PIN (React form actions reset inputs). Now a submit handler, so the number stays.
-- **Found, not fixed (known issue in task.md):** `window is not defined` in the server bundle on the first counter sign-in. Leaflet is reachable from a shared server chunk. The e2e test for that path is `fixme`.
+- **Fixed:** `window is not defined` on the first counter sign-in — root cause was `organizer/index.ts` re-exporting `map-picker` from the module barrel, dragging Leaflet into the server graph. Rule: never `export *` a browser-only module from a barrel; add `import "client-only"` as the tripwire.
 - **Added `@types/pg@8.23.0` (exact)** so the DB test typechecks. Published 2026-08-17, past the 7-day rule.
 - **Vercel insights script 404s locally** (`/_vercel/insights/script.js`). Expected: it exists only on Vercel.
 

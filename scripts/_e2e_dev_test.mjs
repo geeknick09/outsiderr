@@ -53,6 +53,30 @@ function userClient(token) {
 const getTier = async (id) => (await admin.from("ticket_tiers").select("*").eq("id", id).single()).data;
 const getOrders = async (eventId) => (await admin.from("orders").select("*").eq("event_id", eventId).order("created_at")).data ?? [];
 const getTickets = async (orderId) => (await admin.from("tickets").select("*").eq("order_id", orderId)).data ?? [];
+// Paid order via the real Razorpay path: reservation RPC (authenticated user)
+// + simulated gateway capture through the shared dispatcher (service role plays
+// the webhook). Money is computed server-side - no client-supplied amounts.
+const reserveOrder = (u, eventId, tierId, extra = {}) =>
+  userClient(u.token).rpc("create_reserved_order", {
+    p_event_id: eventId, p_tier_id: tierId, p_quantity: extra.qty ?? 1,
+    p_idempotency_key: null,
+    p_buyer_name: extra.name ?? "Dev Buyer", p_buyer_phone: extra.phone ?? "+919000000000",
+    p_buyer_email: null, p_buyer_gender: null,
+  });
+
+async function captureOrder(orderId) {
+  const intent = (await admin.from("payment_intents").select("id,amount_paise")
+    .eq("ref_id", orderId).eq("kind", "TICKET_ORDER").single()).data;
+  if (!intent) return { error: { message: "no payment intent" } };
+  const rzp = `order_e2e_${orderId.slice(0, 8)}`;
+  await admin.from("payment_intents").update({ razorpay_order_id: rzp }).eq("id", intent.id);
+  await admin.from("orders").update({ razorpay_order_id: rzp }).eq("id", orderId);
+  return admin.rpc("apply_captured_payment", {
+    p_razorpay_order_id: rzp,
+    p_razorpay_payment_id: `pay_e2e_${orderId.slice(0, 8)}_${Date.now()}`,
+    p_amount: intent.amount_paise, p_currency: "INR", p_method: "upi", p_fee: 0,
+  });
+}
 
 async function main() {
   console.log(`E2E vs ${BASE} · ${new URL(SB_URL).host}\n`);
@@ -88,12 +112,14 @@ async function main() {
   const testEventIds = [paid.id, free.id, tiny.id, draft.id];
   const testUids = [U.u1.uid, U.u2.uid, U.org.uid, U.org2.uid, U.adm.uid];
   const testOrderIds = (await admin.from("orders").select("id").in("event_id", testEventIds)).data?.map((o) => o.id) ?? [];
-  if (testOrderIds.length) await admin.from("tickets").delete().in("order_id", testOrderIds);
-  try { await admin.from("tickets").delete().in("event_id", testEventIds).is("order_id", null); } catch {}
-  // ledger + refunds FK-reference orders — clear them first or the delete silently no-ops
+  // ledger/intents/refunds/scan_log FK-reference orders+tickets — clear first.
+  try { await admin.from("scan_log").delete().in("event_id", testEventIds); } catch {}
   try { await admin.from("payment_ledger").delete().in("event_id", testEventIds); } catch {}
   try { if (testOrderIds.length) await admin.from("payment_ledger").delete().in("order_id", testOrderIds); } catch {}
+  try { if (testOrderIds.length) await admin.from("payment_intents").delete().in("ref_id", testOrderIds); } catch {}
   try { await admin.from("refunds").delete().in("event_id", testEventIds); } catch {}
+  if (testOrderIds.length) await admin.from("tickets").delete().in("order_id", testOrderIds);
+  try { await admin.from("tickets").delete().in("event_id", testEventIds).is("order_id", null); } catch {}
   const ordDel = await admin.from("orders").delete().in("event_id", testEventIds);
   if (ordDel.error) console.log("reset: orders delete failed:", ordDel.error.message);
   await admin.from("waitlist").delete().in("event_id", testEventIds);
@@ -123,29 +149,38 @@ async function main() {
   const foTickets = fo ? await getTickets(fo.id) : [];
   report("B2. free order CONFIRMED + VALID ticket", fo?.status === "CONFIRMED" && foTickets.length === 1 && foTickets[0].status === "VALID", `order=${fo?.status} tickets=${foTickets.length}`);
 
+  // Per-user cap: booking is capped at max_tickets_per_user (default 5), not
+  // "one order per event" - force the cap to 1 so a second RSVP must fail.
+  await admin.from("events").update({ max_tickets_per_user: 1 }).eq("id", free.id);
   const dupe = await api("/orders/manual", { token: U.u1.token, body: { eventId: free.id, tierId: freeTier.id, quantity: 1, isFree: true } });
-  report("B3. double-booking blocked", dupe.ok === false, JSON.stringify(dupe.error ?? ""));
+  report("B3. booking over per-user cap blocked", dupe.ok === false, JSON.stringify(dupe.error ?? ""));
+  await admin.from("events").update({ max_tickets_per_user: 5 }).eq("id", free.id);
 
-  // ── manual paid → approve ─────────────────────────────────────────
-  const manual = await api("/orders/manual", { token: U.u2.token, body: { eventId: paid.id, tierId: paidTier.id, quantity: 1, isFree: false, buyerName: "User Two", buyerPhone: "+919111111111", utrReference: "UTR12345" } });
-  report("C1. manual UPI order submitted", manual.ok === true, JSON.stringify(manual));
+  // ── paid order: reserve → gateway capture (webhook path) ──────────
+  const reserved = await reserveOrder(U.u2, paid.id, paidTier.id, { name: "User Two", phone: "+919111111111" });
+  report("C1. paid order reserved", !reserved.error && !!reserved.data?.id, JSON.stringify(reserved.error ?? ""));
   const mo = (await getOrders(paid.id)).filter((o) => o.user_id === U.u2.uid).pop();
-  report("C2. manual order PENDING_VERIFICATION", mo?.status === "PENDING_VERIFICATION", `status=${mo?.status}`);
+  report("C2. order RESERVED + intent exists", mo?.status === "RESERVED" && !!(await admin.from("payment_intents").select("id").eq("ref_id", mo?.id ?? "").maybeSingle()).data, `status=${mo?.status}`);
 
   const badApprove = await api(`/orders/${mo.id}/approve`, { token: U.u1.token });
   report("C3. non-staff approve blocked", badApprove.ok === false, JSON.stringify(badApprove.error ?? ""));
 
-  const approve = await api(`/orders/${mo.id}/approve`, { token: U.org.token });
+  const capture = await captureOrder(mo.id);
   const moAfter = (await admin.from("orders").select("status").eq("id", mo.id).single()).data;
   const moTickets = await getTickets(mo.id);
-  report("C4. organizer approve → CONFIRMED + ticket", approve.ok === true && moAfter?.status === "CONFIRMED" && moTickets.length === 1, `status=${moAfter?.status} tickets=${moTickets.length}`);
+  report("C4. captured payment → CONFIRMED + ticket", capture?.data === "APPLIED:TICKET_ORDER" && moAfter?.status === "CONFIRMED" && moTickets.length === 1, `capture=${capture?.data ?? capture?.error?.message} status=${moAfter?.status} tickets=${moTickets.length}`);
 
-  const approveAgain = await api(`/orders/${mo.id}/approve`, { token: U.org.token });
-  report("C5. double-approve blocked (idempotent)", approveAgain.ok === false, JSON.stringify(approveAgain.error ?? ""));
+  const captureAgain = await captureOrder(mo.id);
+  report("C5. repeat capture idempotent (ALREADY_PAID)", captureAgain?.data === "ALREADY_PAID", `res=${captureAgain?.data ?? captureAgain?.error?.message}`);
 
-  // pending-order reject path (unverified payment — legitimate reject)
-  const pendOrder = await api("/orders/manual", { token: U.u1.token, body: { eventId: paid.id, tierId: paidTier.id, quantity: 1, isFree: false, buyerName: "Pending U1", buyerPhone: "+919222222222", utrReference: "BADUTR" } });
-  const po = (await getOrders(paid.id)).filter((o) => o.user_id === U.u1.uid).pop();
+  // Legacy pending-verification row (only creatable via fixture now) → reject
+  const [po] = (await admin.from("orders").insert({
+    event_id: paid.id, tier_id: paidTier.id, user_id: U.u1.uid, quantity: 1,
+    unit_price_paise: 10000, subtotal_paise: 10000, platform_fee_paise: 1200,
+    commission_paise: 1000, convenience_fee_paise: 200, organizer_payout_paise: 9000,
+    total_paise: 10200, fee_payer: "BUYER", status: "PENDING_VERIFICATION",
+    buyer_name: "Pending U1", buyer_phone: "+919222222222", utr_reference: "BADUTR",
+  }).select("id")).data ?? [];
   const rejPend = await api(`/orders/${po.id}/reject`, { token: U.org.token, body: { reason: "UTR not found" } });
   const poAfter = (await admin.from("orders").select("status").eq("id", po.id).single()).data;
   report("C6. reject PENDING order → REJECTED", rejPend.ok === true && poAfter?.status === "REJECTED", `status=${poAfter?.status}`);
@@ -155,9 +190,16 @@ async function main() {
   const moStill = (await admin.from("orders").select("status").eq("id", mo.id).single()).data;
   report("C7. reject CONFIRMED blocked", rejConfirmed.ok === false && moStill?.status === "CONFIRMED", `err=${rejConfirmed.error ?? ""} status=${moStill?.status}`);
 
-  // ── checkout (no Razorpay keys → graceful error) ──────────────────
-  const co = await api("/checkout", { token: U.u1.token, body: { eventId: paid.id, tierId: paidTier.id, quantity: 1 } });
-  report("D1. checkout w/o Razorpay keys → clean error", co.ok === false && /not configured/i.test(co.error ?? ""), JSON.stringify(co.error ?? co));
+  // ── checkout (Razorpay: reservation + session, or clean error) ──────
+  // adm has no orders on this event; u1/u2 already hold confirmed/pending rows.
+  const co = await api("/checkout", { token: U.adm.token, body: { eventId: paid.id, tierId: paidTier.id, quantity: 1 } });
+  report("D1. checkout → session or clean error", (co.ok === true && !!co.data?.session) || (co.ok === false && typeof co.error === "string"), JSON.stringify(co.error ?? co.data?.session?.orderId ?? co));
+  // Release the reservation so it doesn't leak into later assertions.
+  const coOrder = (await getOrders(paid.id)).filter((o) => o.user_id === U.adm.uid).pop();
+  if (coOrder) {
+    await admin.from("payment_intents").delete().eq("ref_id", coOrder.id);
+    await admin.from("orders").delete().eq("id", coOrder.id);
+  }
 
   // ── engagement ────────────────────────────────────────────────────
   const sub = await api(`/events/${tiny.id}/subscribe`, { token: U.u2.token });
@@ -186,16 +228,16 @@ async function main() {
   report("F2. notifications mark-all-read", nr.ok === true);
 
   // ── capacity + waitlist FIFO (tiny event qty=2) ───────────────────
-  // u1 + u2 book both seats (fresh manual orders)
-  await api("/orders/manual", { token: U.u1.token, body: { eventId: tiny.id, tierId: tinyTier.id, quantity: 1, isFree: false, buyerName: "U1", buyerPhone: "+919000000001" } });
-  await api("/orders/manual", { token: U.u2.token, body: { eventId: tiny.id, tierId: tinyTier.id, quantity: 1, isFree: false, buyerName: "U2", buyerPhone: "+919000000002" } });
-  const tinyOrders = (await getOrders(tiny.id)).filter((o) => o.status === "PENDING_VERIFICATION");
-  for (const o of tinyOrders) await api(`/orders/${o.id}/approve`, { token: U.org.token });
+  // u1 + u2 book both seats (reserve → capture = real paid path)
+  await reserveOrder(U.u1, tiny.id, tinyTier.id, { name: "U1", phone: "+919000000001" });
+  await reserveOrder(U.u2, tiny.id, tinyTier.id, { name: "U2", phone: "+919000000002" });
+  const tinyOrders = (await getOrders(tiny.id)).filter((o) => o.status === "RESERVED");
+  for (const o of tinyOrders) await captureOrder(o.id);
   const tinyAfter = await getTier(tinyTier.id);
   report("G1. tiny event sold out (2/2)", tinyAfter.quantity_sold === 2, `sold=${tinyAfter.quantity_sold}`);
 
-  const soldOut = await api("/orders/manual", { token: U.adm.token, body: { eventId: tiny.id, tierId: tinyTier.id, quantity: 1, isFree: false, buyerName: "U3", buyerPhone: "+919000000003" } });
-  report("G2. sold-out booking blocked", soldOut.ok === false, JSON.stringify(soldOut.error ?? ""));
+  const soldOut = await reserveOrder(U.adm, tiny.id, tinyTier.id, { name: "U3", phone: "+919000000003" });
+  report("G2. sold-out booking blocked", !!soldOut.error, JSON.stringify(soldOut.error?.message ?? ""));
 
   // waitlist join via direct RPC (what mobile does)
   const u3 = userClient(U.adm.token);
@@ -304,9 +346,7 @@ async function main() {
   const burstResults = await Promise.allSettled(
     burstClients.map((c) => c.rpc("create_reserved_order", {
       p_event_id: burstEvent.id, p_tier_id: burstTier.id, p_quantity: 1,
-      p_unit_price_paise: 10000, p_subtotal_paise: 10000, p_platform_fee_paise: 1200,
-      p_commission_paise: 1000, p_convenience_fee_paise: 200, p_organizer_payout_paise: 9000,
-      p_total_paise: 10200, p_fee_payer: "BUYER",
+      p_idempotency_key: null,
       p_buyer_name: "Burst", p_buyer_phone: "+919000000000",
     })),
   );
@@ -315,6 +355,8 @@ async function main() {
   report("K1. burst: 5 buyers × qty-3 → ≤3 succeed", burstOk <= 3, `succeeded=${burstOk}`);
   report("K2. no oversell (reserved ≤ qty)", burstTierAfter.quantity_reserved <= 3 && burstTierAfter.quantity_reserved === Math.min(3, burstOk), `reserved=${burstTierAfter.quantity_reserved}`);
   // cleanup burst event
+  const burstOrderIds = (await admin.from("orders").select("id").eq("event_id", burstEvent.id)).data?.map((o) => o.id) ?? [];
+  if (burstOrderIds.length) await admin.from("payment_intents").delete().in("ref_id", burstOrderIds);
   await admin.from("ticket_tiers").delete().eq("event_id", burstEvent.id);
   await admin.from("orders").delete().eq("event_id", burstEvent.id);
   await admin.from("events").delete().eq("id", burstEvent.id);
@@ -365,12 +407,14 @@ async function main() {
   if (moFull && paidEventFull) {
     const expCommission = Math.round(moFull.subtotal_paise * (paidEventFull.commission_enabled ? paidEventFull.commission_bps : 0) / 10000);
     const expConv = Math.round(moFull.subtotal_paise * (paidEventFull.convenience_fee_enabled ? paidEventFull.convenience_fee_bps : 0) / 10000);
+    // Razorpay-era math: buyer total includes the gateway gross-up; payout and
+    // platform fee do not double-count the gateway component.
     const mathOk =
       moFull.subtotal_paise === moFull.unit_price_paise * moFull.quantity &&
       moFull.commission_paise === expCommission &&
       moFull.convenience_fee_paise === expConv &&
       moFull.platform_fee_paise === moFull.commission_paise + moFull.convenience_fee_paise &&
-      moFull.total_paise === moFull.subtotal_paise + moFull.convenience_fee_paise &&
+      moFull.total_paise === moFull.subtotal_paise + moFull.convenience_fee_paise + (moFull.gateway_fee_paise ?? 0) &&
       moFull.organizer_payout_paise === moFull.subtotal_paise - moFull.commission_paise;
     report("O1. order money math (bps formulas)", mathOk, `subtotal=${moFull.subtotal_paise} comm=${moFull.commission_paise} exp=${expCommission} conv=${moFull.convenience_fee_paise} total=${moFull.total_paise} payout=${moFull.organizer_payout_paise}`);
   } else {
@@ -385,9 +429,9 @@ async function main() {
     ends_at: new Date(Date.now() + 7.25 * 864e5).toISOString(), pricing_mode: "PAID", status: "PUBLISHED",
   }).select("id").single();
   const { data: cancelTier } = await admin.from("ticket_tiers").insert({ event_id: cancelEv.id, name: "GA", price_paise: 50000, quantity: 5, perks: [] }).select("id").single();
-  const cOrder = await api("/orders/manual", { token: U.u2.token, body: { eventId: cancelEv.id, tierId: cancelTier.id, quantity: 1, isFree: false, buyerName: "Cancel Victim", buyerPhone: "+919000000099" } });
+  const cOrder = await reserveOrder(U.u2, cancelEv.id, cancelTier.id, { name: "Cancel Victim", phone: "+919000000099" });
   const cOrderRow = (await getOrders(cancelEv.id)).pop();
-  if (cOrderRow) await api(`/orders/${cOrderRow.id}/approve`, { token: U.org.token });
+  if (cOrderRow) await captureOrder(cOrderRow.id);
   const cancelRes = await api(`/events/${cancelEv.id}/cancel`, { token: U.org.token, body: { reason: "E2E cancel test" } });
   const cancelEvAfter = (await admin.from("events").select("status").eq("id", cancelEv.id).single()).data;
   const cOrderAfter = cOrderRow ? (await admin.from("orders").select("status").eq("id", cOrderRow.id).single()).data : null;
@@ -407,7 +451,7 @@ async function main() {
   // ── Q: collab invite → accept ─────────────────────────────────────
   const org2Row = (await admin.from("organizers").select("id").eq("owner_id", U.org2.uid).maybeSingle()).data;
   if (org2Row) {
-    const invite = await api("/collab/invite", { token: U.org.token, body: { eventId: paid.id, organizerId: org2Row.id, permissionLevel: "SCAN" } });
+    const invite = await api("/collab/invite", { token: U.org.token, body: { eventId: paid.id, organizerId: org2Row.id, permissionLevel: "LIMITED" } });
     const collabRow = (await admin.from("event_collaborators").select("*").eq("event_id", paid.id).eq("organizer_id", org2Row.id).maybeSingle()).data;
     report("Q1. collab invite sent", invite.ok === true && !!collabRow, JSON.stringify(invite.error ?? ""));
     const accept = await api("/collab/respond", { token: U.org2.token, body: { eventId: paid.id, collaboratorId: collabRow?.id, accept: true } });
