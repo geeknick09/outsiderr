@@ -319,7 +319,7 @@ export default async function ManageEventPage({
       {/* Edit form — disabled for cancelled, past, and events starting within 2 hours */}
       {canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast && (startMs - nowMs) > 2 * 60 * 60 * 1000 ? (
         <div id="manage-edit" className="scroll-mt-36">
-          <EditEventForm event={event} pastEvents={pastEventsForLinking} lockLogistics={!isOwner} />
+          <EditEventForm event={event} lockLogistics={!isOwner} />
         </div>
       ) : canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast && (startMs - nowMs) <= 2 * 60 * 60 * 1000 ? (
         <div className="glass rounded-3xl p-5">

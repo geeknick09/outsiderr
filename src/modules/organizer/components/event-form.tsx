@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { Suspense, useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { MapPin, Plus, ShieldCheck, Trash2, Upload, Users, X } from "lucide-react";
+import { MapPin, Plus, Trash2, Upload, X } from "lucide-react";
 
 import { createEventAction, type CreateEventState } from "../actions/events";
 import { Button } from "@/modules/shared";
@@ -114,16 +114,12 @@ export function TagPicker({ initialTags = [] }: { initialTags?: string[] }) {
 export function EventForm({
   organizerName = "organizer",
   termsVersion = "organizer-v1.0",
-  doorStaffPricing = { "1": 1500, "2": 2500, "3": 3500, "4": 5000, "5": 6500 },
-  doorStaffMax = 5,
   pastEvents = [],
   draftEvent,
   draftRetentionDays = 60,
 }: {
   organizerName?: string;
   termsVersion?: string;
-  doorStaffPricing?: Record<string, number>;
-  doorStaffMax?: number;
   pastEvents?: Array<{ id: string; title: string; startsAt: string }>;
   /** Set when editing an existing draft — pre-fills every field. */
   draftEvent?: EventDetail;
@@ -1339,157 +1335,6 @@ export function EventForm({
         </div>
       ) : null}
     </form>
-  );
-}
-
-/* ── Door staff premium card ── */
-function DoorStaffCard({
-  defaultChecked,
-  onCheckedChange,
-  pricing,
-  maxStaff,
-  defaultTermsChecked = false,
-}: {
-  defaultChecked: boolean;
-  onCheckedChange: (checked: boolean) => void;
-  pricing: Record<string, number>;
-  maxStaff: number;
-  defaultTermsChecked?: boolean;
-}) {
-  const [checked, setChecked] = useState(defaultChecked);
-  const [staffCount, setStaffCount] = useState(1);
-
-  const priceForCount = pricing[String(staffCount)] ?? 0;
-  const staffOptions = Array.from({ length: maxStaff }, (_, i) => i + 1);
-
-  return (
-    <div
-      className={cn(
-        "rounded-2xl border p-5 transition-all",
-        checked
-          ? "border-violet-neon bg-violet-neon/5 shadow-[0_0_20px_rgba(139,92,246,0.25)]"
-          : "border-zinc-200 dark:border-white/10",
-      )}
-    >
-      <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-neon-gradient text-white">
-          <ShieldCheck className="h-6 w-6" />
-        </div>
-        <div className="flex-1 space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <h3 className="text-sm font-black">Outsiderr Door Staff</h3>
-              <p className="text-xs text-muted">Professional check-in team for your event</p>
-            </div>
-            {checked ? (
-              <div className="text-right">
-                <p className="text-lg font-black text-violet-neon">
-                  ₹{priceForCount.toLocaleString("en-IN")}
-                </p>
-                <p className="text-[10px] text-muted">
-                  for {staffCount} {staffCount === 1 ? "staff" : "staff"}
-                </p>
-              </div>
-            ) : null}
-          </div>
-
-          <ul className="space-y-1 text-xs text-muted">
-            <li className="flex items-center gap-1.5">
-              <Users className="h-3 w-3 text-violet-neon" />
-              Trained staff with QR scanners
-            </li>
-            <li className="flex items-center gap-1.5">
-              <Users className="h-3 w-3 text-violet-neon" />
-              Handle up to 500 attendees smoothly
-            </li>
-            <li className="flex items-center gap-1.5">
-              <Users className="h-3 w-3 text-violet-neon" />
-              Real-time attendance dashboard
-            </li>
-          </ul>
-
-          <label className="flex cursor-pointer items-center gap-2 pt-1">
-            <input
-              type="checkbox"
-              name="needsDoorStaff"
-              checked={checked}
-              onChange={(e) => {
-                setChecked(e.target.checked);
-                onCheckedChange(e.target.checked);
-              }}
-              className="h-4 w-4 accent-violet-neon"
-            />
-            <span className="text-sm font-semibold">
-              Yes, I want Outsiderr door staff for my event
-            </span>
-          </label>
-
-          {checked ? (
-            <div className="space-y-3 pt-2">
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
-                  Number of staff
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {staffOptions.map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      onClick={() => setStaffCount(n)}
-                      className={cn(
-                        "flex h-10 w-10 items-center justify-center rounded-xl border text-sm font-bold transition-all",
-                        staffCount === n
-                          ? "border-violet-neon bg-violet-neon text-white"
-                          : "border-zinc-200 text-muted hover:border-violet-neon/50 dark:border-white/10",
-                      )}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <input type="hidden" name="doorStaffCount" value={staffCount} />
-              <input type="hidden" name="doorStaffAmount" value={priceForCount} />
-
-              <div className="rounded-xl bg-amber-500/10 p-3 text-xs text-amber-600 dark:text-amber-400">
-                <p className="font-bold">Disclaimer</p>
-                <ul className="mt-1 list-disc space-y-1 pl-4">
-                  <li>
-                    Service amount:{" "}
-                    <strong>₹{priceForCount.toLocaleString("en-IN")}</strong> for {staffCount}{" "}
-                    {staffCount === 1 ? "staff" : "staff"}.
-                  </li>
-                  <li>
-                    Staff count must be confirmed at least <strong>2 days before</strong> the event.
-                  </li>
-                  <li>
-                    Requests made within 2 days of the event may be cancelled if staff is
-                    unavailable.
-                  </li>
-                  <li>
-                    <strong>No refund</strong> for door staff charges once the organizer pays.
-                  </li>
-                </ul>
-              </div>
-
-              <label className="flex cursor-pointer items-start gap-2 rounded-xl bg-zinc-50 p-3 dark:bg-white/5">
-                <input
-                  type="checkbox"
-                  name="doorStaffTerms"
-                  defaultChecked={defaultTermsChecked}
-                  className="mt-0.5 h-4 w-4 accent-violet-neon"
-                />
-                <span className="text-xs text-muted">
-                  I agree to the door staff terms &amp; refund policy. I understand that door staff
-                  charges are <strong>non-refundable</strong> once paid.
-                </span>
-              </label>
-            </div>
-          ) : null}
-        </div>
-      </div>
-    </div>
   );
 }
 

@@ -17,26 +17,24 @@ interface EditVenueSectionProps {
     venueAddress: string;
     googleMapsLink: string | null;
     city: string;
+    latitude: number | null;
+    longitude: number | null;
   };
   lockLogistics?: boolean;
-  latitude: string;
-  longitude: string;
-  onLocationChange: (latitude: number, longitude: number) => void;
   onSave: () => void;
 }
 
 export function EditVenueSection({
   event,
   lockLogistics,
-  latitude,
-  longitude,
-  onLocationChange,
   onSave,
 }: EditVenueSectionProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [venueMode, setVenueMode] = useState<"NOW" | "TBA">(
     event.venueName === "TBA" ? "TBA" : "NOW",
   );
+  const [latitude, setLatitude] = useState(event.latitude ? String(event.latitude) : "");
+  const [longitude, setLongitude] = useState(event.longitude ? String(event.longitude) : "");
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [venueName, setVenueName] = useState(event.venueName === "TBA" ? "" : event.venueName);
   const [venueAddress, setVenueAddress] = useState(event.venueAddress);
@@ -189,7 +187,10 @@ export function EditVenueSection({
             <MapPicker
               initialLat={latitude || undefined}
               initialLng={longitude || undefined}
-              onLocationChange={onLocationChange}
+              onLocationChange={(nextLatitude, nextLongitude) => {
+                setLatitude(String(nextLatitude));
+                setLongitude(String(nextLongitude));
+              }}
             />
           </Suspense>
         ) : null}

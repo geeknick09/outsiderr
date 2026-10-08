@@ -5,7 +5,7 @@ import { getCurrentUser } from "@/modules/shared/server";
 import { getSettingInt } from "@/modules/shared/server";
 import { getOrganizerProfile } from "@/modules/shared/server";
 import { getOrganizerAccessState } from "@/modules/shared";
-import { getTermsVersion, getDoorStaffPricing, getDoorStaffMax, getDoorStaffAvailable, getOrganizerPastEventsForLinking, getDraftRetentionDays } from "@/modules/shared/server";
+import { getTermsVersion, getOrganizerPastEventsForLinking, getDraftRetentionDays } from "@/modules/shared/server";
 
 // Lazy load EventForm — it pulls in Leaflet (~140kB) via MapPicker
 const EventForm = lazy(() =>
@@ -34,11 +34,8 @@ export default async function CreateEventPage() {
     redirect("/organizer");
   }
 
-  const [termsVersion, doorStaffPricing, doorStaffMax, doorStaffAvailable, pastEventsForLinking, draftRetentionDays] = await Promise.all([
+  const [termsVersion, pastEventsForLinking, draftRetentionDays] = await Promise.all([
     getTermsVersion(),
-    getDoorStaffPricing(),
-    getDoorStaffMax(),
-    getDoorStaffAvailable(),
     getOrganizerPastEventsForLinking(organizerProfile.id),
     getDraftRetentionDays(),
   ]);
@@ -60,8 +57,6 @@ export default async function CreateEventPage() {
         <EventForm
           organizerName={organizerProfile.name}
           termsVersion={termsVersion}
-          doorStaffPricing={doorStaffPricing}
-          doorStaffMax={Math.min(doorStaffMax, doorStaffAvailable)}
           pastEvents={pastEventsForLinking}
           draftRetentionDays={draftRetentionDays}
         />

@@ -14,21 +14,18 @@ import {
 } from "./edit-sections";
 import { Button } from "@/modules/shared";
 import { PhoneInput } from "@/modules/shared";
-import { CATEGORIES } from "@/modules/shared";
 import type { EventDetail } from "@/modules/shared";
 
 const INPUT =
   "w-full min-w-0 box-border rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon [color-scheme:light] dark:[color-scheme:dark] dark:border-white/10 dark:bg-white/5 dark:text-white";
 
-export function EditEventForm({ event, pastEvents = [], lockLogistics = false }: { event: EventDetail; pastEvents?: Array<{ id: string; title: string; startsAt: string }>; /** Collaborators: city/venue/date fields are locked — owner only. */ lockLogistics?: boolean }) {
-  const [state, formAction, pending] = useActionState<UpdateEventState, FormData>(
+export function EditEventForm({ event, lockLogistics = false }: { event: EventDetail; /** Collaborators: city/venue/date fields are locked — owner only. */ lockLogistics?: boolean }) {
+  const [, formAction, pending] = useActionState<UpdateEventState, FormData>(
     updateEventAction,
     { error: null },
   );
 
   const [dirty, setDirty] = useState(false);
-  const [lat, setLat] = useState(event.latitude ? String(event.latitude) : "");
-  const [lng, setLng] = useState(event.longitude ? String(event.longitude) : "");
 
   function updateField() {
     setDirty(true);
