@@ -1,23 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { LocateFixed, MapPin } from "lucide-react";
 
 import { Button } from "../ui/button";
-import { CITIES, CITY_LABELS, DEFAULT_CITY } from "../../lib/constants";
+import { CITIES, DEFAULT_CITY } from "../../lib/constants";
+import { cityLabel, normalizeCityKey, nearestIndianCity } from "../../lib/india-cities";
 import type { City } from "../../lib/types";
 import { cn } from "../../lib/utils";
 
 const STORAGE_KEY = "outsiderr-city";
 
 function nearestCity(latitude: number, longitude: number): City {
-  return CITIES.reduce((closest, city) => {
-    const distance = (city.lat - latitude) ** 2 + (city.lng - longitude) ** 2;
-    const closestDistance =
-      (closest.lat - latitude) ** 2 + (closest.lng - longitude) ** 2;
-    return distance < closestDistance ? city : closest;
-  }, CITIES[0]).value;
+  return nearestIndianCity(latitude, longitude)?.value ?? DEFAULT_CITY;
 }
 
 export function LocationSelector() {
@@ -26,10 +22,17 @@ export function LocationSelector() {
   const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const [detecting, setDetecting] = useState(false);
+  const [filter, setFilter] = useState("");
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const paramCity = searchParams.get("city") as City | null;
-  const city = paramCity && CITY_LABELS[paramCity] ? paramCity : DEFAULT_CITY;
+  const city = paramCity ? normalizeCityKey(paramCity) : DEFAULT_CITY;
+
+  const filteredCities = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    if (!q) return CITIES;
+    return CITIES.filter((c) => c.label.toLowerCase().includes(q));
+  }, [filter]);
 
   const applyCity = useCallback(
     (next: City) => {
@@ -50,7 +53,7 @@ export function LocationSelector() {
     if (paramCity) return;
     if (pathname !== "/") return;
     const stored = window.localStorage.getItem(STORAGE_KEY) as City | null;
-    if (stored && stored !== DEFAULT_CITY && CITY_LABELS[stored]) applyCity(stored);
+    if (stored && stored !== DEFAULT_CITY && cityLabel(stored)) applyCity(stored);
   }, [applyCity, paramCity, pathname]);
 
   // Close dropdown on outside click
@@ -101,7 +104,7 @@ export function LocationSelector() {
         aria-haspopup="listbox"
       >
         <MapPin className="h-4 w-4 text-violet-neon" />
-        <span className="hidden sm:inline">{CITY_LABELS[city]}</span>
+        <span className="hidden sm:inline">{cityLabel(city)}</span>
       </button>
 
       {open ? (
@@ -120,8 +123,22 @@ export function LocationSelector() {
             {detecting ? "Detecting…" : "Use my location"}
           </Button>
 
-          <div className="grid grid-cols-2 gap-2">
-            {CITIES.map((option) => (
+          <input
+            type="text"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && filter.trim()) {
+                applyCity(normalizeCityKey(filter));
+                setFilter("");
+              }
+            }}
+            placeholder="Search or type your city…"
+            className="mb-3 w-full rounded-2xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white"
+          />
+
+          <div className="grid max-h-56 grid-cols-2 gap-2 overflow-y-auto">
+            {filteredCities.map((option) => (
               <button
                 key={option.value}
                 type="button"
@@ -138,6 +155,18 @@ export function LocationSelector() {
                 {option.label}
               </button>
             ))}
+            {filteredCities.length === 0 && filter.trim() ? (
+              <button
+                type="button"
+                onClick={() => {
+                  applyCity(normalizeCityKey(filter));
+                  setFilter("");
+                }}
+                className="col-span-2 rounded-2xl border border-dashed border-violet-neon/60 p-3 text-left text-sm font-semibold text-violet-600 dark:text-violet-300"
+              >
+                Use &ldquo;{filter.trim()}&rdquo;
+              </button>
+            ) : null}
           </div>
         </div>
       ) : null}

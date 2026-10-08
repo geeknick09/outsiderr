@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { CollapsibleSection, CITIES, cn, isGoogleMapsLink } from "@/modules/shared";
+import { CollapsibleSection, CityPicker, cn, isGoogleMapsLink } from "@/modules/shared";
 import { updateEventSectionAction, type UpdateEventSectionState } from "../../actions/events";
 import type { EventDetail } from "@/modules/shared";
 
@@ -155,21 +155,7 @@ export function EditVenueSection({ event, lockLogistics = false }: { event: Even
             )}
 
             {/* City is editable regardless of venue mode - TBA affects venue, not city */}
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold text-muted">City</label>
-              <select
-                name="city"
-                value={city}
-                onChange={(e) => setCity(e.target.value as typeof city)}
-                className={INPUT}
-              >
-                {CITIES.map((c) => (
-                  <option key={c.value} value={c.value} className="bg-white dark:bg-zinc-900">
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CityPicker name="city" defaultValue={city} />
           </>
         )}
 

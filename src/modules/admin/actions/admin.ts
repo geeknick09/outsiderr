@@ -448,3 +448,89 @@ export async function updatePlatformSettingAction(
     return { error: err instanceof Error ? err.message : "Failed to update setting." };
   }
 }
+
+/** Manually grant premium analytics to an organizer (admin override, no payment). */
+export async function adminGrantPremiumAction(
+  organizerId: string,
+  months: 3 | 6 | 12,
+  reason: string,
+): Promise<{ error: string | null }> {
+  const user = await requireAdmin();
+  const trimmed = reason.trim();
+  if (!trimmed) return { error: "A reason is required." };
+  if (![3, 6, 12].includes(months)) return { error: "Invalid duration." };
+
+  const supabase = createServiceClient();
+  const { data: org } = await supabase
+    .from("organizers")
+    .select("premium_until")
+    .eq("id", organizerId)
+    .maybeSingle();
+  if (!org) return { error: "Organizer not found." };
+
+  const base =
+    org.premium_until && new Date(org.premium_until).getTime() > Date.now()
+      ? new Date(org.premium_until)
+      : new Date();
+  const until = new Date(base);
+  until.setMonth(until.getMonth() + months);
+
+  const { error } = await supabase
+    .from("organizers")
+    .update({ premium_until: until.toISOString() })
+    .eq("id", organizerId);
+  if (error) return { error: error.message };
+
+  await auditLog({
+    adminId: user.id,
+    tableName: "organizers",
+    entityId: organizerId,
+    fieldName: "premium_until",
+    oldValue: org.premium_until ?? "null",
+    newValue: until.toISOString(),
+    reason: `GRANT premium ${months}mo: ${trimmed}`,
+  });
+
+  revalidatePath(`/admin/organizers/${organizerId}`);
+  revalidatePath("/admin/organizers");
+  return { error: null };
+}
+
+/** Revoke premium access immediately. */
+export async function adminRevokePremiumAction(
+  organizerId: string,
+  reason: string,
+): Promise<{ error: string | null }> {
+  const user = await requireAdmin();
+  const trimmed = reason.trim();
+  if (!trimmed) return { error: "A reason is required." };
+
+  const supabase = createServiceClient();
+  const { data: org } = await supabase
+    .from("organizers")
+    .select("premium_until")
+    .eq("id", organizerId)
+    .maybeSingle();
+  if (!org) return { error: "Organizer not found." };
+  if (!org.premium_until) return { error: "No premium to revoke." };
+
+  const { error } = await supabase
+    .from("organizers")
+    .update({ premium_until: null })
+    .eq("id", organizerId);
+  if (error) return { error: error.message };
+
+  await auditLog({
+    adminId: user.id,
+    tableName: "organizers",
+    entityId: organizerId,
+    fieldName: "premium_until",
+    oldValue: org.premium_until,
+    newValue: "null",
+    reason: `REVOKE premium: ${trimmed}`,
+  });
+
+  revalidatePath(`/admin/organizers/${organizerId}`);
+  revalidatePath("/admin/organizers");
+  return { error: null };
+}

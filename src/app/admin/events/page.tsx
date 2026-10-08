@@ -10,7 +10,7 @@ import { AdminEventEditForm } from "@/modules/admin";
 import { Badge } from "@/modules/shared";
 import { ActionButton } from "@/modules/shared";
 import { listAllAdminEvents } from "@/modules/admin/server";
-import { CATEGORY_LABELS, CITY_LABELS } from "@/modules/shared";
+import { CATEGORY_LABELS, CITY_LABELS, cityLabel } from "@/modules/shared";
 import { formatDateTime, isEventEnded } from "@/modules/shared";
 import { cn } from "@/modules/shared";
 import type { EventCategory, City } from "@/modules/shared";
@@ -139,7 +139,7 @@ export default async function AdminEventsPage({
           {statuses.map((s) => <option key={s} value={s}>{s === "all" ? "All Status" : s.replace(/_/g, " ")}</option>)}
         </select>
         <select name="city" defaultValue={params.city ?? "all"} className={SELECT_CLS}>
-          {cities.map((c) => <option key={c} value={c}>{c === "all" ? "All Cities" : CITY_LABELS[c as City] ?? c}</option>)}
+          {cities.map((c) => <option key={c} value={c}>{c === "all" ? "All Cities" : cityLabel(c as City) ?? c}</option>)}
         </select>
         <select name="category" defaultValue={params.category ?? "all"} className={SELECT_CLS}>
           {categories.map((c) => <option key={c} value={c}>{c === "all" ? "All Categories" : CATEGORY_LABELS[c as EventCategory] ?? c}</option>)}
@@ -169,7 +169,7 @@ export default async function AdminEventsPage({
                   {event.title} ↗
                 </Link>
                 <p className="text-xs text-muted">
-                  {event.organizerName} · {CATEGORY_LABELS[event.category]} · {CITY_LABELS[event.city]} · {formatDateTime(event.startsAt)}
+                  {event.organizerName} · {CATEGORY_LABELS[event.category]} · {cityLabel(event.city)} · {formatDateTime(event.startsAt)}
                 </p>
                 <p className="text-xs text-muted">
                   {event.registrationsCount} registrations

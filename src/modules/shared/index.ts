@@ -18,6 +18,7 @@ export type { CurrentUser } from "./auth/auth";
 
 // ---- constants & pure helpers ----
 export * from "./lib/constants";
+export * from "./lib/india-cities";
 export * from "./lib/format";
 export * from "./lib/datetime";
 export * from "./lib/utils";
@@ -45,6 +46,7 @@ export * from "./hooks/use-realtime";
 export * from "./ui/ui/badge";
 export * from "./ui/ui/branded-loader";
 export * from "./ui/ui/button";
+export * from "./ui/ui/city-picker";
 export * from "./ui/ui/collapsible-section";
 export * from "./ui/ui/download-qr-button";
 export * from "./ui/ui/image-cropper";

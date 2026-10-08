@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Flame, MapPin } from "lucide-react";
 
 import { Badge } from "@/modules/shared";
-import { CITY_LABELS } from "@/modules/shared";
+import { cityLabel } from "@/modules/shared";
 import { formatDateTime, formatPriceTag } from "@/modules/shared";
 import type { HeroEvent } from "@/modules/shared";
 
@@ -47,7 +47,7 @@ export function HeroCarousel({ events }: { events: HeroEvent[] }) {
 
   const event = events[current];
   const poster = event.bannerPosterUrl ?? event.cardPosterUrl;
-  const cityLabel = CITY_LABELS[event.city as keyof typeof CITY_LABELS] ?? event.city;
+  const eventCityLabel = cityLabel(event.city);
 
   // Swipe handlers - use passive touch events, no state updates during swipe
   function handleTouchStart(e: React.TouchEvent) {
@@ -135,7 +135,7 @@ export function HeroCarousel({ events }: { events: HeroEvent[] }) {
               </span>
               <span className="flex items-center gap-1">
                 <MapPin className="h-3.5 w-3.5" />
-                {event.venueName}, {cityLabel}
+                {event.venueName}, {eventCityLabel}
               </span>
             </div>
             <span className="inline-block rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-zinc-900">

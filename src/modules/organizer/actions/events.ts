@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/modules/shared/server";
 import { createEvent, updateEvent, updateEventStatus, type TicketTierInput } from "../data/organizer-events";
-import { istToUTC } from "@/modules/shared";
+import { istToUTC, normalizeCityKey } from "@/modules/shared";
 import type { City, EventCategory, FeePayer, PricingMode } from "@/modules/shared";
 
 export interface CreateEventState {
@@ -90,7 +90,7 @@ function extractFormValues(formData: FormData): CreateEventState["values"] {
     title: String(formData.get("title") ?? ""),
     category: String(formData.get("category") ?? "OTHER"),
     categories: formData.getAll("categories").map(String).filter(Boolean),
-    city: String(formData.get("city") ?? "KOLKATA"),
+    city: normalizeCityKey(String(formData.get("city") ?? "KOLKATA")),
     startsAt: String(formData.get("startsAt") ?? ""),
     endsAt: String(formData.get("endsAt") ?? ""),
     venueName: String(formData.get("venueName") ?? ""),
@@ -388,7 +388,7 @@ export async function createEventAction(
           .split(",")
           .map((t) => t.trim())
           .filter(Boolean),
-        city: String(formData.get("city") ?? "KOLKATA") as City,
+        city: normalizeCityKey(String(formData.get("city") ?? "KOLKATA")),
         category: (formData.getAll("categories")[0] ?? formData.get("category") ?? "OTHER") as EventCategory,
         categories: formData.getAll("categories").map(String).filter(Boolean) as EventCategory[],
         tiers,
@@ -427,7 +427,7 @@ export async function createEventAction(
         .filter(Boolean),
       category: (formData.getAll("categories")[0] ?? formData.get("category") ?? "OTHER") as EventCategory,
       categories: formData.getAll("categories").map(String).filter(Boolean) as EventCategory[],
-      city: String(formData.get("city") ?? "KOLKATA") as City,
+      city: normalizeCityKey(String(formData.get("city") ?? "KOLKATA")),
       venueName: venueMode === "TBA" ? "TBA" : String(formData.get("venueName") ?? "").trim(),
       venueAddress: venueMode === "TBA" ? "" : String(formData.get("venueAddress") ?? "").trim(),
       latitude: latitude ? Number(latitude) : null,
@@ -626,7 +626,7 @@ export async function updateEventAction(
         .split(",")
         .map((t) => t.trim())
         .filter(Boolean),
-      city: String(formData.get("city") ?? "").trim() as City | undefined,
+      city: String(formData.get("city") ?? "").trim() ? normalizeCityKey(String(formData.get("city"))) : undefined,
       category: String(formData.getAll("categories")[0] ?? formData.get("category") ?? "").trim() as EventCategory | undefined,
       categories: formData.getAll("categories").map(String).filter(Boolean) as EventCategory[],
       tiers,
@@ -786,7 +786,7 @@ export async function updateEventSectionAction(
         googleMapsLink: venueMode === "TBA" ? null : googleMapsLink,
         latitude: latitude ? Number(latitude) : null,
         longitude: longitude ? Number(longitude) : null,
-        city: String(formData.get("city") ?? current.city).trim() as City,
+        city: normalizeCityKey(String(formData.get("city") ?? current.city)),
       };
     } else if (section === "media") {
       input = {

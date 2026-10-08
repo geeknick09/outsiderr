@@ -26,7 +26,7 @@ import {
   getTaglineSubheader,
 } from "@/modules/shared/server";
 import { getCurrentUser } from "@/modules/shared/server";
-import { formatDateTime, isToday } from "@/modules/shared";
+import { formatDateTime, isToday, cityLabel, normalizeCityKey } from "@/modules/shared";
 import { partitionSearchEvents } from "@/modules/web";
 import type { City, EventCategory } from "@/modules/shared";
 
@@ -41,10 +41,7 @@ export default async function DiscoveryPage({
   searchParams: Promise<{ city?: string; category?: string; q?: string }>;
 }) {
   const params = await searchParams;
-  const city: City =
-    params.city && CITY_LABELS[params.city as City]
-      ? (params.city as City)
-      : DEFAULT_CITY;
+  const city: City = params.city ? normalizeCityKey(params.city) : DEFAULT_CITY;
   const category =
     params.category && CATEGORY_LABELS[params.category as EventCategory]
       ? (params.category as EventCategory)
@@ -103,7 +100,7 @@ export default async function DiscoveryPage({
             {taglineSubheader}
           </p>
           <p className="mt-3 text-xs font-semibold uppercase tracking-[0.3em] text-violet-neon">
-            {CITY_LABELS[city]}
+            {cityLabel(city)}
           </p>
         </div>
         {/* Clubs & Crews disabled for this release */}
@@ -171,7 +168,7 @@ export default async function DiscoveryPage({
       />
       <EventSection title="Popular Events" events={popular} />
       <EventSection
-        title={`Events in ${CITY_LABELS[city]}`}
+        title={`Events in ${cityLabel(city)}`}
         subtitle="Happening near you"
         events={cityLive}
       />
@@ -187,7 +184,7 @@ export default async function DiscoveryPage({
         <div className="glass rounded-3xl p-10 text-center">
           <h2 className="text-lg font-bold">Nothing here yet</h2>
           <p className="mt-1 text-sm text-muted">
-            No {category ? CATEGORY_LABELS[category].toLowerCase() : "events"} in {CITY_LABELS[city]} right now. Try another city or category.
+            No {category ? CATEGORY_LABELS[category].toLowerCase() : "events"} in {cityLabel(city)} right now. Try another city or category.
           </p>
         </div>
       ) : null}

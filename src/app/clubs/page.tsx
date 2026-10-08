@@ -7,7 +7,7 @@ import { Badge } from "@/modules/shared";
 import { getCurrentUser } from "@/modules/shared/server";
 import { listClubs } from "@/modules/shared/server";
 import { getOrganizerProfile } from "@/modules/shared/server";
-import { CITIES, CITY_LABELS } from "@/modules/shared";
+import { CITIES, cityLabel } from "@/modules/shared";
 import { formatPaise } from "@/modules/shared";
 import { cn } from "@/modules/shared";
 import type { City, ClubType, MembershipType } from "@/modules/shared";
@@ -126,7 +126,7 @@ export default async function ClubsPage({
                 {club.city ? (
                   <span className="flex items-center gap-1">
                     <MapPin className="h-3 w-3" />
-                    {CITY_LABELS[club.city]}
+                    {cityLabel(club.city)}
                   </span>
                 ) : null}
                 <span className="flex items-center gap-1">

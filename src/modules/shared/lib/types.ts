@@ -10,7 +10,8 @@ export type EventCategory =
   | "GAMING"
   | "OTHER";
 
-export type City = "KOLKATA" | "MUMBAI" | "DELHI" | "BENGALURU";
+/** Any Indian city key (UPPERCASE canonical). Legacy four are still valid. */
+export type City = string;
 
 export type FeePayer = "BUYER" | "ORGANIZER";
 

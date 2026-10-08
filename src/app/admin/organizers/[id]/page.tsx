@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Crown, BadgeCheck, ArrowLeft, ExternalLink } from "lucide-react";
 
 import { getAdminOrganizerDetail } from "@/modules/admin/server";
+import { PremiumAdminPanel } from "@/modules/admin";
 import { formatPaise, formatDateTime } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
@@ -90,6 +91,13 @@ export default async function AdminOrganizerDetailPage({
             <Row label="IFSC" value={o.bankIfsc} />
             <Row label="Type" value={o.bankAccountType} />
           </Section>
+
+          <PremiumAdminPanel
+            organizerId={o.id}
+            isPremium={isPremium}
+            premiumUntil={o.premiumUntil}
+            audit={stats.premiumAudit}
+          />
 
           <Section title="Socials">
             <Row label="Instagram" value={o.instagramUrl} />

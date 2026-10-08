@@ -120,6 +120,14 @@ export interface AdminOrganizerDetail {
     grossRevenuePaise: number;
     ticketsSold: number;
     premiumPurchases: { months: number; amountPaise: number; paidAt: string | null }[];
+    premiumAudit: {
+      adminEmail: string | null;
+      action: string;
+      reason: string | null;
+      oldValue: string | null;
+      newValue: string | null;
+      createdAt: string;
+    }[];
   };
 }
 
@@ -141,7 +149,7 @@ export async function getAdminOrganizerDetail(organizerId: string): Promise<Admi
     .order("starts_at", { ascending: false });
   const eventIds = (events ?? []).map((e) => e.id);
 
-  const [{ data: owner }, { data: ledger }, { data: tiers }, { data: purchases }] =
+  const [{ data: owner }, { data: ledger }, { data: tiers }, { data: purchases }, { data: audit }] =
     await Promise.all([
       supabase.from("profiles").select("id, full_name, phone, email").eq("id", org.owner_id).maybeSingle(),
       supabase.from("payment_ledger").select("gross_amount_paise").eq("organizer_id", organizerId).in("type", ["TICKET_SALE", "BOOST_SALE", "PREMIUM_SALE"]),
@@ -149,7 +157,15 @@ export async function getAdminOrganizerDetail(organizerId: string): Promise<Admi
         ? supabase.from("ticket_tiers").select("quantity_sold").in("event_id", eventIds)
         : Promise.resolve({ data: [] }),
       supabase.from("organizer_premium_purchases").select("months, amount_paise, paid_at").eq("organizer_id", organizerId).eq("status", "PAID").order("paid_at", { ascending: false }),
+      supabase.from("admin_change_log").select("admin_id, old_value, new_value, reason, created_at").eq("table_name", "organizers").eq("entity_id", organizerId).eq("field_name", "premium_until").order("created_at", { ascending: false }).limit(50),
     ]);
+
+  // Resolve admin emails for audit rows (service client bypasses RLS).
+  const auditAdminIds = [...new Set((audit ?? []).map((a) => a.admin_id))];
+  const { data: admins } = auditAdminIds.length
+    ? await supabase.from("profiles").select("id, email").in("id", auditAdminIds)
+    : { data: [] as { id: string; email: string | null }[] };
+  const adminEmailMap = new Map((admins ?? []).map((p) => [p.id, p.email]));
 
   const gross = (ledger ?? []).reduce((s, l) => s + (l.gross_amount_paise ?? 0), 0);
   const tickets = (tiers ?? []).reduce((s, t) => s + (t.quantity_sold ?? 0), 0);
@@ -200,6 +216,14 @@ export async function getAdminOrganizerDetail(organizerId: string): Promise<Admi
         months: p.months,
         amountPaise: p.amount_paise,
         paidAt: p.paid_at,
+      })),
+      premiumAudit: (audit ?? []).map((a) => ({
+        adminEmail: adminEmailMap.get(a.admin_id) ?? null,
+        action: a.new_value === "null" ? "REVOKE" : "GRANT",
+        reason: a.reason,
+        oldValue: a.old_value,
+        newValue: a.new_value,
+        createdAt: a.created_at,
       })),
     },
   };

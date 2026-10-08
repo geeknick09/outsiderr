@@ -1,4 +1,5 @@
 import type { EventCategory, City } from "./types";
+import { ALL_INDIAN_CITIES } from "./india-cities";
 
 export const CATEGORIES: { value: EventCategory | "ALL"; label: string }[] = [
   { value: "ALL", label: "All" },
@@ -13,12 +14,8 @@ export const CATEGORIES: { value: EventCategory | "ALL"; label: string }[] = [
   { value: "OTHER", label: "Others" },
 ];
 
-export const CITIES: { value: City; label: string; lat: number; lng: number }[] = [
-  { value: "KOLKATA", label: "Kolkata", lat: 22.5726, lng: 88.3639 },
-  { value: "MUMBAI", label: "Mumbai", lat: 19.076, lng: 72.8777 },
-  { value: "DELHI", label: "Delhi", lat: 28.6139, lng: 77.209 },
-  { value: "BENGALURU", label: "Bengaluru", lat: 12.9716, lng: 77.5946 },
-];
+export const CITIES: { value: City; label: string; lat: number; lng: number }[] =
+  ALL_INDIAN_CITIES;
 
 export const DEFAULT_CITY: City = "KOLKATA";
 

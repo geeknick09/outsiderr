@@ -9,7 +9,7 @@ import { Button } from "@/modules/shared";
 import { PhoneInput } from "@/modules/shared";
 import { GalleryUploader } from "./gallery-uploader";
 import { PosterGuidelines } from "./poster-guidelines";
-import { CATEGORIES, CITIES, PREDEFINED_EVENT_TAGS } from "@/modules/shared";
+import { CATEGORIES, PREDEFINED_EVENT_TAGS, CityPicker } from "@/modules/shared";
 import { nowISTInput, utcToISTInput } from "@/modules/shared";
 import { uploadPublicFile, compressImage } from "@/modules/shared";
 import { ImageCropper } from "@/modules/shared";
@@ -26,7 +26,8 @@ const MapPicker = dynamic(
 const INPUT =
   "w-full min-w-0 box-border rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon [color-scheme:light] dark:[color-scheme:dark] dark:border-white/10 dark:bg-white/5 dark:text-white";
 
-const SELECT_OPTION = "bg-white text-zinc-900 dark:bg-zinc-900 dark:text-white";
+
+
 
 type PricingMode = "FREE" | "FLAT" | "PAID" | "PHASED";
 
@@ -391,19 +392,11 @@ export function EventForm({
             {/* Hidden single category field for backward compat - uses first selected */}
             <input type="hidden" name="category" value={(sv?.categories as string[] | undefined)?.[0] ?? sv?.category ?? "OTHER"} readOnly />
           </Field>
-          <Field label="City *">
-            <select
-              name="city"
-              className={INPUT}
-              defaultValue={sv?.city ?? "KOLKATA"}
-            >
-              {CITIES.map((c) => (
-                <option key={c.value} value={c.value} className={SELECT_OPTION}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </Field>
+        </div>
+
+        <div className="rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
+          <p className="mb-2 text-xs font-semibold text-muted">Location (India) *</p>
+          <CityPicker name="city" defaultValue={sv?.city ?? "KOLKATA"} />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">

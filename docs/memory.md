@@ -4,6 +4,13 @@ One-sentence purpose: append-only knowledge so agents never re-derive a past fix
 Format: `Date · Area · What happened/decision → Fix/rule · Files`. Newest entries go on top.
 Last updated: 2026-10-08
 
+## 2026-10-08 — India cities + admin premium controls
+
+- **Cities widened beyond 4** — `City` type is now a free-form string; new `lib/india-cities.ts` carries `INDIAN_STATES_CITIES` (~35 states/UTs, ~140 cities with lat/lng). `CityPicker` (shared/ui) cascades State → City → Other (custom typed city → `normalizeCityKey` = UPPERCASE key). Event create + edit-venue use it; club form uses a datalist input; location-selector gained a search/type-ahead filter + `nearestIndianCity` haversine for geo. Display everywhere uses `cityLabel()` (listed label else title-case). City keys are stored UPPERCASE like the legacy four.
+- **Admin manual premium** — `adminGrantPremiumAction(id, 3|6|12, reason)` / `adminRevokePremiumAction(id, reason)` stack/revoke `organizers.premium_until` from the admin organizer detail page (`PremiumAdminPanel`). Every change writes `admin_change_log` with admin email, GRANT/REVOKE reason, old → new `premium_until`; the panel shows the full audit trail. Audience analytics window: 90d normal / 180d premium.
+- **Audit reuse** — existing `admin_change_log` table (already has a `reason` column) doubles as the premium audit store — no new table needed.
+
+
 ## 2026-10-08 — Per-section saves + price-lock banner
 
 - **Organizer editor · sections now save independently** — replaced the single-form edit with 8 collapsible sections (details/schedule/venue/tickets/media/information/contact/options), each owning a `<form>` posting to the new `updateEventSectionAction` (posts `section` + `eventId` only). The action fetches current event values, overlays the section's fields, validates only that section, and returns `{error, saved}` — no cross-section validation bleed, no redirect (saved chip shows inline). Manage-page panels (collaborators, door staff/scanner, box-office PINs, boost, cancel/postpone) are wrapped in `CollapsibleSection`. Files: `organizer/actions/events.ts`, `organizer/components/edit-event-form.tsx`, `organizer/components/edit-sections/*`, `shared/ui/ui/collapsible-section.tsx` (gained `formId`/`pending`/`error`/`saved` props).

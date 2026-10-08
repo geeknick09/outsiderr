@@ -8,7 +8,7 @@ import { JoinClubForm } from "@/modules/web";
 import { Badge } from "@/modules/shared";
 import { getCurrentUser } from "@/modules/shared/server";
 import { getClub, getMyMembership } from "@/modules/shared/server";
-import { CITY_LABELS } from "@/modules/shared";
+import { cityLabel } from "@/modules/shared";
 import { formatPaise } from "@/modules/shared";
 import type { ClubType, MembershipType } from "@/modules/shared";
 
@@ -90,7 +90,7 @@ export default async function ClubDetailPage({
             {club.city ? (
               <span className="flex items-center gap-1">
                 <MapPin className="h-3.5 w-3.5" />
-                {CITY_LABELS[club.city]}
+                {cityLabel(club.city)}
               </span>
             ) : null}
             <span className="flex items-center gap-1">

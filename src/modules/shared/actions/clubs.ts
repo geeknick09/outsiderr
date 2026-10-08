@@ -7,6 +7,7 @@ import { getCurrentUser } from "../auth/auth";
 import { createClub, joinClub, updateMemberStatus, type CreateClubInput } from "../data/clubs";
 import { getOrganizerProfile } from "../data/organizer-profile";
 import { City, ClubType, MembershipType } from "../lib/types";
+import { normalizeCityKey } from "../lib/india-cities";
 
 export interface CreateClubState {
   error: string | null;
@@ -46,7 +47,9 @@ export async function createClubAction(
     name,
     bio: String(formData.get("bio") ?? "").trim(),
     type: String(formData.get("type") ?? "CLUB") as ClubType,
-    city: (String(formData.get("city") ?? "") || null) as City | null,
+    city: String(formData.get("city") ?? "").trim()
+      ? normalizeCityKey(String(formData.get("city")))
+      : null,
     avatarUrl: String(formData.get("avatarUrl") ?? "").trim() || null,
     coverUrl: String(formData.get("coverUrl") ?? "").trim() || null,
     instagramHandle: String(formData.get("instagramHandle") ?? "").trim() || null,

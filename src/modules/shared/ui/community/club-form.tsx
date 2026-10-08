@@ -123,13 +123,18 @@ export function ClubForm() {
         </label>
         <label className="block space-y-1.5">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted">City</span>
-          <select name="city" className={INPUT} defaultValue="">
-            <option value="" className={OPTION}>All cities</option>
-            {CITIES.map((c) => (
-              <option key={c.value} value={c.value} className={OPTION}>{c.label}</option>
-            ))}
-          </select>
+          <input
+            name="city"
+            list="indian-cities"
+            placeholder="Type city (leave blank for all India)"
+            className={INPUT}
+          />
         </label>
+        <datalist id="indian-cities">
+          {CITIES.map((c) => (
+            <option key={c.value} value={c.label} />
+          ))}
+        </datalist>
       </div>
 
       <label className="block space-y-1.5">

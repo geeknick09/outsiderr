@@ -18,7 +18,7 @@ import { TicketTiers } from "@/modules/web";
 import { UpdateMeButton } from "@/modules/web";
 import { FollowOrganizerButton } from "@/modules/web";
 import { Badge } from "@/modules/shared";
-import { CATEGORY_LABELS, CITY_LABELS } from "@/modules/shared";
+import { CATEGORY_LABELS, cityLabel } from "@/modules/shared";
 import { getCurrentUser, createClient } from "@/modules/shared/server";
 import { getEvent, getLinkedPastEvents } from "@/modules/shared/server";
 import { getEventReviews } from "@/modules/shared/server";
@@ -191,7 +191,7 @@ export default async function EventDetailsPage({
               {event.categories.map((cat) => (
                 <Badge key={cat} tone="violet">{CATEGORY_LABELS[cat]}</Badge>
               ))}
-              <Badge tone="neutral">{CITY_LABELS[event.city]}</Badge>
+              <Badge tone="neutral">{cityLabel(event.city)}</Badge>
               {event.isFeatured ? <Badge tone="lime">Sponsored</Badge> : null}
             </div>
 

@@ -2,7 +2,7 @@ import { adminApproveClubAction, adminRejectClubAction } from "@/modules/admin/a
 import { Badge } from "@/modules/shared";
 import { ActionButton } from "@/modules/shared";
 import { listClubs, listPendingClubs } from "@/modules/shared/server";
-import { CITY_LABELS } from "@/modules/shared";
+import { cityLabel } from "@/modules/shared";
 import { formatDateTime } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +39,7 @@ export default async function AdminClubsPage() {
                 </div>
                 <p className="text-xs text-muted">
                   By {club.ownerName}
-                  {club.city ? ` · ${CITY_LABELS[club.city]}` : ""}
+                  {club.city ? ` · ${cityLabel(club.city)}` : ""}
                   {club.instagramHandle ? ` · ${club.instagramHandle}` : ""}
                 </p>
                 {club.bio ? (
@@ -109,7 +109,7 @@ export default async function AdminClubsPage() {
                 </div>
                 <p className="text-xs text-muted">
                   {club.ownerName} · {club.memberCount} members
-                  {club.city ? ` · ${CITY_LABELS[club.city]}` : ""}
+                  {club.city ? ` · ${cityLabel(club.city)}` : ""}
                 </p>
               </div>
               <form>
