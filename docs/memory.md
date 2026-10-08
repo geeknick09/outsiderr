@@ -2,7 +2,12 @@
 
 One-sentence purpose: append-only knowledge so agents never re-derive a past fix — check here before debugging.
 Format: `Date · Area · What happened/decision → Fix/rule · Files`. Newest entries go on top.
-Last updated: 2026-10-07
+Last updated: 2026-10-08
+
+## 2026-10-08 — Per-section saves + price-lock banner
+
+- **Organizer editor · sections now save independently** — replaced the single-form edit with 8 collapsible sections (details/schedule/venue/tickets/media/information/contact/options), each owning a `<form>` posting to the new `updateEventSectionAction` (posts `section` + `eventId` only). The action fetches current event values, overlays the section's fields, validates only that section, and returns `{error, saved}` — no cross-section validation bleed, no redirect (saved chip shows inline). Manage-page panels (collaborators, door staff/scanner, box-office PINs, boost, cancel/postpone) are wrapped in `CollapsibleSection`. Files: `organizer/actions/events.ts`, `organizer/components/edit-event-form.tsx`, `organizer/components/edit-sections/*`, `shared/ui/ui/collapsible-section.tsx` (gained `formId`/`pending`/`error`/`saved` props).
+- **Checkout · price-lock countdown** — `RazorpayCheckout` now renders a "Price & seats locked — expires in MM:SS" banner ticking down to `session.expiresAt` (the `reservation_expires_at` from `create_reserved_order`). The lock itself was already server-side (RPC snapshots tier price + fee columns at reserve time; organizer edits after that point can't change the order). Note: `create_reserved_order` does NOT validate `phase_opens_at/phase_closes_at` — a phase closing mid-checkout doesn't change the reserved tier price, which is the desired lock semantics. Files: `shared/ui/payment/razorpay-checkout.tsx`, `web/components/checkout/razorpay-checkout-form.tsx`.
 
 ## 2026-10-07 — Organizer event editor sections
 

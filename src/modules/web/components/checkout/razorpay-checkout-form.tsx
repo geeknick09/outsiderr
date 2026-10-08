@@ -176,8 +176,8 @@ export function RazorpayCheckoutForm({
         Pay securely — {totalRupees}
       </Button>
       <p className="text-center text-xs text-muted">
-        UPI, cards and netbanking via Razorpay. Your tickets are held for a few
-        minutes while you pay.
+        UPI, cards and netbanking via Razorpay. Your price &amp; tickets are
+        locked for 15 minutes once you proceed.
       </p>
     </form>
   );

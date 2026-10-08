@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { TimerReset } from "lucide-react";
 import { CheckoutSession } from "../../lib/types";
 
 // Augment the Window object with the Razorpay constructor.
@@ -120,6 +121,32 @@ export function RazorpayCheckout({
   const [status, setStatus] = useState<"idle" | "loading" | "verifying" | "done" | "error">("loading");
   const [message, setMessage] = useState<string>("");
   const openedRef = useRef(false);
+
+  // Live countdown to reservation expiry — the price + seats stay locked
+  // until this hits zero, regardless of phase boundaries or organizer edits.
+  const expiresAtMs = session.expiresAt ? new Date(session.expiresAt).getTime() : null;
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(
+    expiresAtMs ? Math.max(0, Math.floor((expiresAtMs - Date.now()) / 1000)) : null,
+  );
+  useEffect(() => {
+    if (!expiresAtMs) return;
+    const tick = () =>
+      setSecondsLeft(Math.max(0, Math.floor((expiresAtMs - Date.now()) / 1000)));
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [expiresAtMs]);
+  const lockText =
+    secondsLeft !== null
+      ? `${String(Math.floor(secondsLeft / 60)).padStart(2, "0")}:${String(secondsLeft % 60).padStart(2, "0")}`
+      : null;
+
+  const lockBanner =
+    lockText && status !== "done" ? (
+      <div className="flex items-center justify-center gap-2 rounded-xl border border-violet-neon/40 bg-violet-neon/10 px-4 py-2.5 text-xs font-semibold text-violet-neon">
+        <TimerReset className="h-3.5 w-3.5" />
+        Price &amp; seats locked — expires in {lockText}
+      </div>
+    ) : null;
 
   // Verify/failure actions are injected by the caller (see props) — this shared
   // component stays domain-agnostic and never imports order/boost actions.
@@ -289,22 +316,28 @@ export function RazorpayCheckout({
 
   if (status === "verifying") {
     return (
-      <div className="rounded-2xl border border-violet-200 bg-violet-50 p-6 text-center">
-        <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-violet-300 border-t-violet-600" />
-        <p className="font-semibold text-violet-900">{message}</p>
+      <div className="space-y-3">
+        {lockBanner}
+        <div className="rounded-2xl border border-violet-200 bg-violet-50 p-6 text-center">
+          <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-violet-300 border-t-violet-600" />
+          <p className="font-semibold text-violet-900">{message}</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-center">
-      <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-violet-600" />
-      <p className="text-sm text-muted">
-        {message || "Opening secure payment…"}
-      </p>
-      <p className="mt-2 text-xs font-semibold text-amber-600">
-        Please don&apos;t press the back button or refresh the page while paying.
-      </p>
+    <div className="space-y-3">
+      {lockBanner}
+      <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-center">
+        <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-violet-600" />
+        <p className="text-sm text-muted">
+          {message || "Opening secure payment…"}
+        </p>
+        <p className="mt-2 text-xs font-semibold text-amber-600">
+          Please don&apos;t press the back button or refresh the page while paying.
+        </p>
+      </div>
     </div>
   );
 }
