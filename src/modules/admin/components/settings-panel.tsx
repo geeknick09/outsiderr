@@ -63,6 +63,16 @@ const SECTIONS: SectionDef[] = [
     ],
   },
   {
+    title: "Organizer Premium",
+    icon: "👑",
+    fields: [
+      { key: "premium_analytics_gate", label: "Premium analytics gate", type: "boolean", help: "ON = audience insights require an active premium subscription; OFF = free for all organizers" },
+      { key: "premium_price_3m_paise", label: "3-month plan", type: "number", suffix: "paise (49900 = ₹499)", min: 0 },
+      { key: "premium_price_6m_paise", label: "6-month plan", type: "number", suffix: "paise (89900 = ₹899)", min: 0 },
+      { key: "premium_price_12m_paise", label: "12-month plan", type: "number", suffix: "paise (149900 = ₹1,499)", min: 0 },
+    ],
+  },
+  {
     title: "Other",
     icon: "⚙️",
     fields: [

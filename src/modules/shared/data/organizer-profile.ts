@@ -53,6 +53,7 @@ export async function getOrganizerProfile(
     kycResponseNote: (data as { kyc_response_note?: string | null }).kyc_response_note ?? null,
     kycResponseDocumentUrl: (data as { kyc_response_document_url?: string | null }).kyc_response_document_url ?? null,
     pendingKyc: (data as { pending_kyc?: Record<string, string | null> | null }).pending_kyc ?? null,
+    premiumUntil: (data as { premium_until?: string | null }).premium_until ?? null,
   };
 }
 

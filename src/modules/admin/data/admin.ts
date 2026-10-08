@@ -171,10 +171,11 @@ export async function listAllAdminEvents(filters?: {
 export async function listAllAdminUsers(): Promise<AdminUser[]> {
   await requireAdminUser();
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("profiles")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const [{ data }, { data: premiumOrgs }] = await Promise.all([
+    supabase.from("profiles").select("*").order("created_at", { ascending: false }),
+    supabase.from("organizers").select("owner_id, premium_until").gt("premium_until", new Date().toISOString()),
+  ]);
+  const premiumOwners = new Set((premiumOrgs ?? []).map((o) => o.owner_id));
   return (data ?? []).map((row) => ({
     id: row.id,
     fullName: row.full_name,
@@ -182,6 +183,7 @@ export async function listAllAdminUsers(): Promise<AdminUser[]> {
     avatarUrl: row.avatar_url,
     isOrganizer: row.is_organizer,
     isAdmin: row.is_admin ?? false,
+    isPremium: premiumOwners.has(row.id),
     createdAt: row.created_at,
     birthDate: (row as { birth_date?: string | null }).birth_date ?? null,
     interestedTags: (row as { interested_tags?: string[] }).interested_tags ?? [],

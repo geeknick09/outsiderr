@@ -67,6 +67,7 @@ export type OrganizerRow = {
   kyc_response_note: string | null;
   kyc_response_document_url: string | null;
   pending_kyc: Record<string, string | null> | null;
+  premium_until: string | null;
 }
 
 export type EventRow = {
@@ -418,7 +419,7 @@ export type WebhookEventRow = {
 
 export type PaymentIntentRow = {
   id: string;
-  kind: "TICKET_ORDER" | "HERO_BOOST" | "SLOT_BOOST" | "DOOR_STAFF" | "CLUB_MEMBERSHIP";
+  kind: "TICKET_ORDER" | "HERO_BOOST" | "SLOT_BOOST" | "DOOR_STAFF" | "CLUB_MEMBERSHIP" | "ORGANIZER_PREMIUM";
   ref_id: string;
   user_id: string;
   amount_paise: number;
@@ -722,6 +723,19 @@ export type Database = {
           p_idempotency_key?: string | null;
         };
         Returns: PaymentIntentRow;
+      };
+      create_premium_purchase: {
+        Args: { p_months: number };
+        Returns: {
+          id: string;
+          organizer_id: string;
+          user_id: string;
+          months: number;
+          amount_paise: number;
+          status: string;
+          created_at: string;
+          paid_at: string | null;
+        };
       };
       attach_razorpay_order: {
         Args: { p_intent_id: string; p_razorpay_order_id: string };

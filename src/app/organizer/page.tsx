@@ -10,6 +10,8 @@ import { KycStatusBanner } from "@/modules/organizer";
 import { OrganizerEventsList } from "@/modules/organizer";
 import { OrganizerHeader } from "@/modules/organizer";
 import { OrganizerKycRealtimeRefresher } from "@/modules/organizer";
+import { PremiumGate } from "@/modules/organizer";
+import { getPremiumPlans, isPremiumGateEnabled } from "@/modules/organizer/actions/premium";
 import { getCurrentUser } from "@/modules/shared/server";
 import { getSettingInt } from "@/modules/shared/server";
 import { createClient } from "@/modules/shared/server";
@@ -145,8 +147,14 @@ export default async function OrganizerPage({
   }
 
   let audience: Awaited<ReturnType<typeof getOrganizerAudienceAnalytics>> = null;
+  let premiumGate = false;
+  let premiumPlans: { months: number; pricePaise: number }[] = [];
   if (tab === "analytics") {
-    audience = await getOrganizerAudienceAnalytics(user);
+    [audience, premiumGate, premiumPlans] = await Promise.all([
+      getOrganizerAudienceAnalytics(user),
+      isPremiumGateEnabled(),
+      getPremiumPlans(),
+    ]);
   }
   const analyticsMap: Record<string, NonNullable<(typeof analyticsData)[number]>> = {};
   for (const a of analyticsData) {
@@ -216,11 +224,17 @@ export default async function OrganizerPage({
                   <AggregatedAnalytics events={nonDraftEvents} analyticsData={nonDraftAnalytics} dailyRevenue={dailyRevenue} />
                 </div>
 
-                {/* Audience insights - loyalty, age, gender, city, category trends */}
+                {/* Audience insights - premium-gated analytics */}
                 {audience ? (
                   <div>
                     <h2 className="mb-3 text-lg font-bold">Audience Insights</h2>
-                    <AudienceAnalytics data={audience} />
+                    <PremiumGate
+                      gateEnabled={premiumGate}
+                      premiumUntil={organizerProfile.premiumUntil ?? null}
+                      plans={premiumPlans}
+                    >
+                      <AudienceAnalytics data={audience} />
+                    </PremiumGate>
                   </div>
                 ) : null}
 

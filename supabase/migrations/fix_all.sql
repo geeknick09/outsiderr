@@ -5894,3 +5894,423 @@ $$;
 
 revoke execute on function public.abandon_payment(text) from public, anon, authenticated;
 grant execute on function public.abandon_payment(text) to service_role;
+
+-- ---------------------------------------------------------------------------
+-- ORGANIZER PREMIUM — paid analytics subscription for organizers.
+-- organizers.premium_until gates premium analytics; premium purchases ride the
+-- same payment_intents -> Razorpay -> apply_captured_payment pipeline as boosts.
+-- ---------------------------------------------------------------------------
+
+alter table public.organizers add column if not exists premium_until timestamptz;
+
+create table if not exists public.organizer_premium_purchases (
+  id                  uuid        primary key default gen_random_uuid(),
+  organizer_id        uuid        not null references public.organizers(id) on delete cascade,
+  user_id             uuid        not null references public.profiles(id) on delete cascade,
+  months              integer     not null check (months in (3,6,12)),
+  amount_paise        integer     not null check (amount_paise > 0),
+  status              text        not null default 'PENDING' check (status in ('PENDING','PAID','CANCELLED','EXPIRED')),
+  created_at          timestamptz not null default now(),
+  paid_at             timestamptz
+);
+create index if not exists premium_purchases_org_idx on public.organizer_premium_purchases(organizer_id);
+
+alter table public.organizer_premium_purchases enable row level security;
+drop policy if exists premium_purchases_select_own on public.organizer_premium_purchases;
+create policy premium_purchases_select_own on public.organizer_premium_purchases
+  for select to authenticated
+  using (user_id = auth.uid());
+-- No direct insert/update: purchases are created + paid only through RPCs.
+
+-- Premium settings: gate flag (0 = free for all) + per-plan prices in paise.
+insert into public.platform_settings (key, value, description) values
+  ('premium_analytics_gate',    'false', 'When true, premium analytics require an active organizer premium subscription'),
+  ('premium_price_3m_paise',    '49900', 'Organizer premium - 3 months (paise)'),
+  ('premium_price_6m_paise',    '89900', 'Organizer premium - 6 months (paise)'),
+  ('premium_price_12m_paise',   '149900','Organizer premium - 12 months (paise)')
+on conflict (key) do nothing;
+
+-- payment_intents.kind check -> add ORGANIZER_PREMIUM.
+alter table public.payment_intents drop constraint if exists payment_intents_kind_check;
+alter table public.payment_intents
+  add constraint payment_intents_kind_check
+  check (kind in ('TICKET_ORDER','HERO_BOOST','SLOT_BOOST','DOOR_STAFF','CLUB_MEMBERSHIP','ORGANIZER_PREMIUM'));
+
+-- payment_ledger.type check -> add PREMIUM_SALE.
+alter table public.payment_ledger drop constraint if exists payment_ledger_type_check;
+alter table public.payment_ledger
+  add constraint payment_ledger_type_check
+  check (type in ('TICKET_SALE','BOOST_SALE','DOOR_STAFF_SALE','CLUB_FEE','PREMIUM_SALE','REFUND','PAYOUT','ADJUSTMENT'));
+
+-- create_premium_purchase — inserts a PENDING purchase priced server-side from
+-- platform_settings. Returns the row so the caller can make a payment intent.
+create or replace function public.create_premium_purchase(p_months integer)
+returns public.organizer_premium_purchases
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_org     public.organizers;
+  v_amount  integer;
+  v_row     public.organizer_premium_purchases;
+begin
+  if auth.uid() is null then raise exception 'Sign in to continue'; end if;
+  if p_months not in (3,6,12) then raise exception 'Invalid plan'; end if;
+
+  select * into v_org from public.organizers where owner_id = auth.uid();
+  if not found then raise exception 'Create an organizer profile first'; end if;
+
+  v_amount := public._setting_int('premium_price_' || p_months || 'm_paise', 0);
+  if v_amount <= 0 then raise exception 'Plan is not priced'; end if;
+
+  insert into public.organizer_premium_purchases (organizer_id, user_id, months, amount_paise)
+  values (v_org.id, auth.uid(), p_months, v_amount)
+  returning * into v_row;
+
+  return v_row;
+end;
+$$;
+
+revoke execute on function public.create_premium_purchase(integer) from public, anon;
+grant  execute on function public.create_premium_purchase(integer) to authenticated;
+
+-- create_payment_intent — add ORGANIZER_PREMIUM resolution.
+create or replace function public.create_payment_intent(
+  p_kind            text,
+  p_ref_id          uuid,
+  p_idempotency_key text default null
+)
+returns public.payment_intents
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_intent  public.payment_intents;
+  v_amount  integer;
+  v_owner   uuid;
+  v_ttl_min integer := public._setting_int('reservation_ttl_minutes', 15);
+begin
+  if auth.uid() is null then raise exception 'Sign in to continue'; end if;
+
+  -- Idempotency replay
+  if p_idempotency_key is not null then
+    select * into v_intent from public.payment_intents
+     where idempotency_key = p_idempotency_key and user_id = auth.uid();
+    if found then
+      if v_intent.status = 'CREATED' and v_intent.expires_at > now() then return v_intent; end if;
+      if v_intent.status = 'PAID' then raise exception 'This payment was already completed'; end if;
+      p_idempotency_key := null;
+    end if;
+  end if;
+
+  -- Reuse a live intent for the same ref (unique index enforces one anyway)
+  select * into v_intent from public.payment_intents
+   where kind = p_kind and ref_id = p_ref_id and status in ('CREATED','PAID');
+  if found then
+    if v_intent.status = 'PAID' then raise exception 'This payment was already completed'; end if;
+    if v_intent.user_id <> auth.uid() then raise exception 'Not authorized'; end if;
+    if v_intent.expires_at > now() then return v_intent; end if;
+  end if;
+
+  -- Resolve amount + ownership per kind
+  if p_kind = 'HERO_BOOST' then
+    select hb.amount_paise, o.owner_id into v_amount, v_owner
+      from public.hero_boosts hb
+      join public.organizers o on o.id = hb.organizer_id
+     where hb.id = p_ref_id and hb.status = 'PENDING';
+    if not found or v_owner <> auth.uid() then raise exception 'Not authorized'; end if;
+
+  elsif p_kind = 'SLOT_BOOST' then
+    -- Slot price is PER DAY — multiply by the booked duration (rounded up).
+    select bsp.price_paise
+           * greatest(1, ceil(extract(epoch from (b.ends_at - b.starts_at)) / 86400)::int),
+           o.owner_id
+      into v_amount, v_owner
+      from public.boosts b
+      join public.organizers o on o.id = b.organizer_id
+      join public.boost_slot_prices bsp on bsp.slot = b.slot
+     where b.id = p_ref_id and b.status = 'PENDING';
+    if not found or v_owner <> auth.uid() then raise exception 'Not authorized'; end if;
+
+  elsif p_kind = 'DOOR_STAFF' then
+    select d.service_amount_paise, o.owner_id into v_amount, v_owner
+      from public.door_staff_orders d
+      join public.organizers o on o.id = d.organizer_id
+     where d.id = p_ref_id and d.payment_status <> 'PAID';
+    if not found or v_owner <> auth.uid() then raise exception 'Not authorized'; end if;
+
+  elsif p_kind = 'CLUB_MEMBERSHIP' then
+    select cl.membership_fee_paise, cm.user_id into v_amount, v_owner
+      from public.club_members cm
+      join public.clubs cl on cl.id = cm.club_id
+     where cm.id = p_ref_id and cm.status = 'PENDING';
+    if not found or v_owner <> auth.uid() then raise exception 'Not authorized'; end if;
+    if v_amount is null or v_amount <= 0 then raise exception 'This club is free — no payment needed'; end if;
+
+  elsif p_kind = 'ORGANIZER_PREMIUM' then
+    select pp.amount_paise, pp.user_id into v_amount, v_owner
+      from public.organizer_premium_purchases pp
+     where pp.id = p_ref_id and pp.status = 'PENDING';
+    if not found or v_owner <> auth.uid() then raise exception 'Not authorized'; end if;
+
+  else
+    raise exception 'Unknown payment kind: %', p_kind;
+  end if;
+
+  if v_amount is null or v_amount <= 0 then raise exception 'Invalid amount'; end if;
+
+  insert into public.payment_intents (kind, ref_id, user_id, amount_paise, idempotency_key, expires_at)
+  values (p_kind, p_ref_id, auth.uid(), v_amount, p_idempotency_key,
+          now() + make_interval(mins => v_ttl_min))
+  returning * into v_intent;
+
+  return v_intent;
+end;
+$$;
+
+revoke execute on function public.create_payment_intent(text, uuid, text) from public, anon;
+grant  execute on function public.create_payment_intent(text, uuid, text) to authenticated;
+
+-- apply_captured_payment — dispatcher re-defined with the ORGANIZER_PREMIUM
+-- branch appended. Mirrors _step34.sql + the premium arm.
+create or replace function public.apply_captured_payment(
+  p_razorpay_order_id  text,
+  p_razorpay_payment_id text,
+  p_amount             integer,
+  p_currency           text,
+  p_method             text default null,
+  p_fee                integer default null,
+  p_tax                integer default null,
+  p_signature          text default null
+)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_intent   public.payment_intents;
+  v_order    public.orders;
+  v_boost    public.hero_boosts;
+  v_event_id uuid;
+  v_org_id   uuid;
+  v_duration integer;
+  v_dummy    record;
+  v_days     integer;
+  v_months   integer;
+begin
+  -- Lock the intent by the gateway order id.
+  select * into v_intent from public.payment_intents
+   where razorpay_order_id = p_razorpay_order_id
+   for update;
+
+  if not found then
+    -- Compat path: orders/boosts written before payment_intents existed.
+    select * into v_order from public.orders
+     where razorpay_order_id = p_razorpay_order_id for update;
+    if found then
+      if v_order.total_paise <> p_amount or upper(coalesce(p_currency,'INR')) <> 'INR' then
+        return 'MISMATCH';
+      end if;
+      for v_dummy in select * from public.confirm_razorpay_order(
+        v_order.id, p_razorpay_payment_id, p_signature, p_method) loop end loop;
+      return 'CONFIRMED_COMPAT';
+    end if;
+    select * into v_boost from public.hero_boosts
+     where razorpay_order_id = p_razorpay_order_id for update;
+    if found then
+      if v_boost.status = 'ACTIVE' then return 'ALREADY_PAID'; end if;
+      if v_boost.status <> 'PENDING' then return 'REF_INACTIVE'; end if;
+      v_days := public._setting_int('hero_boost_duration_days', 3);
+      update public.hero_boosts
+         set status = 'ACTIVE', razorpay_payment_id = p_razorpay_payment_id,
+             started_at = now(), expires_at = now() + make_interval(days => v_days)
+       where id = v_boost.id;
+      insert into public.payment_ledger (
+        order_id, event_id, organizer_id, type, gross_amount_paise,
+        commission_paise, net_platform_paise, razorpay_payment_id,
+        razorpay_fee_paise, notes
+      ) values (
+        null, v_boost.event_id, v_boost.organizer_id, 'BOOST_SALE',
+        v_boost.amount_paise, v_boost.amount_paise, v_boost.amount_paise,
+        p_razorpay_payment_id, coalesce(p_fee, 0), 'Hero boost (compat path)'
+      ) on conflict (razorpay_payment_id) where razorpay_payment_id is not null do nothing;
+      return 'APPLIED:HERO_BOOST_COMPAT';
+    end if;
+    return 'NOT_FOUND';
+  end if;
+
+  -- Idempotent: a second delivery of the same payment is a no-op.
+  if v_intent.status = 'PAID' then
+    return 'ALREADY_PAID';
+  end if;
+
+  -- Amount/currency mismatch -> never confirm, alert admins.
+  if v_intent.amount_paise <> p_amount or upper(coalesce(p_currency,'INR')) <> 'INR' then
+    update public.payment_intents
+       set status = 'MISMATCH', updated_at = now()
+     where id = v_intent.id;
+    insert into public.event_notifications (event_id, user_id, type, message)
+    select null, p.id, 'PAYMENT_ALERT',
+           'Payment amount mismatch on intent ' || v_intent.id::text
+           || ' (expected ' || v_intent.amount_paise || ' paise, got ' || coalesce(p_amount::text,'null') || ')'
+      from public.profiles p where p.is_admin = true;
+    return 'MISMATCH';
+  end if;
+
+  -- Dispatch per kind.
+  if v_intent.kind = 'TICKET_ORDER' then
+    for v_dummy in select * from public.confirm_razorpay_order(
+      v_intent.ref_id, p_razorpay_payment_id, p_signature, p_method) loop end loop;
+
+    select * into v_order from public.orders where id = v_intent.ref_id;
+    select organizer_id into v_org_id from public.events where id = v_order.event_id;
+
+    insert into public.payment_ledger (
+      order_id, event_id, organizer_id, type, gross_amount_paise,
+      commission_paise, convenience_fee_paise, razorpay_fee_paise,
+      net_organizer_paise, net_platform_paise, razorpay_payment_id, notes
+    ) values (
+      v_order.id, v_order.event_id, v_org_id, 'TICKET_SALE',
+      v_order.subtotal_paise, v_order.commission_paise,
+      v_order.convenience_fee_paise + v_order.gateway_fee_paise,
+      coalesce(p_fee, 0), v_order.organizer_payout_paise,
+      v_order.platform_fee_paise + v_order.gateway_fee_paise - coalesce(p_fee, 0),
+      p_razorpay_payment_id, 'Ticket sale'
+    ) on conflict (razorpay_payment_id) where razorpay_payment_id is not null do nothing;
+
+  elsif v_intent.kind = 'HERO_BOOST' then
+    v_days := public._setting_int('hero_boost_duration_days', 3);
+    -- expires_at = min(now + duration, event start) - matches activateHeroBoost
+    update public.hero_boosts b
+       set status = 'ACTIVE', razorpay_payment_id = p_razorpay_payment_id,
+           started_at = now(),
+           expires_at = least(
+             now() + make_interval(days => v_days),
+             (select e.starts_at from public.events e where e.id = b.event_id)
+           ),
+           updated_at = now()
+     where b.id = v_intent.ref_id and b.status = 'PENDING'
+     returning event_id, organizer_id into v_event_id, v_org_id;
+    insert into public.payment_ledger (
+      order_id, event_id, organizer_id, type, gross_amount_paise,
+      commission_paise, net_platform_paise, razorpay_payment_id, razorpay_fee_paise, notes
+    ) values (
+      null, v_event_id, v_org_id, 'BOOST_SALE', v_intent.amount_paise,
+      v_intent.amount_paise, v_intent.amount_paise - coalesce(p_fee,0),
+      p_razorpay_payment_id, coalesce(p_fee, 0), 'Hero boost'
+    ) on conflict (razorpay_payment_id) where razorpay_payment_id is not null do nothing;
+
+  elsif v_intent.kind = 'SLOT_BOOST' then
+    -- Only activate when the slot is still free at capture time — a paid
+    -- boost must never double-book a slot taken since the intent opened.
+    update public.boosts b
+       set status = 'ACTIVE', amount_paid_paise = v_intent.amount_paise,
+           reviewed_at = now()
+     where b.id = v_intent.ref_id and b.status = 'PENDING'
+       and not exists (
+         select 1 from public.boosts b2
+          where b2.slot = b.slot and b2.id <> b.id
+            and b2.status = 'ACTIVE' and b2.ends_at > now())
+     returning event_id, organizer_id into v_event_id, v_org_id;
+
+    if v_event_id is null then
+      -- Slot was taken between checkout and capture -> auto-refund + alert.
+      update public.boosts set status = 'REJECTED' where id = v_intent.ref_id;
+      insert into public.refunds (
+        order_id, event_id, user_id, amount_paise, platform_fee_paise,
+        status, reason, initiated_at
+      ) select null, b.event_id, v_intent.user_id, v_intent.amount_paise, 0,
+          'PENDING', 'Slot taken before payment settled — auto-refund', now()
+        from public.boosts b where b.id = v_intent.ref_id;
+      insert into public.event_notifications (event_id, user_id, type, message)
+      select null, p.id, 'PAYMENT_ALERT',
+             'Boost slot collision on intent ' || v_intent.id::text
+             || ' — payment captured but slot occupied; auto-refunded'
+        from public.profiles p where p.is_admin = true;
+      update public.payment_intents set status = 'PAID', updated_at = now() where id = v_intent.id;
+      return 'APPLIED:SLOT_BOOST_REFUNDED';
+    end if;
+
+    insert into public.payment_ledger (
+      order_id, event_id, organizer_id, type, gross_amount_paise,
+      commission_paise, net_platform_paise, razorpay_payment_id, razorpay_fee_paise, notes
+    ) values (
+      null, v_event_id, v_org_id, 'BOOST_SALE', v_intent.amount_paise,
+      v_intent.amount_paise, v_intent.amount_paise - coalesce(p_fee,0),
+      p_razorpay_payment_id, coalesce(p_fee, 0), 'Slot boost'
+    ) on conflict (razorpay_payment_id) where razorpay_payment_id is not null do nothing;
+
+  elsif v_intent.kind = 'DOOR_STAFF' then
+    update public.door_staff_orders
+       set payment_status = 'PAID', updated_at = now()
+     where id = v_intent.ref_id
+     returning event_id, organizer_id into v_event_id, v_org_id;
+    insert into public.payment_ledger (
+      order_id, event_id, organizer_id, type, gross_amount_paise,
+      commission_paise, net_platform_paise, razorpay_payment_id, razorpay_fee_paise, notes
+    ) values (
+      null, v_event_id, v_org_id, 'DOOR_STAFF_SALE', v_intent.amount_paise,
+      v_intent.amount_paise, v_intent.amount_paise - coalesce(p_fee,0),
+      p_razorpay_payment_id, coalesce(p_fee, 0), 'Door staff service'
+    ) on conflict (razorpay_payment_id) where razorpay_payment_id is not null do nothing;
+
+  elsif v_intent.kind = 'CLUB_MEMBERSHIP' then
+    update public.club_members
+       set status = 'ACCEPTED'
+     where id = v_intent.ref_id and status = 'PENDING';
+    if found then
+      update public.clubs set member_count = member_count + 1
+       where id = (select club_id from public.club_members where id = v_intent.ref_id);
+    end if;
+    insert into public.payment_ledger (
+      order_id, event_id, organizer_id, type, gross_amount_paise,
+      commission_paise, net_platform_paise, razorpay_payment_id, razorpay_fee_paise, notes
+    ) values (
+      null, null, null, 'CLUB_FEE', v_intent.amount_paise,
+      v_intent.amount_paise, v_intent.amount_paise - coalesce(p_fee,0),
+      p_razorpay_payment_id, coalesce(p_fee, 0), 'Club membership'
+    ) on conflict (razorpay_payment_id) where razorpay_payment_id is not null do nothing;
+
+  elsif v_intent.kind = 'ORGANIZER_PREMIUM' then
+    -- Activate the purchase + extend the organizer's premium window
+    -- (stacks onto any unexpired time).
+    update public.organizer_premium_purchases pp
+       set status = 'PAID', paid_at = now()
+     where pp.id = v_intent.ref_id and pp.status = 'PENDING'
+     returning organizer_id, months into v_org_id, v_months;
+
+    update public.organizers
+       set premium_until = greatest(now(), coalesce(premium_until, now()))
+                           + make_interval(months => v_months)
+     where id = v_org_id;
+
+    insert into public.payment_ledger (
+      order_id, event_id, organizer_id, type, gross_amount_paise,
+      commission_paise, net_platform_paise, razorpay_payment_id, razorpay_fee_paise, notes
+    ) values (
+      null, null, v_org_id, 'PREMIUM_SALE', v_intent.amount_paise,
+      v_intent.amount_paise, v_intent.amount_paise - coalesce(p_fee,0),
+      p_razorpay_payment_id, coalesce(p_fee, 0),
+      'Organizer premium - ' || v_months || ' months'
+    ) on conflict (razorpay_payment_id) where razorpay_payment_id is not null do nothing;
+  end if;
+
+  update public.payment_intents
+     set status = 'PAID',
+         razorpay_payment_id = p_razorpay_payment_id,
+         payment_method = p_method,
+         razorpay_fee_paise = coalesce(p_fee, 0),
+         razorpay_tax_paise = coalesce(p_tax, 0),
+         paid_at = now(),
+         updated_at = now()
+   where id = v_intent.id;
+
+  return 'APPLIED:' || v_intent.kind;
+end;
+$$;
+
+revoke execute on function public.apply_captured_payment(text, text, integer, text, text, integer, integer, text) from public, anon, authenticated;
+grant  execute on function public.apply_captured_payment(text, text, integer, text, text, integer, integer, text) to service_role;

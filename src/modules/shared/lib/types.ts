@@ -123,6 +123,8 @@ export interface Organizer {
   kycReviewNote?: string | null;
   kycResponseNote?: string | null;
   kycResponseDocumentUrl?: string | null;
+  /** Premium analytics subscription expiry - premium when > now(). */
+  premiumUntil?: string | null;
 }
 
 export interface UserProfile {
@@ -428,6 +430,8 @@ export interface AdminUser {
   avatarUrl: string | null;
   isOrganizer: boolean;
   isAdmin: boolean;
+  /** True when the organizer's premium_until is in the future. */
+  isPremium?: boolean;
   createdAt: string;
   birthDate?: string | null;
   interestedTags?: string[];

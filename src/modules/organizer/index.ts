@@ -26,6 +26,7 @@ export * from "./components/organizer-kyc-realtime";
 export * from "./components/organizer-kyc-review-panel";
 export * from "./components/past-event-gallery-manager";
 export * from "./components/poster-guidelines";
+export * from "./components/premium-gate";
 export * from "./components/print-button";
 export * from "./components/scanner-pin-manager";
 export * from "./components/verification-queue";

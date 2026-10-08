@@ -14,7 +14,8 @@ export type PaymentKind =
   | "HERO_BOOST"
   | "SLOT_BOOST"
   | "DOOR_STAFF"
-  | "CLUB_MEMBERSHIP";
+  | "CLUB_MEMBERSHIP"
+  | "ORGANIZER_PREMIUM";
 
 export type PaymentIntentStatus =
   | "CREATED"

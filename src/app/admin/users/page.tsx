@@ -81,6 +81,7 @@ export default async function AdminUsersPage({
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {user.isOrganizer ? <Badge tone="violet">Organizer</Badge> : null}
+              {user.isPremium ? <Badge tone="warning">Premium</Badge> : null}
               {user.isAdmin ? <Badge tone="lime">Admin</Badge> : null}
 
               <form>
