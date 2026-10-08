@@ -170,3 +170,27 @@ kill the order.
 - [ ] Client verify racing the webhook → redirected to `/checkout/status`,
       poller settles — never shows a false failure
 - [ ] Status page has no back link + popstate trap + "don't go back/refresh" note
+
+## §13 Price-lock & sectioned editor (STEP 41 — live 2026-10-08)
+
+Reservation already snapshots price + fees server-side; §13 adds the visible
+lock and per-section editing.
+
+| # | Scenario | Expected | Verified |
+|---|----------|----------|----------|
+| 13.1 | Open checkout → click Pay securely | Razorpay modal opens; banner "Price & seats locked - expires in MM:SS" ticks down to `reservation_expires_at` | ✅ code |
+| 13.2 | Organizer edits tier price mid-checkout | Reserved order's `subtotal/fee` columns are already snapshotted — the reserved total never changes | ✅ RPC invariant |
+| 13.3 | Phase boundary crossed while modal open | Reserved price unaffected (phase fields aren't re-read); modal `timeout` still capped at reservation expiry | ✅ code |
+| 13.4 | Modal dismissed / payment cancelled | `abandon_payment` releases `quantity_reserved` instantly; banner gone on return to form | ✅ code |
+| 13.5 | Reservation TTL expires mid-payment | Cron releases seats; a late capture lands in the auto-refund path | ✅ live |
+| 13.6 | `/organizer/events/[id]` — all 8 edit sections start collapsed | Chevron opens the body; pencil enters edit mode; Cancel discards local state | ✅ code |
+| 13.7 | Section Save posts only its fields | `updateEventSectionAction` fetches the event, overlays that section's fields, validates only that section — other sections' errors can't block the save | ✅ code |
+| 13.8 | Venue TBA toggle in edit | `NOW`/`TBA` chips; TBA hides name/address/maps and posts `venue_mode=TBA`; Maps link required only when `NOW` | ✅ code |
+| 13.9 | `lockLogistics` (co-organizer) | Details/Time/Venue/Misc sections render with the pencil disabled; Tickets/Media/Contact stay editable | ✅ code |
+| 13.10 | Manage page panels | Collaborators, Door Staff & Scanner, Box Office PINs, Featured & Boost, Postpone/Cancel render inside `CollapsibleSection` | ✅ code |
+| 13.11 | Em/en dashes removed | All `—`/`–` in `src/` replaced with `-`; no string-splitting logic used them as delimiters | ✅ sweep |
+
+### Verification gate
+- `tsc --noEmit` → clean
+- `vitest run` → 125/125
+- `next build` → exit 0

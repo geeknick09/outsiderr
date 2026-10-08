@@ -1,7 +1,7 @@
 | Completed || Completed || Completed || Completed || Completed |# Tasks — Outsiderr tracker
 
 One-sentence purpose: the single source of truth for what is done, in progress, blocked, and planned — replaces `BACKLOG.md`.
-Last updated: 2026-10-07
+Last updated: 2026-10-08
 
 **Status values:** `Not started` · `In progress` · `Completed` · `Blocked`
 **How to update:** tick the row, add a dated remark. Every task keeps `Module | Status | Blockers | Remarks`.
@@ -135,6 +135,8 @@ Sequencing when mobile lands: Scanner → Outsiderr → Organizer. React Native/
 - **New column:** `events.teaser_video_url text` (optional organizer teaser, ≤10s, muted-autoplay on the discovery `EventCard`; cleared by `cleanup-teasers` after the event ends). Migration already appended to `fix_all.sql`.
 - `wipe_all.sql` exists for clean resets (seeds commission tiers + auto-promote-first-admin trigger).
 - Pre-existing build warnings (non-blocking): unused vars in `admin/events/page.tsx`, `organizer/events/[id]/page.tsx` (door-staff leftovers), `event-form.tsx`, `ticket-tiers.tsx` (`feeBps`); `useCallback` deps in `analytics-charts.tsx`; Sentry config deprecations.
+- **2026-10-08 batch (committed + pushed):** (a) Organizer event edit = 8 collapsible sections w/ per-section save via `updateEventSectionAction` (scoped field overlay, per-section validation - no cross-section bleed); manage-page panels (collaborators, staff+scanner PINs, box-office PINs, boost, postpone/cancel) wrapped in `CollapsibleSection`. (b) Price-lock UX - `RazorpayCheckout` shows "Price & seats locked - expires in MM:SS" countdown to `reservation_expires_at`; the lock itself is the existing server-side fee snapshot in `create_reserved_order`. (c) Em/en dashes replaced with `-` across `src/` (802 lines). (d) Razorpay cancel → `abandon_payment` RPC releases held seats instantly (was: wait for TTL/cron). (e) Notification deep-links - order/refund → `/tickets`, venue/time/city change → event page, collab invite → `/organizer`, payout → `/organizer/payments`, admin queues → their `/admin/*`. (f) Admin fee edits (`commission_bps`/`convenience_fee_bps`) were silently blocked by RLS (no admin UPDATE on `events`) - now service-role writes with row-count check + surfaced errors; locked once `starts_at` passes. (g) `.npmrc` `legacy-peer-deps=true` fixes Vercel install failure (`@vercel/analytics` optional peers → `vite@8` vs vitest `vite@5` ERESOLVE). (h) Live phase transitions - `ticket-tiers.tsx` re-arms a timer to each `phase_opens_at`/`phase_closes_at`/`starts_at`/`ends_at` boundary so pricing flips without refresh. (i) Venue TBA in edit form (was hardcoded `NOW` + required maps link). (j) Client-side image compression (≤1 MB, 2048px) before poster/gallery upload - source-size rejection removed.
+- **Pending:** gallery shuffle (create + edit), media replacement deletes old bucket asset, price-lock visualization on `/checkout` pre-Pay (lock currently starts at reservation creation - countdown shows once Pay clicked), Vercel `RAZORPAY_*` env vars, live ₹2,089 PENDING refund on DEVTEST Paid Jam (user decision: refund or rescue).
 
 ## Production launch checklist (outsiderr.in)
 
