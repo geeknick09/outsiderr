@@ -307,6 +307,7 @@ export default async function ManageEventPage({
         );
 
         const tabs = [
+          { id: "details", label: "Details", content: detailsContent },
           ...(canView && analytics
             ? [{
                 id: "analytics",
@@ -360,7 +361,6 @@ export default async function ManageEventPage({
                 ),
               }]
             : []),
-          { id: "details", label: "Details", content: detailsContent },
         ];
         return <ManageTabs tabs={tabs} />;
       })()}
