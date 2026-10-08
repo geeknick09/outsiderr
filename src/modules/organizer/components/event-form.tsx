@@ -9,6 +9,7 @@ import { Button } from "@/modules/shared";
 import { PhoneInput } from "@/modules/shared";
 import { GalleryUploader } from "./gallery-uploader";
 import { PosterGuidelines } from "./poster-guidelines";
+import { PastEditionsPicker } from "./past-editions-picker";
 import { CATEGORIES, PREDEFINED_EVENT_TAGS, CityPicker } from "@/modules/shared";
 import { nowISTInput, utcToISTInput } from "@/modules/shared";
 import { uploadPublicFile, compressImage } from "@/modules/shared";
@@ -1213,31 +1214,11 @@ export function EventForm({
 
       {/* Link past events as previous editions */}
       {pastEvents.length > 0 && (
-        <div className="rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
-          <p className="text-sm font-bold">Link Previous Editions</p>
-          <p className="mt-1 text-xs text-muted">
-            Select your past events that are previous editions of this one. Their ratings will show on this event page.
-          </p>
-          <div className="mt-3 max-h-48 space-y-2 overflow-y-auto">
-            {pastEvents.map((pe) => (
-              <label
-                key={pe.id}
-                className="flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-100 p-2 hover:bg-violet-neon/5 dark:border-white/5"
-              >
-                <input
-                  type="checkbox"
-                  name="linkedPastEventIds"
-                  value={pe.id}
-                  className="h-4 w-4 accent-violet-neon"
-                />
-                <span className="min-w-0 flex-1 truncate text-sm">{pe.title}</span>
-                <span className="shrink-0 text-xs text-muted">
-                  {new Date(pe.startsAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
+        <PastEditionsPicker
+          events={pastEvents}
+          eventTitle={eventTitle || String(sv?.title ?? "")}
+          defaultLinkedIds={(sv?.linkedPastEventIds as string[] | undefined) ?? []}
+        />
       )}
 
       {/* General T&C for the whole form */}

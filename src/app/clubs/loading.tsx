@@ -1,5 +1,5 @@
 import { BrandedPageLoader } from "@/modules/shared";
 
 export default function ClubsLoading() {
-  return <BrandedPageLoader label="Loading clubs" />;
+  return <BrandedPageLoader label="Loading" />;
 }

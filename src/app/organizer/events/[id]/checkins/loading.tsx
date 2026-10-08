@@ -1,5 +1,5 @@
 import { BrandedPageLoader } from "@/modules/shared";
 
 export default function CheckinsLoading() {
-  return <BrandedPageLoader label="Loading check-ins" />;
+  return <BrandedPageLoader label="Loading" />;
 }

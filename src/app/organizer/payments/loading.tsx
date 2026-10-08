@@ -1,5 +1,5 @@
 import { BrandedPageLoader } from "@/modules/shared";
 
 export default function PaymentsLoading() {
-  return <BrandedPageLoader label="Loading payments" />;
+  return <BrandedPageLoader label="Loading" />;
 }

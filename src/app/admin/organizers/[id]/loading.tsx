@@ -1,5 +1,5 @@
 import { BrandedPageLoader } from "@/modules/shared";
 
 export default function Loading() {
-  return <BrandedPageLoader label="Loading organizer" />;
+  return <BrandedPageLoader label="Loading" />;
 }
