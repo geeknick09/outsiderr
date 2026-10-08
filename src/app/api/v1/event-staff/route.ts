@@ -19,7 +19,7 @@ const removeSchema = z.object({
 });
 
 /**
- * POST /api/v1/event-staff — add a staff member to an event.
+ * POST /api/v1/event-staff - add a staff member to an event.
  * Auth: Bearer <supabase-access-token> (event owner)
  */
 export async function POST(request: Request) {
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   });
 }
 
-/** DELETE /api/v1/event-staff — remove a staff member (body: { eventId, staffId }). */
+/** DELETE /api/v1/event-staff - remove a staff member (body: { eventId, staffId }). */
 export async function DELETE(request: Request) {
   return withApiUser(request, async () => {
     const parsed = await readJson(request, removeSchema);

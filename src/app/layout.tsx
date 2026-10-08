@@ -27,7 +27,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Outsiderr — Underground events, discovered",
+  title: "Outsiderr - Underground events, discovered",
   description:
     "Cyphers, block parties, battles, stunts, skates, meetups, jams & real communities. Discover raw underground events happening today near you.",
   applicationName: "Outsiderr",
@@ -69,7 +69,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-dvh bg-zinc-50 font-sans text-zinc-900 antialiased dark:bg-ink dark:text-white">
-        {/* Disable browser scroll restoration BEFORE hydration — doing it in a
+        {/* Disable browser scroll restoration BEFORE hydration - doing it in a
             useEffect is too late (browser restores mid-page scroll first). */}
         <script
           dangerouslySetInnerHTML={{

@@ -50,7 +50,7 @@ export interface CreateEventInput {
   linkedinUrl: string | null;
   linkedPastEventIds?: string[];
   status?: import("@/modules/shared").EventStatus;
-  /** Per-account ticket cap (1–10, default 5). */
+  /** Per-account ticket cap (1-10, default 5). */
   maxTicketsPerUser?: number;
 }
 
@@ -234,7 +234,7 @@ export async function createEvent(
     throw new Error(`Database error: ${error.message} (code: ${error.code ?? "unknown"})`);
   }
 
-  // Drafts can save with zero tiers — nothing is required until publish
+  // Drafts can save with zero tiers - nothing is required until publish
   const { error: tierError } = input.tiers.length === 0
     ? { error: null }
     : await supabase.from("ticket_tiers").insert(
@@ -267,7 +267,7 @@ export async function updateEventStatus(
 ): Promise<void> {
   const organizer = await getOrganizerProfile(user);
   if (!organizer) throw new Error("No organizer profile.");
-  // `status` is a privileged column (revoked from authenticated UPDATE) —
+  // `status` is a privileged column (revoked from authenticated UPDATE) -
   // transitions go through the RPC, which re-verifies ownership inside.
   const supabase = await createClient();
   const { error } = await supabase.rpc("set_event_status", {
@@ -310,7 +310,7 @@ export async function cancelEvent(
   const { getCancellationChargePercent } = await import("@/modules/shared/server");
   const cancellationChargePercent = await getCancellationChargePercent();
 
-  // Use the atomic cancel_event RPC — all operations in one DB transaction
+  // Use the atomic cancel_event RPC - all operations in one DB transaction
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("cancel_event", {
     p_event_id: eventId,
@@ -320,7 +320,7 @@ export async function cancelEvent(
   if (error) throw new Error(error.message);
 
   const row = data?.[0];
-  if (!row) throw new Error("Cancel failed — no result returned.");
+  if (!row) throw new Error("Cancel failed - no result returned.");
 
   return {
     refundCount: row.refund_count ?? 0,
@@ -343,7 +343,7 @@ export interface PostponeEventResult {
  * Postpone an event:
  * 1. Set status → POSTPONED
  * 2. Update starts_at + ends_at with new dates
- * 3. Notify all ticket holders — they can choose to keep their ticket or request a refund
+ * 3. Notify all ticket holders - they can choose to keep their ticket or request a refund
  * 4. Platform fee for refunded tickets is charged to the organizer
  */
 
@@ -361,7 +361,7 @@ export async function postponeEvent(
   const { getPostponementChargePercent } = await import("@/modules/shared/server");
   const postponementChargePercent = await getPostponementChargePercent();
 
-  // Use the atomic postpone_event RPC — status update + notifications in one transaction
+  // Use the atomic postpone_event RPC - status update + notifications in one transaction
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("postpone_event", {
     p_event_id: eventId,
@@ -431,7 +431,7 @@ export interface UpdateEventInput {
   teaserVideoUrl?: string | null;
   linkedPastEventIds?: string[];
   pricingMode?: PricingMode;
-  /** Per-account ticket cap for this event — clamped to 1–10. */
+  /** Per-account ticket cap for this event - clamped to 1-10. */
   maxTicketsPerUser?: number;
 }
 
@@ -445,7 +445,7 @@ export async function updateEvent(
   if (!organizer) throw new Error("No organizer profile.");
 
   // Owner edits via the user-context client (RLS-checked). FULL collaborators
-  // edit via the service client with a field whitelist — timing, venue and
+  // edit via the service client with a field whitelist - timing, venue and
   // city are stripped no matter what the request contains.
   const { getEventAccessLevel } = await import("../../shared/server");
   const accessLevel = await getEventAccessLevel(user, eventId);
@@ -464,7 +464,7 @@ export async function updateEvent(
     .maybeSingle();
   const eventOrganizerId = currentEvent?.organizer_id ?? null;
 
-  // Server-side 2-hour edit lock — prevents forged requests from bypassing the UI.
+  // Server-side 2-hour edit lock - prevents forged requests from bypassing the UI.
   // Drafts are exempt: they never went live, so nobody depends on their schedule.
   if (currentEvent?.starts_at && currentEvent.status !== "DRAFT") {
     const startMs = new Date(currentEvent.starts_at).getTime();
@@ -479,7 +479,7 @@ export async function updateEvent(
     .update({
       title: input.title,
       description: input.description,
-      // Venue + city + timing are owner-only — collaborators can't move where/when.
+      // Venue + city + timing are owner-only - collaborators can't move where/when.
       ...(isCollabFull
         ? {}
         : {
@@ -529,7 +529,7 @@ export async function updateEvent(
   if (currentEvent) {
     const changes: { type: string; message: string }[] = [];
     // Refund/keep offer triggers: date moved, or the event changed cities.
-    // Same-city venue edits only notify — nobody needs the choice for that.
+    // Same-city venue edits only notify - nobody needs the choice for that.
     let offerReason: string | null = null;
 
     if (currentEvent.venue_name !== input.venueName) {
@@ -545,7 +545,7 @@ export async function updateEvent(
       });
       offerReason = `Event moved from ${currentEvent.city} to ${input.city}.`;
     }
-    // Compare timestamps, not raw strings — DB returns "2026-09-16 14:00:00+00:00"
+    // Compare timestamps, not raw strings - DB returns "2026-09-16 14:00:00+00:00"
     // but istToUTC returns "2026-09-16T14:00:00.000Z". Same time, different format.
     const oldStart = currentEvent.starts_at ? new Date(currentEvent.starts_at).getTime() : null;
     const newStart = input.startsAt ? new Date(input.startsAt).getTime() : null;
@@ -573,7 +573,7 @@ export async function updateEvent(
 
       const ticketHolderIds = (tickets ?? []).map((t) => t.user_id).filter(Boolean);
       const subscriberIds = (subs ?? []).map((s) => s.user_id).filter(Boolean);
-      // Merge and deduplicate — ticket holders + subscribers both get notified
+      // Merge and deduplicate - ticket holders + subscribers both get notified
       const userIds = [...new Set([...ticketHolderIds, ...subscriberIds])];
 
       if (userIds.length > 0) {
@@ -604,7 +604,7 @@ export async function updateEvent(
     }
   }
 
-  // Update tiers if provided — owner only (pricing/inventory is money).
+  // Update tiers if provided - owner only (pricing/inventory is money).
   if (input.tiers && !isCollabFull) {
     // Get existing tier IDs for this event
     const { data: existingTiers } = await supabase
@@ -657,7 +657,7 @@ export async function updateEvent(
         }
       }
       if (tier.id) {
-        // Update existing tier — preserve quantity_sold
+        // Update existing tier - preserve quantity_sold
         const { error: tierError } = await supabase
           .from("ticket_tiers")
           .update({

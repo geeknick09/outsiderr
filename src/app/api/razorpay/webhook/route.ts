@@ -7,16 +7,16 @@ import {
   verifyRazorpayWebhookSignature,
 } from "@/modules/shared/server";
 
-// Must run on Node.js (not Edge) — needs crypto for HMAC verification
+// Must run on Node.js (not Edge) - needs crypto for HMAC verification
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Razorpay webhook handler — source of truth for payment state.
+ * Razorpay webhook handler - source of truth for payment state.
  *
  * Flow:
  *  1. Read raw body → verify HMAC-SHA256 signature (401 on failure, no retry).
- *  2. record_webhook_event — insert-or-claim (idempotent; concurrent
+ *  2. record_webhook_event - insert-or-claim (idempotent; concurrent
  *     deliveries of the same event id get "in_progress").
  *  3. Dispatch:
  *     - payment.captured / order.paid → apply_captured_payment (dispatcher)
@@ -108,14 +108,14 @@ export async function POST(request: Request) {
         if (outcome === "MISMATCH") {
           await notifyAdmins({
             type: "PAYMENT_ALERT",
-            message: `Razorpay amount mismatch on order ${razorpayOrderId} — expected vs captured differ.`,
+            message: `Razorpay amount mismatch on order ${razorpayOrderId} - expected vs captured differ.`,
           });
         }
         break;
       }
 
       case "payment.failed": {
-        // Per-attempt failure — NOT terminal. The Razorpay modal offers a
+        // Per-attempt failure - NOT terminal. The Razorpay modal offers a
         // retry with another method; the order stays RESERVED until the user
         // gives up or the reservation TTL expires. Failing it here was what
         // turned successful retries into phantom late-capture refunds.
@@ -186,7 +186,7 @@ export async function POST(request: Request) {
           );
           await notifyAdmins({
             type: "PAYMENT_ALERT",
-            message: `Razorpay dispute ${eventType.replace("payment.dispute.", "")} on payment ${disputedPaymentId ?? "unknown"} — review in admin.`,
+            message: `Razorpay dispute ${eventType.replace("payment.dispute.", "")} on payment ${disputedPaymentId ?? "unknown"} - review in admin.`,
           });
           logger.warn({ eventId, eventType }, "dispute recorded");
         } else {

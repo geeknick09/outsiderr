@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { approveOrder, rejectOrder } from "@/modules/shared/server";
 
 // ============================================================================
-// LEGACY: approve/reject actions — kept for historical PENDING_VERIFICATION orders.
+// LEGACY: approve/reject actions - kept for historical PENDING_VERIFICATION orders.
 // ============================================================================
 
 export async function approveOrderAction(formData: FormData): Promise<void> {

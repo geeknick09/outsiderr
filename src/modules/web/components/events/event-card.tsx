@@ -42,7 +42,7 @@ export function EventCard({
           <div className="h-full w-full bg-neon-gradient opacity-70" />
         )}
 
-        {/* Teaser video — muted autoplay over the poster for upcoming events.
+        {/* Teaser video - muted autoplay over the poster for upcoming events.
             Past/cancelled events keep the photo card. */}
         {event.teaserVideoUrl && !isEventEnded(event.startsAt, event.endsAt) && event.status !== "CANCELLED" ? (
           <CardTeaserVideo src={event.teaserVideoUrl} poster={event.cardPosterUrl} />

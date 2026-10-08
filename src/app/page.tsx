@@ -51,7 +51,7 @@ export default async function DiscoveryPage({
       : undefined;
   const search = params.q?.trim() || undefined;
 
-  // Parallelize all data fetching — events + settings + user at the same time.
+  // Parallelize all data fetching - events + settings + user at the same time.
   // No city filter on the fetch: the city-scoped sections derive from the full
   // set so "Events in your city" and "All Events" can coexist on one fetch.
   const [allEvents, maxPopular, maxSponsored, heroEnabled, heroRotationInterval, heroMaxVisible, taglineHeader, taglineSubheader, currentUser, matchedOrganizers] = await Promise.all([
@@ -69,7 +69,7 @@ export default async function DiscoveryPage({
 
   const { upcoming, past } = partitionSearchEvents(allEvents);
 
-  // Postponed events stay in the normal live listing — they're still live.
+  // Postponed events stay in the normal live listing - they're still live.
   // City-scoped slices drive the curated sections; `upcoming` stays all-cities
   // for the "All Events" grid.
   const live = upcoming;
@@ -84,12 +84,12 @@ export default async function DiscoveryPage({
     .sort((a, b) => b.registrationsCount - a.registrationsCount)
     .slice(0, maxPopular);
 
-  // Hero Boost events — only fetch if enabled
+  // Hero Boost events - only fetch if enabled
   const heroEvents = heroEnabled
     ? await getHeroEvents(heroRotationInterval, heroMaxVisible)
     : [];
 
-  // "Your Events Today" — only for logged-in users
+  // "Your Events Today" - only for logged-in users
   const myEventsToday = currentUser ? await getMyEventsToday(currentUser) : [];
 
   return (
@@ -134,15 +134,15 @@ export default async function DiscoveryPage({
         />
       ) : (
         <>
-      {/* Hero Boost carousel — only shown in "All" view (no category filter) */}
+      {/* Hero Boost carousel - only shown in "All" view (no category filter) */}
       {!category && heroEvents.length > 0 ? <HeroCarousel events={heroEvents} /> : null}
 
-      {/* Your Events Today — only for logged-in users with events today */}
+      {/* Your Events Today - only for logged-in users with events today */}
       {myEventsToday.length > 0 ? (
         <section className="mb-10">
           <div className="mb-3">
             <h2 className="text-xl font-black tracking-tight">Your Events Today</h2>
-            <p className="text-sm text-muted">Don&apos;t miss out — these are happening today!</p>
+            <p className="text-sm text-muted">Don&apos;t miss out - these are happening today!</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {myEventsToday.map((ev) => (
@@ -179,7 +179,7 @@ export default async function DiscoveryPage({
 
       <PastEventSection
         title="Past Events"
-        subtitle="Already completed — for reference only"
+        subtitle="Already completed - for reference only"
         events={cityPast}
       />
 

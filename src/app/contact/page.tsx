@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "Contact Us — Outsiderr" };
+export const metadata: Metadata = { title: "Contact Us - Outsiderr" };
 
 export default function ContactPage() {
   return (

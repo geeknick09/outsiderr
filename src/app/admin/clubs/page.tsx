@@ -7,7 +7,7 @@ import { formatDateTime } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Admin: Clubs — Outsiderr" };
+export const metadata = { title: "Admin: Clubs - Outsiderr" };
 
 export default async function AdminClubsPage() {
   const [pending, verified] = await Promise.all([

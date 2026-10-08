@@ -13,8 +13,8 @@ const bodySchema = z.object({
 });
 
 /**
- * POST /api/v1/payments/verify — verify the Razorpay signature server-side and
- * confirm the order (idempotent — the webhook may have already confirmed it).
+ * POST /api/v1/payments/verify - verify the Razorpay signature server-side and
+ * confirm the order (idempotent - the webhook may have already confirmed it).
  * Auth: Bearer <supabase-access-token>
  */
 export async function POST(request: Request) {

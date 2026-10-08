@@ -98,7 +98,7 @@ export interface EventCollaborator {
 }
 
 /**
- * Get accepted collaborators for an event (public — shown on event page).
+ * Get accepted collaborators for an event (public - shown on event page).
  */
 export async function getEventCollaborators(eventId: string): Promise<EventCollaborator[]> {
   const supabase = await createClient();
@@ -190,7 +190,7 @@ export async function getPendingCollaborationInvites(
 }
 
 /**
- * Get all collaborators for an event (including pending) — for the event owner.
+ * Get all collaborators for an event (including pending) - for the event owner.
  */
 export async function getEventCollaboratorsForOwner(
   user: CurrentUser,
@@ -370,16 +370,16 @@ export async function getEventAccessLevel(
 }
 
 /**
- * Permission helpers — given a permission level, what can the user do?
- *   LIMITED   — view + orders + analytics (no money) + pins + scanner + box office
- *   ANALYTICS — LIMITED + money in analytics
- *   FULL      — ANALYTICS + event edit (never timing/venue/city — owner only)
+ * Permission helpers - given a permission level, what can the user do?
+ *   LIMITED   - view + orders + analytics (no money) + pins + scanner + box office
+ *   ANALYTICS - LIMITED + money in analytics
+ *   FULL      - ANALYTICS + event edit (never timing/venue/city - owner only)
  */
 export function canViewEvent(perm: "OWNER" | CollaboratorPermission | null): boolean {
   return perm !== null;
 }
 
-/** All collaborator levels get analytics — LIMITED gets the money-stripped view. */
+/** All collaborator levels get analytics - LIMITED gets the money-stripped view. */
 export function canViewAnalytics(perm: "OWNER" | CollaboratorPermission | null): boolean {
   return perm !== null;
 }
@@ -400,7 +400,7 @@ export function canManageOrders(perm: "OWNER" | CollaboratorPermission | null): 
   return perm !== null;
 }
 
-/** Invite/remove collaborators — owner only. */
+/** Invite/remove collaborators - owner only. */
 export function canManageCollaborators(perm: "OWNER" | CollaboratorPermission | null): boolean {
   return perm === "OWNER";
 }

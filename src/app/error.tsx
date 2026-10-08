@@ -5,7 +5,7 @@ import Link from "next/link";
 import * as Sentry from "@sentry/nextjs";
 
 /**
- * Root error boundary — catches any unhandled error in a route segment.
+ * Root error boundary - catches any unhandled error in a route segment.
  * Renders a user-friendly error page with a retry button.
  * Reports the error to Sentry if configured.
  */

@@ -11,7 +11,7 @@ const bodySchema = z.object({
 });
 
 /**
- * POST /api/v1/orders/[id]/reject — reject a manual-UPI order (auto-offers the
+ * POST /api/v1/orders/[id]/reject - reject a manual-UPI order (auto-offers the
  * freed ticket to the waitlist).
  * Auth: Bearer <supabase-access-token> (event staff)
  */

@@ -6,14 +6,14 @@ import { getCurrentUser } from "@/modules/shared/server";
 import { getOrganizerProfile } from "@/modules/shared/server";
 import { listOrganizerEvents } from "@/modules/organizer/server";
 
-// Lazy load DoorScanner — html5-qrcode is ~110kB
+// Lazy load DoorScanner - html5-qrcode is ~110kB
 const DoorScanner = lazy(() =>
   import("@/modules/scanner").then((m) => ({ default: m.DoorScanner })),
 );
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Door Scanner — Outsiderr" };
+export const metadata = { title: "Door Scanner - Outsiderr" };
 
 export default async function ScanPage() {
   const user = await getCurrentUser();

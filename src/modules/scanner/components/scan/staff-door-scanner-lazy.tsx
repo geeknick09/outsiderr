@@ -2,7 +2,7 @@
 
 import dynamicImport from "next/dynamic";
 
-// Lazy-load the scanner — it pulls in html5-qrcode (heavy camera library ~110kB)
+// Lazy-load the scanner - it pulls in html5-qrcode (heavy camera library ~110kB)
 // ssr: false is allowed here because this is a Client Component
 const StaffDoorScanner = dynamicImport(
   () => import("./staff-door-scanner").then((m) => m.StaffDoorScanner),

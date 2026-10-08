@@ -77,6 +77,6 @@ export async function logError(
       Sentry.captureException(new Error(String(error)), { extra: context });
     }
   } catch {
-    // Sentry not configured — structured log is enough
+    // Sentry not configured - structured log is enough
   }
 }

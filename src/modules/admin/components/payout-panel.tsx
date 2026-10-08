@@ -10,7 +10,7 @@ const INPUT =
 
 const METHODS = ["UPI", "NEFT", "IMPS", "RTGS", "CASH", "OTHER"] as const;
 
-/** Schedule a payout for an organizer (PENDING — send money manually after). */
+/** Schedule a payout for an organizer (PENDING - send money manually after). */
 export function CreatePayoutForm({
   organizerId,
   organizerName,
@@ -35,7 +35,7 @@ export function CreatePayoutForm({
           setMsg(null);
           const paise = Math.round(parseFloat(amount) * 100);
           const result = await adminCreatePayoutAction(organizerId, paise, method, null, note || undefined);
-          setMsg(result.error ?? `Payout scheduled — ₹${(paise / 100).toFixed(2)}`);
+          setMsg(result.error ?? `Payout scheduled - ₹${(paise / 100).toFixed(2)}`);
         });
       }}
     >

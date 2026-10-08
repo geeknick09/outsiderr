@@ -13,7 +13,7 @@ const bodySchema = z.object({
 });
 
 /**
- * POST /api/v1/reviews — submit a review (requires a USED ticket for the event).
+ * POST /api/v1/reviews - submit a review (requires a USED ticket for the event).
  * Auth: Bearer <supabase-access-token>
  */
 export async function POST(request: Request) {

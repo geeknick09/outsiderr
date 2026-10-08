@@ -236,7 +236,7 @@ export function KycReviewTable({ submissions, adminEmail }: { submissions: KycSu
             {selected.pendingKyc && Object.keys(selected.pendingKyc).length > 0 ? (
               <div className="space-y-2 rounded-2xl border border-violet-200 bg-violet-500/5 p-3 dark:border-violet-500/30">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-violet-600 dark:text-violet-300">
-                  Requested changes — awaiting your review
+                  Requested changes - awaiting your review
                 </p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {Object.entries(selected.pendingKyc).map(([column, next]) => {
@@ -246,7 +246,7 @@ export function KycReviewTable({ submissions, adminEmail }: { submissions: KycSu
                       <div key={column} className="rounded-xl bg-white/70 p-2 text-xs dark:bg-white/5">
                         <p className="font-bold">{CHANGE_FIELD_LABELS[column] ?? column}</p>
                         <p className="truncate text-muted line-through">
-                          {isDoc ? (oldVal ? "Existing document" : "None") : oldVal ?? "—"}
+                          {isDoc ? (oldVal ? "Existing document" : "None") : oldVal ?? "-"}
                         </p>
                         {isDoc && next ? (
                           <a href={next} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-semibold text-violet-neon underline">
@@ -265,20 +265,20 @@ export function KycReviewTable({ submissions, adminEmail }: { submissions: KycSu
             <div className="grid gap-3 sm:grid-cols-2">
               <InfoCard
                 label="PAN"
-                value={selected.panNumber ?? "—"}
+                value={selected.panNumber ?? "-"}
                 detail={selected.panName ?? undefined}
                 docUrl={selected.panDocumentUrl}
                 docLabel="PAN document"
               />
-              <InfoCard label="GST" value={selected.gstNumber ?? "—"} detail={selected.gstBusinessName ?? undefined} />
+              <InfoCard label="GST" value={selected.gstNumber ?? "-"} detail={selected.gstBusinessName ?? undefined} />
               <InfoCard
                 label="Bank"
-                value={selected.bankAccountNumber ?? "—"}
-                detail={`${selected.bankAccountName ?? "—"} · ${selected.bankIfsc ?? "—"}`}
+                value={selected.bankAccountNumber ?? "-"}
+                detail={`${selected.bankAccountName ?? "-"} · ${selected.bankIfsc ?? "-"}`}
                 docUrl={selected.bankDocumentUrl}
                 docLabel="Bank proof"
               />
-              <InfoCard label="UPI" value={selected.upiId ?? "—"} />
+              <InfoCard label="UPI" value={selected.upiId ?? "-"} />
             </div>
 
             <div className="space-y-3 rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
@@ -380,7 +380,7 @@ export function KycReviewTable({ submissions, adminEmail }: { submissions: KycSu
               </div>
             ) : (
               <div className="space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-muted">Confirm — preview of what happens</p>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-muted">Confirm - preview of what happens</p>
                 <div className="space-y-2 text-sm">
                   <p>
                     <span className="text-muted">Action: </span>

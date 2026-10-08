@@ -89,7 +89,7 @@ export function OrganizerHeader({ organizer, followerCount }: { organizer: Organ
             <Users className="h-4 w-4" />
             {followerCount} {followerCount === 1 ? "follower" : "followers"}
           </Link>
-          {/* Social links — show icons for all provided URLs */}
+          {/* Social links - show icons for all provided URLs */}
           {(organizer.instagramUrl || organizer.youtubeUrl || organizer.facebookUrl || organizer.xUrl || organizer.linkedinUrl) ? (
             <div className="mt-1 flex flex-wrap items-center gap-3">
               {organizer.instagramUrl ? (

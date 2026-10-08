@@ -9,7 +9,7 @@ import { ClubForm } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { title: "Create a Club or Crew — Outsiderr" };
+export const metadata: Metadata = { title: "Create a Club or Crew - Outsiderr" };
 
 export default async function CreateClubPage() {
   const user = await getCurrentUser();
@@ -34,14 +34,14 @@ export default async function CreateClubPage() {
           <div>
             <h1 className="text-2xl font-black">Start a Club or Crew</h1>
             <p className="mt-1 text-sm text-muted">
-              Submit your club — the Outsiderr team will review it and make it live within 24–48 hours.
+              Submit your club - the Outsiderr team will review it and make it live within 24-48 hours.
             </p>
           </div>
 
           <div className="flex items-start gap-2.5 rounded-2xl bg-violet-neon/10 px-4 py-3 text-sm text-violet-neon">
             <Clock className="mt-0.5 h-4 w-4 shrink-0" />
             <span>
-              Your club will be <strong>pending admin review</strong> after submission — it won&apos;t appear publicly until approved.
+              Your club will be <strong>pending admin review</strong> after submission - it won&apos;t appear publicly until approved.
             </span>
           </div>
 

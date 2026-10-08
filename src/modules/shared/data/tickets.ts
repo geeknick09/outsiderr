@@ -4,7 +4,7 @@ import { createClient } from "../auth/server";
 import type { Ticket } from "../lib/types";
 
 export async function listEventTickets(eventId: string): Promise<Ticket[]> {
-  // No admin guard here — RLS policies ensure organizers can only see their own events' tickets
+  // No admin guard here - RLS policies ensure organizers can only see their own events' tickets
   const supabase = await createClient();
   const [{ data: rows }, { data: eventRow }] = await Promise.all([
     supabase.from("tickets").select("*").eq("event_id", eventId).order("created_at", { ascending: false }),

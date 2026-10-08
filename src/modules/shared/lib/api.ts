@@ -23,7 +23,7 @@ export function apiError(message: string, status = 400): NextResponse {
  *
  * Reads `Authorization: Bearer <supabase-access-token>`, runs `handler` inside
  * an AsyncLocalStorage context so `createClient()`/`getCurrentUser()` resolve
- * the bearer user — identical behavior to a cookie-authenticated web request.
+ * the bearer user - identical behavior to a cookie-authenticated web request.
  *
  * `handler` receives the validated CurrentUser. Unauthenticated → 401.
  */

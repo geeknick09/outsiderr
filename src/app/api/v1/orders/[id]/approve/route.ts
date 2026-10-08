@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * POST /api/v1/orders/[id]/approve — approve a manual-UPI order (mints tickets).
+ * POST /api/v1/orders/[id]/approve - approve a manual-UPI order (mints tickets).
  * Auth: Bearer <supabase-access-token> (event staff)
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {

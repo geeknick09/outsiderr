@@ -20,7 +20,7 @@ const bodySchema = z.object({
 });
 
 /**
- * PATCH /api/v1/profile — update the current user's profile.
+ * PATCH /api/v1/profile - update the current user's profile.
  * Auth: Bearer <supabase-access-token>
  */
 export async function PATCH(request: Request) {

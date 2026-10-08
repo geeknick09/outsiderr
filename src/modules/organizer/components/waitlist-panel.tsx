@@ -62,7 +62,7 @@ export function WaitlistPanel({
             <div className="flex items-center justify-between border-b border-zinc-200 p-4 dark:border-white/10">
               <div>
                 <h3 className="text-lg font-bold">Waitlist</h3>
-                <p className="text-xs text-muted">{entries.length} entries — first come, first serve</p>
+                <p className="text-xs text-muted">{entries.length} entries - first come, first serve</p>
               </div>
               <button
                 type="button"

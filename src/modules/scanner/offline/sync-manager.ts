@@ -142,7 +142,7 @@ export class ScannerSyncManager {
 
   /**
    * Check a ticket locally against the cache (for offline scanning).
-   * Returns a preliminary result — the actual check-in happens when syncing.
+   * Returns a preliminary result - the actual check-in happens when syncing.
    */
   async checkLocal(qrHash: string): Promise<{
     outcome: "VALID" | "ALREADY_USED" | "INVALID";
@@ -201,7 +201,7 @@ export class ScannerSyncManager {
         if (scanId === undefined) continue;
         try {
           const result = await checkInTicketAction(scan.qr_hash, scan.event_id, scan.pin);
-          // ALREADY_USED is treated as a successful sync — the ticket was
+          // ALREADY_USED is treated as a successful sync - the ticket was
           // already checked in (e.g. scanned online while offline scan was
           // queued, or a duplicate offline scan). The check-in RPC is
           // idempotent: it returns ALREADY_USED instead of erroring, so we

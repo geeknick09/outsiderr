@@ -5,7 +5,7 @@ import { AsyncLocalStorage } from "async_hooks";
  *
  * Mobile clients send `Authorization: Bearer <supabase-access-token>` instead of
  * cookies. `withApiAuth` stores the token in AsyncLocalStorage for the duration
- * of the handler — `createClient()` then builds a bearer-scoped client so every
+ * of the handler - `createClient()` then builds a bearer-scoped client so every
  * downstream data fn, RPC (auth.uid()), and RLS policy resolves the same user
  * as the web's cookie-based session.
  */

@@ -46,7 +46,7 @@ export function BecomeOrganizerForm() {
   const formRef = useRef<HTMLFormElement>(null);
   const [step, setStep] = useState<StepIndex>(0);
 
-  // Step 1 — Profile
+  // Step 1 - Profile
   const [orgName, setOrgName] = useState("");
   const [bio, setBio] = useState("");
   const [description, setDescription] = useState("");
@@ -58,18 +58,18 @@ export function BecomeOrganizerForm() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  // Step 2 — PAN
+  // Step 2 - PAN
   const [panNumber, setPanNumber] = useState("");
   const [panName, setPanName] = useState("");
   const [panDocumentUrl, setPanDocumentUrl] = useState("");
   const [uploadingPan, setUploadingPan] = useState(false);
   const [panDocError, setPanDocError] = useState<string | null>(null);
 
-  // Step 3 — GST (optional)
+  // Step 3 - GST (optional)
   const [gstNumber, setGstNumber] = useState("");
   const [gstBusinessName, setGstBusinessName] = useState("");
 
-  // Step 4 — Bank + UPI
+  // Step 4 - Bank + UPI
   const [upiId, setUpiId] = useState("");
   const [bankAccountNumber, setBankAccountNumber] = useState("");
   const [bankIfsc, setBankIfsc] = useState("");
@@ -79,7 +79,7 @@ export function BecomeOrganizerForm() {
   const [uploadingBank, setUploadingBank] = useState(false);
   const [bankDocError, setBankDocError] = useState<string | null>(null);
 
-  // Step 5 — Agreement
+  // Step 5 - Agreement
   const [agreed, setAgreed] = useState(false);
 
   // Derived
@@ -114,7 +114,7 @@ export function BecomeOrganizerForm() {
     if (!file) return;
     const setErr = kind === "pan" ? setPanDocError : setBankDocError;
     if (file.size > MAX_DOC_MB * 1024 * 1024) {
-      setErr(`Document too large — keep it under ${MAX_DOC_MB} MB (${(file.size / 1024 / 1024).toFixed(1)} MB selected).`);
+      setErr(`Document too large - keep it under ${MAX_DOC_MB} MB (${(file.size / 1024 / 1024).toFixed(1)} MB selected).`);
       return;
     }
     setErr(null);
@@ -123,7 +123,7 @@ export function BecomeOrganizerForm() {
     try {
       const url = await uploadPublicFile(file, `organizer-kyc/${kind}`);
       if (url) (kind === "pan" ? setPanDocumentUrl : setBankDocumentUrl)(url);
-      else setErr("Upload failed — try again.");
+      else setErr("Upload failed - try again.");
     } catch (err) {
       setErr(err instanceof Error ? err.message : "Upload failed.");
     } finally {
@@ -131,7 +131,7 @@ export function BecomeOrganizerForm() {
     }
   }
 
-  // Per-step "next" validation — any visible validation error or in-flight
+  // Per-step "next" validation - any visible validation error or in-flight
   // upload must block advancing (e.g. oversized PAN/bank doc, bad avatar upload).
   function canAdvance(): boolean {
     if (uploadError) return false;
@@ -156,7 +156,7 @@ export function BecomeOrganizerForm() {
     }
   }
 
-  /** Step transitions aren't route navigations — reset scroll manually. */
+  /** Step transitions aren't route navigations - reset scroll manually. */
   function scrollToFormTop() {
     requestAnimationFrame(() => {
       if (formRef.current) {
@@ -175,7 +175,7 @@ export function BecomeOrganizerForm() {
           </div>
           <h1 className="text-2xl font-black tracking-tight">Organizer profile submitted</h1>
           <p className="mt-3 text-sm text-muted">
-            We are verifying your organizer profile. If anything is required, our team will contact you. Once approved, you’ll receive a notification and your organizer dashboard will be ready within 1–2 business days.
+            We are verifying your organizer profile. If anything is required, our team will contact you. Once approved, you’ll receive a notification and your organizer dashboard will be ready within 1-2 business days.
           </p>
           <p className="mt-4 text-xs text-muted">Redirecting to your organizer dashboard…</p>
         </div>
@@ -418,7 +418,7 @@ export function BecomeOrganizerForm() {
                   </label>
 
                   <div className="space-y-1.5">
-                    <span className={LABEL_TEXT}>PAN card photo <span className="normal-case text-zinc-400">(optional — JPG/PNG/PDF under 1 MB)</span></span>
+                    <span className={LABEL_TEXT}>PAN card photo <span className="normal-case text-zinc-400">(optional - JPG/PNG/PDF under 1 MB)</span></span>
                     {panDocumentUrl ? (
                       <p className="text-xs text-emerald-500">PAN document attached ✓</p>
                     ) : null}
@@ -555,7 +555,7 @@ export function BecomeOrganizerForm() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <span className={LABEL_TEXT}>Bank proof <span className="normal-case text-zinc-400">(optional — cancelled cheque/passbook, JPG/PNG/PDF under 1 MB)</span></span>
+                    <span className={LABEL_TEXT}>Bank proof <span className="normal-case text-zinc-400">(optional - cancelled cheque/passbook, JPG/PNG/PDF under 1 MB)</span></span>
                     {bankDocumentUrl ? (
                       <p className="text-xs text-emerald-500">Bank proof attached ✓</p>
                     ) : null}
@@ -662,7 +662,7 @@ function StepHeader({ title, subtitle }: { title: string; subtitle: string }) {
   );
 }
 
-/** Plain document picker — no cropper (KYC docs need the full frame / PDF). */
+/** Plain document picker - no cropper (KYC docs need the full frame / PDF). */
 function DocFileInput({
   uploading,
   hasFile,

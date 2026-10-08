@@ -7,7 +7,7 @@ import { declineRefundOfferAction, requestPostponementRefundAction } from "@/mod
 import { Button } from "@/modules/shared";
 
 /**
- * Refund-or-keep panel for consumer-impacting event changes — postponement,
+ * Refund-or-keep panel for consumer-impacting event changes - postponement,
  * date change, or a move to a different city. Rides on order.refund_offered:
  * the event stays live either way; "Keep my ticket" clears the offer.
  */

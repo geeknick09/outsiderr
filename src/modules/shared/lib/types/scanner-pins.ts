@@ -1,4 +1,4 @@
-// Shared types for scanner PINs (no server-only import — safe for client components)
+// Shared types for scanner PINs (no server-only import - safe for client components)
 
 export interface ScannerPin {
   id: string;

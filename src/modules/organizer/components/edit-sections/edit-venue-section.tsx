@@ -62,12 +62,12 @@ export function EditVenueSection({ event, lockLogistics = false }: { event: Even
             <p><strong>Mode:</strong> {venueMode === "TBA" ? "Venue TBA" : "Venue confirmed"}</p>
             {venueMode === "NOW" ? (
               <>
-                <p><strong>Name:</strong> {venueName || "—"}</p>
-                <p><strong>Address:</strong> {venueAddress || "—"}</p>
+                <p><strong>Name:</strong> {venueName || "-"}</p>
+                <p><strong>Address:</strong> {venueAddress || "-"}</p>
                 <p className="break-all"><strong>Maps:</strong> {mapsLink || "Not set"}</p>
               </>
             ) : (
-              <p>Venue to be announced — must be published at least 48h before the event.</p>
+              <p>Venue to be announced - must be published at least 48h before the event.</p>
             )}
           </div>
         ) : (
@@ -154,7 +154,7 @@ export function EditVenueSection({ event, lockLogistics = false }: { event: Even
               </>
             )}
 
-            {/* City is editable regardless of venue mode — TBA affects venue, not city */}
+            {/* City is editable regardless of venue mode - TBA affects venue, not city */}
             <div>
               <label className="mb-1.5 block text-xs font-semibold text-muted">City</label>
               <select

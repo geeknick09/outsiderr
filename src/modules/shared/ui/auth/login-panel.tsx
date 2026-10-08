@@ -41,7 +41,7 @@ export function LoginPanel({ next, initialError }: { next: string; initialError?
       return;
     }
     // Store the next path in a cookie so the callback route can read it.
-    // The redirect URL sent to Supabase must NOT have query params — Supabase
+    // The redirect URL sent to Supabase must NOT have query params - Supabase
     // PKCE flow requires an exact match against the allowed redirect URLs.
     document.cookie = `auth_next=${encodeURIComponent(next)}; path=/; max-age=600; SameSite=Lax`;
     const redirectTo = `${base}/auth/callback`;
@@ -77,7 +77,7 @@ export function LoginPanel({ next, initialError }: { next: string; initialError?
       setPending(false);
       setError(oauthError.message);
     }
-    // If successful, the browser redirects to Google — no need to setPending(false)
+    // If successful, the browser redirects to Google - no need to setPending(false)
   }
 
   // ── Success state: magic link sent ──────────────────────────────────
@@ -125,7 +125,7 @@ export function LoginPanel({ next, initialError }: { next: string; initialError?
         </div>
       ) : null}
 
-      {/* Google OAuth — primary CTA */}
+      {/* Google OAuth - primary CTA */}
       <Button
         variant="secondary"
         size="lg"

@@ -82,7 +82,7 @@ export function StaffDoorScanner({
     },
   });
 
-  // Offline sync manager — initialize when PIN is provided
+  // Offline sync manager - initialize when PIN is provided
   useEffect(() => {
     if (!pin || !selectedEventId) return;
 
@@ -175,7 +175,7 @@ export function StaffDoorScanner({
           await manager.queueScan(hash.trim());
           const queuedResult: ScanResult = {
             outcome: "VALID",
-            message: "Checked in (offline — will sync when online).",
+            message: "Checked in (offline - will sync when online).",
             ticket: {
               eventTitle: selectedEvent?.title ?? "Event",
               tierName: localResult.tierName ?? "Ticket",
@@ -209,7 +209,7 @@ export function StaffDoorScanner({
         return;
       }
 
-      // Online — process directly via server action
+      // Online - process directly via server action
       const result = await checkInTicketAction(hash.trim(), selectedEventId, pin);
       handleScanResult(result, hash.trim());
     },
@@ -338,7 +338,7 @@ export function StaffDoorScanner({
           >
             {events.map((event) => (
               <option key={event.id} value={event.id}>
-                {event.title} — {event.organizerName}
+                {event.title} - {event.organizerName}
               </option>
             ))}
           </select>
@@ -540,7 +540,7 @@ export function StaffDoorScanner({
                     {entry.result.ticket?.holderName ?? "Unknown"}
                   </p>
                   <p className="truncate text-muted">
-                    {entry.result.ticket?.tierName ?? "—"} ·{" "}
+                    {entry.result.ticket?.tierName ?? "-"} ·{" "}
                     {new Date(entry.timestamp).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" })}
                   </p>
                 </div>

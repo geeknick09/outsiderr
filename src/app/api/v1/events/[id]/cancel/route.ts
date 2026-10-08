@@ -13,7 +13,7 @@ const bodySchema = z.object({
 });
 
 /**
- * POST /api/v1/events/[id]/cancel — cancel an event (refunds + notifications
+ * POST /api/v1/events/[id]/cancel - cancel an event (refunds + notifications
  * are handled by the cancel_event RPC).
  * Auth: Bearer <supabase-access-token> (event owner)
  */
@@ -26,7 +26,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     try {
       const result = await cancelEvent(user, id, parsed.data.reason);
       // Refund rows are created PENDING inside cancel_event (with the
-      // organizer liability ADJUSTMENT) — the refund worker pushes them.
+      // organizer liability ADJUSTMENT) - the refund worker pushes them.
       await cancelHeroBoostsForEvent(id);
       revalidatePath("/");
       revalidateTag("events");

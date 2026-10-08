@@ -50,7 +50,7 @@ export async function createDoorStaffOrder(
     .maybeSingle();
   if (!eventRow) throw new Error("Event not found or not owned by you.");
 
-  // Price is derived server-side from platform settings — never trust the
+  // Price is derived server-side from platform settings - never trust the
   // client's service_amount_paise (a caller could submit ₹0).
   const { getDoorStaffPricing } = await import("./platform-settings");
   const pricing = await getDoorStaffPricing();
@@ -91,7 +91,7 @@ export async function getDoorStaffOrder(
 
 /**
  * Organizer submits a UTR for their door-staff order. Records the reference
- * only — payment_status stays PENDING until an admin verifies it
+ * only - payment_status stays PENDING until an admin verifies it
  * (updateDoorStaffPaymentStatus). The organizer must own the order's event.
  */
 export async function submitDoorStaffUtr(
@@ -113,7 +113,7 @@ export async function submitDoorStaffUtr(
 
 /**
  * Admin-only: mark a door-staff order PAID/FAILED/REFUNDED. PAID also
- * confirms the service. Runs under the service role — callers must verify
+ * confirms the service. Runs under the service role - callers must verify
  * admin before calling.
  */
 export async function updateDoorStaffPaymentStatus(

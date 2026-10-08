@@ -10,7 +10,7 @@ const INPUT =
   "w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white";
 
 /**
- * Free RSVP form — instant confirm, no payment. Paid checkout goes through
+ * Free RSVP form - instant confirm, no payment. Paid checkout goes through
  * RazorpayCheckoutForm (manual-UPI/UTR was removed in the Razorpay migration).
  */
 export function CheckoutForm({
@@ -114,7 +114,7 @@ export function CheckoutForm({
         Confirm RSVP
       </Button>
       <p className="text-center text-xs text-muted">
-        You&apos;ll get an <strong>instantly confirmed</strong> ticket with a QR code — no
+        You&apos;ll get an <strong>instantly confirmed</strong> ticket with a QR code - no
         payment or verification needed.
       </p>
     </form>

@@ -26,7 +26,7 @@ export async function GET() {
       checks.supabase = { status: "degraded", error: "NEXT_PUBLIC_SUPABASE_URL not set" };
     } else {
       const start = Date.now();
-      // Use the REST API health endpoint — no auth needed.
+      // Use the REST API health endpoint - no auth needed.
       // Any HTTP response (even 404/401) means the API is reachable.
       // Only network errors (caught below) indicate the service is down.
       await fetch(`${supabaseUrl}/rest/v1/`, {
@@ -56,7 +56,7 @@ export async function GET() {
         signal: AbortSignal.timeout(5000),
       });
       checks.razorpay = {
-        // 401 is expected without auth — it means the API is up
+        // 401 is expected without auth - it means the API is up
         status: res.status === 401 || res.ok ? "ok" : "degraded",
         latencyMs: Date.now() - start,
       };

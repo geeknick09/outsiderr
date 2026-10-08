@@ -5,13 +5,13 @@ import { PaymentStatusPoller } from "@/modules/web";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Payment status — Outsiderr" };
+export const metadata = { title: "Payment status - Outsiderr" };
 
 /**
  * Post-payment status page. The Razorpay client callback lands here after
  * verifyPayment succeeds (or the user returns from a closed/reopened tab).
  * The poller checks every 3s for up to 2 minutes, subscribes to Realtime on
- * the order, and only then shows a pending state — never a false failure.
+ * the order, and only then shows a pending state - never a false failure.
  */
 export default async function CheckoutStatusPage({
   searchParams,

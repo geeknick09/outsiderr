@@ -46,7 +46,7 @@ export function AdminMobileNav() {
 
   return (
     <>
-      {/* Hamburger — sits in the header (top-left), mobile only */}
+      {/* Hamburger - sits in the header (top-left), mobile only */}
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -57,12 +57,12 @@ export function AdminMobileNav() {
         <Menu className="h-5 w-5" />
       </button>
 
-      {/* Portal to body — escapes the header's backdrop-filter containing block
+      {/* Portal to body - escapes the header's backdrop-filter containing block
           so the drawer is truly fixed to the viewport and above all chrome. */}
       {mounted && open
         ? createPortal(
             <>
-              {/* Backdrop — click outside to close */}
+              {/* Backdrop - click outside to close */}
               <div
                 className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm lg:hidden"
                 onClick={() => setOpen(false)}

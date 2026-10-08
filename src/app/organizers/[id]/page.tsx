@@ -23,7 +23,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const org = await getPublicOrganizer((await params).id);
   return {
-    title: org ? `${org.name} — Outsiderr` : "Organizer — Outsiderr",
+    title: org ? `${org.name} - Outsiderr` : "Organizer - Outsiderr",
     description: org?.bio ?? undefined,
   };
 }
@@ -56,7 +56,7 @@ export default async function PublicOrganizerPage({
 
   return (
     <div className="space-y-6 py-6">
-      {/* Avatar + name + bio row — no cover banner, only profile picture */}
+      {/* Avatar + name + bio row - no cover banner, only profile picture */}
       <div className="flex items-end gap-4 px-2">
         {organizer.avatarUrl ? (
           <Image
@@ -144,7 +144,7 @@ export default async function PublicOrganizerPage({
               </a>
             ) : null}
           </div>
-          {/* Follow button — only for logged-in users who don't own this profile */}
+          {/* Follow button - only for logged-in users who don't own this profile */}
           {user && !isOwnProfile ? (
             <div className="mt-3">
               <FollowOrganizerButton organizerId={organizer.id} isFollowing={isFollowing} />

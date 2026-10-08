@@ -4,7 +4,7 @@ import { formatPaise } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Admin: Door Staff — Outsiderr" };
+export const metadata = { title: "Admin: Door Staff - Outsiderr" };
 
 const PAYMENT_TONE: Record<string, "warning" | "success" | "danger" | "neutral"> = {
   PENDING: "warning",

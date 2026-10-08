@@ -60,8 +60,8 @@ const bodySchema = z.object({
 });
 
 /**
- * POST /api/v1/events — create an event (draft or published).
- * Structured JSON contract: ISO datetimes, paise amounts, arrays — no FormData.
+ * POST /api/v1/events - create an event (draft or published).
+ * Structured JSON contract: ISO datetimes, paise amounts, arrays - no FormData.
  * Auth: Bearer <supabase-access-token> (organizer)
  */
 export async function POST(request: Request) {
@@ -144,7 +144,7 @@ export async function POST(request: Request) {
       return apiError(error instanceof Error ? error.message : "Could not publish the event.", 400);
     }
 
-    // Door-staff order (best-effort — same as the web action).
+    // Door-staff order (best-effort - same as the web action).
     // Price is derived server-side inside createDoorStaffOrder.
     if (input.needsDoorStaff) {
       try {
@@ -154,7 +154,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // Store T&C acceptance (best-effort — same as the web action)
+    // Store T&C acceptance (best-effort - same as the web action)
     try {
       const termsVersion = await getTermsVersion();
       const organizer = await getOrganizerProfile(user);

@@ -7,7 +7,7 @@ export interface OrganizerAccessState {
 }
 
 // ---------------------------------------------------------------------------
-// KYC change staging — APPROVED organizers' sensitive edits are staged into
+// KYC change staging - APPROVED organizers' sensitive edits are staged into
 // organizers.pending_kyc (column name → new value) and only applied to the
 // real columns after admin re-verification.
 // ---------------------------------------------------------------------------
@@ -59,7 +59,7 @@ export function getOrganizerAccessState(input: {
 }): OrganizerAccessState {
   const validStatus = input.kycStatus ?? "NOT_SUBMITTED";
   const rejectionCount = Math.max(0, Number(input.rejectionCount ?? 0) || 0);
-  // Minimum is 1 — a missing/invalid/non-positive stored value falls back to
+  // Minimum is 1 - a missing/invalid/non-positive stored value falls back to
   // the default 5 so it can't silently disable rejection blocking.
   const rawLimit = Number(input.rejectionLimit ?? 5);
   const rejectionLimit = Number.isFinite(rawLimit) && rawLimit >= 1 ? Math.floor(rawLimit) : 5;

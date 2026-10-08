@@ -44,7 +44,7 @@ function formatTime(iso: string): string {
 }
 
 /**
- * Order Monitor — shows all orders for the organizer's events with their payment status.
+ * Order Monitor - shows all orders for the organizer's events with their payment status.
  *
  * Perf fixes:
  * - Uses useRealtime hook (singleton WebSocket) instead of creating a raw Supabase client
@@ -57,7 +57,7 @@ export function OrderMonitor({ orders, organizerEventIds }: OrderMonitorProps) {
   const [filter, setFilter] = useState<string>("PENDING_VERIFICATION");
   const [pendingAction, startTransition] = useTransition();
 
-  // Realtime via hook — reuses singleton WebSocket, no new connections on each render
+  // Realtime via hook - reuses singleton WebSocket, no new connections on each render
   const realtimeFilter = useMemo(
     () =>
       organizerEventIds.length > 0
@@ -88,7 +88,7 @@ export function OrderMonitor({ orders, organizerEventIds }: OrderMonitorProps) {
     },
   });
 
-  // Memoized derived state — recalculates only when orderList or filter changes
+  // Memoized derived state - recalculates only when orderList or filter changes
   const counts = useMemo(
     () =>
       orderList.reduce(
@@ -196,7 +196,7 @@ export function OrderMonitor({ orders, organizerEventIds }: OrderMonitorProps) {
                 return (
                   <tr key={order.id} className="hover:bg-zinc-50 dark:hover:bg-white/5">
                     <td className="p-4">
-                      <div className="font-semibold">{order.buyerName ?? "—"}</div>
+                      <div className="font-semibold">{order.buyerName ?? "-"}</div>
                       <div className="text-xs text-muted">{order.buyerPhone ?? ""}</div>
                       {order.buyerEmail ? (
                         <div className="text-xs text-muted">{order.buyerEmail}</div>
@@ -211,7 +211,7 @@ export function OrderMonitor({ orders, organizerEventIds }: OrderMonitorProps) {
                       ) : order.utrReference ? (
                         <span className="font-mono">UTR: {order.utrReference}</span>
                       ) : (
-                        <span>—</span>
+                        <span>-</span>
                       )}
                       {order.razorpayPaymentId ? (
                         <div className="text-[10px] text-zinc-400">{order.razorpayPaymentId.slice(0, 16)}…</div>
@@ -274,7 +274,7 @@ export function OrderMonitor({ orders, organizerEventIds }: OrderMonitorProps) {
                           </form>
                         </div>
                       ) : (
-                        <span className="text-xs text-zinc-400">—</span>
+                        <span className="text-xs text-zinc-400">-</span>
                       )}
                     </td>
                   </tr>

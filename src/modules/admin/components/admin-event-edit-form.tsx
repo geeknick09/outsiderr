@@ -100,7 +100,7 @@ export function AdminEventEditForm({
           {readOnly ? "Read-only" : "Edit Details"}
         </Button>
         {saved ? <span className="text-xs font-semibold text-emerald-500">✓ Saved</span> : null}
-        {readOnly ? <span className="text-xs font-semibold text-muted">Event started — read-only</span> : null}
+        {readOnly ? <span className="text-xs font-semibold text-muted">Event started - read-only</span> : null}
       </div>
     );
   }

@@ -1,4 +1,4 @@
-// modules/web — client-safe public API (public web pages: discovery, events,
+// modules/web - client-safe public API (public web pages: discovery, events,
 // checkout, tickets, clubs, reviews, profile). Server data comes from
 // @/modules/shared/server. Server actions: ./actions/{orders,waitlist}
 export * from "./components/checkout/checkout-form";

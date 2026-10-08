@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Outsiderr — Underground events, discovered",
+    name: "Outsiderr - Underground events, discovered",
     short_name: "Outsiderr",
     description:
       "Cyphers, block parties, battles, stunts, skates, meetups, jams & real communities. Discover raw underground events happening today near you.",

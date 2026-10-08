@@ -1,4 +1,4 @@
-// modules/organizer — client-safe public API (organizer dashboard/event components).
+// modules/organizer - client-safe public API (organizer dashboard/event components).
 // Server data: ./server · Server actions: ./actions/{organizer,events,event-staff,door-staff,boosts,order-verify,scanner-pins,box-office-pins}
 export * from "./components/attendees-table";
 export * from "./components/become-organizer-form";

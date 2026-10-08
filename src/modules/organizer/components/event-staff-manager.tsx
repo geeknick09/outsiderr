@@ -60,7 +60,7 @@ export function EventStaffManager({
       </div>
       <p className="text-sm text-muted">
         Assign door staff by email or phone. They will only be able to access the door scanner
-        at <code className="rounded bg-violet-neon/10 px-1.5 py-0.5 text-xs text-violet-neon">/scan</code> —
+        at <code className="rounded bg-violet-neon/10 px-1.5 py-0.5 text-xs text-violet-neon">/scan</code> -
         no access to your organizer dashboard or analytics.
       </p>
 
@@ -128,8 +128,8 @@ export function EventStaffManager({
               {staff.map((member) => (
                 <tr key={member.id} className="border-b border-zinc-100 dark:border-white/5">
                   <td className="px-3 py-2 font-semibold">{member.displayName}</td>
-                  <td className="hidden px-3 py-2 text-muted sm:table-cell">{member.email ?? "—"}</td>
-                  <td className="hidden px-3 py-2 text-muted sm:table-cell">{member.phone ?? "—"}</td>
+                  <td className="hidden px-3 py-2 text-muted sm:table-cell">{member.email ?? "-"}</td>
+                  <td className="hidden px-3 py-2 text-muted sm:table-cell">{member.phone ?? "-"}</td>
                   <td className="px-3 py-2">
                     {member.userId ? (
                       <Badge tone="success">Linked</Badge>

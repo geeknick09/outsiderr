@@ -13,8 +13,8 @@ const bodySchema = z.object({
 });
 
 /**
- * POST /api/v1/scanner/check-in — scan + check in a ticket (PIN-auth).
- * Returns the ScanResult { outcome, message, ticket } — outcome is the
+ * POST /api/v1/scanner/check-in - scan + check in a ticket (PIN-auth).
+ * Returns the ScanResult { outcome, message, ticket } - outcome is the
  * source of truth (VALID/USED/INVALID/WRONG_EVENT/...), HTTP stays 200.
  */
 export async function POST(request: Request) {

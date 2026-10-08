@@ -183,7 +183,7 @@ export function WalkinCheckinForm({
             <option value="">Custom amount (no tier)</option>
             {event.tiers.map((tier) => (
               <option key={tier.id} value={tier.id}>
-                {tier.name} — {tier.pricePaise === 0 ? "Free" : formatPaise(tier.pricePaise)}
+                {tier.name} - {tier.pricePaise === 0 ? "Free" : formatPaise(tier.pricePaise)}
               </option>
             ))}
           </select>

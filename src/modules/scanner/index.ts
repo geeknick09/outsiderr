@@ -1,4 +1,4 @@
-// modules/scanner — client-safe public API (door-scanner/box-office/walk-in UI + offline sync).
+// modules/scanner - client-safe public API (door-scanner/box-office/walk-in UI + offline sync).
 // Server data: ./server · Server actions: ./actions/{scan,check-in,box-office}
 export * from "./offline/sync-manager";
 export * from "./offline/scanner-db";

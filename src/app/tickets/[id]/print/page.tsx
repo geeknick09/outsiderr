@@ -14,7 +14,7 @@ import { formatDateTime, formatPaise } from "@/modules/shared";
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: "Print Ticket — Outsiderr" };
+  return { title: "Print Ticket - Outsiderr" };
 }
 
 export default async function PrintTicketPage({
@@ -46,7 +46,7 @@ export default async function PrintTicketPage({
 
   return (
     <div className="min-h-screen bg-white px-8 py-10 text-zinc-900 dark:bg-white dark:text-zinc-900">
-      {/* Back + Print — hidden when printing */}
+      {/* Back + Print - hidden when printing */}
       <div className="mb-8 flex items-center justify-between print:hidden">
         <Link
           href="/tickets"
@@ -161,7 +161,7 @@ export default async function PrintTicketPage({
             </div>
           </div>
 
-          {/* Fee breakdown — only for paid tickets */}
+          {/* Fee breakdown - only for paid tickets */}
           {!isFree && orderRow ? (
             <div className="mt-4 space-y-1.5 border-t border-zinc-200 pt-3 text-sm">
               <div className="flex justify-between">

@@ -6,7 +6,7 @@ import { createServiceClient } from "@/modules/shared/server";
 import { RefundRowActions, ProcessRefundsButton } from "@/modules/admin";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Admin: Refunds — Outsiderr" };
+export const metadata = { title: "Admin: Refunds - Outsiderr" };
 
 const TONE: Record<string, "warning" | "success" | "danger" | "neutral" | "violet"> = {
   REQUESTED: "violet",
@@ -109,7 +109,7 @@ export default async function AdminRefundsPage({
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-sm font-bold">
-                    {r.events?.title ?? "Unknown event"} — {r.profiles?.full_name ?? "Unknown buyer"}
+                    {r.events?.title ?? "Unknown event"} - {r.profiles?.full_name ?? "Unknown buyer"}
                   </p>
                   <Badge tone={TONE[r.status] ?? "neutral"}>{r.status}</Badge>
                   {r.refund_scope ? (

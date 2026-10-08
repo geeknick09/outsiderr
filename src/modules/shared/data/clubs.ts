@@ -101,7 +101,7 @@ export async function createClub(
   const supabase = await createClient();
 
   if (organizer) {
-    // Organizer user — link to their organizer profile
+    // Organizer user - link to their organizer profile
     const { data, error } = await supabase
       .from("clubs")
       .insert({

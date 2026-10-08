@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Cron: payment/refund reconciliation — catches the captures and refund
+ * Cron: payment/refund reconciliation - catches the captures and refund
  * finals the webhook never delivered (dropped deliveries, closed tabs).
  * Called hourly by Vercel Cron / GitHub Actions.
  */

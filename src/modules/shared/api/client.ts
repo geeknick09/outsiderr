@@ -1,7 +1,7 @@
 /**
  * Portable API client for Outsiderr's /api/v1 surface.
  *
- * Pure TypeScript — zero next/* imports, no Node APIs — so it can be lifted
+ * Pure TypeScript - zero next/* imports, no Node APIs - so it can be lifted
  * verbatim into a future `packages/api-client` and shared by the web and the
  * React Native apps (Expo/fetch-compatible).
  *
@@ -12,7 +12,7 @@
  *   });
  *   const { data, error } = await api.checkout({ eventId, tierId, quantity: 1 });
  *
- * Response convention mirrors the server: { ok, data } | { ok, error } — this
+ * Response convention mirrors the server: { ok, data } | { ok, error } - this
  * client unwraps it to { data } | { error }.
  */
 
@@ -26,7 +26,7 @@ import type { CheckoutSession } from "../lib/types";
 export type { CheckoutSession };
 
 export interface ApiClientOptions {
-  /** e.g. "https://outsiderr.in" — paths are appended as `${baseUrl}/api/v1/...`. */
+  /** e.g. "https://outsiderr.in" - paths are appended as `${baseUrl}/api/v1/...`. */
   baseUrl: string;
   /** Resolves the Supabase access token for Bearer-authed routes. Omit for PIN-auth calls. */
   getAccessToken?: () => Promise<string | null> | string | null;
@@ -82,7 +82,7 @@ async function call<T>(
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
     });
   } catch {
-    return { error: "Network error — check your connection.", status: 0 };
+    return { error: "Network error - check your connection.", status: 0 };
   }
   let json: { ok?: boolean; data?: T; error?: string } = {};
   try {
@@ -98,7 +98,7 @@ async function call<T>(
 
 export function createOutsiderrClient(opts: ApiClientOptions) {
   return {
-    /** Bearer auth sanity check — returns the current user. */
+    /** Bearer auth sanity check - returns the current user. */
     me: () => call<{ user: unknown }>(opts, "/me", { method: "GET" }),
 
     // ---- payments / booking ----
@@ -187,7 +187,7 @@ export function createOutsiderrClient(opts: ApiClientOptions) {
     updateOrganizer: (body: Record<string, unknown>) =>
       call<{ updated: boolean }>(opts, "/organizer", { method: "PATCH", body }),
 
-    // ---- scanner / box office (PIN-auth — no Bearer needed) ----
+    // ---- scanner / box office (PIN-auth - no Bearer needed) ----
     scannerLogin: (eventId: string, pin: string) =>
       call<{ event: ScannerEventInfo }>(opts, "/scanner/login", { body: { eventId, pin }, auth: false }),
     scanCheckIn: (qrHash: string, eventId: string, pin: string) =>

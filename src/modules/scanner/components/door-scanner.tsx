@@ -13,7 +13,7 @@ const READER_ID = "outsiderr-qr-reader";
 const OUTCOME_STYLES = {
   VALID: {
     icon: CheckCircle2,
-    title: "VALID — Checked In",
+    title: "VALID - Checked In",
     className: "border-emerald-500/50 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300",
   },
   ALREADY_USED: {

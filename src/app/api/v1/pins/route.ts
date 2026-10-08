@@ -17,7 +17,7 @@ const bodySchema = z.object({
 });
 
 /**
- * POST /api/v1/pins — generate scanner or box-office PINs for an event.
+ * POST /api/v1/pins - generate scanner or box-office PINs for an event.
  * `{ type: "scanner" | "box-office", staffNames: [...] }`
  * Auth: Bearer <supabase-access-token> (event owner)
  */

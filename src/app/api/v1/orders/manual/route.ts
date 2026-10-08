@@ -19,8 +19,8 @@ const bodySchema = z.object({
 });
 
 /**
- * POST /api/v1/orders/manual — free RSVP (auto-confirmed). Paid orders go
- * through /api/v1/checkout (Razorpay) — the manual UPI path was removed.
+ * POST /api/v1/orders/manual - free RSVP (auto-confirmed). Paid orders go
+ * through /api/v1/checkout (Razorpay) - the manual UPI path was removed.
  * Auth: Bearer <supabase-access-token>
  */
 export async function POST(request: Request) {

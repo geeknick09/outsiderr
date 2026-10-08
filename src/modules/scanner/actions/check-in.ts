@@ -35,7 +35,7 @@ export async function checkInTicketAction(qrHash: string, eventId: string, pin?:
 }
 
 // ============================================================================
-// WALK-IN / MANUAL CHECK-IN — organizer adds a walk-in attendee.
+// WALK-IN / MANUAL CHECK-IN - organizer adds a walk-in attendee.
 // p_mode: 'WALKIN_PREEVENT' (before event, mints VALID ticket + PDF)
 //         'WALKIN_QR'       (during event, mints VALID ticket for scanning)
 //         'WALKIN_INSTANT'  (during event, auto check-in, ticket = USED)
@@ -90,7 +90,7 @@ export async function createWalkinOrderAction(formData: FormData): Promise<Walki
     .maybeSingle();
   if (!eventRow) return { error: "Event not found or not owned by you.", success: false };
 
-  // create_walkin_order is service-role only — ownership verified above.
+  // create_walkin_order is service-role only - ownership verified above.
   const { data: result, error } = await createServiceClient().rpc("create_walkin_order", {
     p_event_id: validEventId,
     p_buyer_name: validName,
@@ -149,7 +149,7 @@ export async function updateWalkinOrderAction(formData: FormData): Promise<{ err
     .maybeSingle();
   if (!eventRow) return { error: "Not authorized to edit this order.", success: false };
 
-  // update_walkin_order is service-role only — ownership verified above.
+  // update_walkin_order is service-role only - ownership verified above.
   const { error } = await createServiceClient().rpc("update_walkin_order", {
     p_order_id: orderId,
     p_buyer_name: buyerName,

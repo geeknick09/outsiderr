@@ -25,8 +25,8 @@ export const DEFAULT_CITY: City = "KOLKATA";
 /** Platform commission in basis points (5%). */
 export const PLATFORM_FEE_BPS = 500;
 
-/** Hard cap on tickets a single order may contain (absolute ceiling — the
- *  per-event `maxTicketsPerUser` cap, 1–10, is the real limit). */
+/** Hard cap on tickets a single order may contain (absolute ceiling - the
+ *  per-event `maxTicketsPerUser` cap, 1-10, is the real limit). */
 export const MAX_TICKETS_PER_ORDER = 10;
 
 export const MAX_FEATURED_EVENTS = 5;

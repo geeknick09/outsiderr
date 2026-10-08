@@ -20,7 +20,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const event = await getEvent((await params).id);
-  return { title: event ? `Report: ${event.title} — Outsiderr` : "Report — Outsiderr" };
+  return { title: event ? `Report: ${event.title} - Outsiderr` : "Report - Outsiderr" };
 }
 
 export default async function EventReportPage({
@@ -53,7 +53,7 @@ export default async function EventReportPage({
 
   return (
     <div className="min-h-screen bg-white px-8 py-10 text-zinc-900 dark:bg-white dark:text-zinc-900">
-      {/* Print button — hidden when printing */}
+      {/* Print button - hidden when printing */}
       <div className="mb-8 flex items-center justify-between print:hidden">
         <Link
           href={`/organizer/events/${event.id}`}
@@ -154,13 +154,13 @@ export default async function EventReportPage({
                   <td className="py-2 pr-4 font-mono text-xs text-zinc-400">
                     {order.id.slice(0, 8)}
                   </td>
-                  <td className="py-2 pr-4">{order.buyerName ?? "—"}</td>
+                  <td className="py-2 pr-4">{order.buyerName ?? "-"}</td>
                   <td className="py-2 pr-4">{order.tierName}</td>
                   <td className="py-2 pr-4">{order.quantity}</td>
                   <td className="py-2 pr-4">{formatPaise(order.subtotalPaise)}</td>
                   <td className="py-2 pr-4">{formatPaise(order.totalPaise)}</td>
                   <td className="py-2 pr-4 font-semibold">{formatPaise(order.organizerPayoutPaise)}</td>
-                  <td className="py-2 font-mono text-xs">{order.utrReference ?? "—"}</td>
+                  <td className="py-2 font-mono text-xs">{order.utrReference ?? "-"}</td>
                 </tr>
               ))}
             </tbody>
@@ -206,7 +206,7 @@ export default async function EventReportPage({
                     </span>
                   </td>
                   <td className="py-2 text-xs text-zinc-400">
-                    {ticket.checkedInAt ? formatDateTime(ticket.checkedInAt) : "—"}
+                    {ticket.checkedInAt ? formatDateTime(ticket.checkedInAt) : "-"}
                   </td>
                 </tr>
               ))}

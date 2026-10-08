@@ -1,15 +1,15 @@
-// modules/campaigns — ad-click aggregation + attribution (FOUNDATION STUB).
+// modules/campaigns - ad-click aggregation + attribution (FOUNDATION STUB).
 //
 // Purpose: track outbound campaign/ad clicks and attribute downstream bookings
 // so Outsiderr can report which channels/organizer links drive sales.
 //
 // Planned data model (full spec in docs/prd.md § Campaigns):
-//   campaigns       — a tracked initiative (organizer promo, influencer link, ad)
-//   campaign_links  — slug → destination URL + campaign ref (mounted at /c/[slug])
-//   click_events    — raw click log (link_id, ua, ip-hash, referrer, ts)
-//   attributions    — click_id → order_id (first-touch within window)
+//   campaigns       - a tracked initiative (organizer promo, influencer link, ad)
+//   campaign_links  - slug → destination URL + campaign ref (mounted at /c/[slug])
+//   click_events    - raw click log (link_id, ua, ip-hash, referrer, ts)
+//   attributions    - click_id → order_id (first-touch within window)
 //
-// This module intentionally has NO live UI/data yet — types define the contract
+// This module intentionally has NO live UI/data yet - types define the contract
 // so web/organizer/analytics can start emitting/consuming clicks without churn.
 
 export interface Campaign {
@@ -35,7 +35,7 @@ export interface ClickEvent {
   linkId: string;
   clickedAt: string;
   referrer: string | null;
-  userAgentHash: string | null; // never store raw UA/IP — hash only (privacy)
+  userAgentHash: string | null; // never store raw UA/IP - hash only (privacy)
   ipHash: string | null;
 }
 

@@ -11,7 +11,7 @@ const bodySchema = z.object({
 });
 
 /**
- * POST /api/v1/notifications/read — mark one notification read, or all with
+ * POST /api/v1/notifications/read - mark one notification read, or all with
  * `{ "all": true }`.
  * Auth: Bearer <supabase-access-token>
  */

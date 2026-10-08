@@ -14,9 +14,9 @@ export const dynamic = "force-dynamic";
  *
  * Waitlist offers have a 24h window. When one lapses, this re-queues the entry
  * to the back of the queue (position = max+1) and auto-offers the freed ticket
- * to the next WAITING user — keeps the FIFO queue moving.
+ * to the next WAITING user - keeps the FIFO queue moving.
  *
- * Run every ~5–15 minutes (offers are 24h, so this doesn't need to be fast).
+ * Run every ~5-15 minutes (offers are 24h, so this doesn't need to be fast).
  *
  * Security: verifies CRON_SECRET header to prevent unauthorized calls.
  * Uses timing-safe comparison to prevent timing attacks.

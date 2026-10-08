@@ -70,7 +70,7 @@ export function toPaymentIntent(row: PaymentIntentRow): PaymentIntent {
 /**
  * Create (or replay) a payment intent for a non-order payable
  * (HERO_BOOST / SLOT_BOOST / DOOR_STAFF / CLUB_MEMBERSHIP).
- * Amount + ownership are validated inside the RPC — caller context is the
+ * Amount + ownership are validated inside the RPC - caller context is the
  * signed-in user's JWT.
  */
 export async function createPaymentIntent(
@@ -91,7 +91,7 @@ export async function createPaymentIntent(
 }
 
 /**
- * Attach the gateway order id to an intent. Service-role only — this is the
+ * Attach the gateway order id to an intent. Service-role only - this is the
  * trust boundary between "user says they want to pay" and "Razorpay order
  * exists for this intent".
  */
@@ -108,7 +108,7 @@ export async function attachRazorpayOrder(
   if (error) throw new Error(error.message || "Failed to link payment order.");
 }
 
-/** Find an intent by its gateway order id (service role — webhook/verify path). */
+/** Find an intent by its gateway order id (service role - webhook/verify path). */
 export async function findIntentByRazorpayOrderId(
   razorpayOrderId: string,
 ): Promise<PaymentIntent | null> {
@@ -239,7 +239,7 @@ export async function applyFailedPayment(razorpayOrderId: string): Promise<strin
 }
 
 /**
- * Terminal release — user dismissed the modal / abandoned checkout.
+ * Terminal release - user dismissed the modal / abandoned checkout.
  * Order RESERVED → FAILED and reserved seats go back immediately.
  * No-op once the intent is PAID (a racing capture wins).
  */

@@ -6,7 +6,7 @@ import { ThemeLogo } from "@/modules/shared";
 import { getCurrentUser, getOrganizerProfile, getSettingInt } from "@/modules/shared/server";
 import { getOrganizerAccessState } from "@/modules/shared";
 
-export const metadata = { title: "List Your Event — Outsiderr" };
+export const metadata = { title: "List Your Event - Outsiderr" };
 
 export default async function ListYourEventPage() {
   const user = await getCurrentUser();
@@ -17,7 +17,7 @@ export default async function ListYourEventPage() {
       // Applications in the pipeline go straight to /organizer, which renders
       // the right screen per state: review panel (PENDING), respond form
       // (CLARIFICATION_NEEDED), dashboard (APPROVED), or the max-rejection
-      // blocked page. Only REJECTED stays here — the marketing page is the
+      // blocked page. Only REJECTED stays here - the marketing page is the
       // agreed fresh-start entry point (Get Started → new 5-step wizard).
       if (org.kycStatus !== "REJECTED") {
         redirect("/organizer");
@@ -46,12 +46,12 @@ export default async function ListYourEventPage() {
             <span className="bg-neon-gradient bg-clip-text text-transparent">Outsiderr</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-base text-muted sm:text-lg">
-            Cyphers, battles, skate comps, run clubs, jams, workshops — if it&apos;s happening
+            Cyphers, battles, skate comps, run clubs, jams, workshops - if it&apos;s happening
             outside the mainstream, it belongs here. Reach the communities that matter.
           </p>
           {blocked ? (
             <p className="mt-8 text-sm font-semibold text-red-500">
-              Your organizer application reached the rejection limit — get started to see your options.
+              Your organizer application reached the rejection limit - get started to see your options.
             </p>
           ) : null}
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -59,7 +59,7 @@ export default async function ListYourEventPage() {
               href="/organizer"
               className="w-full rounded-2xl bg-neon-gradient px-8 py-4 text-center text-base font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90 sm:w-auto"
             >
-              {isApproved ? "Go to Organizer Dashboard" : "Get Started — It's Free"}
+              {isApproved ? "Go to Organizer Dashboard" : "Get Started - It's Free"}
             </Link>
             <Link
               href="/"
@@ -69,7 +69,7 @@ export default async function ListYourEventPage() {
             </Link>
           </div>
           <p className="mt-4 text-xs text-muted">
-            Free listing. We only charge a negligible fraction — and only when you actually sell.
+            Free listing. We only charge a negligible fraction - and only when you actually sell.
           </p>
         </div>
       </section>
@@ -104,7 +104,7 @@ export default async function ListYourEventPage() {
               icon={CalendarDays}
               step="2"
               title="List your event"
-              description="Add event details, venue, ticket tiers (free or paid), and tags. Publish instantly — no approval needed."
+              description="Add event details, venue, ticket tiers (free or paid), and tags. Publish instantly - no approval needed."
             />
             <Step
               icon={ScanLine}
@@ -116,11 +116,11 @@ export default async function ListYourEventPage() {
         </div>
       </section>
 
-      {/* Features — what you get */}
+      {/* Features - what you get */}
       <section className="px-4 py-16">
         <div className="mx-auto max-w-4xl">
           <h2 className="text-center text-3xl font-black tracking-tight">
-            Everything you get — built in
+            Everything you get - built in
           </h2>
           <p className="mt-2 text-center text-sm text-muted">
             Tools that would cost you thousands elsewhere. All included.
@@ -134,7 +134,7 @@ export default async function ListYourEventPage() {
             <Feature
               icon={BarChart3}
               title="Full analytics & insights"
-              description="See exactly how your event is doing — bookings, revenue, waitlists, attendance. Know who came, who didn't, and what's trending."
+              description="See exactly how your event is doing - bookings, revenue, waitlists, attendance. Know who came, who didn't, and what's trending."
             />
             <Feature
               icon={TrendingUp}
@@ -149,12 +149,12 @@ export default async function ListYourEventPage() {
             <Feature
               icon={Zap}
               title="Manual UPI payments"
-              description="Attendees pay directly to your UPI ID via QR. They submit the UTR, you verify — no payment gateway, no middleman."
+              description="Attendees pay directly to your UPI ID via QR. They submit the UTR, you verify - no payment gateway, no middleman."
             />
             <Feature
               icon={ScanLine}
               title="Per-event door scanner"
-              description="Each event has its own scanner. Tickets are validated against the specific event — no cross-event mix-ups."
+              description="Each event has its own scanner. Tickets are validated against the specific event - no cross-event mix-ups."
             />
             <Feature
               icon={Rocket}
@@ -169,7 +169,7 @@ export default async function ListYourEventPage() {
             <Feature
               icon={CalendarDays}
               title="Phased ticketing"
-              description="Early bird, regular, last-minute — set up multiple phases with automatic carry-forward of unsold tickets."
+              description="Early bird, regular, last-minute - set up multiple phases with automatic carry-forward of unsold tickets."
             />
           </div>
         </div>
@@ -184,7 +184,7 @@ export default async function ListYourEventPage() {
             </h2>
             <p className="mt-4 text-sm text-muted">
               You read that right. Listing is completely free. For paid events, a small fraction
-              is deducted from your payout — and that fraction stands for nothing compared to what
+              is deducted from your payout - and that fraction stands for nothing compared to what
               you&apos;re getting: QR tickets, door scanner, full analytics, attendee insights,
               trend tracking, phased ticketing, boost options, and more. Tools that would cost
               you thousands on other platforms. All included. All working only when you actually sell.

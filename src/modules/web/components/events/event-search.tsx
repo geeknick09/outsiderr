@@ -39,7 +39,7 @@ export function EventSearch() {
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const value = e.target.value;
     setQuery(value);
-    // Debounce search — wait 400ms after the user stops typing
+    // Debounce search - wait 400ms after the user stops typing
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => submit(value), 400);
   }

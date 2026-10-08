@@ -80,7 +80,7 @@ export async function submitReview(
   }
 
   // Pre-check: the RLS insert policy silently swallows the unique constraint
-  // (its `not exists` fires first) — check explicitly for a friendly error.
+  // (its `not exists` fires first) - check explicitly for a friendly error.
   const { data: existing } = await supabase
     .from("event_reviews")
     .select("id")
@@ -113,7 +113,7 @@ export async function submitReview(
 
   if (error) {
     if (error.code === "23505") {
-      // unique_violation — already reviewed
+      // unique_violation - already reviewed
       return { success: false, error: "You have already reviewed this event." };
     }
     logger.error({ error: error.message, eventId, userId: user.id }, "review: insert failed");
@@ -171,7 +171,7 @@ export async function deleteReview(
 
 /**
  * Admin-only: delete any review (moderation).
- * Organizers cannot delete reviews — only the review author or an admin can.
+ * Organizers cannot delete reviews - only the review author or an admin can.
  */
 export async function adminDeleteReview(
   reviewId: string,

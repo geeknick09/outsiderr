@@ -8,7 +8,7 @@ import { getOrganizerProfile } from "@/modules/shared/server";
 import { createServiceClient } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Payments & settlement — Outsiderr Organizer" };
+export const metadata = { title: "Payments & settlement - Outsiderr Organizer" };
 
 const TYPE_LABEL: Record<string, string> = {
   TICKET_SALE: "Ticket sale",
@@ -92,7 +92,7 @@ export default async function OrganizerPaymentsPage() {
   const ledgerRows = (ledger ?? []) as unknown as LedgerRow[];
   const payoutRows = (payouts ?? []) as unknown as PayoutRow[];
 
-  // PAYOUT rows are negative net_organizer (money left) — excluded from
+  // PAYOUT rows are negative net_organizer (money left) - excluded from
   // liabilities. Balance = Σ net_organizer − payouts still in flight.
   const earned = ledgerRows
     .filter((r) => r.type !== "PAYOUT" && r.net_organizer_paise > 0)
@@ -114,7 +114,7 @@ export default async function OrganizerPaymentsPage() {
         <div>
           <h1 className="text-2xl font-black tracking-tight">Payments &amp; settlement</h1>
           <p className="text-sm text-muted">
-            Every rupee accounted for — sales, fees, refunds and payouts against your events.
+            Every rupee accounted for - sales, fees, refunds and payouts against your events.
           </p>
         </div>
         <Link href="/organizer" className="text-sm text-muted hover:text-violet-neon">
@@ -144,7 +144,7 @@ export default async function OrganizerPaymentsPage() {
         <h2 className="text-lg font-bold">Payouts</h2>
         {payoutRows.length === 0 ? (
           <div className="glass rounded-2xl p-5 text-sm text-muted">
-            No payouts yet — they appear here once the team settles your earnings.
+            No payouts yet - they appear here once the team settles your earnings.
           </div>
         ) : (
           <div className="space-y-2">
@@ -192,13 +192,13 @@ export default async function OrganizerPaymentsPage() {
                         <Badge tone={TYPE_TONE[r.type] ?? "neutral"}>{TYPE_LABEL[r.type] ?? r.type}</Badge>
                       </td>
                       <td className="hidden max-w-[160px] truncate px-3 py-2 text-muted sm:table-cell">
-                        {r.events?.title ?? "—"}
+                        {r.events?.title ?? "-"}
                       </td>
                       <td className="px-3 py-2 text-right font-mono">
-                        {r.gross_amount_paise ? formatPaise(Math.abs(r.gross_amount_paise)) : "—"}
+                        {r.gross_amount_paise ? formatPaise(Math.abs(r.gross_amount_paise)) : "-"}
                       </td>
                       <td className="hidden px-3 py-2 text-right font-mono text-muted md:table-cell">
-                        {fees ? formatPaise(fees) : "—"}
+                        {fees ? formatPaise(fees) : "-"}
                       </td>
                       <td
                         className={`px-3 py-2 text-right font-mono font-bold ${
@@ -207,10 +207,10 @@ export default async function OrganizerPaymentsPage() {
                       >
                         {r.net_organizer_paise
                           ? `${r.net_organizer_paise < 0 ? "−" : ""}${formatPaise(Math.abs(r.net_organizer_paise))}`
-                          : "—"}
+                          : "-"}
                       </td>
                       <td className="hidden px-3 py-2 font-mono text-[10px] text-muted lg:table-cell">
-                        {r.razorpay_payment_id ? r.razorpay_payment_id.slice(0, 16) : r.notes ?? "—"}
+                        {r.razorpay_payment_id ? r.razorpay_payment_id.slice(0, 16) : r.notes ?? "-"}
                       </td>
                     </tr>
                   );

@@ -20,7 +20,7 @@ const bodySchema = z.object({
 });
 
 /**
- * POST /api/v1/clubs — create a club/crew.
+ * POST /api/v1/clubs - create a club/crew.
  * Auth: Bearer <supabase-access-token>
  */
 export async function POST(request: Request) {

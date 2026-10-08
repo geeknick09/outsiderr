@@ -7,7 +7,7 @@ import { formatPaise } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Admin Overview — Outsiderr" };
+export const metadata = { title: "Admin Overview - Outsiderr" };
 
 export default async function AdminPage() {
   const [stats, pendingHeroBoosts, userAnalytics] = await Promise.all([

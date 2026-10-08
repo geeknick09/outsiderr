@@ -14,9 +14,9 @@ type Phase = "polling" | "failed" | "expired" | "pending";
 
 /**
  * Watches an order after checkout: Realtime on the order row + a 3s poll
- * (whichever lands first — the webhook, the client verify, or the cron
+ * (whichever lands first - the webhook, the client verify, or the cron
  * reconcile can flip it). After 2 minutes of silence we show "processing",
- * never a false failure — the webhook still settles it in the background.
+ * never a false failure - the webhook still settles it in the background.
  */
 export function PaymentStatusPoller({
   orderId,
@@ -42,7 +42,7 @@ export function PaymentStatusPoller({
         doneRef.current = true;
         setPhase("expired");
       } else if (status === "REFUND_REQUESTED") {
-        // Late-capture path — the dispatcher auto-queued a refund.
+        // Late-capture path - the dispatcher auto-queued a refund.
         doneRef.current = true;
         setPhase("pending");
       }
@@ -50,7 +50,7 @@ export function PaymentStatusPoller({
     [router],
   );
 
-  // Trap the browser back button while we wait on the gateway — navigating
+  // Trap the browser back button while we wait on the gateway - navigating
   // away mid-confirm is how users end up double-paying. The trap releases
   // the moment the order reaches a terminal state.
   useEffect(() => {
@@ -70,7 +70,7 @@ export function PaymentStatusPoller({
         const result = await getPaymentStatusAction({ orderId });
         if (result) handleStatus(result.refStatus ?? result.status);
       } catch {
-        // transient — keep polling
+        // transient - keep polling
       }
       if (!doneRef.current && Date.now() - started >= TIMEOUT_MS) {
         doneRef.current = true;
@@ -82,7 +82,7 @@ export function PaymentStatusPoller({
     return () => clearInterval(interval);
   }, [orderId, handleStatus]);
 
-  // Realtime on the order row — the webhook's confirm flips it instantly
+  // Realtime on the order row - the webhook's confirm flips it instantly
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase
@@ -110,7 +110,7 @@ export function PaymentStatusPoller({
         </div>
         <h2 className="text-lg font-black">Payment failed</h2>
         <p className="mt-2 text-sm text-muted">
-          The payment didn&apos;t go through and no seats were held. You can try again —
+          The payment didn&apos;t go through and no seats were held. You can try again -
           you&apos;ll never be charged twice for the same booking.
         </p>
         {eventId ? (
@@ -156,7 +156,7 @@ export function PaymentStatusPoller({
         <div className="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-2 border-violet-300 border-t-violet-600" />
         <h2 className="text-lg font-black">We&apos;re confirming your payment</h2>
         <p className="mt-2 text-sm text-muted">
-          This can take a moment. Don&apos;t pay again — check your tickets in a
+          This can take a moment. Don&apos;t pay again - check your tickets in a
           few minutes; the booking completes automatically once the gateway
           confirms.
         </p>
@@ -174,9 +174,9 @@ export function PaymentStatusPoller({
     <div className="glass rounded-3xl p-8 text-center">
       <div className="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-2 border-violet-300 border-t-violet-600" />
       <h2 className="text-lg font-black">Confirming payment…</h2>
-      <p className="mt-2 text-sm text-muted">Almost there — hang on.</p>
+      <p className="mt-2 text-sm text-muted">Almost there - hang on.</p>
       <p className="mt-3 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-3 text-xs font-semibold text-amber-700 dark:text-amber-300">
-        Please don&apos;t press the back button or refresh this page — your
+        Please don&apos;t press the back button or refresh this page - your
         payment is being confirmed and you won&apos;t be charged twice.
       </p>
     </div>

@@ -6,7 +6,7 @@ import { getUserProfile } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "My Profile — Outsiderr" };
+export const metadata = { title: "My Profile - Outsiderr" };
 
 export default async function ProfilePage() {
   const user = await getCurrentUser();

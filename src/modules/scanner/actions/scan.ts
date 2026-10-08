@@ -10,7 +10,7 @@ export async function verifyScannerPinAction(
 ): Promise<{
   error: string | null;
   success: boolean;
-  /** "RATE_LIMITED" when the PIN-verify limit tripped — routes map to 429. */
+  /** "RATE_LIMITED" when the PIN-verify limit tripped - routes map to 429. */
   code?: "RATE_LIMITED";
   event?: {
     id: string;

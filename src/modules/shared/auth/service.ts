@@ -5,7 +5,7 @@ import type { Database } from "../db/database.types";
 import { SUPABASE_URL } from "./config";
 
 /**
- * Supabase client using the service role key — bypasses RLS.
+ * Supabase client using the service role key - bypasses RLS.
  *
  * ONLY use this in contexts with NO user auth:
  *  - Razorpay webhook handler

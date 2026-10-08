@@ -12,8 +12,8 @@ const bodySchema = z.object({
 });
 
 /**
- * POST /api/v1/box-office/login — verify a box-office PIN for an event.
- * PIN-auth (no Bearer token) — rate-limited against brute force.
+ * POST /api/v1/box-office/login - verify a box-office PIN for an event.
+ * PIN-auth (no Bearer token) - rate-limited against brute force.
  */
 export async function POST(request: Request) {
   return withApi(request, async () => {

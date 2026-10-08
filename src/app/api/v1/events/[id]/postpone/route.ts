@@ -14,7 +14,7 @@ const bodySchema = z.object({
 });
 
 /**
- * POST /api/v1/events/[id]/postpone — move an event to a new date (notifies
+ * POST /api/v1/events/[id]/postpone - move an event to a new date (notifies
  * ticket holders + subscribers via the postpone_event RPC).
  * Auth: Bearer <supabase-access-token> (event owner)
  */

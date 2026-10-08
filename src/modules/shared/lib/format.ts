@@ -17,7 +17,7 @@ export function formatPaise(paise: number): string {
   return paise % 100 === 0 ? INR.format(paise / 100) : INR_WITH_PAISE.format(paise / 100);
 }
 
-/** "Free" or "From ₹499" — used on discovery cards. */
+/** "Free" or "From ₹499" - used on discovery cards. */
 export function formatPriceTag(minPricePaise: number): string {
   return minPricePaise <= 0 ? "Free" : `From ${formatPaise(minPricePaise)}`;
 }
@@ -48,7 +48,7 @@ export function formatDateRange(startIso: string, endIso: string | null): string
   if (!endIso) return start;
   const end = new Date(endIso);
   const sameDay = istDay(startIso) === istDay(endIso);
-  return `${start} – ${end.toLocaleString("en-IN", {
+  return `${start} - ${end.toLocaleString("en-IN", {
     ...(sameDay ? {} : { day: "numeric", month: "short" }),
     hour: "numeric",
     minute: "2-digit",
@@ -70,8 +70,8 @@ export function isPast(iso: string): boolean {
 }
 
 /**
- * True once the event has ENDED — compares the real end timestamp, not the
- * day. Same-day finished events count as past (e.g. a 6–9am run at noon).
+ * True once the event has ENDED - compares the real end timestamp, not the
+ * day. Same-day finished events count as past (e.g. a 6-9am run at noon).
  * Without an endsAt we fall back to a 12h window from start.
  */
 export function isEventEnded(startsAt: string, endsAt?: string | null): boolean {

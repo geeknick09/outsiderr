@@ -21,7 +21,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const club = await getClub((await params).id);
   return {
-    title: club ? `${club.name} — Outsiderr` : "Club — Outsiderr",
+    title: club ? `${club.name} - Outsiderr` : "Club - Outsiderr",
     description: club?.bio ?? undefined,
   };
 }

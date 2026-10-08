@@ -17,7 +17,7 @@ const INPUT =
   "w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white";
 
 /**
- * Paid checkout — collects buyer details, then reserves inventory + opens
+ * Paid checkout - collects buyer details, then reserves inventory + opens
  * Razorpay Checkout (UPI/card/netbanking). Manual-UPI/UTR flows were removed
  * in the Razorpay migration.
  */
@@ -44,7 +44,7 @@ export function RazorpayCheckoutForm({
   const [error, setError] = useState<string | null>(null);
   const [session, setSession] = useState<CheckoutSession | null>(null);
   const [pending, startTransition] = useTransition();
-  // Set while we resolve what happened to the last attempt — the Pay button
+  // Set while we resolve what happened to the last attempt - the Pay button
   // stays disabled so the user can't stack a second payment on a first one
   // that's still confirming server-side.
   const [resolving, setResolving] = useState(false);
@@ -60,7 +60,7 @@ export function RazorpayCheckoutForm({
         return;
       }
     } catch {
-      // fall through — re-arm the form
+      // fall through - re-arm the form
     }
     setSession(null);
     setResolving(false);
@@ -81,7 +81,7 @@ export function RazorpayCheckoutForm({
     });
   }
 
-  // Payment window opened — RazorpayCheckout auto-opens the modal.
+  // Payment window opened - RazorpayCheckout auto-opens the modal.
   if (session) {
     return (
       <RazorpayCheckout
@@ -173,7 +173,7 @@ export function RazorpayCheckoutForm({
         loadingText="Reserving tickets…"
       >
         <Lock className="mr-1.5 h-4 w-4" />
-        Pay securely — {totalRupees}
+        Pay securely - {totalRupees}
       </Button>
       <p className="text-center text-xs text-muted">
         UPI, cards and netbanking via Razorpay. Your price &amp; tickets are

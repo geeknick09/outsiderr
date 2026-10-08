@@ -163,7 +163,7 @@ export function AttendeesTable({
                       <td className="hidden px-3 py-2 font-mono text-[10px] text-muted md:table-cell">
                         {order.razorpayPaymentId
                           ? order.razorpayPaymentId.slice(0, 18)
-                          : order.utrReference || "—"}
+                          : order.utrReference || "-"}
                       </td>
                       <td className="hidden px-3 py-2 text-[10px] text-muted md:table-cell">
                         {formatDateTime(order.createdAt)}
@@ -205,7 +205,7 @@ export function AttendeesTable({
   );
 }
 
-/** Organizer-side refund request — goes to the admin queue for review. */
+/** Organizer-side refund request - goes to the admin queue for review. */
 function RefundRequestButton({ order }: { order: Order }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);

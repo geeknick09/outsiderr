@@ -12,7 +12,7 @@ const bodySchema = z.object({
 });
 
 /**
- * POST /api/v1/payments/intent — create a payment intent + Razorpay order for
+ * POST /api/v1/payments/intent - create a payment intent + Razorpay order for
  * a non-ticket payable (boost / door staff / club membership). Ticket orders
  * go through /api/v1/checkout.
  * Auth: Bearer <supabase-access-token>

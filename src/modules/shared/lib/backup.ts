@@ -9,7 +9,7 @@ import { logger } from "./logger";
  * Exports critical tables as JSON via the Supabase service-role client,
  * compresses with gzip, and uploads to a private Supabase Storage bucket.
  *
- * This is NOT a true pg_dump — it does not capture schema, indexes, RLS
+ * This is NOT a true pg_dump - it does not capture schema, indexes, RLS
  * policies, RPCs, or triggers. It captures the DATA in the critical tables.
  * For schema, rely on `supabase/schema.sql` (version-controlled).
  *
@@ -92,7 +92,7 @@ async function exportTables(): Promise<{
 
       if (error) {
         logger.error({ table, error: error.message }, "backup: failed to export table");
-        // Continue with other tables — partial backup is better than none
+        // Continue with other tables - partial backup is better than none
         break;
       }
 
@@ -118,7 +118,7 @@ async function exportTables(): Promise<{
 
 /**
  * Ensure the private "backups" storage bucket exists.
- * Creates it if missing. Bucket is PRIVATE — only service-role can read.
+ * Creates it if missing. Bucket is PRIVATE - only service-role can read.
  */
 async function ensureBackupBucket(): Promise<void> {
   const supabase = createServiceClient();
@@ -284,7 +284,7 @@ export async function listBackups(type?: "daily" | "weekly"): Promise<
 
 /**
  * Download a backup file from storage.
- * Returns the raw gzip buffer — caller must gunzip and parse JSON.
+ * Returns the raw gzip buffer - caller must gunzip and parse JSON.
  */
 export async function downloadBackup(path: string): Promise<Buffer | null> {
   const supabase = createServiceClient();

@@ -17,7 +17,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }) {
   const event = await getEvent((await params).id);
-  return { title: event ? `Check-ins: ${event.title} — Outsiderr` : "Check-ins — Outsiderr" };
+  return { title: event ? `Check-ins: ${event.title} - Outsiderr` : "Check-ins - Outsiderr" };
 }
 
 export default async function EventCheckInsPage({
@@ -103,7 +103,7 @@ export default async function EventCheckInsPage({
                     </td>
                     <td className="px-3 py-2">{ticket.tierName}</td>
                     <td className="px-3 py-2 text-muted">
-                      {ticket.checkedInAt ? formatDateTime(ticket.checkedInAt) : "—"}
+                      {ticket.checkedInAt ? formatDateTime(ticket.checkedInAt) : "-"}
                     </td>
                     <td className="px-3 py-2">
                       <Badge tone="success">Checked In</Badge>

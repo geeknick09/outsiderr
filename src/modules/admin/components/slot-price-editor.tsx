@@ -29,7 +29,7 @@ export function SlotPriceEditor({
       await adminUpdateSlotPriceAction(slot, Math.round(rupees * 100));
       setEditing(null);
     } catch {
-      // ignore — stays in edit mode
+      // ignore - stays in edit mode
     } finally {
       setSaving(false);
     }

@@ -14,7 +14,7 @@ import { formatDateTime } from "@/modules/shared";
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: "Walk-in Ticket — Outsiderr" };
+  return { title: "Walk-in Ticket - Outsiderr" };
 }
 
 export default async function WalkinTicketPrintPage({
@@ -68,7 +68,7 @@ export default async function WalkinTicketPrintPage({
 
   return (
     <div className="min-h-screen bg-white px-8 py-10 text-zinc-900 dark:bg-white dark:text-zinc-900">
-      {/* Back + Print — hidden when printing */}
+      {/* Back + Print - hidden when printing */}
       <div className="mb-8 flex items-center justify-between print:hidden">
         <Link
           href={`/organizer/events/${eventId}`}
@@ -136,11 +136,11 @@ export default async function WalkinTicketPrintPage({
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-zinc-500">Name</span>
-              <span className="font-semibold">{order?.buyer_name ?? "—"}</span>
+              <span className="font-semibold">{order?.buyer_name ?? "-"}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-zinc-500">Phone</span>
-              <span className="font-semibold">{order?.buyer_phone ?? "—"}</span>
+              <span className="font-semibold">{order?.buyer_phone ?? "-"}</span>
             </div>
             {order?.buyer_email ? (
               <div className="flex justify-between">

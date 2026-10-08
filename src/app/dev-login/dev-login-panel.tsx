@@ -7,10 +7,10 @@ import { createClient } from "@/modules/shared";
 import { devLoginAction } from "./actions";
 
 const ROLES = [
-  { key: "user", label: "Dev User", desc: "plain attendee — booking, tickets, reviews" },
-  { key: "user2", label: "Dev User 2", desc: "second attendee — waitlist/collab tests" },
-  { key: "organizer", label: "Dev Organizer", desc: "KYC-approved organizer — event CRUD, orders, pins" },
-  { key: "admin", label: "Dev Admin", desc: "platform admin — /admin suite" },
+  { key: "user", label: "Dev User", desc: "plain attendee - booking, tickets, reviews" },
+  { key: "user2", label: "Dev User 2", desc: "second attendee - waitlist/collab tests" },
+  { key: "organizer", label: "Dev Organizer", desc: "KYC-approved organizer - event CRUD, orders, pins" },
+  { key: "admin", label: "Dev Admin", desc: "platform admin - /admin suite" },
 ] as const;
 
 export function DevLoginPanel() {

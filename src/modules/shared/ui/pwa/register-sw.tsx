@@ -7,7 +7,7 @@ export function ServiceWorkerRegister() {
     if (process.env.NODE_ENV !== "production") return;
     if (!("serviceWorker" in navigator)) return;
 
-    // Register immediately — don't wait for load event
+    // Register immediately - don't wait for load event
     navigator.serviceWorker
       .register("/sw.js")
       .then((reg) => {
@@ -21,7 +21,7 @@ export function ServiceWorkerRegister() {
     // Prompt user to refresh when a new SW takes over
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.addEventListener("controllerchange", () => {
-        // Smooth reload — keeps the app feeling instant
+        // Smooth reload - keeps the app feeling instant
         window.location.reload();
       });
     }

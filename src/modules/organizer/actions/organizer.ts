@@ -13,7 +13,7 @@ export interface CreateOrganizerState {
 
 export interface UpdateOrganizerState {
   error: string | null;
-  /** Set when the save succeeded — lets the UI close the modal. */
+  /** Set when the save succeeded - lets the UI close the modal. */
   saved?: boolean;
   /** Non-blocking confirmation (e.g. KYC changes sent for re-verification). */
   notice?: string | null;
@@ -65,12 +65,12 @@ export async function createOrganizerAction(
     return { error: "IFSC code format is invalid. Expected: ABCD0123456" };
   }
 
-  // GST number (GSTIN) when provided — 2-digit state code + PAN + entity + Z + check char
+  // GST number (GSTIN) when provided - 2-digit state code + PAN + entity + Z + check char
   if (gstNumber && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gstNumber)) {
     return { error: "GST number format is invalid. Expected a 15-character GSTIN like 27ABCDE1234F1Z5." };
   }
 
-  // Bank account number — digits only, 9-18 chars
+  // Bank account number - digits only, 9-18 chars
   if (!/^[0-9]{9,18}$/.test(bankAccountNumber)) {
     return { error: "Bank account number should be 9-18 digits." };
   }
@@ -102,7 +102,7 @@ export async function createOrganizerAction(
     };
   }
 
-  // Alert admins — new KYC submission needs review
+  // Alert admins - new KYC submission needs review
   await notifyAdmins({
     type: "KYC_SUBMITTED",
     message: `New organizer application: ${name}. KYC pending review.`,
@@ -160,11 +160,11 @@ export async function updateOrganizerAction(
   if (bankIfsc && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(bankIfsc)) {
     return { error: "IFSC code format is invalid. Expected: ABCD0123456" };
   }
-  // GST number (GSTIN) — 2-digit state code + PAN + entity + Z + check char
+  // GST number (GSTIN) - 2-digit state code + PAN + entity + Z + check char
   if (gstNumber && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gstNumber)) {
     return { error: "GST number format is invalid. Expected a 15-character GSTIN like 27ABCDE1234F1Z5." };
   }
-  // Bank account number — digits only, 9-18 chars
+  // Bank account number - digits only, 9-18 chars
   if (bankAccountNumber && !/^[0-9]{9,18}$/.test(bankAccountNumber)) {
     return { error: "Bank account number should be 9-18 digits." };
   }
@@ -198,7 +198,7 @@ export async function updateOrganizerAction(
       error: null,
       saved: true,
       notice: result.pendingKycRequested
-        ? "Saved. Your KYC/bank/payout changes are now under admin review — your verified details stay active until approved."
+        ? "Saved. Your KYC/bank/payout changes are now under admin review - your verified details stay active until approved."
         : null,
     };
   } catch (error) {
@@ -209,10 +209,10 @@ export async function updateOrganizerAction(
 }
 
 /**
- * Withdraw the organizer application — deletes the organizers row and clears
+ * Withdraw the organizer application - deletes the organizers row and clears
  * profiles.is_organizer so the user lands back on the become-organizer form.
  * Only allowed while the application is pending/rejected/clarification AND
- * the organizer has no events (approved organizers with data can't withdraw —
+ * the organizer has no events (approved organizers with data can't withdraw -
  * that would orphan events/orders).
  */
 export async function withdrawOrganizerApplication(): Promise<{ error: string | null }> {
@@ -231,16 +231,16 @@ export async function withdrawOrganizerApplication(): Promise<{ error: string | 
   if (!org) return { error: "No organizer application found." };
 
   if (org.kyc_status === "APPROVED") {
-    return { error: "Approved organizers can't withdraw — contact support to deactivate." };
+    return { error: "Approved organizers can't withdraw - contact support to deactivate." };
   }
 
-  // Withdrawing deletes the organizers row (and rejection_count with it) —
+  // Withdrawing deletes the organizers row (and rejection_count with it) -
   // a user at the rejection limit could reset the counter by withdrawing
   // and re-applying, so block that path.
   const { getSettingInt } = await import("@/modules/shared/server");
   const rejectionLimit = await getSettingInt("organizer_rejection_limit");
   if (rejectionLimit > 0 && (org.rejection_count ?? 0) >= rejectionLimit) {
-    return { error: "This application reached the maximum rejections and can't be withdrawn — please contact Outsiderr support." };
+    return { error: "This application reached the maximum rejections and can't be withdrawn - please contact Outsiderr support." };
   }
 
   const { count: eventCount } = await supabase
@@ -248,7 +248,7 @@ export async function withdrawOrganizerApplication(): Promise<{ error: string | 
     .select("id", { count: "exact", head: true })
     .eq("organizer_id", org.id);
   if ((eventCount ?? 0) > 0) {
-    return { error: "This application has events attached — contact support to withdraw." };
+    return { error: "This application has events attached - contact support to withdraw." };
   }
 
   // Service role: organizers delete + is_organizer write are privileged.

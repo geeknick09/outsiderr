@@ -9,11 +9,11 @@ import { logger } from "./lib/logger";
 /**
  * Channel-aware notification abstraction.
  *
- * Business code calls sendNotification()/sendNotifications() — it does NOT
+ * Business code calls sendNotification()/sendNotifications() - it does NOT
  * insert into event_notifications directly. Channels:
- *   - "in-app"   → event_notifications row (the bell) — implemented
+ *   - "in-app"   → event_notifications row (the bell) - implemented
  *   - "push"     → notification_outbox row → drained by /api/cron/drain-notifications
- *                  to the provider (Expo Push / FCM — adapter lands with M3)
+ *                  to the provider (Expo Push / FCM - adapter lands with M3)
  *   - "email"    → notification_outbox row → provider adapter pending
  *   - "whatsapp" → notification_outbox row → provider adapter pending
  *
@@ -21,7 +21,7 @@ import { logger } from "./lib/logger";
  * and a cron drainer retries with backoff. Rows expire after 24h so enabling
  * a provider later doesn't blast stale notifications.
  *
- * Notifications are best-effort by design: failures are logged, never thrown —
+ * Notifications are best-effort by design: failures are logged, never thrown -
  * a notification must not break the primary transaction (booking, KYC, etc.).
  */
 
@@ -36,7 +36,7 @@ export interface SendNotificationInput {
   message: string;
   /** Related event, if any. */
   eventId?: string | null;
-  /** Delivery channels — defaults to ["in-app"]. */
+  /** Delivery channels - defaults to ["in-app"]. */
   channels?: NotificationChannel[];
 }
 
@@ -47,7 +47,7 @@ async function resolveClient(client?: Client): Promise<Client> {
 }
 
 /** In-app channel: event_notifications insert (the bell).
- * Uses the service client — sendNotification is a trusted server-side
+ * Uses the service client - sendNotification is a trusted server-side
  * abstraction (callers authorize before calling), and the insert policy only
  * allows the event organizer; cross-user notifications (e.g. invitee →
  * inviter) would otherwise be silently dropped. */
@@ -64,7 +64,7 @@ async function deliverInApp(
 }
 
 /** External channels: enqueue a durable outbox row; the drain cron delivers.
- * Uses the service client — the outbox is service-role only. */
+ * Uses the service client - the outbox is service-role only. */
 async function enqueueOutbox(
   input: SendNotificationInput,
   channel: "push" | "email" | "whatsapp",
@@ -87,7 +87,7 @@ export async function sendNotification(
   input: SendNotificationInput,
   client?: Client,
 ): Promise<void> {
-  // Some order types (walk-in / box-office) have no buyer account — nothing to notify.
+  // Some order types (walk-in / box-office) have no buyer account - nothing to notify.
   if (!input.userId) return;
   const channels = input.channels ?? ["in-app"];
   try {
@@ -172,7 +172,7 @@ export async function notifyAdmins(
 /**
  * Append a message to an organizer's KYC thread (kyc_messages).
  * Callers must have already authorized the sender (admin action or the
- * organizer's own resubmit). Best-effort — never throws.
+ * organizer's own resubmit). Best-effort - never throws.
  */
 export async function addKycMessage(
   organizerId: string,

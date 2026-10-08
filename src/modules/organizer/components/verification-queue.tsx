@@ -44,12 +44,12 @@ export function VerificationQueue({
     onPayload: ({ eventType, new: row }) => {
       if (eventType === "INSERT") {
         if (row.status === "PENDING_VERIFICATION") {
-          // New pending order — refresh to get full joined data
+          // New pending order - refresh to get full joined data
           router.refresh();
         }
       } else if (eventType === "UPDATE") {
         if (row.status !== "PENDING_VERIFICATION") {
-          // Order approved or rejected — remove from queue
+          // Order approved or rejected - remove from queue
           setOrderList((prev) => prev.filter((o) => o.id !== row.id));
         }
       }
@@ -93,8 +93,8 @@ export function VerificationQueue({
                 className="border-b border-zinc-100 last:border-0 dark:border-white/5"
               >
                 <td className="p-4">
-                  <span className="block font-semibold">{order.buyerName ?? "—"}</span>
-                  <span className="text-xs text-muted">{order.buyerPhone ?? "—"}</span>
+                  <span className="block font-semibold">{order.buyerName ?? "-"}</span>
+                  <span className="text-xs text-muted">{order.buyerPhone ?? "-"}</span>
                 </td>
                 <td className="p-4">
                   <span className="block">{order.eventTitle}</span>
@@ -102,7 +102,7 @@ export function VerificationQueue({
                     {order.tierName} × {order.quantity}
                   </span>
                 </td>
-                <td className="p-4 font-mono text-xs">{order.utrReference ?? "—"}</td>
+                <td className="p-4 font-mono text-xs">{order.utrReference ?? "-"}</td>
                 <td className="p-4">{formatPaise(order.totalPaise)}</td>
                 <td className="p-4">
                   {order.paymentProofUrl ? (
@@ -144,7 +144,7 @@ export function VerificationQueue({
       <Modal
         open={rejectingOrder !== null}
         onClose={handleRejectClose}
-        title={`Reject order — ${rejectingOrder?.buyerName ?? ""}`}
+        title={`Reject order - ${rejectingOrder?.buyerName ?? ""}`}
       >
         <form action={rejectOrderAction} className="space-y-4">
           <input type="hidden" name="orderId" value={rejectingOrder?.id ?? ""} />
@@ -183,7 +183,7 @@ export function VerificationQueue({
       <Modal
         open={proofOrder !== null}
         onClose={handleProofClose}
-        title={`Payment proof — ${proofOrder?.buyerName ?? ""}`}
+        title={`Payment proof - ${proofOrder?.buyerName ?? ""}`}
       >
         {proofOrder?.paymentProofUrl ? (
           <Image
@@ -197,7 +197,7 @@ export function VerificationQueue({
           />
         ) : null}
         <p className="mt-3 font-mono text-xs text-muted">
-          UTR {proofOrder?.utrReference ?? "—"}
+          UTR {proofOrder?.utrReference ?? "-"}
         </p>
       </Modal>
     </>

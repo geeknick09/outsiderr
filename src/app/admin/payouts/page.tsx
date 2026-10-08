@@ -7,7 +7,7 @@ import { createServiceClient } from "@/modules/shared/server";
 import { CreatePayoutForm, PayoutRowActions } from "@/modules/admin";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Admin: Payouts — Outsiderr" };
+export const metadata = { title: "Admin: Payouts - Outsiderr" };
 
 const PAYOUT_TONE: Record<string, "warning" | "success" | "danger" | "neutral" | "violet"> = {
   PENDING: "warning",
@@ -68,7 +68,7 @@ export default async function AdminPayoutsPage() {
         <div>
           <h1 className="text-2xl font-black tracking-tight">Organizer payouts</h1>
           <p className="text-sm text-muted">
-            Manual settlements — create a payout, send the money, mark it completed. Every completed
+            Manual settlements - create a payout, send the money, mark it completed. Every completed
             payout writes a negative ledger row so balances stay exact.
           </p>
         </div>
@@ -103,7 +103,7 @@ export default async function AdminPayoutsPage() {
         <h2 className="text-lg font-bold">Owed to organizers</h2>
         {dueNow.length === 0 ? (
           <div className="glass rounded-2xl p-5 text-sm text-muted">
-            Nobody is owed money right now — all settled.
+            Nobody is owed money right now - all settled.
           </div>
         ) : (
           <div className="space-y-2">

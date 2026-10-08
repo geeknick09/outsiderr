@@ -11,8 +11,8 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const page = await getLegalPage((await params).slug);
-  if (!page) return { title: "Not Found — Outsiderr" };
-  return { title: `${page.title} — Outsiderr` };
+  if (!page) return { title: "Not Found - Outsiderr" };
+  return { title: `${page.title} - Outsiderr` };
 }
 
 export default async function LegalPageView({

@@ -11,7 +11,7 @@ import {
 export async function updateSession(request: NextRequest) {
   // In development, the Devin browser preview proxy forwards requests from
   // 127.0.0.1:<port> to localhost:3001. Next.js Server Actions CSRF check
-  // compares the `origin` header against `x-forwarded-host` — if they don't
+  // compares the `origin` header against `x-forwarded-host` - if they don't
   // match, it throws "Invalid Server Actions request." Fix: in dev only,
   // rewrite the x-forwarded-host to match the origin so the check passes.
   let requestHeaders = request.headers;

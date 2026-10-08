@@ -60,7 +60,7 @@ export function ClubForm() {
         <textarea name="bio" rows={3} placeholder="Weekly 5K runs across the city. All paces welcome." className={INPUT} />
       </label>
 
-      {/* Cover photo — Facebook-style banner */}
+      {/* Cover photo - Facebook-style banner */}
       <div className="space-y-1.5">
         <span className="text-xs font-semibold uppercase tracking-wide text-muted">Cover photo</span>
         <div className="relative overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10">
@@ -150,9 +150,9 @@ export function ClubForm() {
             value={membershipType}
             onChange={(e) => setMembershipType(e.target.value)}
           >
-            <option value="FREE" className={OPTION}>Free — anyone can join</option>
-            <option value="PAID" className={OPTION}>Paid — monthly fee via UPI</option>
-            <option value="AUDITION" className={OPTION}>Audition — review Instagram first</option>
+            <option value="FREE" className={OPTION}>Free - anyone can join</option>
+            <option value="PAID" className={OPTION}>Paid - monthly fee via UPI</option>
+            <option value="AUDITION" className={OPTION}>Audition - review Instagram first</option>
           </select>
         </label>
         <label className="block space-y-1.5">
@@ -161,7 +161,7 @@ export function ClubForm() {
         </label>
       </div>
 
-      {/* UPI ID field — only shown for paid membership */}
+      {/* UPI ID field - only shown for paid membership */}
       {membershipType === "PAID" ? (
         <label className="block space-y-1.5">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted">UPI ID *</span>

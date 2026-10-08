@@ -3,7 +3,7 @@ import { formatPaise } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Admin: Revenue — Outsiderr" };
+export const metadata = { title: "Admin: Revenue - Outsiderr" };
 
 export default async function AdminRevenuePage() {
   const analytics = await getRevenueAnalytics();

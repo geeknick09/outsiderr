@@ -66,7 +66,7 @@ export async function createOrganizerProfile(
   if (existing) {
     if (existing.kycStatus === "APPROVED") return existing.id;
 
-    // Server-side enforcement — the UI hides the wizard but a direct action
+    // Server-side enforcement - the UI hides the wizard but a direct action
     // call must still respect the rejection limit and in-flight statuses.
     if (existing.kycStatus === "PENDING" || existing.kycStatus === "CLARIFICATION_NEEDED") {
       throw new Error("Your organizer application is already under review.");
@@ -108,13 +108,13 @@ export async function createOrganizerProfile(
       kyc_submitted: !!(input.panNumber && input.bankAccountNumber),
       kyc_status: (input.panNumber && input.bankAccountNumber) ? "PENDING" : "NOT_SUBMITTED",
       // Fresh application clears the previous response fields (rejection_count
-      // is preserved — it feeds the block limit).
+      // is preserved - it feeds the block limit).
       kyc_response_note: null,
       kyc_response_document_url: null,
       kyc_reviewed_at: null,
     };
     // Service client: the update writes privileged KYC columns (kyc_status,
-    // kyc_reviewed_at) that the authenticated role cannot UPDATE. Safe — the
+    // kyc_reviewed_at) that the authenticated role cannot UPDATE. Safe - the
     // row was fetched under the user's own RLS, so it's guaranteed to be theirs.
     const supabase2 = createServiceClient();
     const { error } = await supabase2.from("organizers").update(resubmit).eq("id", existing.id);
@@ -123,7 +123,7 @@ export async function createOrganizerProfile(
   }
 
   const supabase = await createClient();
-  // Single atomic INSERT with all fields — KYC included — so no partial profile is
+  // Single atomic INSERT with all fields - KYC included - so no partial profile is
   // left behind if the database is missing columns from an unapplied migration.
   const organizerInsert = {
     owner_id: user.id,
@@ -139,7 +139,7 @@ export async function createOrganizerProfile(
     x_url: input.xUrl,
     facebook_url: input.facebookUrl,
     linkedin_url: input.linkedinUrl,
-    // KYC / payout fields — included here so the insert is atomic.
+    // KYC / payout fields - included here so the insert is atomic.
     // If any of these columns are missing (unapplied migration), the whole
     // INSERT fails cleanly and no orphaned partial profile is created.
     pan_number: input.panNumber || null,
@@ -167,20 +167,20 @@ export async function createOrganizerProfile(
     console.error("createOrganizerProfile insert error:", error);
     throw error;
   }
-  if (!data?.id) throw new Error("Failed to create organizer profile — no ID returned.");
+  if (!data?.id) throw new Error("Failed to create organizer profile - no ID returned.");
 
-  // Only flip is_organizer flag if KYC is approved (or no KYC needed yet —
+  // Only flip is_organizer flag if KYC is approved (or no KYC needed yet -
   // for backward compat, we still set it so existing organizers aren't locked out).
   // The dashboard will gate access behind kyc_status = APPROVED.
   // is_organizer is a privileged column (revoked from authenticated UPDATE)
-  // — write via service role after the organizer row exists.
+  // - write via service role after the organizer row exists.
   const { error: profileError } = await createServiceClient()
     .from("profiles")
     .update({ is_organizer: true })
     .eq("id", user.id);
   if (profileError) {
     console.error("Failed to set is_organizer flag:", profileError);
-    // Non-fatal — organizer profile is created, flag can be set later
+    // Non-fatal - organizer profile is created, flag can be set later
   }
 
   return data.id;
@@ -216,7 +216,7 @@ export interface UpdateOrganizerInput {
 /**
  * Updates an organizer's profile. Safe fields (name, bio, avatar, socials)
  * apply immediately. For APPROVED organizers, sensitive KYC/payout fields
- * are staged into pending_kyc and only applied after admin re-verification —
+ * are staged into pending_kyc and only applied after admin re-verification -
  * unverified payout details can never go live. Non-approved organizers keep
  * the original behaviour (direct write + submit_kyc resubmission).
  */
@@ -230,7 +230,7 @@ export async function updateOrganizerProfile(
   const supabase = await createClient();
   const approved = organizer.kycStatus === "APPROVED";
 
-  // Partial update — only fields present in the input are written, so a PATCH
+  // Partial update - only fields present in the input are written, so a PATCH
   // that omits name/upiId can't wipe them.
   const update: Database["public"]["Tables"]["organizers"]["Update"] = {};
   if (input.name !== undefined) update.name = input.name;
@@ -288,7 +288,7 @@ export async function updateOrganizerProfile(
 
   const pendingKycRequested = approved && Object.keys(nextPending).length > 0;
 
-  // Notify when the pending change-set actually changed — a plain profile
+  // Notify when the pending change-set actually changed - a plain profile
   // edit that doesn't touch sensitive fields must not spam the admin queue.
   if (
     pendingKycRequested &&
@@ -297,12 +297,12 @@ export async function updateOrganizerProfile(
     const { notifyAdmins, addKycMessage, sendNotification } = await import("../notifications");
     await notifyAdmins({
       type: "KYC_CHANGE_REQUESTED",
-      message: `Organizer "${organizer.name}" submitted KYC/payout changes — pending re-verification.`,
+      message: `Organizer "${organizer.name}" submitted KYC/payout changes - pending re-verification.`,
     });
     await sendNotification({
       userId: organizer.ownerId,
       type: "KYC_CHANGE_REQUESTED",
-      message: "Your KYC/payout changes were received and are under review — your verified details stay live meanwhile.",
+      message: "Your KYC/payout changes were received and are under review - your verified details stay live meanwhile.",
       channels: ["in-app", "email"],
     });
     await addKycMessage(
@@ -313,12 +313,12 @@ export async function updateOrganizerProfile(
     );
   }
 
-  // If KYC data was provided, transition status via the RPC — kyc_status is
+  // If KYC data was provided, transition status via the RPC - kyc_status is
   // a privileged column that only flips to PENDING through submit_kyc.
   // Approved organizers stage changes instead of re-entering the queue.
   if (!approved && input.panNumber && input.bankAccountNumber) {
     // A blocked (max-rejected) organizer must not re-enter the review queue.
-    // The RPC enforces this at DB level too — this guard gives a clean error.
+    // The RPC enforces this at DB level too - this guard gives a clean error.
     if (organizer.kycStatus === "REJECTED") {
       const accessState = getOrganizerAccessState({
         kycStatus: organizer.kycStatus,
@@ -340,7 +340,7 @@ export async function updateOrganizerProfile(
       const { notifyAdmins, addKycMessage } = await import("../notifications");
       await notifyAdmins({
         type: "KYC_SUBMITTED",
-        message: `Organizer "${organizer.name}" (re)submitted KYC details — pending review.`,
+        message: `Organizer "${organizer.name}" (re)submitted KYC details - pending review.`,
       });
       const note = input.kycResponseNote?.trim();
       await addKycMessage(

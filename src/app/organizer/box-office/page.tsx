@@ -3,11 +3,11 @@ import { createClient } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Box Office — Outsiderr" };
+export const metadata = { title: "Box Office - Outsiderr" };
 
 export default async function BoxOfficePage() {
   // Fetch all published events for the event selector.
-  // No Supabase auth required — PIN is the credential.
+  // No Supabase auth required - PIN is the credential.
   const supabase = await createClient();
   const { data: events } = await supabase
     .from("events")

@@ -12,8 +12,8 @@ const bodySchema = z.object({
 });
 
 /**
- * POST /api/v1/scanner/login — verify a scanner PIN for an event.
- * PIN-auth (no Bearer token) — the PIN is the door staff credential.
+ * POST /api/v1/scanner/login - verify a scanner PIN for an event.
+ * PIN-auth (no Bearer token) - the PIN is the door staff credential.
  * Rate-limited against brute force.
  */
 export async function POST(request: Request) {

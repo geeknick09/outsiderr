@@ -3,7 +3,7 @@ import { formatDateTime } from "@/modules/shared";
 import { createServiceClient } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Admin: Payments — Outsiderr" };
+export const metadata = { title: "Admin: Payments - Outsiderr" };
 
 function formatPaise(paise: number): string {
   return `₹${(paise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -41,7 +41,7 @@ export default async function AdminPaymentsPage() {
     recentWebhooks = webhookData ?? [];
     failedWebhooks = recentWebhooks.filter((w) => !w.processed);
 
-    // Stale RESERVED orders (older than 15 min — should have been expired by cron)
+    // Stale RESERVED orders (older than 15 min - should have been expired by cron)
     const { data: staleData } = await supabase
       .from("orders")
       .select("id, event_id, buyer_name, total_paise, reservation_expires_at")
@@ -51,7 +51,7 @@ export default async function AdminPaymentsPage() {
 
     staleReservations = staleData ?? [];
   } catch (err) {
-    // Service client may not be configured in dev — show empty state
+    // Service client may not be configured in dev - show empty state
     console.error("Admin payments page error:", err);
   }
 
@@ -108,7 +108,7 @@ export default async function AdminPaymentsPage() {
               <div key={r.id} className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm dark:border-amber-500/30 dark:bg-amber-500/10">
                 <div>
                   <p className="font-semibold">{r.buyer_name ?? "Unknown"}</p>
-                  <p className="text-xs text-muted">Expires: {r.reservation_expires_at ? formatDateTime(r.reservation_expires_at) : "—"}</p>
+                  <p className="text-xs text-muted">Expires: {r.reservation_expires_at ? formatDateTime(r.reservation_expires_at) : "-"}</p>
                 </div>
                 <p className="font-bold">{formatPaise(r.total_paise)}</p>
               </div>

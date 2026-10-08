@@ -45,7 +45,7 @@ interface RazorpayInstance {
 }
 
 /**
- * Verify action type — both order and hero boost verify actions conform to this.
+ * Verify action type - both order and hero boost verify actions conform to this.
  */
 type VerifyAction = (input: {
   razorpayOrderId: string;
@@ -54,7 +54,7 @@ type VerifyAction = (input: {
 }) => Promise<{ success: boolean; error?: string }>;
 
 /**
- * Failure action type — releases the reservation/boost.
+ * Failure action type - releases the reservation/boost.
  */
 type FailureAction = (input: { razorpayOrderId: string }) => Promise<{ success: boolean; error?: string }>;
 
@@ -63,13 +63,13 @@ interface RazorpayCheckoutProps {
   onError?: (message: string) => void;
   onCancel?: () => void;
   /**
-   * Verify action — server action that confirms the Razorpay payment.
+   * Verify action - server action that confirms the Razorpay payment.
    * Hero Boost passes verifyHeroBoostPaymentAction; orders pass verifyPaymentAction.
    * (Required: injected by the caller so this shared component stays domain-agnostic.)
    */
   verifyAction: VerifyAction;
   /**
-   * Failure action — releases the reservation/boost on payment failure/dismiss.
+   * Failure action - releases the reservation/boost on payment failure/dismiss.
    */
   failureAction: FailureAction;
   /**
@@ -80,7 +80,7 @@ interface RazorpayCheckoutProps {
   /**
    * Where to send ticket-order checkouts when client-side verify races the
    * webhook (e.g. /checkout/status?order=…&event=…). Non-order payables omit
-   * this and get a "received, confirming" message instead — never an error.
+   * this and get a "received, confirming" message instead - never an error.
    */
   statusRedirect?: string;
 }
@@ -122,7 +122,7 @@ export function RazorpayCheckout({
   const [message, setMessage] = useState<string>("");
   const openedRef = useRef(false);
 
-  // Live countdown to reservation expiry — the price + seats stay locked
+  // Live countdown to reservation expiry - the price + seats stay locked
   // until this hits zero, regardless of phase boundaries or organizer edits.
   const expiresAtMs = session.expiresAt ? new Date(session.expiresAt).getTime() : null;
   const [secondsLeft, setSecondsLeft] = useState<number | null>(
@@ -144,11 +144,11 @@ export function RazorpayCheckout({
     lockText && status !== "done" ? (
       <div className="flex items-center justify-center gap-2 rounded-xl border border-violet-neon/40 bg-violet-neon/10 px-4 py-2.5 text-xs font-semibold text-violet-neon">
         <TimerReset className="h-3.5 w-3.5" />
-        Price &amp; seats locked — expires in {lockText}
+        Price &amp; seats locked - expires in {lockText}
       </div>
     ) : null;
 
-  // Verify/failure actions are injected by the caller (see props) — this shared
+  // Verify/failure actions are injected by the caller (see props) - this shared
   // component stays domain-agnostic and never imports order/boost actions.
   const getVerifyAction = useCallback(async (): Promise<VerifyAction> => verifyAction, [verifyAction]);
   const getFailureAction = useCallback(async (): Promise<FailureAction> => failureAction, [failureAction]);
@@ -161,7 +161,7 @@ export function RazorpayCheckout({
         const fail = await getFailureAction();
         await fail({ razorpayOrderId: session.razorpayOrderId });
       } catch {
-        // best-effort — cron will also expire the reservation
+        // best-effort - cron will also expire the reservation
       }
       onError?.(reason);
     },
@@ -186,7 +186,7 @@ export function RazorpayCheckout({
 
     setStatus("idle");
 
-    // Cap the gateway checkout at the reservation expiry — retries can't
+    // Cap the gateway checkout at the reservation expiry - retries can't
     // outlive the inventory hold (a late capture lands in the auto-refund
     // path instead of silently double-holding seats).
     const secondsLeft = session.expiresAt
@@ -201,7 +201,7 @@ export function RazorpayCheckout({
       currency: session.currency,
       order_id: session.razorpayOrderId,
       name: "Outsiderr",
-      description: `${session.eventTitle} — ${session.tierName} × ${session.quantity}`,
+      description: `${session.eventTitle} - ${session.tierName} × ${session.quantity}`,
       prefill: {
         name: session.buyerName ?? "",
         email: session.buyerEmail ?? "",
@@ -231,27 +231,27 @@ export function RazorpayCheckout({
             setMessage("Payment successful! Redirecting…");
             router.push(successRedirect ?? "/tickets?success=1");
           } else if (statusRedirect) {
-            // Verify raced the webhook — never fail the reservation here.
+            // Verify raced the webhook - never fail the reservation here.
             // The status page polls + Realtime-subscribes and settles correctly.
             router.push(statusRedirect);
           } else {
-            // Non-order payable — money may still confirm via webhook; show a
+            // Non-order payable - money may still confirm via webhook; show a
             // "received, confirming" state rather than releasing the payable.
             setStatus("verifying");
-            setMessage("Payment received — confirming. It'll reflect shortly.");
+            setMessage("Payment received - confirming. It'll reflect shortly.");
           }
         } catch {
           if (statusRedirect) {
             router.push(statusRedirect);
           } else {
             setStatus("verifying");
-            setMessage("Payment received — confirming. It'll reflect shortly.");
+            setMessage("Payment received - confirming. It'll reflect shortly.");
           }
         }
       },
       modal: {
         ondismiss: () => {
-          // User closed the modal without paying — release the reservation
+          // User closed the modal without paying - release the reservation
           handleFailure("Payment cancelled. Your reservation has been released.");
           onCancel?.();
         },
@@ -262,14 +262,14 @@ export function RazorpayCheckout({
 
     const rzp = new window.Razorpay(options);
 
-    // payment.failed fires PER ATTEMPT — with retry enabled the modal stays
+    // payment.failed fires PER ATTEMPT - with retry enabled the modal stays
     // open so the user can pick another method. Only show a soft warning;
     // killing the reservation here turned successful retries into phantom
     // late-capture refunds. The reservation is released on dismiss or by TTL.
     rzp.on("payment.failed", () => {
       setStatus("idle");
       setMessage(
-        "That attempt didn't go through — pick another payment method in the popup, or close it to cancel.",
+        "That attempt didn't go through - pick another payment method in the popup, or close it to cancel.",
       );
     });
 

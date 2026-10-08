@@ -15,7 +15,7 @@ const AUTO_ROTATE_MS = 6000;
 export function HeroCarousel({ events }: { events: HeroEvent[] }) {
   const [current, setCurrent] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Touch tracking refs — no state, so swipes don't trigger re-renders
+  // Touch tracking refs - no state, so swipes don't trigger re-renders
   const touchStartX = useRef<number>(0);
   const touchStartY = useRef<number>(0);
 
@@ -49,7 +49,7 @@ export function HeroCarousel({ events }: { events: HeroEvent[] }) {
   const poster = event.bannerPosterUrl ?? event.cardPosterUrl;
   const cityLabel = CITY_LABELS[event.city as keyof typeof CITY_LABELS] ?? event.city;
 
-  // Swipe handlers — use passive touch events, no state updates during swipe
+  // Swipe handlers - use passive touch events, no state updates during swipe
   function handleTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;

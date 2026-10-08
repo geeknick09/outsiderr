@@ -1,4 +1,4 @@
-// modules/admin — client-safe public API (admin management components).
+// modules/admin - client-safe public API (admin management components).
 // Server data: ./server · Server actions: ./actions/{admin,kyc,legal-pages}
 export * from "./components/admin-event-edit-form";
 export * from "./components/admin-kyc-realtime";

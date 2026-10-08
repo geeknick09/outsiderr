@@ -42,11 +42,11 @@ export function ImageCropper({
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
-  // Lock body scroll while the cropper is open — otherwise the page behind
+  // Lock body scroll while the cropper is open - otherwise the page behind
   // scrolls under the modal, and on close the browser scrolls the upload
   // button back into view (perceived as "the screen scrolled down").
   // Lock both <html> and <body> (iOS Safari ignores body) and restore
-  // unconditionally — a stale lock leaves the page unscrollable ("half screen").
+  // unconditionally - a stale lock leaves the page unscrollable ("half screen").
   useEffect(() => {
     const htmlEl = document.documentElement;
     const prevHtml = htmlEl.style.overflow;

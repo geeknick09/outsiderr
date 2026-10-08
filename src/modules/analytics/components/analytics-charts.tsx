@@ -32,7 +32,7 @@ export function AnalyticsCharts({
 }) {
   const [exporting, setExporting] = useState(false);
 
-  // Prepare chart data — memoized to prevent re-creation on every render
+  // Prepare chart data - memoized to prevent re-creation on every render
   const signupData = useMemo(
     () => userAnalytics.dailySignups.map((d) => ({ date: formatDateShort(d.date), signups: d.count })),
     [userAnalytics.dailySignups],
@@ -73,7 +73,7 @@ export function AnalyticsCharts({
 
       doc.setFontSize(20);
       doc.setFont("helvetica", "bold");
-      doc.text("Outsiderr — Analytics Report", 14, 22);
+      doc.text("Outsiderr - Analytics Report", 14, 22);
 
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
@@ -267,7 +267,7 @@ export function AnalyticsCharts({
       </ChartCard>
 
       {/* Daily Revenue */}
-      <ChartCard title="Daily Revenue (Last 30 Days) — in ₹">
+      <ChartCard title="Daily Revenue (Last 30 Days) - in ₹">
         <ResponsiveContainer width="100%" height={280}>
           <BarChart data={revenueData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#333" />

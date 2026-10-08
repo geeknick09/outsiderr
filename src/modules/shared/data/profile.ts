@@ -84,7 +84,7 @@ export async function addInterestedTags(
 ): Promise<void> {
   if (tags.length === 0) return;
 
-  // Service client: this is a system bookkeeping write after booking — it must
+  // Service client: this is a system bookkeeping write after booking - it must
   // not silently no-op when the caller lacks a profiles row or column grants.
   const supabase = createServiceClient();
   const { data } = await supabase

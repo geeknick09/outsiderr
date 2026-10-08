@@ -61,7 +61,7 @@ export function PushSubscribe() {
         });
       }
     } catch {
-      // ignore — user may have blocked or browser unsupported
+      // ignore - user may have blocked or browser unsupported
     } finally {
       setLoading(false);
     }

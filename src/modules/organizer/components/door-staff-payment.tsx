@@ -12,7 +12,7 @@ import { Button, RazorpayCheckout, formatPaise } from "@/modules/shared";
 import type { CheckoutSession, DoorStaffOrder } from "@/modules/shared";
 
 /**
- * Door staff payment — Razorpay online checkout (UPI/card/netbanking).
+ * Door staff payment - Razorpay online checkout (UPI/card/netbanking).
  * The capture dispatcher marks the order PAID + writes the ledger row.
  */
 export function DoorStaffPaymentPanel({
@@ -95,10 +95,10 @@ export function DoorStaffPaymentPanel({
         }
       >
         <Lock className="mr-1.5 h-4 w-4" />
-        Pay online — {formatPaise(order.serviceAmountPaise)}
+        Pay online - {formatPaise(order.serviceAmountPaise)}
       </Button>
       <p className="text-center text-xs text-muted">
-        UPI, cards and netbanking via Razorpay — confirmed instantly.
+        UPI, cards and netbanking via Razorpay - confirmed instantly.
       </p>
     </div>
   );

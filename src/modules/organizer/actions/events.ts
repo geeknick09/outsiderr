@@ -219,7 +219,7 @@ export async function createEventAction(
   const pricingMode = String(formData.get("pricingMode") ?? "PAID") as PricingMode;
 
   if (draftEventId) {
-    // Only allow this path for actual drafts — guards against passing a live
+    // Only allow this path for actual drafts - guards against passing a live
     // event id to bypass publish-time validation.
     const { getEvent } = await import("@/modules/shared/server");
     const existing = await getEvent(draftEventId);
@@ -237,12 +237,12 @@ export async function createEventAction(
   }
 
   if (!title && !isDraft) return { error: "Give the event a title.", values: extractFormValues(formData) };
-  // Drafts get a fallback name — nothing else is mandatory until publish
+  // Drafts get a fallback name - nothing else is mandatory until publish
   const effectiveTitle = title || "Untitled draft";
 
   const needsDoorStaff = formData.get("needsDoorStaff") === "on";
 
-  // For drafts, only require a title — everything else can be filled in later
+  // For drafts, only require a title - everything else can be filled in later
   if (!isDraft) {
     if (!startsAt)
       return { error: "Pick a start date and time.", values: extractFormValues(formData) };
@@ -350,7 +350,7 @@ export async function createEventAction(
   const longitude = String(formData.get("longitude") ?? "").trim();
   const googleMapsLink = String(formData.get("googleMapsLink") ?? "").trim() || null;
 
-  // Validate Google Maps link if venue mode is NOW (drafts skip — fill it in before publish)
+  // Validate Google Maps link if venue mode is NOW (drafts skip - fill it in before publish)
   if (venueMode === "NOW" && !isDraft) {
     if (!googleMapsLink) {
       return {
@@ -369,7 +369,7 @@ export async function createEventAction(
 
   let eventId: string;
   try {
-    // Drafts may omit a date entirely — placeholder 30 days out so the NOT NULL
+    // Drafts may omit a date entirely - placeholder 30 days out so the NOT NULL
     // column is satisfied; the editor prefills it and publish still validates.
     const draftStartFallback = new Date(Date.now() + 30 * 86_400_000).toISOString();
 
@@ -458,7 +458,7 @@ export async function createEventAction(
     });
     }
 
-    // Publish-time side effects — only when the event goes live (or draft→live),
+    // Publish-time side effects - only when the event goes live (or draft→live),
     // never on a plain draft save (would duplicate door-staff orders per save).
     if (!isDraft) {
     // Create door staff order if requested
@@ -469,7 +469,7 @@ export async function createEventAction(
         // Price is derived server-side from door_staff_pricing settings.
         await createDoorStaffOrder(user, eventId, doorStaffCount);
       } catch {
-        // Best-effort — don't fail event creation if door staff order fails
+        // Best-effort - don't fail event creation if door staff order fails
       }
     }
 
@@ -491,7 +491,7 @@ export async function createEventAction(
         });
       }
     } catch {
-      // T&C acceptance logging is best-effort — don't fail the event creation
+      // T&C acceptance logging is best-effort - don't fail the event creation
     }
     }
   } catch (error) {
@@ -662,7 +662,7 @@ export async function updateEventAction(
 }
 
 // ---------------------------------------------------------------------------
-// Section-scoped update — each collapsible edit section saves independently.
+// Section-scoped update - each collapsible edit section saves independently.
 // Fetches current values, overlays only that section's fields, validates only
 // that section, and persists. No cross-section validation bleed.
 // ---------------------------------------------------------------------------
@@ -700,7 +700,7 @@ export async function updateEventSectionAction(
     const current = await getEvent(eventId);
     if (!current) return { error: "Event not found." };
 
-    // Build the merged base input from current values — updateEvent applies
+    // Build the merged base input from current values - updateEvent applies
     // title/description/venue/timing unconditionally, so feed it current values
     // for any field the section doesn't own.
     const base = {
@@ -886,7 +886,7 @@ export async function updateEventSectionAction(
 }
 
 // ---------------------------------------------------------------------------
-// Cancel event — stop sales, mark tickets CANCELLED, create refund records,
+// Cancel event - stop sales, mark tickets CANCELLED, create refund records,
 // notify all ticket holders. Organizer pays platform fee (non-refundable).
 // ---------------------------------------------------------------------------
 
@@ -911,7 +911,7 @@ export async function cancelEventAction(formData: FormData): Promise<void> {
   console.log(`[cancel] Hero boosts cancelled for eventId=${eventId}`);
 
   // Refund rows are created PENDING inside cancel_event (with the organizer
-  // liability ADJUSTMENT) — the refund worker pushes them to Razorpay.
+  // liability ADJUSTMENT) - the refund worker pushes them to Razorpay.
   console.log(`[cancel] cancelEventAction complete: eventId=${eventId}, refundsQueued=${result.refundCount}, organizerOwes=${result.organizerOwesPaise}paise`);
 
   revalidatePath("/");
@@ -922,7 +922,7 @@ export async function cancelEventAction(formData: FormData): Promise<void> {
 }
 
 /**
- * Publish a draft event (POST-based server action — not GET).
+ * Publish a draft event (POST-based server action - not GET).
  * Replaces the old GET-based `?action=publish` query param.
  */
 export async function publishEventAction(eventId: string): Promise<void> {
@@ -930,7 +930,7 @@ export async function publishEventAction(eventId: string): Promise<void> {
   if (!user) throw new Error("Not authenticated.");
   console.log(`[publish] publishEventAction: eventId=${eventId}, userId=${user.id}`);
 
-  // Drafts may be missing publish-required fields — gate the transition so an
+  // Drafts may be missing publish-required fields - gate the transition so an
   // incomplete draft can't go live via this shortcut. Full publishing still
   // goes through the form, which runs every publish-time validation.
   const { getEvent } = await import("@/modules/shared/server");
@@ -942,7 +942,7 @@ export async function publishEventAction(eventId: string): Promise<void> {
     if (!ev.venueName?.trim() && !ev.venueAddress?.trim()) problems.push("a venue (or mark it TBA)");
     if (!ev.tiers.length || ev.tiers.every((t) => t.quantity < 1)) problems.push("at least one ticket tier");
     if (problems.length > 0) {
-      throw new Error(`Complete the draft first — missing ${problems.join(", ")}.`);
+      throw new Error(`Complete the draft first - missing ${problems.join(", ")}.`);
     }
   }
 
@@ -956,7 +956,7 @@ export async function publishEventAction(eventId: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Postpone event — update dates, notify all ticket holders.
+// Postpone event - update dates, notify all ticket holders.
 // Users can choose to keep their ticket or request a refund.
 // ---------------------------------------------------------------------------
 
@@ -1002,7 +1002,7 @@ export async function postponeEventAction(formData: FormData): Promise<void> {
   // If the event is postponed, the expiry may need to be recalculated.
   // Eligibility query already checks expires_at > now AND event.starts_at > now,
   // so the boost will naturally be excluded if the event has started.
-  // No additional action needed — the query enforces eligibility by timestamp.
+  // No additional action needed - the query enforces eligibility by timestamp.
 
   revalidatePath("/");
   revalidateTag("events");

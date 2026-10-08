@@ -7,14 +7,14 @@ import { getOrganizerProfile } from "@/modules/shared/server";
 import { getOrganizerAccessState } from "@/modules/shared";
 import { getTermsVersion, getOrganizerPastEventsForLinking, getDraftRetentionDays } from "@/modules/shared/server";
 
-// Lazy load EventForm — it pulls in Leaflet (~140kB) via MapPicker
+// Lazy load EventForm - it pulls in Leaflet (~140kB) via MapPicker
 const EventForm = lazy(() =>
   import("@/modules/organizer").then((m) => ({ default: m.EventForm })),
 );
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Create Event — Outsiderr" };
+export const metadata = { title: "Create Event - Outsiderr" };
 
 export default async function CreateEventPage() {
   const user = await getCurrentUser();

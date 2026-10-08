@@ -32,7 +32,7 @@ export function PastEventGalleryManager({
       <section className="space-y-3">
         <h2 className="text-lg font-bold">Gallery</h2>
         <p className="glass rounded-2xl p-4 text-sm text-muted">
-          No gallery photos. This event is completed — only photo deletion is allowed.
+          No gallery photos. This event is completed - only photo deletion is allowed.
         </p>
       </section>
     );

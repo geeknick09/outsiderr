@@ -38,7 +38,7 @@ export async function requestBoostAction(input: RequestBoostInput): Promise<void
 
   await notifyAdmins({
     type: "BOOST_REQUESTED",
-    message: `Boost request: ${organizer.name} — slot ${input.slot}, ₹${Math.round(input.amountPaidPaise / 100)}${input.utrReference ? ` (UTR ${input.utrReference})` : ""}.`,
+    message: `Boost request: ${organizer.name} - slot ${input.slot}, ₹${Math.round(input.amountPaidPaise / 100)}${input.utrReference ? ` (UTR ${input.utrReference})` : ""}.`,
   });
 
   revalidatePath("/organizer/boost");
@@ -46,7 +46,7 @@ export async function requestBoostAction(input: RequestBoostInput): Promise<void
 }
 
 // ============================================================================
-// RAZORPAY: slot boost via the unified payment intent pipeline — creates the
+// RAZORPAY: slot boost via the unified payment intent pipeline - creates the
 // PENDING boost + intent in one step, then Checkout.js pays it. The dispatcher
 // activates the slot on capture.
 // ============================================================================
@@ -70,7 +70,7 @@ export async function startBoostCheckoutAction(input: {
 
   try {
     // Price is computed server-side: daily slot price × days (same formula
-    // create_payment_intent uses — the intent revalidates it at capture).
+    // create_payment_intent uses - the intent revalidates it at capture).
     const { listBoostSlotPrices } = await import("@/modules/shared/server");
     const prices = await listBoostSlotPrices();
     const dailyPaise = prices.find((p) => p.slot === input.slot)?.pricePaise;

@@ -30,12 +30,12 @@ export interface CreateReservedOrderInput {
   buyerPhone: string;
   buyerEmail: string | null;
   buyerGender: string | null;
-  /** Double-click/retry safety — replays return the same order. */
+  /** Double-click/retry safety - replays return the same order. */
   idempotencyKey?: string | null;
 }
 
 /**
- * Create a free order — auto-confirmed with tickets minted immediately.
+ * Create a free order - auto-confirmed with tickets minted immediately.
  * No UTR, no organizer verification needed.
  */
 export async function createFreeOrder(
@@ -63,7 +63,7 @@ export async function createFreeOrder(
     throw new Error("This event has started. Online booking is closed. Please buy tickets on spot at the venue.");
   }
 
-  // Per-user ticket cap (pre-check — the RPC enforces the same cap authoritatively)
+  // Per-user ticket cap (pre-check - the RPC enforces the same cap authoritatively)
   const supabase = await createClient();
   const cap = Math.min(10, Math.max(1, event.maxTicketsPerUser ?? 5));
   const { data: held } = await supabase
@@ -345,14 +345,14 @@ export async function getMyEventsToday(user: CurrentUser): Promise<
 }
 
 export async function approveOrder(orderId: string): Promise<void> {
-  // Use the security-definer RPC — it bypasses RLS entirely for ticket minting
+  // Use the security-definer RPC - it bypasses RLS entirely for ticket minting
   const supabase = await createClient();
   const { error } = await supabase.rpc("approve_order", { p_order_id: orderId });
   if (error) throw new Error(error.message);
 }
 
 export async function rejectOrder(orderId: string, reason: string): Promise<void> {
-  // Security-definer RPC — enforces is_event_staff + PENDING_VERIFICATION-only
+  // Security-definer RPC - enforces is_event_staff + PENDING_VERIFICATION-only
   const supabase = await createClient();
 
   // Get the tier_id before rejecting (for waitlist auto-offer)
@@ -371,7 +371,7 @@ export async function rejectOrder(orderId: string, reason: string): Promise<void
       const { autoOfferWaitlist } = await import("./waitlist");
       await autoOfferWaitlist(order.tier_id);
     } catch {
-      // Non-critical — don't block rejection on waitlist offer failure
+      // Non-critical - don't block rejection on waitlist offer failure
     }
   }
 }
@@ -487,7 +487,7 @@ export async function checkInTicketWithPin(qrHash: string, eventId: string, pin:
 }
 
 // ============================================================================
-// Razorpay integration — reserve, confirm, fail, expire
+// Razorpay integration - reserve, confirm, fail, expire
 // ============================================================================
 
 /**
@@ -529,7 +529,7 @@ export async function createReservedOrder(
 
   const supabase = await createClient();
 
-  // Per-user ticket cap (pre-check — the RPC enforces the same cap authoritatively)
+  // Per-user ticket cap (pre-check - the RPC enforces the same cap authoritatively)
   const cap = Math.min(10, Math.max(1, event.maxTicketsPerUser ?? 5));
   const { data: held } = await supabase
     .from("orders")
@@ -543,7 +543,7 @@ export async function createReservedOrder(
   }
 
   // Money is computed inside the RPC (subtotal/commission/convenience/gateway
-  // gross-up) — the client supplies no amounts.
+  // gross-up) - the client supplies no amounts.
   const { data, error } = await supabase.rpc("create_reserved_order", {
     p_event_id: event.id,
     p_tier_id: tier.id,
@@ -599,7 +599,7 @@ export async function confirmRazorpayOrder(
   paymentMethod: string | null,
   client?: SupabaseClient,
 ): Promise<void> {
-  // Service role: the RPC is revoked from anon/authenticated — it mints
+  // Service role: the RPC is revoked from anon/authenticated - it mints
   // tickets, so it must only run after signature/webhook verification.
   const supabase = client ?? createServiceClient();
   const { error } = await supabase.rpc("confirm_razorpay_order", {
@@ -640,7 +640,7 @@ export async function expireReservedOrders(): Promise<number> {
 /**
  * Find an order by its Razorpay order id.
  * Used by the webhook handler to locate the internal order for a Razorpay event.
- * Accepts an optional client — the webhook passes the service-role client.
+ * Accepts an optional client - the webhook passes the service-role client.
  */
 export async function findOrderByRazorpayOrderId(
   razorpayOrderId: string,

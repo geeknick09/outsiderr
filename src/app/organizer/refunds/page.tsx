@@ -8,7 +8,7 @@ import { getOrganizerProfile } from "@/modules/shared/server";
 import { createServiceClient } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Refunds — Outsiderr Organizer" };
+export const metadata = { title: "Refunds - Outsiderr Organizer" };
 
 const TONE: Record<string, "warning" | "success" | "danger" | "neutral" | "violet"> = {
   REQUESTED: "violet",
@@ -46,7 +46,7 @@ type Row = {
   orders: { invoice_number: string | null } | null;
 };
 
-/** Organizer refund dashboard — refunds against their events (view + request). */
+/** Organizer refund dashboard - refunds against their events (view + request). */
 export default async function OrganizerRefundsPage({
   searchParams,
 }: {
@@ -93,7 +93,7 @@ export default async function OrganizerRefundsPage({
         <div>
           <h1 className="text-2xl font-black tracking-tight">Refunds</h1>
           <p className="text-sm text-muted">
-            Refund requests against your events — approvals are handled by the
+            Refund requests against your events - approvals are handled by the
             Outsiderr team and pushed through automatically.
           </p>
         </div>

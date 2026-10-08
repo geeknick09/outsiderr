@@ -139,7 +139,7 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
             <ul className="space-y-1">
               {tiers.map((t) => (
                 <li key={t.id}>
-                  <strong>{t.name || "Unnamed"}</strong> — ₹{t.price || "0"} · {t.quantity} qty · {t.quantitySold} sold
+                  <strong>{t.name || "Unnamed"}</strong> - ₹{t.price || "0"} · {t.quantity} qty · {t.quantitySold} sold
                 </li>
               ))}
             </ul>
@@ -147,7 +147,7 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
         ) : (
           <>
             <div>
-              <label className="mb-1.5 block text-xs font-semibold text-muted">Max tickets per user (1–10)</label>
+              <label className="mb-1.5 block text-xs font-semibold text-muted">Max tickets per user (1-10)</label>
               <input
                 type="number"
                 min={1}
@@ -187,7 +187,7 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
                       type="button"
                       onClick={() => removeTier(tier.id)}
                       disabled={tier.quantitySold > 0}
-                      title={tier.quantitySold > 0 ? "Cannot delete — has sales" : "Remove tier"}
+                      title={tier.quantitySold > 0 ? "Cannot delete - has sales" : "Remove tier"}
                       className="self-center rounded-lg p-1 text-muted hover:text-red-500 disabled:opacity-30"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -216,7 +216,7 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
                     </div>
                   ) : null}
                   {tier.quantitySold > 0 ? (
-                    <p className="mt-1 text-[10px] text-muted">{tier.quantitySold} sold — qty can&apos;t go below that.</p>
+                    <p className="mt-1 text-[10px] text-muted">{tier.quantitySold} sold - qty can&apos;t go below that.</p>
                   ) : null}
                 </div>
               ))}

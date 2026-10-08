@@ -62,7 +62,7 @@ export function platformFee(subtotalPaise: number, feeBps: number): number {
  */
 export const DEFAULT_COMMISSION_BPS = 1000;  // 10%
 export const DEFAULT_CONVENIENCE_FEE_BPS = 200;  // 2%
-/** Razorpay card/UPI blended rate — bundled into the buyer's fee line. */
+/** Razorpay card/UPI blended rate - bundled into the buyer's fee line. */
 export const DEFAULT_GATEWAY_FEE_BPS = 236;  // 2.36%
 
 export interface EventFeeConfig {
@@ -70,7 +70,7 @@ export interface EventFeeConfig {
   commissionEnabled: boolean;
   convenienceFeeBps: number;
   convenienceFeeEnabled: boolean;
-  /** Gateway fee bps — defaults to DEFAULT_GATEWAY_FEE_BPS. */
+  /** Gateway fee bps - defaults to DEFAULT_GATEWAY_FEE_BPS. */
   gatewayFeeBps?: number;
 }
 
@@ -78,7 +78,7 @@ export interface EventFeeConfig {
  * Gateway fee gross-up: the fee is applied to the *collected* total
  * (subtotal + convenience + gateway itself), so solving for the fee on the
  * base alone needs the 10000−bps denominator. Same formula as the
- * create_reserved_order RPC — keep them in lockstep.
+ * create_reserved_order RPC - keep them in lockstep.
  */
 export function gatewayFeePaise(
   subtotalPaise: number,
@@ -94,7 +94,7 @@ export function buyerFeePaise(breakdown: PriceBreakdown): number {
   return breakdown.convenienceFeePaise + breakdown.gatewayFeePaise;
 }
 
-/** Refund basis — BMS model refunds ticket price; FULL covers everything. */
+/** Refund basis - BMS model refunds ticket price; FULL covers everything. */
 export function refundableAmountPaise(
   breakdown: PriceBreakdown,
   scope: "TICKET_PRICE" | "FULL",
@@ -146,7 +146,7 @@ export function calculatePrice(
     const convenienceFeePaise = feeConfig.convenienceFeeEnabled
       ? platformFee(subtotalPaise, feeConfig.convenienceFeeBps)
       : 0;
-    // Gateway fee is bundled into the convenience-fee line — it only applies
+    // Gateway fee is bundled into the convenience-fee line - it only applies
     // when convenience fees apply (box-office cash orders have neither).
     const gatewayPaise = feeConfig.convenienceFeeEnabled
       ? gatewayFeePaise(subtotalPaise, convenienceFeePaise, feeConfig.gatewayFeeBps)
@@ -171,7 +171,7 @@ export function calculatePrice(
     };
   }
 
-  // Legacy model: tiered fee with feePayer (no gateway fee — pre-Razorpay).
+  // Legacy model: tiered fee with feePayer (no gateway fee - pre-Razorpay).
   const effectiveFeeBps = feeBps ?? getFeeBpsForPrice(unitPricePaise);
   const platformFeePaise = platformFee(subtotalPaise, effectiveFeeBps);
 

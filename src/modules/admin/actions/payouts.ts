@@ -43,7 +43,7 @@ async function writePayoutLedger(
     event_id: eventId ?? null,
     organizer_id: organizerId,
     type: "PAYOUT",
-    // Money leaving — negative so Σ net_organizer = organizer's live balance.
+    // Money leaving - negative so Σ net_organizer = organizer's live balance.
     gross_amount_paise: -amountPaise,
     commission_paise: 0,
     convenience_fee_paise: 0,
@@ -51,13 +51,13 @@ async function writePayoutLedger(
     net_organizer_paise: -amountPaise,
     net_platform_paise: 0,
     razorpay_payment_id: null,
-    notes: `Payout ${payoutId.slice(0, 8)} via ${method ?? "manual"}${bankRef ? ` — ${bankRef}` : ""}`,
+    notes: `Payout ${payoutId.slice(0, 8)} via ${method ?? "manual"}${bankRef ? ` - ${bankRef}` : ""}`,
     created_at: new Date().toISOString(),
   });
   if (error) logger.error({ payoutId, error: error.message }, "payout ledger insert failed");
 }
 
-/** Admin: schedule a payout (PENDING — money not yet sent). */
+/** Admin: schedule a payout (PENDING - money not yet sent). */
 export async function adminCreatePayoutAction(
   organizerId: string,
   amountPaise: number,
@@ -87,7 +87,7 @@ export async function adminCreatePayoutAction(
   return { success: true, id: data?.id };
 }
 
-/** Admin: transition a payout — PENDING → PROCESSING → COMPLETED/FAILED. */
+/** Admin: transition a payout - PENDING → PROCESSING → COMPLETED/FAILED. */
 export async function adminUpdatePayoutStatusAction(
   payoutId: string,
   next: PayoutStatus,

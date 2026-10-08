@@ -32,7 +32,7 @@ export function UserAnalyticsExport({
       // Title
       doc.setFontSize(20);
       doc.setFont("helvetica", "bold");
-      doc.text("Outsiderr — User Analytics Report", 14, 22);
+      doc.text("Outsiderr - User Analytics Report", 14, 22);
 
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
@@ -98,8 +98,8 @@ export function UserAnalyticsExport({
         startY: 26,
         head: [["Name", "Phone", "Organizer", "Admin", "Joined"]],
         body: users.map((u) => [
-          u.fullName ?? "—",
-          u.phone ?? "—",
+          u.fullName ?? "-",
+          u.phone ?? "-",
           u.isOrganizer ? "Yes" : "No",
           u.isAdmin ? "Yes" : "No",
           u.createdAt.slice(0, 10),

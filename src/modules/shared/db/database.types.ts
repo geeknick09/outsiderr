@@ -596,7 +596,7 @@ export type Database = {
       event_collaborators: Table<EventCollaboratorRow, "event_id" | "organizer_id" | "invited_by">;
     };
     Views: {
-      /** Sanitized public organizer projection — no PAN/bank/KYC columns. */
+      /** Sanitized public organizer projection - no PAN/bank/KYC columns. */
       organizers_public: {
         Row: {
           id: string;

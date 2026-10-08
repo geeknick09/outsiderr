@@ -8,7 +8,7 @@ import { formatDateTime } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Admin: Users — Outsiderr" };
+export const metadata = { title: "Admin: Users - Outsiderr" };
 
 export default async function AdminUsersPage({
   searchParams,
@@ -74,7 +74,7 @@ export default async function AdminUsersPage({
         {pageUsers.map((user) => (
           <div key={user.id} className="glass flex flex-wrap items-center gap-3 rounded-3xl p-4">
             <div className="min-w-0 flex-1">
-              <p className="font-semibold">{user.fullName ?? "—"}</p>
+              <p className="font-semibold">{user.fullName ?? "-"}</p>
               <p className="text-xs text-muted">
                 {user.phone ?? "no phone"} · Joined {formatDateTime(user.createdAt)}
               </p>

@@ -2,7 +2,7 @@ export type EventCategory =
   | "CYPHER_BATTLE"
   | "SKATE_STUNT"
   | "FITNESS"
-  | "JAM_GIG" // legacy — removed from chips; kept so existing events/profiles typecheck
+  | "JAM_GIG" // legacy - removed from chips; kept so existing events/profiles typecheck
   | "WORKSHOP"
   | "HIP_HOP_PARTY"
   | "TECHNO_RAVE"
@@ -26,10 +26,10 @@ export type EventStatus =
   | "POSTPONED";
 
 export type RefundStatus =
-  | "REQUESTED"       // organizer/admin requested — awaiting admin review
-  | "PENDING"         // approved — queued for the refund worker
-  | "INITIATING"      // worker claimed — calling Razorpay
-  | "INITIATED"       // Razorpay accepted — awaiting gateway callback
+  | "REQUESTED"       // organizer/admin requested - awaiting admin review
+  | "PENDING"         // approved - queued for the refund worker
+  | "INITIATING"      // worker claimed - calling Razorpay
+  | "INITIATED"       // Razorpay accepted - awaiting gateway callback
   | "COMPLETED"
   | "FAILED"
   | "REJECTED"        // admin rejected the request
@@ -177,7 +177,7 @@ export interface EventSummary {
   pricingMode: PricingMode;
   totalCapacity?: number;
   ticketsSold?: number;
-  /** Organizer-set per-account ticket cap for this event (1–10). */
+  /** Organizer-set per-account ticket cap for this event (1-10). */
   maxTicketsPerUser?: number;
 }
 
@@ -416,7 +416,7 @@ export interface AdminEvent {
   commissionEnabled: boolean;
   convenienceFeeBps: number;
   convenienceFeeEnabled: boolean;
-  /** Confirmed-order aggregates — for admin sorting/reporting. */
+  /** Confirmed-order aggregates - for admin sorting/reporting. */
   totalCommissionPaise?: number;
   totalConvenienceFeePaise?: number;
 }
@@ -573,8 +573,8 @@ export interface CheckoutSession {
   buyerName: string | null;
   buyerEmail: string | null;
   buyerPhone: string | null;
-  /** payment_intents.id — ties the modal to the dispatcher. */
+  /** payment_intents.id - ties the modal to the dispatcher. */
   intentId?: string | null;
-  /** Reservation expiry — Razorpay checkout/retry can't outlast this. */
+  /** Reservation expiry - Razorpay checkout/retry can't outlast this. */
   expiresAt?: string | null;
 }

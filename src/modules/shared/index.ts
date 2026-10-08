@@ -1,10 +1,10 @@
 /**
- * modules/shared — CLIENT-SAFE public API.
+ * modules/shared - CLIENT-SAFE public API.
  *
  * Re-exports only modules that are safe to import from client components:
  * presentational/client components, types, constants, pure helpers, hooks.
  * Anything server-only (data access, server auth, logger, node SDKs) lives in
- * `./server.ts` — import it via `@/modules/shared/server`.
+ * `./server.ts` - import it via `@/modules/shared/server`.
  *
  * Server component(s) that fetch (e.g. Navbar) are exported from `server.ts`.
  */
@@ -35,7 +35,7 @@ export * from "./lib/upload";
 export { createClient } from "./auth/client";
 export * from "./auth/config";
 
-// ---- portable /api/v1 client (pure TS — future packages/api-client) ----
+// ---- portable /api/v1 client (pure TS - future packages/api-client) ----
 export * from "./api/client";
 
 // ---- hooks ----
@@ -57,7 +57,7 @@ export * from "./ui/ui/skeleton";
 export * from "./ui/ui/submit-button";
 export * from "./ui/ui/whatsapp-icon";
 
-// ---- layout (presentational / client) — Navbar is server, see server.ts ----
+// ---- layout (presentational / client) - Navbar is server, see server.ts ----
 export * from "./ui/layout/footer";
 export * from "./ui/layout/location-selector";
 export * from "./ui/layout/notification-bell";

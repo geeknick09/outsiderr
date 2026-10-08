@@ -1,5 +1,5 @@
-// modules/admin — admin nav items shared by the desktop sidebar (server layout)
-// and the mobile drawer (client component). Plain module — no "use client" —
+// modules/admin - admin nav items shared by the desktop sidebar (server layout)
+// and the mobile drawer (client component). Plain module - no "use client" -
 // so both server and client consumers can import it. Icons are lucide components.
 import {
   BarChart2, BellRing, CalendarDays, Users, Zap, Settings, FileText,

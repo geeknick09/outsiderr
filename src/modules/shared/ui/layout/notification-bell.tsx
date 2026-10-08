@@ -38,7 +38,7 @@ const TYPE_LABELS: Record<string, string> = {
   HERO_BOOST: "Boost Update",
 };
 
-/** Where each notification type actually belongs — the actionable screen. */
+/** Where each notification type actually belongs - the actionable screen. */
 function notificationHref(n: UserNotification): string {
   const eventPage = n.eventId ? `/events/${n.eventId}` : "/";
   switch (n.type) {
@@ -83,7 +83,7 @@ function notificationHref(n: UserNotification): string {
     case "KYC_CLARIFICATION":
     case "HERO_BOOST":
       return "/organizer";
-    // Discovery — the event page itself
+    // Discovery - the event page itself
     case "WAITLIST_OFFER":
     case "TICKETS_AVAILABLE":
     case "EVENT_UPDATE":
@@ -135,7 +135,7 @@ export function NotificationBell({
   const [confirmClear, setConfirmClear] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Refetch page 0 when the dropdown opens — covers realtime misses (dropped
+  // Refetch page 0 when the dropdown opens - covers realtime misses (dropped
   // socket, backgrounded tab) so a delivered notification is never invisible.
   useEffect(() => {
     if (!open) return;

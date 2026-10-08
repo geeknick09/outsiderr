@@ -25,7 +25,7 @@ export function NavigationProgress() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
-  // Full-screen branded overlay — only appears when a navigation outlives a
+  // Full-screen branded overlay - only appears when a navigation outlives a
   // short threshold, so instant/prefetched hops never flash it.
   const [showOverlay, setShowOverlay] = useState(false);
   // Store timer refs so we can cancel stale ones
@@ -35,7 +35,7 @@ export function NavigationProgress() {
   const overlayTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevPath = useRef(pathname + searchParams.toString());
 
-  // Disable browser scroll restoration — it fights with Next.js and causes
+  // Disable browser scroll restoration - it fights with Next.js and causes
   // the page to jump to a stale scroll position after server actions / redirects.
   // scrollTo(0,0) on mount corrects the position the browser restores before
   // hydration finishes (hard reload lands mid-page otherwise).
@@ -76,7 +76,7 @@ export function NavigationProgress() {
     const currentPath = pathname + searchParams.toString();
     if (currentPath === prevPath.current) return;
     prevPath.current = currentPath;
-    // Navigation completed — finish the bar + scroll to top.
+    // Navigation completed - finish the bar + scroll to top.
     // Retry over ~800ms: images/layout settling or a late browser scroll
     // restore can land the page mid-way; a single early scrollTo loses.
     finishProgress();
@@ -91,7 +91,7 @@ export function NavigationProgress() {
     };
   }, [finishProgress, pathname, searchParams]);
 
-  // Start on internal link clicks — the old version only reacted AFTER the
+  // Start on internal link clicks - the old version only reacted AFTER the
   // route changed, so slow server renders showed nothing while fetching.
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -108,7 +108,7 @@ export function NavigationProgress() {
       }
       if (url.origin !== location.origin) return;
       // Same-page navigations (incl. searchParams-only like ?tab=) DO trigger
-      // a server render — start the bar for any URL that differs, even a tab.
+      // a server render - start the bar for any URL that differs, even a tab.
       const current = location.pathname + location.search;
       const next = url.pathname + url.search;
       if (current === next) return;
@@ -168,7 +168,7 @@ export function NavigationProgress() {
         />
       </div>
 
-      {/* Center-screen branded loader for navigations that outlive ~150ms —
+      {/* Center-screen branded loader for navigations that outlive ~150ms -
           the moment a route swap lands, this unmounts with the tree. */}
       {showOverlay ? (
         <div className="pointer-events-none fixed inset-0 z-[9998] flex items-center justify-center bg-white/60 backdrop-blur-sm dark:bg-[#0a0a0e]/60">

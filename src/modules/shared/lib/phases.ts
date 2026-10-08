@@ -8,7 +8,7 @@ import type { TicketTier } from "./types";
  *
  * RULES:
  *   - Phase 1 opens at its own phase_opens_at (or immediately if not set).
- *   - Phase N (N > 1) opens when the previous phase ENDS — regardless of
+ *   - Phase N (N > 1) opens when the previous phase ENDS - regardless of
  *     its own phase_opens_at. The opens_at for phases 2+ is a planned/
  *     display time only.
  *   - A phase ENDS when EITHER:
@@ -43,7 +43,7 @@ export function computePhaseAvailability(
 
   const nowMs = now.getTime();
   let carryForward = 0; // What is carried INTO the current phase
-  // For phase 1, there's no previous phase to wait for — it's "ready"
+  // For phase 1, there's no previous phase to wait for - it's "ready"
   let prevPhaseEnded = true;
 
   const results = phases.map((tier, index) => {
@@ -57,7 +57,7 @@ export function computePhaseAvailability(
       : nextOpensAt;
 
     const effectiveQuantity = tier.quantity + carryForward;
-    // Account for reserved tickets — they are held and not available for new bookings
+    // Account for reserved tickets - they are held and not available for new bookings
     const effectiveAvailable = effectiveQuantity - tier.quantitySold - (tier.quantityReserved ?? 0);
     const isSoldOut = effectiveAvailable <= 0;
     const isTimeOver = closesAt !== null && nowMs >= closesAt;

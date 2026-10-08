@@ -193,7 +193,7 @@ export async function requestClarificationAction(organizerId: string, note: stri
 }
 
 /**
- * Approve staged KYC/payout changes on an APPROVED organizer — applies the
+ * Approve staged KYC/payout changes on an APPROVED organizer - applies the
  * pending_kyc values to the real columns and clears the stage. The organizer
  * stays approved throughout; only the new data was gated.
  */
@@ -249,7 +249,7 @@ export async function approveKycChangeAction(organizerId: string): Promise<KycRe
 }
 
 /**
- * Reject staged KYC/payout changes — clears pending_kyc so the previously
+ * Reject staged KYC/payout changes - clears pending_kyc so the previously
  * verified details remain authoritative. Organizer is told why and directed
  * to re-edit or contact support.
  */
@@ -292,7 +292,7 @@ export async function rejectKycChangeAction(organizerId: string, note: string): 
       {
         userId: org.owner_id,
         type: "KYC_REJECTED",
-        message: `Your requested KYC/payout changes were not approved. Reason: ${note.trim()}. Your previously verified details remain active — you can edit again or contact Outsiderr support.`,
+        message: `Your requested KYC/payout changes were not approved. Reason: ${note.trim()}. Your previously verified details remain active - you can edit again or contact Outsiderr support.`,
         channels: ["in-app", "email"],
       },
       supabase,

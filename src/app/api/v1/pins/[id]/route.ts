@@ -13,7 +13,7 @@ const bodySchema = z.object({
 });
 
 /**
- * DELETE /api/v1/pins/[id] — revoke a PIN (body: { eventId, type }).
+ * DELETE /api/v1/pins/[id] - revoke a PIN (body: { eventId, type }).
  * Auth: Bearer <supabase-access-token> (event owner)
  */
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {

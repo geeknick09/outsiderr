@@ -41,7 +41,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const event = await getEvent((await params).id);
   return {
-    title: event ? `${event.title} — Outsiderr` : "Event — Outsiderr",
+    title: event ? `${event.title} - Outsiderr` : "Event - Outsiderr",
     description: event?.description.slice(0, 160),
   };
 }
@@ -77,7 +77,7 @@ export default async function EventDetailsPage({
 
   // Waitlist data for sold-out tiers (passed to TicketTiers so it can show
   // "On waitlist" state and waitlist counts)
-  // Account for reserved tickets too — a tier with only reserved tickets left is effectively sold out
+  // Account for reserved tickets too - a tier with only reserved tickets left is effectively sold out
   // Only fetch waitlist data if the organizer has enabled waitlist for this event
   const soldOutTiers = event.tiers.filter(
     (t) => t.quantity - t.quantitySold - (t.quantityReserved ?? 0) <= 0,
@@ -101,7 +101,7 @@ export default async function EventDetailsPage({
   const endMs = event.endsAt ? new Date(event.endsAt).getTime() : startMs;
   const eventEnded = endMs <= nowMs;
 
-  // Tickets this user already holds — drives the per-user cap in TicketTiers.
+  // Tickets this user already holds - drives the per-user cap in TicketTiers.
   let ticketsHeld = 0;
   if (user) {
     const supabase = await createClient();
@@ -540,7 +540,7 @@ export default async function EventDetailsPage({
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
           <TicketTiers event={event} waitlistData={waitlistData} waitlistEnabled={event.waitlistEnabled} ticketsHeld={ticketsHeld} />
 
-          {/* Update Me button — only for logged-in non-ticket-holders */}
+          {/* Update Me button - only for logged-in non-ticket-holders */}
           {user && !eventEnded ? <UpdateMeButton eventId={event.id} isSubscribed={isSubscribed} /> : null}
 
           <p className="px-2 text-center text-xs text-muted">

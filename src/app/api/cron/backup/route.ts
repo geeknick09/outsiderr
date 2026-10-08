@@ -5,7 +5,7 @@ import { runBackup } from "@/modules/shared/server";
 import { getCronEnvironmentError } from "@/modules/shared/server";
 import { logger } from "@/modules/shared/server";
 
-// Must run on Node.js (not Edge) — needs zlib for gzip
+// Must run on Node.js (not Edge) - needs zlib for gzip
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 // Backups can take a while on large databases
@@ -15,8 +15,8 @@ export const maxDuration = 300; // 5 minutes
  * Cron endpoint to run a database backup.
  *
  * Called by Vercel Cron (or external scheduler) with:
- *   GET /api/cron/backup?type=daily   — daily backup (keep last 7)
- *   GET /api/cron/backup?type=weekly  — weekly backup (keep last 4)
+ *   GET /api/cron/backup?type=daily   - daily backup (keep last 7)
+ *   GET /api/cron/backup?type=weekly  - weekly backup (keep last 4)
  *
  * Security: verifies CRON_SECRET header to prevent unauthorized calls.
  * Uses timing-safe comparison to prevent timing attacks.

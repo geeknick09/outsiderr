@@ -190,9 +190,9 @@ export async function adminUpdateEventFeesAction(
       .eq("id", eventId)
       .maybeSingle();
 
-    // Lock fees once the event has started/completed — view-only from then on.
+    // Lock fees once the event has started/completed - view-only from then on.
     if (current?.starts_at && new Date(current.starts_at).getTime() <= Date.now()) {
-      return { error: "Event has already started — fees are locked." };
+      return { error: "Event has already started - fees are locked." };
     }
 
     // Build update object
@@ -220,7 +220,7 @@ export async function adminUpdateEventFeesAction(
       return { error: null };
     }
 
-    // Update the event — service role: `events` has no admin UPDATE policy,
+    // Update the event - service role: `events` has no admin UPDATE policy,
     // so a user-context write is silently RLS-blocked (0 rows, no error),
     // which made saved fees "revert to default". Fee columns are also
     // privileged-grant only; service role writes after requireAdmin() above.
@@ -289,7 +289,7 @@ export async function adminInitiateRefundAction(
 
   const refundReason = reason?.trim() ?? "";
   if (refundReason.length < 10) {
-    return { success: false, error: "Give a reason (at least 10 characters) — the buyer sees it." };
+    return { success: false, error: "Give a reason (at least 10 characters) - the buyer sees it." };
   }
 
   try {
@@ -353,7 +353,7 @@ export async function adminRecordPayoutAction(
     return { success: false, error: error.message };
   }
 
-  // Ledger entry — money OUT, so net_organizer is negative: Σ net_organizer
+  // Ledger entry - money OUT, so net_organizer is negative: Σ net_organizer
   // stays the organizer's live receivable.
   await service.from("payment_ledger").insert({
     order_id: null,
@@ -365,7 +365,7 @@ export async function adminRecordPayoutAction(
     convenience_fee_paise: 0,
     net_organizer_paise: -amountPaise,
     net_platform_paise: 0,
-    notes: `Payout ${data?.id?.slice(0, 8)} via ${method ?? "manual"} — ${bankReference.trim()}${notes ? ` — ${notes}` : ""}`,
+    notes: `Payout ${data?.id?.slice(0, 8)} via ${method ?? "manual"} - ${bankReference.trim()}${notes ? ` - ${notes}` : ""}`,
     created_at: new Date().toISOString(),
   });
 
@@ -381,7 +381,7 @@ export async function adminRecordPayoutAction(
   return { success: true };
 }
 
-// Numeric settings with a floor — mirrors the `min` attributes in
+// Numeric settings with a floor - mirrors the `min` attributes in
 // AdminSettingsPanel but enforced server-side (client input is bypassable).
 const SETTING_MINIMUMS: Record<string, number> = {
   commission_tier1_max_paise: 0,

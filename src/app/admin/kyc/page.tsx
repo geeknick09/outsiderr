@@ -5,7 +5,7 @@ import { AdminKycRealtimeRefresher } from "@/modules/admin";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Admin: KYC Review — Outsiderr" };
+export const metadata = { title: "Admin: KYC Review - Outsiderr" };
 
 export default async function AdminKycPage({
   searchParams,

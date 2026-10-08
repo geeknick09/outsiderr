@@ -18,7 +18,7 @@ export function ShareEventButton({
         await navigator.share({ title, url });
         return;
       } catch {
-        // User cancelled share or browser denied — fall through to clipboard
+        // User cancelled share or browser denied - fall through to clipboard
       }
     }
     await navigator.clipboard.writeText(url);

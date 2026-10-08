@@ -103,7 +103,7 @@ export function CancelPostponeButtons({
                     <li>You must refund all ticket buyers the full ticket amount.</li>
                     <li>
                       The <strong>platform fee (5%)</strong> on all confirmed orders is
-                      non-refundable to you — you must pay the total platform fee.
+                      non-refundable to you - you must pay the total platform fee.
                     </li>
                     <li>
                       <strong>Cancellation charge: {cancellationChargePercent}%</strong> of total

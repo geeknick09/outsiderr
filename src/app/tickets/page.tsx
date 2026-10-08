@@ -10,7 +10,7 @@ import { getReviewableEvents } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "My Tickets — Outsiderr" };
+export const metadata = { title: "My Tickets - Outsiderr" };
 
 export default async function TicketsPage({
   searchParams,

@@ -107,7 +107,7 @@ export function ScannerPinManager({
         <h3 className="text-lg font-bold">Door Scanner PINs</h3>
       </div>
       <p className="text-sm text-muted">
-        Generate 6-digit PINs for door staff. Staff enter the PIN at <span className="font-mono text-violet-neon">/scan</span> — no account needed. Each scan logs the staff member name.
+        Generate 6-digit PINs for door staff. Staff enter the PIN at <span className="font-mono text-violet-neon">/scan</span> - no account needed. Each scan logs the staff member name.
       </p>
 
       {/* Mode selector */}
@@ -252,7 +252,7 @@ export function ScannerPinManager({
       {/* Generated PINs (show after generation) */}
       {generatedPins && generatedPins.length > 0 ? (
         <div className="rounded-2xl border border-lime-neon/30 bg-lime-neon/5 p-4">
-          <p className="mb-2 text-sm font-bold text-lime-neon">Generated PINs — share with door staff:</p>
+          <p className="mb-2 text-sm font-bold text-lime-neon">Generated PINs - share with door staff:</p>
           <div className="space-y-1">
             {generatedPins.map((p, i) => (
               <div key={i} className="flex items-center justify-between rounded-lg bg-white/50 px-3 py-1.5 dark:bg-white/5">

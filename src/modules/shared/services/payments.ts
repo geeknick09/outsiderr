@@ -53,7 +53,7 @@ export interface StartPaymentResult {
  * TICKET_ORDER), creates the Razorpay order server-side, attaches it, and
  * returns everything the client needs to open Checkout.js.
  *
- * Money is always computed in the DB — the client never supplies amounts.
+ * Money is always computed in the DB - the client never supplies amounts.
  */
 export async function startPayment(
   user: CurrentUser,
@@ -113,10 +113,10 @@ export async function startPayment(
 
   if (intent.status !== "CREATED") {
     if (intent.status === "PAID") return { error: "This payment was already completed." };
-    return { error: `This payment is ${intent.status.toLowerCase()} — start a new one.` };
+    return { error: `This payment is ${intent.status.toLowerCase()} - start a new one.` };
   }
   if (new Date(intent.expiresAt).getTime() <= Date.now()) {
-    return { error: "This payment window has expired — start a new one." };
+    return { error: "This payment window has expired - start a new one." };
   }
 
   // Create the Razorpay order; failure → mark the intent/order failed.
@@ -141,7 +141,7 @@ export async function startPayment(
       try {
         await failRazorpayOrder(orderIdForFail);
       } catch {
-        // best-effort — expiry cron cleans up too
+        // best-effort - expiry cron cleans up too
       }
     }
     return {
@@ -197,7 +197,7 @@ export async function startPayment(
 /**
  * Verify a client-side Razorpay callback: signature + ownership + amount +
  * currency, then dispatch through apply_captured_payment (idempotent vs the
- * webhook — whichever lands first does the work).
+ * webhook - whichever lands first does the work).
  */
 export async function verifyPayment(
   user: CurrentUser,
@@ -241,7 +241,7 @@ export async function verifyPayment(
     }
   }
 
-  // Amount/currency/method/fee come from Razorpay — never from the client.
+  // Amount/currency/method/fee come from Razorpay - never from the client.
   let amountPaise: number | null = null;
   let currency = "INR";
   let method = input.paymentMethod ?? null;
@@ -255,7 +255,7 @@ export async function verifyPayment(
     feePaise = (payment.fee as number) ?? null;
     taxPaise = (payment.tax as number) ?? null;
   } catch (error) {
-    logger.warn({ err: String(error), paymentId: input.razorpayPaymentId }, "razorpay payment fetch failed — falling back to intent amount");
+    logger.warn({ err: String(error), paymentId: input.razorpayPaymentId }, "razorpay payment fetch failed - falling back to intent amount");
     amountPaise = intent?.amountPaise ?? null;
   }
   if (amountPaise == null) {
@@ -274,7 +274,7 @@ export async function verifyPayment(
   });
 
   if (outcome === "MISMATCH") {
-    return { success: false, error: "Payment amount mismatch — contact support." };
+    return { success: false, error: "Payment amount mismatch - contact support." };
   }
   if (outcome === "NOT_FOUND") {
     return { success: false, error: "Order not found for this payment." };
@@ -290,7 +290,7 @@ export async function verifyPayment(
 /**
  * Client-reported dismissal/cancel → terminal release of the reservation.
  * apply_failed_payment is for per-attempt webhook events (non-terminal);
- * user abandonment is terminal — seats go back immediately, not on cron.
+ * user abandonment is terminal - seats go back immediately, not on cron.
  */
 export async function reportPaymentFailure(
   user: CurrentUser,

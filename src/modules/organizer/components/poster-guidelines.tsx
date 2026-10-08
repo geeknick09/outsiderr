@@ -38,7 +38,7 @@ export function PosterGuidelines() {
           <section>
             <h3 className="flex items-center gap-2 text-sm font-bold">
               <Smartphone className="h-4 w-4 text-violet-neon" />
-              Card Poster — Mobile & Event Cards
+              Card Poster - Mobile & Event Cards
             </h3>
             <p className="mt-1 text-xs text-muted">
               This is the first thing people see. Make it count.
@@ -67,7 +67,7 @@ export function PosterGuidelines() {
             </div>
             <p className="mt-2 text-xs text-muted">
               <strong>Safe area:</strong> Keep key elements centred. We may crop
-              to a square on some screens — don&apos;t put important details near
+              to a square on some screens - don&apos;t put important details near
               the edges.
             </p>
           </section>
@@ -75,7 +75,7 @@ export function PosterGuidelines() {
           <section>
             <h3 className="flex items-center gap-2 text-sm font-bold">
               <Monitor className="h-4 w-4 text-violet-neon" />
-              Banner Poster — Laptop / Tablet / Desktop
+              Banner Poster - Laptop / Tablet / Desktop
             </h3>
             <p className="mt-1 text-xs text-muted">
               Shown on the event page and featured carousels on larger screens.
@@ -104,13 +104,13 @@ export function PosterGuidelines() {
             </div>
             <p className="mt-2 text-xs text-muted">
               <strong>Safe area:</strong> Centre key elements. On very wide
-              screens the banner may be cropped — avoid placing text near the
+              screens the banner may be cropped - avoid placing text near the
               far left or right edges.
             </p>
           </section>
 
           <section>
-            <h3 className="text-sm font-bold">Image Quality — Do&apos;s & Don&apos;ts</h3>
+            <h3 className="text-sm font-bold">Image Quality - Do&apos;s & Don&apos;ts</h3>
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-3 dark:border-emerald-500/20 dark:bg-emerald-500/5">
                 <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">✓ Do</p>
@@ -146,14 +146,14 @@ export function PosterGuidelines() {
             </h3>
             <p className="mt-1 text-xs text-muted">
               Write a detailed, engaging description that highlights what makes
-              your event unique. Keep it concise — around 200 words, one screen
+              your event unique. Keep it concise - around 200 words, one screen
               scroll on mobile.
             </p>
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-3 dark:border-emerald-500/20 dark:bg-emerald-500/5">
                 <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400">✓ Do include</p>
                 <ul className="mt-2 space-y-1 text-xs text-muted">
-                  <li>Event overview — what is it?</li>
+                  <li>Event overview - what is it?</li>
                   <li>Highlights & experiences</li>
                   <li>Activities & engagement</li>
                   <li>Lineup, performers, or instructors</li>

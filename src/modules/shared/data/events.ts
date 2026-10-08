@@ -28,7 +28,7 @@ export interface EventQuery {
 }
 
 // Accepts either the full organizers row or the sanitized organizers_public
-// view row — toOrganizer only reads the shared (safe) columns.
+// view row - toOrganizer only reads the shared (safe) columns.
 type PublicOrganizerRow = Pick<
   OrganizerRow,
   | "id" | "owner_id" | "name" | "bio" | "description" | "avatar_url"
@@ -151,14 +151,14 @@ export async function listEvents(query: EventQuery = {}): Promise<EventSummary[]
     .order("starts_at", { ascending: true });
 
   if (query.city) request = request.eq("city", query.city);
-  // Filter by categories array (contains) — supports multi-category events
+  // Filter by categories array (contains) - supports multi-category events
   if (query.category) request = request.contains("categories", [query.category]);
   if (search) {
-    // Strip PostgREST .or() metacharacters (,%()_.") and wildcards — a bare
+    // Strip PostgREST .or() metacharacters (,%()_.") and wildcards - a bare
     // '%)' or 'x,y' in the input would otherwise corrupt the filter → error.
     const safe = sanitizeSearchTerm(search);
     if (safe) {
-      // Organizer names live on a related table — resolve matching organizer
+      // Organizer names live on a related table - resolve matching organizer
       // ids first, then include them in the OR filter.
       const { data: orgRows } = await supabase
         .from("organizers_public")
@@ -181,7 +181,7 @@ export async function listEvents(query: EventQuery = {}): Promise<EventSummary[]
   const { data: events, error } = await request;
   if (error) {
     console.error("[listEvents] Supabase error:", JSON.stringify(error));
-    // 22P02 = invalid input value for enum — DB enum out of sync; return empty
+    // 22P02 = invalid input value for enum - DB enum out of sync; return empty
     if ((error as { code?: string }).code === "22P02") return [];
     throw error;
   }
@@ -359,7 +359,7 @@ export async function cleanupExpiredTeasers(): Promise<number> {
 
 /**
  * Permanently delete draft events older than `draft_retention_days` (default
- * 60, admin-configurable) measured from created_at — organizers were warned at
+ * 60, admin-configurable) measured from created_at - organizers were warned at
  * save time. Removes the row (children cascade) AND every uploaded media file
  * (card/banner posters, teaser video, gallery photos) that lives in our bucket.
  */
@@ -405,7 +405,7 @@ export async function purgeOldDraftEvents(): Promise<{ purged: number; filesRemo
 
   let filesRemoved = 0;
   if (paths.length > 0) {
-    // Storage remove accepts up to 1000 paths per call — chunk defensively
+    // Storage remove accepts up to 1000 paths per call - chunk defensively
     for (let i = 0; i < paths.length; i += 200) {
       const { error: rmErr } = await supabase.storage
         .from(STORAGE_BUCKET)

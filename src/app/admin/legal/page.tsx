@@ -3,7 +3,7 @@ import { listLegalPages } from "@/modules/admin/server";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Legal Pages — Admin — Outsiderr" };
+export const metadata = { title: "Legal Pages - Admin - Outsiderr" };
 
 export default async function AdminLegalPage() {
   // Admin check is handled by the /admin layout

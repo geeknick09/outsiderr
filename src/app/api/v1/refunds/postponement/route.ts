@@ -10,7 +10,7 @@ const bodySchema = z.object({
 });
 
 /**
- * POST /api/v1/refunds/postponement — request a refund for a postponed event.
+ * POST /api/v1/refunds/postponement - request a refund for a postponed event.
  * Auto-refunds via Razorpay when the order was paid online.
  * Auth: Bearer <supabase-access-token>
  */

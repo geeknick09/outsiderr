@@ -191,7 +191,7 @@ export async function listAllAdminUsers(): Promise<AdminUser[]> {
 // ---------------------------------------------------------------- user analytics
 
 export async function adminDeleteEvent(eventId: string): Promise<void> {
-  // Service role: no admin DELETE grant/policy on `events` — a user-context
+  // Service role: no admin DELETE grant/policy on `events` - a user-context
   // delete silently removes 0 rows. Admin verified by the action upstream.
   const supabase = createServiceClient();
   const { error } = await supabase.from("events").delete().eq("id", eventId);
@@ -202,7 +202,7 @@ export async function adminUpdateEventStatus(
   eventId: string,
   status: EventStatus,
 ): Promise<void> {
-  // `status` is a privileged column — transitions go through the RPC
+  // `status` is a privileged column - transitions go through the RPC
   // (admin authz is verified inside).
   const supabase = await createClient();
   const { error } = await supabase.rpc("set_event_status", {
@@ -216,7 +216,7 @@ export async function adminToggleEventFeatured(
   eventId: string,
   featured: boolean,
 ): Promise<void> {
-  // is_featured is a privileged column (revoked from authenticated UPDATE) —
+  // is_featured is a privileged column (revoked from authenticated UPDATE) -
   // admin is verified upstream; write via service role.
   const supabase = createServiceClient();
   const { error } = await supabase.from("events").update({ is_featured: featured }).eq("id", eventId);
@@ -236,7 +236,7 @@ export async function adminUpdateEvent(
     endsAt?: string;
   },
 ): Promise<void> {
-  // Service role: `events` has no admin UPDATE RLS policy — a user-context
+  // Service role: `events` has no admin UPDATE RLS policy - a user-context
   // write silently updates 0 rows. Admin is verified by the action upstream.
   const supabase = createServiceClient();
   const update: Record<string, string | number | boolean | null> = {};
@@ -257,7 +257,7 @@ export async function adminToggleUserAdmin(
   userId: string,
   isAdmin: boolean,
 ): Promise<void> {
-  // is_admin is a privileged column — admin verified upstream.
+  // is_admin is a privileged column - admin verified upstream.
   const supabase = createServiceClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await supabase.from("profiles").update({ is_admin: isAdmin } as any).eq("id", userId);

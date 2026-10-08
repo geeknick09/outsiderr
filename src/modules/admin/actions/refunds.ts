@@ -40,7 +40,7 @@ export async function adminApproveRefundAction(
   }
 }
 
-/** Admin: reject a refund request — order returns to CONFIRMED. */
+/** Admin: reject a refund request - order returns to CONFIRMED. */
 export async function adminRejectRefundAction(
   refundId: string,
   reason?: string,

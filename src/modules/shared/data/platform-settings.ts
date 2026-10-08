@@ -120,7 +120,7 @@ export async function updateSetting(
   value: string | number | boolean | Record<string, number>,
 ): Promise<void> {
   const supabase = await createClient();
-  // Upsert: keys like organizer_rejection_limit may have no DB row yet — a
+  // Upsert: keys like organizer_rejection_limit may have no DB row yet - a
   // plain update would silently affect 0 rows and the setting never saves.
   const { error } = await supabase
     .from("platform_settings")

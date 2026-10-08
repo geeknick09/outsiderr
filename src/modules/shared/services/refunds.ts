@@ -9,11 +9,11 @@ import { applyCapturedPayment } from "../data/payments";
 import { createServiceClient } from "../auth/service";
 
 /**
- * Refund worker — claims PENDING refunds and initiates them against Razorpay.
+ * Refund worker - claims PENDING refunds and initiates them against Razorpay.
  * Durable: claim → API call → completeRefundInitiation. On crash, the row
  * stays INITIATING until the 10-minute stale claim re-queues it.
  *
- * Legacy manual-UPI orders (no razorpay_payment_id) are skipped — admins
+ * Legacy manual-UPI orders (no razorpay_payment_id) are skipped - admins
  * settle them via admin_manual_settle_refund.
  */
 export async function processPendingRefunds(limit = 20): Promise<{
@@ -29,7 +29,7 @@ export async function processPendingRefunds(limit = 20): Promise<{
     try {
       const paymentId = await resolvePaymentId(refund.orderId, refund.razorpayPaymentId);
       if (!paymentId) {
-        // Manual-UPI legacy row — leave INITIATING→PENDING for admin settle.
+        // Manual-UPI legacy row - leave INITIATING→PENDING for admin settle.
         await completeRefundInitiation(refund.id, "", false, "NO_RAZORPAY_PAYMENT");
         skipped++;
         continue;
@@ -69,7 +69,7 @@ async function resolvePaymentId(orderId: string | null, razorpayPaymentId: strin
 }
 
 /**
- * Payment reconciliation — catches captures the webhook + client callback
+ * Payment reconciliation - catches captures the webhook + client callback
  * both missed (user closed the tab, webhook delivery dropped). For every
  * CREATED intent with a razorpay_order_id, fetch the gateway payments and
  * apply a captured one if found.
@@ -109,7 +109,7 @@ export async function reconcilePayments(): Promise<{ checked: number; recovered:
 }
 
 /**
- * Refund reconciliation — polls Razorpay for the final state of INITIATED
+ * Refund reconciliation - polls Razorpay for the final state of INITIATED
  * refunds the webhook never told us about.
  */
 export async function reconcileRefunds(): Promise<{ checked: number; finalized: number }> {

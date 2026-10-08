@@ -12,7 +12,7 @@ const querySchema = z.object({
 });
 
 /**
- * GET /api/v1/payments/status — poll the current state of a payment/order
+ * GET /api/v1/payments/status - poll the current state of a payment/order
  * (for the checkout-status poller on mobile/web clients).
  * Auth: Bearer <supabase-access-token>
  */

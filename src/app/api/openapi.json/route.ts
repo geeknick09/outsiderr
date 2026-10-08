@@ -19,7 +19,7 @@ const spec = {
       "## Authentication\n\n" +
       "- **Razorpay Webhook**: HMAC-SHA256 signature via `x-razorpay-signature` header\n" +
       "- **Cron Endpoint**: Bearer token via `Authorization: Bearer <CRON_SECRET>` header\n" +
-      "- **API v1 (mobile/clients)**: `Authorization: Bearer <supabase-access-token>` — " +
+      "- **API v1 (mobile/clients)**: `Authorization: Bearer <supabase-access-token>` - " +
       "obtained via Supabase Auth sign-in. PIN-auth routes (scanner/box-office) take the " +
       "PIN in the JSON body instead.\n\n" +
       "## API v1 Response Envelope\n\n" +
@@ -67,7 +67,7 @@ const spec = {
     },
     {
       name: "API v1",
-      description: "Mobile/client REST API — Bearer JWT (Supabase) or PIN auth",
+      description: "Mobile/client REST API - Bearer JWT (Supabase) or PIN auth",
     },
   ],
   paths: {
@@ -329,7 +329,7 @@ const spec = {
       post: {
         tags: ["API v1"],
         summary: "Reserve inventory + create Razorpay order",
-        description: "Returns a CheckoutSession — feed `razorpayOrderId`/`keyId`/`amountPaise` to the Razorpay native SDK, then call /api/v1/payments/verify.",
+        description: "Returns a CheckoutSession - feed `razorpayOrderId`/`keyId`/`amountPaise` to the Razorpay native SDK, then call /api/v1/payments/verify.",
         operationId: "v1Checkout",
         security: [{ SupabaseAuth: [] }],
         requestBody: { required: true, content: { "application/json": { schema: {
@@ -429,7 +429,7 @@ const spec = {
     "/api/v1/orders/manual": {
       post: {
         tags: ["API v1"],
-        summary: "Free RSVP (auto-confirmed) — paid orders go through /api/v1/checkout",
+        summary: "Free RSVP (auto-confirmed) - paid orders go through /api/v1/checkout",
         operationId: "v1ManualOrder",
         security: [{ SupabaseAuth: [] }],
         requestBody: { required: true, content: { "application/json": { schema: {
@@ -469,12 +469,12 @@ const spec = {
       post: {
         tags: ["API v1"],
         summary: "Create an event (organizer)",
-        description: "Structured JSON — ISO datetimes, paise amounts, tier arrays. `isDraft: true` requires only a title.",
+        description: "Structured JSON - ISO datetimes, paise amounts, tier arrays. `isDraft: true` requires only a title.",
         operationId: "v1CreateEvent",
         security: [{ SupabaseAuth: [] }],
         requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/EventCreateBody" } } } },
         responses: {
-          "200": { description: "Created — data.eventId", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiOk" } } } },
+          "200": { description: "Created - data.eventId", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiOk" } } } },
           "400": { $ref: "#/components/responses/BadRequest" },
           "401": { $ref: "#/components/responses/Unauthorized" },
         },
@@ -595,7 +595,7 @@ const spec = {
         tags: ["API v1"], summary: "Create a club/crew", operationId: "v1CreateClub",
         security: [{ SupabaseAuth: [] }],
         requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["name"], properties: { name: { type: "string" }, bio: { type: "string" }, type: { type: "string", enum: ["CLUB", "CREW"] }, city: { type: "string" }, membershipType: { type: "string", enum: ["FREE", "PAID"] }, membershipFeePaise: { type: "integer" } } } } } },
-        responses: { "200": { description: "Created — data.clubId", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiOk" } } } }, "400": { $ref: "#/components/responses/BadRequest" }, "401": { $ref: "#/components/responses/Unauthorized" } },
+        responses: { "200": { description: "Created - data.clubId", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiOk" } } } }, "400": { $ref: "#/components/responses/BadRequest" }, "401": { $ref: "#/components/responses/Unauthorized" } },
       },
     },
     "/api/v1/clubs/{id}/join": {
@@ -627,7 +627,7 @@ const spec = {
         tags: ["API v1"], summary: "Generate scanner/box-office PINs", operationId: "v1GeneratePins",
         security: [{ SupabaseAuth: [] }],
         requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["eventId", "type", "staffNames"], properties: { eventId: { type: "string", format: "uuid" }, type: { type: "string", enum: ["scanner", "box-office"] }, staffNames: { type: "array", items: { type: "string" } } } } } } },
-        responses: { "200": { description: "PINs generated — data.pins[{pinCode,staffName}]", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiOk" } } } }, "400": { $ref: "#/components/responses/BadRequest" }, "401": { $ref: "#/components/responses/Unauthorized" } },
+        responses: { "200": { description: "PINs generated - data.pins[{pinCode,staffName}]", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiOk" } } } }, "400": { $ref: "#/components/responses/BadRequest" }, "401": { $ref: "#/components/responses/Unauthorized" } },
       },
     },
     "/api/v1/pins/{id}": {
@@ -666,7 +666,7 @@ const spec = {
         tags: ["API v1"], summary: "Create organizer profile (KYC)", operationId: "v1CreateOrganizer",
         security: [{ SupabaseAuth: [] }],
         requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["name", "upiId", "agreedToTerms"], properties: { name: { type: "string" }, upiId: { type: "string" }, agreedToTerms: { type: "boolean" }, panNumber: { type: "string" }, gstNumber: { type: "string" } } } } } },
-        responses: { "200": { description: "Created — data.organizerId", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiOk" } } } }, "400": { $ref: "#/components/responses/BadRequest" }, "401": { $ref: "#/components/responses/Unauthorized" } },
+        responses: { "200": { description: "Created - data.organizerId", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiOk" } } } }, "400": { $ref: "#/components/responses/BadRequest" }, "401": { $ref: "#/components/responses/Unauthorized" } },
       },
       patch: {
         tags: ["API v1"], summary: "Update organizer profile/KYC", operationId: "v1UpdateOrganizer",
@@ -679,14 +679,14 @@ const spec = {
       post: {
         tags: ["API v1"], summary: "Verify scanner PIN (PIN-auth, no Bearer)", operationId: "v1ScannerLogin",
         requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["eventId", "pin"], properties: { eventId: { type: "string", format: "uuid" }, pin: { type: "string" } } } } } },
-        responses: { "200": { description: "PIN valid — data.event info", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiOk" } } } }, "400": { $ref: "#/components/responses/BadRequest" }, "401": { description: "Invalid PIN", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } } }, "429": { $ref: "#/components/responses/RateLimited" } },
+        responses: { "200": { description: "PIN valid - data.event info", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiOk" } } } }, "400": { $ref: "#/components/responses/BadRequest" }, "401": { description: "Invalid PIN", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } } }, "429": { $ref: "#/components/responses/RateLimited" } },
       },
     },
     "/api/v1/scanner/check-in": {
       post: {
         tags: ["API v1"], summary: "Check in a ticket (PIN-auth)", operationId: "v1CheckIn",
         requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["qrHash", "eventId", "pin"], properties: { qrHash: { type: "string" }, eventId: { type: "string", format: "uuid" }, pin: { type: "string" } } } } } },
-        responses: { "200": { description: "ScanResult — data.outcome is the verdict (VALID/USED/INVALID/WRONG_EVENT)", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiOk" } } } }, "400": { $ref: "#/components/responses/BadRequest" }, "429": { $ref: "#/components/responses/RateLimited" } },
+        responses: { "200": { description: "ScanResult - data.outcome is the verdict (VALID/USED/INVALID/WRONG_EVENT)", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiOk" } } } }, "400": { $ref: "#/components/responses/BadRequest" }, "429": { $ref: "#/components/responses/RateLimited" } },
       },
     },
     "/api/v1/scanner/walkin": {
@@ -700,7 +700,7 @@ const spec = {
       post: {
         tags: ["API v1"], summary: "Verify box-office PIN (PIN-auth)", operationId: "v1BoxOfficeLogin",
         requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["eventId", "pin"], properties: { eventId: { type: "string", format: "uuid" }, pin: { type: "string" } } } } } },
-        responses: { "200": { description: "PIN valid — data.event info incl. role", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiOk" } } } }, "400": { $ref: "#/components/responses/BadRequest" }, "401": { description: "Invalid PIN", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } } }, "429": { $ref: "#/components/responses/RateLimited" } },
+        responses: { "200": { description: "PIN valid - data.event info incl. role", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiOk" } } } }, "400": { $ref: "#/components/responses/BadRequest" }, "401": { description: "Invalid PIN", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } } }, "429": { $ref: "#/components/responses/RateLimited" } },
       },
     },
     "/api/v1/box-office/orders": {
@@ -733,7 +733,7 @@ const spec = {
         scheme: "bearer",
         bearerFormat: "JWT",
         description:
-          "Supabase access token — obtained via supabase.auth.signInWithPassword() " +
+          "Supabase access token - obtained via supabase.auth.signInWithPassword() " +
           "(or OAuth). Identifies the user for /api/v1/* routes; RLS applies.",
       },
     },
@@ -833,7 +833,7 @@ const spec = {
           contactEmail: { type: "string" },
           contactPhone: { type: "string" },
           linkedPastEventIds: { type: "array", items: { type: "string", format: "uuid" } },
-          isDraft: { type: "boolean", description: "Save as draft — only title required" },
+          isDraft: { type: "boolean", description: "Save as draft - only title required" },
           acceptedOrganizerTerms: { type: "boolean", description: "Required true to publish" },
         },
       },
@@ -854,7 +854,7 @@ const spec = {
           buyerEmail: { type: "string", format: "email" },
           amountPaise: { type: "integer" },
           mode: { type: "string", enum: ["WALKIN_PREEVENT", "WALKIN_QR", "WALKIN_INSTANT"] },
-          idempotencyKey: { type: "string", format: "uuid", description: "Client-generated — retries return the same order" },
+          idempotencyKey: { type: "string", format: "uuid", description: "Client-generated - retries return the same order" },
         },
       },
 

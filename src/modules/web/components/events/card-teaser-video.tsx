@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
  * Muted, looping teaser video for the event card (District-style).
  *
  * Autoplays inline once ~half the card is visible and pauses when it scrolls
- * out — keeps bandwidth + CPU low on a long feed. `muted` + `playsInline` are
+ * out - keeps bandwidth + CPU low on a long feed. `muted` + `playsInline` are
  * required for iOS autoplay. No `controls`, so taps pass through to the card's
  * link. If the video fails to load it hides itself so the poster shows.
  */
@@ -26,7 +26,7 @@ export function CardTeaserVideo({
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          // play() returns a promise — swallow rejection when autoplay is blocked.
+          // play() returns a promise - swallow rejection when autoplay is blocked.
           void video.play().catch(() => {});
         } else {
           video.pause();

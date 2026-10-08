@@ -3,7 +3,7 @@ import { createClient } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Admin Box Office — Outsiderr" };
+export const metadata = { title: "Admin Box Office - Outsiderr" };
 
 export default async function AdminBoxOfficePage() {
   // Fetch all published events for the event selector.

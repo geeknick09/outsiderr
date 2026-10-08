@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * POST /api/v1/events/[id]/publish — publish a draft event.
+ * POST /api/v1/events/[id]/publish - publish a draft event.
  * Auth: Bearer <supabase-access-token> (event owner/staff)
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {

@@ -1,4 +1,4 @@
-// modules/analytics — client-safe public API (analytics charts/widgets).
+// modules/analytics - client-safe public API (analytics charts/widgets).
 // Server data: ./server
 export * from "./components/analytics-charts";
 export * from "./components/analytics-charts-lazy";

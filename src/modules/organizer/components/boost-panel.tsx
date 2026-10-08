@@ -28,7 +28,7 @@ export function BoostPanel({
   events: EventSummary[];
   slotPrices: BoostSlotPrice[];
   occupiedSlots: number[];
-  platformUpiId?: string; // unused post-Razorpay — kept for caller compat
+  platformUpiId?: string; // unused post-Razorpay - kept for caller compat
   preselectedEventId?: string;
 }) {
   const [eventId, setEventId] = useState(preselectedEventId ?? events[0]?.id ?? "");
@@ -100,7 +100,7 @@ export function BoostPanel({
 
   return (
     <div className="space-y-6">
-      {/* Step 1 — pick event */}
+      {/* Step 1 - pick event */}
       <section className="glass space-y-3 rounded-3xl p-5">
         <h3 className="text-sm font-bold">1. Select event to boost</h3>
         {events.length === 0 ? (
@@ -114,7 +114,7 @@ export function BoostPanel({
         )}
       </section>
 
-      {/* Step 2 — pick slot */}
+      {/* Step 2 - pick slot */}
       <section className="glass space-y-3 rounded-3xl p-5">
         <h3 className="text-sm font-bold">2. Choose a featured slot (1 = top)</h3>
         <div className="grid grid-cols-5 gap-2">
@@ -145,7 +145,7 @@ export function BoostPanel({
         </div>
       </section>
 
-      {/* Step 3 — duration */}
+      {/* Step 3 - duration */}
       <section className="glass space-y-3 rounded-3xl p-5">
         <h3 className="text-sm font-bold">3. Boost duration</h3>
         <div className="flex gap-2">
@@ -172,7 +172,7 @@ export function BoostPanel({
         ) : null}
       </section>
 
-      {/* Step 4 — pay online */}
+      {/* Step 4 - pay online */}
       {slot && totalPaise ? (
         <section className="glass space-y-4 rounded-3xl p-5">
           <h3 className="text-sm font-bold">4. Pay & activate</h3>
@@ -187,13 +187,13 @@ export function BoostPanel({
             {submitting ? "Preparing payment…" : `Pay ${formatPaise(totalPaise)}`}
           </button>
           <p className="text-center text-xs text-muted">
-            UPI, cards and netbanking via Razorpay — the slot activates instantly.
+            UPI, cards and netbanking via Razorpay - the slot activates instantly.
           </p>
         </section>
       ) : null}
 
       <p className="px-2 text-center text-xs text-muted">
-        Slots 1–10 appear in the featured carousel. Slot 1 is the top position. Your boost goes live
+        Slots 1-10 appear in the featured carousel. Slot 1 is the top position. Your boost goes live
         the moment payment clears.
       </p>
     </div>

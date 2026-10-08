@@ -71,7 +71,7 @@ export function EditContactSection({ event }: { event: EventDetail }) {
               <PhoneInput name="contactPhone" defaultValue={event.contactPhone ?? ""} />
             ) : (
               <>
-                <p className="py-2.5 text-sm text-muted">{event.contactPhone || "—"}</p>
+                <p className="py-2.5 text-sm text-muted">{event.contactPhone || "-"}</p>
                 <input type="hidden" name="contactPhone" value={event.contactPhone ?? ""} />
               </>
             )}

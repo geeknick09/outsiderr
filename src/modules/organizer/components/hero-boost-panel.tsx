@@ -25,7 +25,7 @@ export function HeroBoostPanel({
   pricePaise: number;
   durationDays: number;
   eventStartsAt: string;
-  // Legacy prop — kept for backward compatibility but unused in Razorpay flow
+  // Legacy prop - kept for backward compatibility but unused in Razorpay flow
   platformUpiId?: string;
 }) {
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +47,7 @@ export function HeroBoostPanel({
     });
   }
 
-  // Razorpay Checkout is open — show the checkout component
+  // Razorpay Checkout is open - show the checkout component
   // Pass Hero Boost-specific verify/failure actions and success redirect
   if (session) {
     return (
@@ -65,19 +65,19 @@ export function HeroBoostPanel({
     );
   }
 
-  // Active boost — show status
+  // Active boost - show status
   if (boost && boost.status === "ACTIVE") {
     return (
       <section className="glass space-y-4 rounded-3xl p-5">
         <div className="flex items-center gap-2">
           <Rocket className="h-5 w-5 text-violet-neon" />
-          <h2 className="text-lg font-bold">Front Row — Active</h2>
+          <h2 className="text-lg font-bold">Front Row - Active</h2>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <StatusRow label="Status" value="Active" icon={<CheckCircle2 className="h-4 w-4 text-lime-neon" />} />
           <StatusRow label="Amount paid" value={`₹${priceRupees}`} />
-          <StatusRow label="Started" value={boost.startedAt ? formatDateTime(boost.startedAt) : "—"} />
-          <StatusRow label="Expires" value={boost.expiresAt ? formatDateTime(boost.expiresAt) : "—"} />
+          <StatusRow label="Started" value={boost.startedAt ? formatDateTime(boost.startedAt) : "-"} />
+          <StatusRow label="Expires" value={boost.expiresAt ? formatDateTime(boost.expiresAt) : "-"} />
         </div>
         <p className="text-xs text-muted">
           Your event is featured in the Front Row carousel and rotates with other featured events.
@@ -86,13 +86,13 @@ export function HeroBoostPanel({
     );
   }
 
-  // Pending boost — awaiting Razorpay payment (or legacy UTR)
+  // Pending boost - awaiting Razorpay payment (or legacy UTR)
   if (boost && boost.status === "PENDING") {
     return (
       <section className="glass space-y-4 rounded-3xl p-5">
         <div className="flex items-center gap-2">
           <Clock className="h-5 w-5 text-amber-500" />
-          <h2 className="text-lg font-bold">Front Row — Payment Pending</h2>
+          <h2 className="text-lg font-bold">Front Row - Payment Pending</h2>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <StatusRow label="Amount" value={`₹${priceRupees}`} />
@@ -133,7 +133,7 @@ export function HeroBoostPanel({
       <section className="glass space-y-3 rounded-3xl p-5">
         <div className="flex items-center gap-2">
           <XCircle className="h-5 w-5 text-red-500" />
-          <h2 className="text-lg font-bold">Front Row — {boost.status.charAt(0) + boost.status.slice(1).toLowerCase()}</h2>
+          <h2 className="text-lg font-bold">Front Row - {boost.status.charAt(0) + boost.status.slice(1).toLowerCase()}</h2>
         </div>
         <p className="text-sm text-muted">
           This Front Row slot is no longer active. You can purchase a new one below if the event hasn&apos;t started.
@@ -142,7 +142,7 @@ export function HeroBoostPanel({
     );
   }
 
-  // No boost — show purchase option
+  // No boost - show purchase option
   if (eventStarted) {
     return (
       <section className="glass space-y-2 rounded-3xl p-5 opacity-60">
@@ -179,7 +179,7 @@ export function HeroBoostPanel({
       {error ? <p className="text-sm text-red-500">{error}</p> : null}
       <Button onClick={handlePurchase} size="sm" loading={pending} loadingText="Opening payment…">
         <Rocket className="h-4 w-4" />
-        Feature My Event — ₹{priceRupees}
+        Feature My Event - ₹{priceRupees}
       </Button>
       <p className="text-xs text-muted">
         Secure payment via Razorpay. Your boost is activated instantly on successful payment.

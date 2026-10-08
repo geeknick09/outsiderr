@@ -16,7 +16,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }) {
   const event = await getEvent((await params).id);
-  return { title: event ? `Orders: ${event.title} — Outsiderr` : "Orders — Outsiderr" };
+  return { title: event ? `Orders: ${event.title} - Outsiderr` : "Orders - Outsiderr" };
 }
 
 export default async function EventOrdersPage({

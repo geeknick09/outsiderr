@@ -255,7 +255,7 @@ export async function getOrganizerAnalytics(): Promise<OrganizerAnalytics> {
 
 
 export async function getEventAnalytics(eventId: string): Promise<EventAnalytics> {
-  // No admin guard here — called from getOrganizerEventAnalytics which checks ownership
+  // No admin guard here - called from getOrganizerEventAnalytics which checks ownership
   const supabase = await createClient();
   const [eventRes, ordersRes, ticketsRes, waitlistRes, tiersRes] = await Promise.all([
     supabase.from("events").select("title").eq("id", eventId).single(),

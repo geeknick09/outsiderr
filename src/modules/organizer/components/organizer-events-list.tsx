@@ -200,7 +200,7 @@ export function OrganizerEventsList({
 
   return (
     <div className="space-y-3">
-      {/* Universal search — across published, drafts, completed and cancelled */}
+      {/* Universal search - across published, drafts, completed and cancelled */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
         <input
@@ -210,7 +210,7 @@ export function OrganizerEventsList({
             setQuery(e.target.value);
             setPage(0);
           }}
-          placeholder="Search your events — any state…"
+          placeholder="Search your events - any state…"
           className="w-full rounded-2xl border border-zinc-200 bg-white py-2.5 pl-10 pr-9 text-sm outline-none focus:border-violet-neon dark:border-white/10 dark:bg-zinc-900"
         />
         {searching ? (
@@ -228,7 +228,7 @@ export function OrganizerEventsList({
         ) : null}
       </div>
 
-      {/* Lifecycle tabs — hidden while searching (search covers every state) */}
+      {/* Lifecycle tabs - hidden while searching (search covers every state) */}
       {!searching ? (
         <div className="flex flex-wrap gap-2">
           {(Object.keys(TAB_LABELS) as LifecycleTab[]).map((tab) => {

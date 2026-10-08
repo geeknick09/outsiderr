@@ -75,7 +75,7 @@ export async function listMyRefunds(user: CurrentUser): Promise<Refund[]> {
   return (data ?? []).map(toRefund);
 }
 
-/** Refunds for a set of orders (user ctx — RLS ensures visibility). */
+/** Refunds for a set of orders (user ctx - RLS ensures visibility). */
 export async function getRefundsForOrders(orderIds: string[]): Promise<Refund[]> {
   if (!orderIds.length) return [];
   const supabase = await createClient();
@@ -87,7 +87,7 @@ export async function getRefundsForOrders(orderIds: string[]): Promise<Refund[]>
   return (data ?? []).map(toRefund);
 }
 
-// ─── Organizer / admin transitions (user ctx — authz inside the RPC) ───────
+// ─── Organizer / admin transitions (user ctx - authz inside the RPC) ───────
 
 export async function requestRefund(
   orderId: string,
@@ -183,7 +183,7 @@ export async function finalizeRefund(
   return data ?? "UNKNOWN";
 }
 
-/** Admin reads — all refunds, newest first (service role). */
+/** Admin reads - all refunds, newest first (service role). */
 export async function listAllRefunds(limit = 200): Promise<Refund[]> {
   const supabase = createServiceClient();
   const { data, error } = await supabase

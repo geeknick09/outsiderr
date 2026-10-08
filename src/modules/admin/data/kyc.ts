@@ -269,7 +269,7 @@ export async function listKycCounts(): Promise<Record<string, number>> {
 /**
  * Check if the current user's organizer profile has approved KYC.
  * Returns true if KYC is APPROVED, or if the organizer was created before
- * the KYC gate was added (backward compat — treat as approved).
+ * the KYC gate was added (backward compat - treat as approved).
  */
 export async function isKycApproved(user: CurrentUser): Promise<boolean> {
   const organizer = await getOrganizerProfile(user);

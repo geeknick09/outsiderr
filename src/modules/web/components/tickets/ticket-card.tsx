@@ -100,7 +100,7 @@ export function TicketCard({ ticket }: { ticket: Ticket }) {
         ) : null}
       </button>
 
-      {/* Expanded modal overlay — only for non-expired/non-cancelled tickets */}
+      {/* Expanded modal overlay - only for non-expired/non-cancelled tickets */}
       {expanded && !notOpenable ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"

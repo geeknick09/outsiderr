@@ -13,7 +13,7 @@ const bodySchema = z.object({
 });
 
 /**
- * POST /api/v1/collab/invite — invite another organizer as a collaborator
+ * POST /api/v1/collab/invite - invite another organizer as a collaborator
  * (event owner only).
  * Auth: Bearer <supabase-access-token>
  */

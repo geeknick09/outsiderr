@@ -42,7 +42,7 @@ export function JoinClubForm({ club }: { club: Club }) {
     );
   }
 
-  // PAID club — after the member row exists, open Razorpay Checkout.
+  // PAID club - after the member row exists, open Razorpay Checkout.
   if (session) {
     return (
       <RazorpayCheckout
@@ -72,7 +72,7 @@ export function JoinClubForm({ club }: { club: Club }) {
         });
         if (club.membershipType === "PAID") {
           if (!memberId) {
-            setError("Could not start the membership — try again.");
+            setError("Could not start the membership - try again.");
             return;
           }
           const result = await startClubCheckoutAction(memberId);
@@ -144,13 +144,13 @@ export function JoinClubForm({ club }: { club: Club }) {
         ) : (
           <>
             <Lock className="mr-1.5 h-4 w-4" />
-            Pay &amp; join — {formatPaise(club.membershipFeePaise)}/month
+            Pay &amp; join - {formatPaise(club.membershipFeePaise)}/month
           </>
         )}
       </Button>
       {club.membershipType === "PAID" ? (
         <p className="text-center text-xs text-muted">
-          UPI, cards and netbanking via Razorpay — membership activates instantly.
+          UPI, cards and netbanking via Razorpay - membership activates instantly.
         </p>
       ) : null}
     </div>

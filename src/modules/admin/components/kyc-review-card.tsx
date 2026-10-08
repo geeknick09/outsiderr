@@ -125,7 +125,7 @@ export function KycReviewCard({ submission }: { submission: KycSubmission }) {
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
           <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-muted">PAN</p>
-          <p className="text-sm font-mono">{submission.panNumber ?? "—"}</p>
+          <p className="text-sm font-mono">{submission.panNumber ?? "-"}</p>
           {submission.panName ? <p className="text-xs text-muted">{submission.panName}</p> : null}
           {submission.panDocumentUrl ? (
             <a href={submission.panDocumentUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs text-violet-neon underline">
@@ -137,14 +137,14 @@ export function KycReviewCard({ submission }: { submission: KycSubmission }) {
         </div>
         <div className="rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
           <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-muted">GST (optional)</p>
-          <p className="text-sm font-mono">{submission.gstNumber ?? "—"}</p>
+          <p className="text-sm font-mono">{submission.gstNumber ?? "-"}</p>
           {submission.gstBusinessName ? <p className="text-xs text-muted">{submission.gstBusinessName}</p> : null}
         </div>
         <div className="rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
           <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-muted">Bank Account</p>
-          <p className="text-sm font-mono">{submission.bankAccountNumber ?? "—"}</p>
+          <p className="text-sm font-mono">{submission.bankAccountNumber ?? "-"}</p>
           <p className="text-xs text-muted">
-            {submission.bankAccountName ?? "—"} · {submission.bankIfsc ?? "—"} · {submission.bankAccountType ?? "—"}
+            {submission.bankAccountName ?? "-"} · {submission.bankIfsc ?? "-"} · {submission.bankAccountType ?? "-"}
           </p>
           {submission.bankDocumentUrl ? (
             <a href={submission.bankDocumentUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs text-violet-neon underline">
@@ -156,7 +156,7 @@ export function KycReviewCard({ submission }: { submission: KycSubmission }) {
         </div>
         <div className="rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
           <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-muted">UPI ID</p>
-          <p className="text-sm font-mono">{submission.upiId ?? "—"}</p>
+          <p className="text-sm font-mono">{submission.upiId ?? "-"}</p>
         </div>
       </div>
 
@@ -176,7 +176,7 @@ export function KycReviewCard({ submission }: { submission: KycSubmission }) {
         </div>
       ) : null}
 
-      {/* Communication thread — admin ↔ organizer */}
+      {/* Communication thread - admin ↔ organizer */}
       {submission.thread.length > 0 ? (
         <div className="rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
           <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-muted">Communication history</p>

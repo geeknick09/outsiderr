@@ -64,7 +64,7 @@ const SELECTS: Record<Kind, { table: TableName; select: string; dateCol: string 
 
 /**
  * GET /api/admin/export/{ledger|payouts|refunds|orders}?from=&to=
- * CSV download. Admin session only — service client for cross-org rows.
+ * CSV download. Admin session only - service client for cross-org rows.
  */
 export async function GET(
   request: Request,

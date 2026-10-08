@@ -58,7 +58,7 @@ const updateSchema = z.object({
 });
 
 /**
- * POST /api/v1/organizer — create an organizer profile (KYC submission).
+ * POST /api/v1/organizer - create an organizer profile (KYC submission).
  * Documents (panDocumentUrl, bankDocumentUrl) are uploaded to storage first;
  * this route accepts their public URLs.
  * Auth: Bearer <supabase-access-token>
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
 }
 
 /**
- * PATCH /api/v1/organizer — update organizer profile/KYC details.
+ * PATCH /api/v1/organizer - update organizer profile/KYC details.
  * Auth: Bearer <supabase-access-token>
  */
 export async function PATCH(request: Request) {
@@ -99,7 +99,7 @@ export async function PATCH(request: Request) {
     if ("response" in parsed) return parsed.response;
 
     try {
-      // Partial update: only defined fields are written — omitted fields keep
+      // Partial update: only defined fields are written - omitted fields keep
       // their existing values (prevents wiping name/upiId on partial PATCH).
       await updateOrganizerProfile(user, parsed.data);
       revalidatePath("/organizer");

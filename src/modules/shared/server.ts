@@ -1,10 +1,10 @@
 import "server-only";
 
 /**
- * modules/shared — SERVER-ONLY public API.
+ * modules/shared - SERVER-ONLY public API.
  *
  * Import via `@/modules/shared/server` from Server Components, Server Actions,
- * and route handlers. Never import from client components — this pulls in
+ * and route handlers. Never import from client components - this pulls in
  * `server-only` data access, the server Supabase client, the service-role
  * client, pino logger, and node SDKs.
  */

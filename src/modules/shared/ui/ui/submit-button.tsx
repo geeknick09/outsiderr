@@ -37,7 +37,7 @@ interface SubmitButtonProps {
  * A submit button that automatically shows a loading spinner when the parent
  * `<form>` is being submitted (via `formAction` or `action`).
  *
- * Uses `useFormStatus()` from `react-dom` — must be rendered inside a `<form>`.
+ * Uses `useFormStatus()` from `react-dom` - must be rendered inside a `<form>`.
  *
  * Works in both server and client components (this file is "use client").
  */

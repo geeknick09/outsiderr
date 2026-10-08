@@ -39,7 +39,7 @@ export function ShareButton({
         await navigator.share(shareData);
         return;
       } catch {
-        // User cancelled or share failed — fall through to copy
+        // User cancelled or share failed - fall through to copy
       }
     }
 
@@ -52,7 +52,7 @@ export function ShareButton({
       } catch {
         // Final fallback: open WhatsApp
         window.open(
-          `https://wa.me/?text=${encodeURIComponent(`${title} — ${fullUrl}`)}`,
+          `https://wa.me/?text=${encodeURIComponent(`${title} - ${fullUrl}`)}`,
           "_blank",
         );
       }

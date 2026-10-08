@@ -4,7 +4,7 @@ import { subscribeToEventAction, unsubscribeFromEventAction } from "@/modules/sh
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** POST /api/v1/events/[id]/subscribe — "Update Me" subscription. */
+/** POST /api/v1/events/[id]/subscribe - "Update Me" subscription. */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   return withApiUser(request, async () => {

@@ -13,7 +13,7 @@ const bodySchema = z.object({
 });
 
 /**
- * POST /api/v1/collab/respond — accept or reject a collaboration invite.
+ * POST /api/v1/collab/respond - accept or reject a collaboration invite.
  * `{ accept: true }` accepts, `{ accept: false }` rejects.
  * Auth: Bearer <supabase-access-token>
  */

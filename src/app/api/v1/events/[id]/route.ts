@@ -51,7 +51,7 @@ const bodySchema = z.object({
 });
 
 /**
- * PATCH /api/v1/events/[id] — update an event's editable fields.
+ * PATCH /api/v1/events/[id] - update an event's editable fields.
  * Auth: Bearer <supabase-access-token> (event owner/staff)
  */
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {

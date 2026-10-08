@@ -16,13 +16,13 @@ export interface CurrentUser {
 
 /**
  * Bearer-token verification cache. Every /api/v1 route calls getCurrentUser(),
- * and each uncached call is a GoTrue roundtrip — Supabase rate-limits
+ * and each uncached call is a GoTrue roundtrip - Supabase rate-limits
  * /auth/user aggressively, so bursts of API calls produce flaky 401s.
  *
  * We cache the *verified* (signature-checked by GoTrue) user identity keyed by
  * the raw JWT, TTL-bounded by the token's own `exp`. The DB still re-verifies
  * the JWT on every query (PostgREST + RLS), so a forged token can never read or
- * write protected data — this cache only skips redundant identity roundtrips.
+ * write protected data - this cache only skips redundant identity roundtrips.
  */
 interface CachedIdentity {
   id: string;
@@ -44,7 +44,7 @@ function readBearerCache(token: string): CachedIdentity | null {
 }
 
 function writeBearerCache(token: string, identity: Omit<CachedIdentity, "expiresAt">) {
-  // TTL = min(token exp, now + 120s) — decode exp just for the TTL (the
+  // TTL = min(token exp, now + 120s) - decode exp just for the TTL (the
   // signature was already verified by GoTrue before we get here).
   let expiresAt = Date.now() + 60_000;
   try {
@@ -52,7 +52,7 @@ function writeBearerCache(token: string, identity: Omit<CachedIdentity, "expires
     if (typeof payload.exp === "number") {
       expiresAt = Math.min(payload.exp * 1000, Date.now() + 120_000);
     }
-  } catch { /* malformed payload — keep short default */ }
+  } catch { /* malformed payload - keep short default */ }
   if (bearerIdentityCache.size >= MAX_CACHE_ENTRIES) bearerIdentityCache.clear();
   bearerIdentityCache.set(token, { ...identity, expiresAt });
 }

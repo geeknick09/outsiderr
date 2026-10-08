@@ -89,7 +89,7 @@ export function BulkApprovePanel({ pendingOrders }: { pendingOrders: Order[] }) 
             />
             <div className="min-w-0 flex-1 text-sm">
               <span className="font-semibold">{order.eventTitle}</span>
-              <span className="ml-2 text-muted">{order.buyerName ?? "—"} · UTR {order.utrReference ?? "—"}</span>
+              <span className="ml-2 text-muted">{order.buyerName ?? "-"} · UTR {order.utrReference ?? "-"}</span>
             </div>
             {failed.has(order.id) ? (
               <span className="text-xs text-red-500">Failed</span>

@@ -12,7 +12,7 @@ import { createClient } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Checkout — Outsiderr" };
+export const metadata = { title: "Checkout - Outsiderr" };
 
 export default async function CheckoutPage({
   searchParams,
@@ -22,7 +22,7 @@ export default async function CheckoutPage({
   const { event: eventId, tier: tierId, qty } = await searchParams;
   if (!eventId || !tierId) redirect("/");
 
-  // Fetch user and event in parallel — saves one sequential DB round-trip
+  // Fetch user and event in parallel - saves one sequential DB round-trip
   const [user, event] = await Promise.all([getCurrentUser(), getEvent(eventId)]);
   const tier0 = event?.tiers.find((item) => item.id === tierId);
   const perUserCap = Math.min(10, Math.max(1, event?.maxTicketsPerUser ?? 5));
@@ -63,7 +63,7 @@ export default async function CheckoutPage({
 
   const isFree = tier.pricePaise === 0;
 
-  // Per-user ticket cap — count tickets HELD (sum of quantity across orders),
+  // Per-user ticket cap - count tickets HELD (sum of quantity across orders),
   // not orders, since one order can carry up to the cap.
   const supabase = await createClient();
   const { data: heldOrders } = await supabase
@@ -77,7 +77,7 @@ export default async function CheckoutPage({
   const remainingCap = Math.max(0, perUserCap - ticketsHeld);
   const allowedQuantity = Math.min(quantity, remainingCap || 1);
 
-  // Server-side price preview — the DB recomputes these authoritatively in
+  // Server-side price preview - the DB recomputes these authoritatively in
   // create_reserved_order; this is display-only.
   const price = calculatePrice(tier.pricePaise, allowedQuantity, event.feePayer, undefined, {
     commissionBps: event.commissionBps,
@@ -104,7 +104,7 @@ export default async function CheckoutPage({
             </h2>
             <p className="mt-3 text-sm text-muted">
               This event allows up to {perUserCap} ticket{perUserCap > 1 ? "s" : ""} per account
-              {ticketsHeld > 0 ? ` — you already hold ${ticketsHeld}` : ""}.
+              {ticketsHeld > 0 ? ` - you already hold ${ticketsHeld}` : ""}.
               Check your existing ticket for this event.
             </p>
             <Link
@@ -193,7 +193,7 @@ export default async function CheckoutPage({
               </p>
               <p className="mt-1 text-xs text-muted">
                 Pay by UPI, card or netbanking. Your tickets are confirmed the
-                moment the payment succeeds — no screenshots, no waiting.
+                moment the payment succeeds - no screenshots, no waiting.
               </p>
               <p className="mt-2 text-xs text-muted">
                 Outsiderr is an intermediary platform connecting event organizers with attendees.
@@ -231,7 +231,7 @@ function Row({
   );
 }
 
-/** Breaks the convenience fee down — platform fee + 2.36% payment gateway. */
+/** Breaks the convenience fee down - platform fee + 2.36% payment gateway. */
 function FeeTooltip({
   convenience,
   gateway,
@@ -252,7 +252,7 @@ function FeeTooltip({
           <span className="font-semibold">{formatPaise(gateway)}</span>
         </span>
         <span className="mt-2 block border-t border-white/10 pt-1.5 text-white/70">
-          Covers processing and gateway costs — non-refundable.
+          Covers processing and gateway costs - non-refundable.
         </span>
       </span>
     </span>

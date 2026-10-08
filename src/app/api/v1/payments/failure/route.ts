@@ -10,7 +10,7 @@ const bodySchema = z.object({
 });
 
 /**
- * POST /api/v1/payments/failure — release a RESERVED order's inventory when the
+ * POST /api/v1/payments/failure - release a RESERVED order's inventory when the
  * payer abandons or the payment fails.
  * Auth: Bearer <supabase-access-token>
  */

@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import * as Sentry from "@sentry/nextjs";
 
 /**
- * Global error boundary — catches errors that escape the root layout.
+ * Global error boundary - catches errors that escape the root layout.
  * This is the last-resort error boundary in Next.js App Router.
  */
 export default function GlobalError({

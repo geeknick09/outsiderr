@@ -86,7 +86,7 @@ export async function createHeroBoost(
   }
   if (existing) throw new Error("This event already has an active or pending Hero Boost.");
 
-  // Get organizer ID + verify the event belongs to them (was missing —
+  // Get organizer ID + verify the event belongs to them (was missing -
   // any organizer could boost someone else's event).
   const { getOrganizerProfile } = await import("./organizer-profile");
   const organizer = await getOrganizerProfile(user);
@@ -144,7 +144,7 @@ export async function submitHeroBoostUtr(
     throw new Error("Not authorised.");
   }
 
-  // No organizer UPDATE policy on hero_boosts — service client after the
+  // No organizer UPDATE policy on hero_boosts - service client after the
   // ownership check above.
   const { error } = await createServiceClient()
     .from("hero_boosts")
@@ -164,7 +164,7 @@ export async function activateHeroBoost(
   boostId: string,
   durationDays: number,
 ): Promise<void> {
-  // Service client — called from admin actions and the Razorpay webhook
+  // Service client - called from admin actions and the Razorpay webhook
   // (no user context in the webhook path).
   const supabase = createServiceClient();
   const { data: boost, error: boostError } = await supabase
@@ -335,7 +335,7 @@ export async function getHeroEvents(
   const now = Date.now();
   const nowIso = new Date(now).toISOString();
 
-  // Auto-expire stale ACTIVE boosts (expires_at < now) — frees up space.
+  // Auto-expire stale ACTIVE boosts (expires_at < now) - frees up space.
   // Service client: this runs on public homepage reads (anon ctx) where the
   // update would otherwise silently fail RLS.
   const supabase = createServiceClient();

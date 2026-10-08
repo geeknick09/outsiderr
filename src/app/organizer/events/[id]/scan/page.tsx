@@ -8,7 +8,7 @@ import { getEvent } from "@/modules/shared/server";
 import { getEventAccessLevel, canScanTickets } from "@/modules/shared/server";
 import { formatDateRange } from "@/modules/shared";
 
-// Lazy load DoorScanner — html5-qrcode is ~110kB
+// Lazy load DoorScanner - html5-qrcode is ~110kB
 const EventDoorScanner = lazy(() =>
   import("@/modules/scanner").then((m) => ({ default: m.EventDoorScanner })),
 );
@@ -21,7 +21,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }) {
   const event = await getEvent((await params).id);
-  return { title: event ? `Scan: ${event.title} — Outsiderr` : "Door Scanner — Outsiderr" };
+  return { title: event ? `Scan: ${event.title} - Outsiderr` : "Door Scanner - Outsiderr" };
 }
 
 export default async function EventScanPage({

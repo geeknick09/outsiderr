@@ -25,7 +25,7 @@ import { getOrganizerFollowerCount } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Organizer — Outsiderr" };
+export const metadata = { title: "Organizer - Outsiderr" };
 
 type Tab = "events" | "analytics" | "clubs";
 
@@ -69,8 +69,8 @@ export default async function OrganizerPage({
           <div className="glass mx-auto max-w-lg rounded-3xl border border-red-300 bg-red-500/5 p-8 text-center">
             <h1 className="text-2xl font-black tracking-tight">Organizer application rejected</h1>
             <p className="mt-3 text-sm text-muted">
-              Your organizer application was rejected {organizerProfile.rejectionCount ?? 0} time{(organizerProfile.rejectionCount ?? 0) === 1 ? "" : "s"} — the maximum allowed
-              ({rejectionLimit}) — so this account can&apos;t apply again.
+              Your organizer application was rejected {organizerProfile.rejectionCount ?? 0} time{(organizerProfile.rejectionCount ?? 0) === 1 ? "" : "s"} - the maximum allowed
+              ({rejectionLimit}) - so this account can&apos;t apply again.
             </p>
             <p className="mt-2 text-sm text-muted">
               If you think this is a mistake, please contact Outsiderr support and we&apos;ll take another look.
@@ -96,7 +96,7 @@ export default async function OrganizerPage({
       );
     }
 
-    // KYC thread — organizer sees the full admin↔organizer conversation
+    // KYC thread - organizer sees the full admin↔organizer conversation
     const supabase = await createClient();
     const { data: threadRows } = await supabase
       .from("kyc_messages")
@@ -165,7 +165,7 @@ export default async function OrganizerPage({
       {/* Profile header with avatar, name, edit button, and action buttons */}
       <OrganizerHeader organizer={organizerProfile} followerCount={followerCount} />
 
-      {/* KYC status banner — shown if pending/rejected/clarification or has staged changes */}
+      {/* KYC status banner - shown if pending/rejected/clarification or has staged changes */}
       <KycStatusBanner
         kycStatus={organizerProfile.kycStatus ?? "NOT_SUBMITTED"}
         hasPendingChanges={Object.keys(organizerProfile.pendingKyc ?? {}).length > 0}
@@ -190,7 +190,7 @@ export default async function OrganizerPage({
         </Link>
       </div>
 
-      {/* Collaboration invites — shown at top of dashboard if any pending */}
+      {/* Collaboration invites - shown at top of dashboard if any pending */}
       {collabInvites.length > 0 ? <CollaborationInvites invites={collabInvites} /> : null}
 
       {tab === "events" ? (
@@ -204,7 +204,7 @@ export default async function OrganizerPage({
             return (
               <>
                 <div>
-                  <h2 className="mb-3 text-lg font-bold">Overview — All Events</h2>
+                  <h2 className="mb-3 text-lg font-bold">Overview - All Events</h2>
                   <AggregatedAnalytics events={nonDraftEvents} analyticsData={nonDraftAnalytics} dailyRevenue={dailyRevenue} />
                 </div>
 

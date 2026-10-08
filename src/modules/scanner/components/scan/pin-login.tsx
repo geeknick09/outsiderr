@@ -100,7 +100,7 @@ export function PinLogin({
         >
           {events.map((event) => (
             <option key={event.id} value={event.id}>
-              {event.title} — {event.organizerName}
+              {event.title} - {event.organizerName}
             </option>
           ))}
         </select>

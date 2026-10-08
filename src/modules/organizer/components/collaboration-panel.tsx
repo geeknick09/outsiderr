@@ -22,7 +22,7 @@ const PERMISSION_LABELS: Record<PermissionLevel, string> = {
 const PERMISSION_DESCRIPTIONS: Record<PermissionLevel, string> = {
   LIMITED: "View + orders + analytics (no money) + scanner/box-office PINs",
   ANALYTICS: "Everything in Ops + revenue, payout and money analytics",
-  FULL: "Everything — except delete, date, venue or city (owner only)",
+  FULL: "Everything - except delete, date, venue or city (owner only)",
 };
 
 interface Collaborator {
@@ -82,7 +82,7 @@ export function CollaborationPanel({
       if (result.error) {
         setError(result.error);
       } else {
-        // Leave the row in place — button flips to "Invite sent"
+        // Leave the row in place - button flips to "Invite sent"
         setJustInvited((prev) => [...prev, organizerId]);
       }
     });
@@ -121,7 +121,7 @@ export function CollaborationPanel({
 
       {error ? <p className="text-xs text-red-500">{error}</p> : null}
 
-      {/* Invite — owner only; the result rows carry the invite action */}
+      {/* Invite - owner only; the result rows carry the invite action */}
       {canManage ? (
         <div className="space-y-3">
           <div className="relative">
@@ -219,7 +219,7 @@ export function CollaborationPanel({
         </div>
       ) : null}
 
-      {/* Collaborator roster — visible to everyone on the event */}
+      {/* Collaborator roster - visible to everyone on the event */}
       <div className="space-y-2">
         {collaborators.length === 0 ? (
           <p className="text-xs text-muted">

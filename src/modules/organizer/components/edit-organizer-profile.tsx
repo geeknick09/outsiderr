@@ -34,7 +34,7 @@ export function EditOrganizerProfile({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  // KYC fields — live format checks (server validates again before staging)
+  // KYC fields - live format checks (server validates again before staging)
   const [panNumber, setPanNumber] = useState(organizer.panNumber ?? "");
   const [gstNumber, setGstNumber] = useState(organizer.gstNumber ?? "");
   const [bankIfsc, setBankIfsc] = useState(organizer.bankIfsc ?? "");
@@ -52,7 +52,7 @@ export function EditOrganizerProfile({
     if (!file) return;
     const setErr = kind === "pan" ? setPanDocError : setBankDocError;
     if (file.size > MAX_DOC_MB * 1024 * 1024) {
-      setErr(`File too large — keep it under ${MAX_DOC_MB} MB (${(file.size / 1024 / 1024).toFixed(1)} MB selected).`);
+      setErr(`File too large - keep it under ${MAX_DOC_MB} MB (${(file.size / 1024 / 1024).toFixed(1)} MB selected).`);
       return;
     }
     setErr(null);
@@ -85,7 +85,7 @@ export function EditOrganizerProfile({
     ? upiIntent({ upiId, payeeName: name, amountPaise: 100, note: "Test QR" })
     : "";
 
-  // Auto-close on successful save — linger when a KYC-review notice exists so
+  // Auto-close on successful save - linger when a KYC-review notice exists so
   // the organizer can read it; Escape also closes.
   useEffect(() => {
     if (!state.saved) return;
@@ -159,7 +159,7 @@ export function EditOrganizerProfile({
             {uploadError ? <p className="text-xs text-amber-500">{uploadError}</p> : null}
           </div>
 
-          {/* Cover photo removed — organizer only has optional profile pic */}
+          {/* Cover photo removed - organizer only has optional profile pic */}
           <input type="hidden" name="coverUrl" value="" />
           <input type="hidden" name="instagramUrl" value={instagramUrl} />
 
@@ -272,7 +272,7 @@ export function EditOrganizerProfile({
             </p>
             <p className="text-[11px] text-muted">
               Changes to these fields are re-verified by our team before they take
-              effect — your verified details stay active meanwhile.
+              effect - your verified details stay active meanwhile.
             </p>
             <label className="block space-y-1">
               <span className="text-xs text-muted">Organizer intent <span className="normal-case">(what kind of events you&apos;ll host)</span></span>
@@ -375,7 +375,7 @@ export function EditOrganizerProfile({
               </label>
             </div>
 
-            {/* PAN + bank proof documents — view current, upload to replace */}
+            {/* PAN + bank proof documents - view current, upload to replace */}
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl border border-zinc-200 p-3 dark:border-white/10">
                 <span className="text-xs font-semibold uppercase tracking-wide text-muted">PAN card document</span>
@@ -513,7 +513,7 @@ function DocUpload({
         {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
         {uploading ? "Uploading…" : hasFile ? "Replace document" : label}
       </button>
-      <p className="text-[10px] text-muted">Image or PDF, under 1 MB — re-verified by admin.</p>
+      <p className="text-[10px] text-muted">Image or PDF, under 1 MB - re-verified by admin.</p>
       {error ? <p className="text-xs text-red-500">{error}</p> : null}
     </div>
   );

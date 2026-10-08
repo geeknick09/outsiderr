@@ -1,5 +1,5 @@
 /**
- * Checkout loading skeleton — shown while the checkout page loads event/tier data.
+ * Checkout loading skeleton - shown while the checkout page loads event/tier data.
  */
 import { BrandedLoader } from "@/modules/shared";
 

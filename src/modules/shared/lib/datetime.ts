@@ -3,7 +3,7 @@
  *
  * datetime-local inputs produce naive strings like "2026-09-10T19:00" with
  * no timezone offset. By default, `new Date(naive)` treats them as UTC on
- * servers and as browser-local on clients — neither is correct for an app
+ * servers and as browser-local on clients - neither is correct for an app
  * that always operates in IST.
  *
  * These helpers ensure naive datetime-local strings are always interpreted

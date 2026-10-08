@@ -63,7 +63,7 @@ export async function submitHeroBoostUtrAction(
     const { notifyAdmins } = await import("../notifications");
     await notifyAdmins({
       type: "BOOST_REQUESTED",
-      message: `Hero Boost payment submitted (UTR ${utrReference.trim()}) — pending verification.`,
+      message: `Hero Boost payment submitted (UTR ${utrReference.trim()}) - pending verification.`,
     });
     revalidatePath("/organizer");
     return {};
@@ -123,7 +123,7 @@ export async function cancelHeroBoostAction(boostId: string): Promise<{ error?: 
 }
 
 /**
- * Called when an event is cancelled — removes it from Hero immediately.
+ * Called when an event is cancelled - removes it from Hero immediately.
  * Verifies the caller owns the event (or is admin) before mutating boosts.
  */
 export async function onEventCancelled(eventId: string): Promise<void> {
@@ -150,7 +150,7 @@ export async function onEventCancelled(eventId: string): Promise<void> {
 
 /**
  * Create a pending hero boost → payment intent → Razorpay order. The boost's
- * activation happens in the capture dispatcher (webhook or client verify —
+ * activation happens in the capture dispatcher (webhook or client verify -
  * whichever lands first), never inline here.
  */
 export async function createHeroBoostCheckoutAction(
@@ -175,7 +175,7 @@ export async function createHeroBoostCheckoutAction(
   const { result, error } = await startPayment(user, {
     kind: "HERO_BOOST",
     refId: boost.id,
-    itemTitle: "Front Row Boost — Hero",
+    itemTitle: "Front Row Boost - Hero",
   });
   if (error || !result) {
     try { await cancelHeroBoost(boost.id); } catch { /* best-effort */ }
@@ -202,7 +202,7 @@ export async function createHeroBoostCheckoutAction(
 }
 
 /**
- * Verify a hero-boost payment and dispatch the capture — the dispatcher
+ * Verify a hero-boost payment and dispatch the capture - the dispatcher
  * activates the boost + writes the BOOST_SALE ledger row, idempotent vs the
  * webhook.
  */

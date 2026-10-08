@@ -2,7 +2,7 @@
  * Simple in-memory rate limiter for server actions and API routes.
  *
  * - Per-IP, per-action sliding window.
- * - Works in serverless (per-instance) — for production-grade rate limiting
+ * - Works in serverless (per-instance) - for production-grade rate limiting
  *   consider Upstash Redis or Vercel KV. This is a baseline defense against
  *   brute-force PIN guessing and abuse.
  *

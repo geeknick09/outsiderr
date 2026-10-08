@@ -85,7 +85,7 @@ export async function autoOfferWaitlist(tierId: string, client?: SupabaseClient)
   // Callers pass their context; the cron path uses the service client.
   const supabase = client ?? (await createClient());
 
-  // Use the atomic RPC — it locks the waitlist row with SELECT FOR UPDATE,
+  // Use the atomic RPC - it locks the waitlist row with SELECT FOR UPDATE,
   // picks the first WAITING entry, marks it OFFERED with 24h expiry, and
   // returns the entry so we can create a notification.
   const { data: entry, error } = await supabase
@@ -117,7 +117,7 @@ export async function autoOfferWaitlist(tierId: string, client?: SupabaseClient)
  * auto-offers the ticket to the next person in line.
  */
 export async function expireWaitlistOffers(): Promise<void> {
-  // Service client — this runs under the cron route with no user session;
+  // Service client - this runs under the cron route with no user session;
   // an anon client sees zero rows through RLS and silently does nothing.
   const supabase = createServiceClient();
   const now = new Date().toISOString();

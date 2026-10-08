@@ -11,7 +11,7 @@ import { createClient } from "../auth/server";
 
 /**
  * Subscribe the current user to event updates.
- * Idempotent — if already subscribed, does nothing.
+ * Idempotent - if already subscribed, does nothing.
  */
 export async function subscribeToEventAction(eventId: string): Promise<{ error: string | null }> {
   const user = await getCurrentUser();
@@ -19,7 +19,7 @@ export async function subscribeToEventAction(eventId: string): Promise<{ error: 
 
   const supabase = await createClient();
 
-  // Check if user already has a ticket for this event — ticket holders
+  // Check if user already has a ticket for this event - ticket holders
   // don't need a separate subscription (they already get notifications).
   const { data: existingTicket } = await supabase
     .from("tickets")
@@ -30,7 +30,7 @@ export async function subscribeToEventAction(eventId: string): Promise<{ error: 
     .maybeSingle();
 
   if (existingTicket) {
-    return { error: "You already have a ticket — you'll receive updates automatically." };
+    return { error: "You already have a ticket - you'll receive updates automatically." };
   }
 
   const { error } = await supabase

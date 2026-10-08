@@ -42,7 +42,7 @@ export function WaitlistButton({
         <p className="mb-3 text-xs text-muted">
           You are #{waitlistEntry.position} on the waitlist.
           {waitlistEntry.status === "OFFERED"
-            ? " A spot has been offered to you — check your tickets!"
+            ? " A spot has been offered to you - check your tickets!"
             : ""}
         </p>
         <button

@@ -17,7 +17,7 @@ import type { EventCategory, City } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Admin: Events — Outsiderr" };
+export const metadata = { title: "Admin: Events - Outsiderr" };
 
 /** Check if an event is currently happening (between startsAt and endsAt). */
 function isHappeningNow(startsAt: string, endsAt: string | null | undefined): boolean {
@@ -277,12 +277,12 @@ export default async function AdminEventsPage({
               readOnly={readOnly}
             />
 
-            {/* Commission + convenience fee — editable until the event starts;
+            {/* Commission + convenience fee - editable until the event starts;
                 once it has started/completed it is view-only. */}
             {event.pricingMode !== "FREE" ? (
               readOnly ? (
                 <div className="flex flex-wrap items-center gap-4 rounded-2xl bg-black/5 p-3 text-xs dark:bg-white/5">
-                  <span className="font-semibold text-muted">Fees (locked — event started)</span>
+                  <span className="font-semibold text-muted">Fees (locked - event started)</span>
                   <span className="text-muted">
                     Commission: <span className="font-semibold text-zinc-700 dark:text-zinc-200">{event.commissionEnabled ? `${(event.commissionBps / 100).toFixed(2)}%` : "off"}</span>
                   </span>

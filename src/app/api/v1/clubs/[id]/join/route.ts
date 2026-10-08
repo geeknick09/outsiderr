@@ -11,7 +11,7 @@ const bodySchema = z.object({
 });
 
 /**
- * POST /api/v1/clubs/[id]/join — join a club (PAID clubs create a pending
+ * POST /api/v1/clubs/[id]/join - join a club (PAID clubs create a pending
  * membership awaiting organizer approval; FREE joins instantly).
  * Auth: Bearer <supabase-access-token>
  */

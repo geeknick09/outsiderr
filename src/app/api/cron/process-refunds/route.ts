@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Cron: refund worker — claims PENDING refunds (with backoff + stale-claim
+ * Cron: refund worker - claims PENDING refunds (with backoff + stale-claim
  * recovery inside claim_pending_refunds) and initiates them at Razorpay.
  * Called every few minutes by Vercel Cron / GitHub Actions.
  */

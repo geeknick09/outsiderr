@@ -17,11 +17,11 @@ export interface CheckoutState {
 }
 
 // ============================================================================
-// submitPaymentAction — used for free events (instant RSVP) and paid events
+// submitPaymentAction - used for free events (instant RSVP) and paid events
 // (manual UPI payment with organizer verification).
 // Free events: auto-confirmed with tickets.
 // Paid events: creates PENDING_VERIFICATION order, organizer approves/denies.
-// UTR reference is optional — the organizer verifies payment manually.
+// UTR reference is optional - the organizer verifies payment manually.
 // ============================================================================
 
 export async function submitPaymentAction(
@@ -52,7 +52,7 @@ export async function submitPaymentAction(
 }
 
 // ============================================================================
-// RAZORPAY: createCheckoutAction — reserve inventory + create Razorpay order.
+// RAZORPAY: createCheckoutAction - reserve inventory + create Razorpay order.
 // Returns a CheckoutSession the client uses to open Razorpay Checkout modal.
 // ============================================================================
 
@@ -74,7 +74,7 @@ export async function createCheckoutAction(
 }
 
 // ============================================================================
-// RAZORPAY: verifyPaymentAction — verify signature + confirm order.
+// RAZORPAY: verifyPaymentAction - verify signature + confirm order.
 // Called after Razorpay Checkout returns successfully.
 // ============================================================================
 
@@ -91,7 +91,7 @@ export async function verifyPaymentAction(input: {
 }
 
 // ============================================================================
-// RAZORPAY: handlePaymentFailureAction — release reserved inventory.
+// RAZORPAY: handlePaymentFailureAction - release reserved inventory.
 // Called when Razorpay Checkout is dismissed or payment fails.
 // ============================================================================
 
@@ -106,7 +106,7 @@ export async function handlePaymentFailureAction(input: {
 
 
 // ============================================================================
-// Payment status — polls the order/intent for the checkout status page
+// Payment status - polls the order/intent for the checkout status page
 // ============================================================================
 
 export async function getPaymentStatusAction(input: {
@@ -133,7 +133,7 @@ export async function getPaymentStatusAction(input: {
 }
 
 // ============================================================================
-// Postponement refund — user requests a refund for a postponed event
+// Postponement refund - user requests a refund for a postponed event
 // ============================================================================
 
 export async function requestPostponementRefundAction(
@@ -145,7 +145,7 @@ export async function requestPostponementRefundAction(
   return runPostponementRefund(user, eventId);
 }
 
-/** User chose "keep my ticket" — clears the refund offer on their order. */
+/** User chose "keep my ticket" - clears the refund offer on their order. */
 export async function declineRefundOfferAction(
   orderId: string,
 ): Promise<{ success: boolean; error?: string }> {

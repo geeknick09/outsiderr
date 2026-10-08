@@ -80,5 +80,5 @@ export async function revokeBoxOfficePinAction(
 }
 
 /**
- * Verify a box office PIN (public — no auth required, used by /organizer/box-office).
+ * Verify a box office PIN (public - no auth required, used by /organizer/box-office).
  */

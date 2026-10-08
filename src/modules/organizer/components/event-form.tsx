@@ -17,7 +17,7 @@ import { isGoogleMapsLink } from "@/modules/shared";
 import { cn } from "@/modules/shared";
 import type { EventDetail } from "@/modules/shared";
 
-// Lazy load MapPicker with ssr: false — Leaflet requires `window`
+// Lazy load MapPicker with ssr: false - Leaflet requires `window`
 const MapPicker = dynamic(
   () => import("./map-picker").then((m) => m.MapPicker),
   { ssr: false },
@@ -121,7 +121,7 @@ export function EventForm({
   organizerName?: string;
   termsVersion?: string;
   pastEvents?: Array<{ id: string; title: string; startsAt: string }>;
-  /** Set when editing an existing draft — pre-fills every field. */
+  /** Set when editing an existing draft - pre-fills every field. */
   draftEvent?: EventDetail;
   /** Admin-configured purge window for drafts (shown in the save confirmation). */
   draftRetentionDays?: number;
@@ -328,7 +328,7 @@ export function EventForm({
 
       {draftEvent ? (
         <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-700 dark:text-amber-300">
-          You&apos;re editing a <strong>draft</strong> — it isn&apos;t visible to anyone. Drafts are
+          You&apos;re editing a <strong>draft</strong> - it isn&apos;t visible to anyone. Drafts are
           permanently deleted {draftRetentionDays} days after they were first saved if not published.
         </div>
       ) : null}
@@ -388,7 +388,7 @@ export function EventForm({
                 );
               })}
             </div>
-            {/* Hidden single category field for backward compat — uses first selected */}
+            {/* Hidden single category field for backward compat - uses first selected */}
             <input type="hidden" name="category" value={(sv?.categories as string[] | undefined)?.[0] ?? sv?.category ?? "OTHER"} readOnly />
           </Field>
           <Field label="City *">
@@ -531,11 +531,11 @@ export function EventForm({
             )}
           </Field>
 
-          {/* Hidden inputs for lat/lng — populated by the map picker */}
+          {/* Hidden inputs for lat/lng - populated by the map picker */}
           <input type="hidden" name="latitude" value={lat} />
           <input type="hidden" name="longitude" value={lng} />
 
-          {/* Optional map picker — collapsible */}
+          {/* Optional map picker - collapsible */}
           <div className="space-y-2">
             <button
               type="button"
@@ -632,7 +632,7 @@ export function EventForm({
         />
       </section>
 
-      {/* Optional teaser video — muted autoplay on the discovery card */}
+      {/* Optional teaser video - muted autoplay on the discovery card */}
       <section className="glass rounded-3xl p-5">
         <TeaserVideoField
           name="teaserVideoUrl"
@@ -669,7 +669,7 @@ export function EventForm({
         </div>
 
         <div className="mt-4 border-t border-zinc-100 pt-4 dark:border-white/5">
-          <Field label="Max tickets per person (1–10)">
+          <Field label="Max tickets per person (1-10)">
             <input
               name="maxTicketsPerUser"
               type="number"
@@ -680,7 +680,7 @@ export function EventForm({
             />
           </Field>
           <p className="mt-1.5 text-xs text-muted">
-            How many tickets one account can hold for this event — across all tiers and orders combined.
+            How many tickets one account can hold for this event - across all tiers and orders combined.
             Each ticket gets its own QR.
           </p>
         </div>
@@ -796,7 +796,7 @@ export function EventForm({
             active={pricingMode === "PHASED"}
             onClick={() => {
               setPricingMode("PHASED");
-              // In PHASED mode, named tiers are optional — clear the default empty tier
+              // In PHASED mode, named tiers are optional - clear the default empty tier
               setTiers((prev) => prev.length === 1 && !prev[0].name && !prev[0].price ? [] : prev);
             }}
             title="Phased"
@@ -804,7 +804,7 @@ export function EventForm({
           />
         </div>
 
-        {/* FREE mode — just quantity */}
+        {/* FREE mode - just quantity */}
         {pricingMode === "FREE" ? (
           <div className="rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
             <Field label="Total tickets available">
@@ -824,7 +824,7 @@ export function EventForm({
           </div>
         ) : null}
 
-        {/* FLAT mode — single price + quantity */}
+        {/* FLAT mode - single price + quantity */}
         {pricingMode === "FLAT" ? (
           <div className="rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
             <input type="hidden" name="tierName" value="Entry" />
@@ -855,7 +855,7 @@ export function EventForm({
           </div>
         ) : null}
 
-        {/* PAID mode — full multi-tier UI */}
+        {/* PAID mode - full multi-tier UI */}
         {pricingMode === "PAID" ? (
           <>
             <div className="flex items-center justify-between">
@@ -967,7 +967,7 @@ export function EventForm({
           </>
         ) : null}
 
-        {/* PHASED mode — time-based flat pricing phases + optional named tiers */}
+        {/* PHASED mode - time-based flat pricing phases + optional named tiers */}
         {pricingMode === "PHASED" ? (
           <>
             <div className="rounded-2xl border border-violet-neon/30 bg-violet-neon/5 p-4">
@@ -1213,7 +1213,7 @@ export function EventForm({
         ) : null}
       </section>
 
-      {/* Platform fee & staffing section hidden from organizers —
+      {/* Platform fee & staffing section hidden from organizers -
           default feePayer is BUYER, set via hidden input below.
           Door staff is also disabled for this release. */}
       <input type="hidden" name="feePayer" value={sv?.feePayer ?? "BUYER"} />
@@ -1267,7 +1267,7 @@ export function EventForm({
 
       {state.error ? <p className="text-sm text-red-500">{state.error}</p> : null}
 
-      {/* saveMode is set by which button is clicked — default to publish */}
+      {/* saveMode is set by which button is clicked - default to publish */}
       <input type="hidden" name="saveMode" value="publish" />
 
       <div className="flex flex-wrap gap-3">
@@ -1287,7 +1287,7 @@ export function EventForm({
         </Button>
       </div>
 
-      {/* Draft-save confirmation — warns about the auto-delete window */}
+      {/* Draft-save confirmation - warns about the auto-delete window */}
       {showDraftConfirm ? (
         <div
           className="fixed inset-0 z-[120] flex items-end justify-center bg-black/70 p-4 backdrop-blur-sm sm:items-center"
@@ -1315,7 +1315,7 @@ export function EventForm({
               <strong className="text-zinc-900 dark:text-white">
                 Drafts older than {draftRetentionDays} days are permanently deleted
               </strong>{" "}
-              — the event and all its uploaded files (posters, video, photos) — to keep storage clean.
+              - the event and all its uploaded files (posters, video, photos) - to keep storage clean.
               Publish it before then to keep it.
             </p>
             <div className="mt-5 flex gap-3">
@@ -1456,7 +1456,7 @@ export function PosterField({
         name={name}
         value={url}
         onChange={(event) => setUrl(event.target.value)}
-        placeholder={uploadError ? "Upload failed — paste an image URL" : "or paste an image URL"}
+        placeholder={uploadError ? "Upload failed - paste an image URL" : "or paste an image URL"}
         className={INPUT}
       />
       {pendingFile ? (
@@ -1495,7 +1495,7 @@ export function TeaserVideoField({
   const safeTitle = eventTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "untitled-event";
   const folder = `${safeOrg}/${safeTitle}/${subFolder}`;
 
-  const MAX_BYTES = 50 * 1024 * 1024; // 50 MB — ~40 Mbps at 10s, plenty for high quality
+  const MAX_BYTES = 50 * 1024 * 1024; // 50 MB - ~40 Mbps at 10s, plenty for high quality
   const MAX_SECONDS = 10;
 
   function getDuration(file: File): Promise<number> {
@@ -1525,7 +1525,7 @@ export function TeaserVideoField({
     try {
       const duration = await getDuration(file);
       if (duration > MAX_SECONDS) {
-        setError(`Teaser must be ${MAX_SECONDS} seconds or less — this one is ${Math.ceil(duration)}s.`);
+        setError(`Teaser must be ${MAX_SECONDS} seconds or less - this one is ${Math.ceil(duration)}s.`);
         return;
       }
     } catch {
@@ -1536,9 +1536,9 @@ export function TeaserVideoField({
     try {
       const uploaded = await uploadPublicFile(file, folder);
       if (uploaded) setUrl(uploaded);
-      else setError("Upload failed — paste a video URL instead.");
+      else setError("Upload failed - paste a video URL instead.");
     } catch {
-      setError("Upload failed — paste a video URL instead.");
+      setError("Upload failed - paste a video URL instead.");
     } finally {
       setUploading(false);
     }
@@ -1580,7 +1580,7 @@ export function TeaserVideoField({
         className={INPUT}
       />
       <p className="text-xs text-muted">
-        Optional. Plays muted on the event card — keep it under {MAX_SECONDS}s. Vertical 3:4 looks best.
+        Optional. Plays muted on the event card - keep it under {MAX_SECONDS}s. Vertical 3:4 looks best.
       </p>
     </div>
   );

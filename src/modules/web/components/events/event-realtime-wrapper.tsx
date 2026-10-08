@@ -10,7 +10,7 @@ import { useRealtime } from "@/modules/shared";
  * changes the event's date/time/venue, postpones, or cancels it.
  *
  * When a change is detected, we:
- * 1. Show a notification banner ("Event details updated — refreshing…")
+ * 1. Show a notification banner ("Event details updated - refreshing…")
  * 2. Call router.refresh() to re-fetch server component data
  * 3. Auto-dismiss the banner after 3 seconds
  */
@@ -34,15 +34,15 @@ export function EventRealtimeWrapper({
     onPayload: ({ new: row }) => {
       const status = row.status as string;
       if (status === "POSTPONED") {
-        setBannerText("Event has been postponed — new dates loaded");
+        setBannerText("Event has been postponed - new dates loaded");
       } else if (status === "CANCELLED" || status === "CANCELLATION_REQUESTED") {
-        setBannerText("Event has been cancelled — details updated");
+        setBannerText("Event has been cancelled - details updated");
       } else {
-        setBannerText("Event details updated — refreshing");
+        setBannerText("Event details updated - refreshing");
       }
       setShowBanner(true);
 
-      // Debounce refresh — if multiple fields change in one update, we only refresh once
+      // Debounce refresh - if multiple fields change in one update, we only refresh once
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
       refreshTimerRef.current = setTimeout(() => {
         router.refresh();

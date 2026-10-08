@@ -5,7 +5,7 @@ import { formatDateTime } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Admin: Scanner PINs — Outsiderr" };
+export const metadata = { title: "Admin: Scanner PINs - Outsiderr" };
 
 export default async function AdminScannerPinsPage() {
   const pins = await listAllScannerPins();

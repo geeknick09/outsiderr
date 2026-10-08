@@ -1,7 +1,7 @@
 /**
  * Branded loading spinner using the Outsiderr neon-gradient.
  *
- * Renders a circular gradient ring that spins — used in loading.tsx
+ * Renders a circular gradient ring that spins - used in loading.tsx
  * route-level suspense fallbacks and inline loading states.
  *
  * Sizes: sm (24px), md (40px), lg (64px)
@@ -41,7 +41,7 @@ export function BrandedLoader({
 }
 
 /**
- * Full-page branded loader — centred spinner on a glass card.
+ * Full-page branded loader - centred spinner on a glass card.
  * Drop into any loading.tsx for an instant branded loading state.
  */
 export function BrandedPageLoader({ label = "Loading" }: { label?: string }) {

@@ -123,7 +123,7 @@ function BoxOfficePinLogin({
         >
           {events.map((event) => (
             <option key={event.id} value={event.id}>
-              {event.title} — {event.organizerName}
+              {event.title} - {event.organizerName}
             </option>
           ))}
         </select>
@@ -325,7 +325,7 @@ function BoxOfficeForm({
               <option value="">Custom amount (no tier)</option>
               {tiers.map((tier) => (
                 <option key={tier.id} value={tier.id}>
-                  {tier.name} — {tier.pricePaise === 0 ? "Free" : formatPaise(tier.pricePaise)}
+                  {tier.name} - {tier.pricePaise === 0 ? "Free" : formatPaise(tier.pricePaise)}
                 </option>
               ))}
             </select>

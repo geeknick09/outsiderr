@@ -70,7 +70,7 @@ async function postBookingSideEffects(user: CurrentUser, input: CheckoutInput): 
 }
 
 /**
- * Free RSVP — auto-confirmed with tickets minted immediately. The paid
+ * Free RSVP - auto-confirmed with tickets minted immediately. The paid
  * manual-UPI path was removed in the Razorpay migration; paid checkout
  * always goes through runCheckout → Razorpay.
  */
@@ -178,7 +178,7 @@ export async function runPaymentFailure(
 
 /**
  * User-requested refund for a postponed event. The RPC creates the PENDING
- * refund row (ticket price only — BMS model) and the refund worker pushes
+ * refund row (ticket price only - BMS model) and the refund worker pushes
  * it to Razorpay asynchronously; no gateway calls happen inline here.
  */
 export async function runPostponementRefund(

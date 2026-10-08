@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 /**
- * Global 404 page — rendered when no route matches.
+ * Global 404 page - rendered when no route matches.
  * Matches the glass-card style of the error boundary.
  */
 export default function NotFound() {

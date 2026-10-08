@@ -56,7 +56,7 @@ export function FeaturedCarousel({ events }: { events: EventSummary[] }) {
                   fill
                   sizes="(max-width: 640px) 85vw, (max-width: 1024px) 60vw, 48vw"
                   className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  // Only the first card is eager — all others lazy-load as user scrolls
+                  // Only the first card is eager - all others lazy-load as user scrolls
                   priority={index === 0}
                   loading={index === 0 ? "eager" : "lazy"}
                 />

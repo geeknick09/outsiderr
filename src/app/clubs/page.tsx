@@ -14,7 +14,7 @@ import type { City, ClubType, MembershipType } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { title: "Clubs & Crews — Outsiderr" };
+export const metadata: Metadata = { title: "Clubs & Crews - Outsiderr" };
 
 const TYPE_LABEL: Record<ClubType, string> = {
   CLUB: "Club",
@@ -69,7 +69,7 @@ export default async function ClubsPage({
         <div className="flex items-center gap-2.5 rounded-2xl bg-lime-400/15 px-4 py-3 text-sm text-lime-600 dark:text-lime-400">
           <Clock className="h-4 w-4 shrink-0" />
           <span>
-            Your club has been submitted! It will appear here once the Outsiderr team approves it (usually within 24–48 hours).
+            Your club has been submitted! It will appear here once the Outsiderr team approves it (usually within 24-48 hours).
           </span>
         </div>
       ) : null}
@@ -96,7 +96,7 @@ export default async function ClubsPage({
               href="/clubs/create"
               className="mt-3 inline-block text-sm font-semibold text-violet-neon underline-offset-2 hover:underline"
             >
-              Be the first — start a club
+              Be the first - start a club
             </Link>
           ) : null}
         </div>

@@ -38,7 +38,7 @@ export async function clearAllNotificationsAction(): Promise<{ error: string | n
 const PAGE_SIZE = 10;
 
 /**
- * Paginated notifications + unread count — used by the bell when the dropdown
+ * Paginated notifications + unread count - used by the bell when the dropdown
  * opens and for "load more". Fetches PAGE_SIZE+1 rows to derive hasMore.
  */
 export async function getNotificationsAction(offset = 0): Promise<{

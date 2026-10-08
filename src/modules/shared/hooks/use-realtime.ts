@@ -11,7 +11,7 @@ export interface RealtimePayload {
 }
 
 export interface UseRealtimeConfig {
-  /** Unique channel name — must be different per subscription */
+  /** Unique channel name - must be different per subscription */
   channelName: string;
   /** Table name, e.g. "event_notifications" */
   table: string;
@@ -29,7 +29,7 @@ export interface UseRealtimeConfig {
   debounceMs?: number;
 }
 
-// Singleton Supabase client — created once, reused across all hooks.
+// Singleton Supabase client - created once, reused across all hooks.
 // This prevents a new WebSocket connection per component mount.
 let supabaseSingleton: ReturnType<typeof createClient> | null = null;
 function getSupabase() {
@@ -90,7 +90,7 @@ export function useRealtime(config: UseRealtimeConfig) {
     );
     channel.subscribe();
 
-    // Reconnect on tab focus — only if not already subscribed
+    // Reconnect on tab focus - only if not already subscribed
     function handleVisibility() {
       if (document.visibilityState === "visible") {
         // Supabase auto-reconnects; only re-subscribe if the channel dropped

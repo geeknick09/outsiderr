@@ -9,7 +9,7 @@ import { listOrganizerEvents } from "@/modules/organizer/server";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Boost Event — Outsiderr" };
+export const metadata = { title: "Boost Event - Outsiderr" };
 
 export default async function OrganizerBoostPage({
   searchParams,

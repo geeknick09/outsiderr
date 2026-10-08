@@ -2,7 +2,7 @@
 
 import dynamicImport from "next/dynamic";
 
-// Lazy-load AnalyticsCharts — it pulls in recharts + jspdf (heavy libs ~250kB)
+// Lazy-load AnalyticsCharts - it pulls in recharts + jspdf (heavy libs ~250kB)
 // ssr: false is allowed here because this is a Client Component
 const AnalyticsCharts = dynamicImport(
   () => import("./analytics-charts").then((m) => m.AnalyticsCharts),

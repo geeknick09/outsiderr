@@ -10,7 +10,7 @@ export async function verifyBoxOfficePinAction(
 ): Promise<{
   error: string | null;
   success: boolean;
-  /** "RATE_LIMITED" when the PIN-verify limit tripped — routes map to 429. */
+  /** "RATE_LIMITED" when the PIN-verify limit tripped - routes map to 429. */
   code?: "RATE_LIMITED";
   event?: {
     id: string;
@@ -130,7 +130,7 @@ export async function createBoxOfficeOrderAction(formData: FormData): Promise<{
 
   // Create the walk-in order (RPC sets user_id=NULL, is_box_office=true)
   // Generate idempotency key to prevent duplicate orders from double-clicks
-  // create_walkin_order is service-role only — PIN verified above.
+  // create_walkin_order is service-role only - PIN verified above.
   const { createServiceClient } = await import("@/modules/shared/server");
   const idempotencyKey = crypto.randomUUID();
   const { data: result, error } = await createServiceClient().rpc("create_walkin_order", {

@@ -3,7 +3,7 @@ import { AnalyticsChartsLazy } from "@/modules/analytics";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Admin: Analytics — Outsiderr" };
+export const metadata = { title: "Admin: Analytics - Outsiderr" };
 
 export default async function AdminAnalyticsPage() {
   const [userAnalytics, paymentAnalytics, organizerAnalytics] = await Promise.all([

@@ -19,7 +19,7 @@ export interface KycThreadMessage {
   createdAt: string;
 }
 
-/** Plain document upload — no cropper (docs need full frame / PDF). */
+/** Plain document upload - no cropper (docs need full frame / PDF). */
 function DocUploadButton({
   uploading,
   hasFile,
@@ -76,7 +76,7 @@ export function OrganizerKycReviewPanel({ organizer, thread = [] }: { organizer:
 
   const isRejected = organizer.kycStatus === "REJECTED";
   const isClarification = organizer.kycStatus === "CLARIFICATION_NEEDED";
-  // Response form only matters once the admin has acted — a fresh PENDING
+  // Response form only matters once the admin has acted - a fresh PENDING
   // submission shows just the status banner.
   const showResponseForm = isRejected || isClarification;
   const statusLabel = useMemo(() => {
@@ -98,7 +98,7 @@ export function OrganizerKycReviewPanel({ organizer, thread = [] }: { organizer:
     if (!file) return;
     const setErr = kind === "pan" ? setPanError : setBankError;
     if (file.size > MAX_DOC_MB * 1024 * 1024) {
-      setErr(`File too large — keep it under ${MAX_DOC_MB} MB (${(file.size / 1024 / 1024).toFixed(1)} MB selected).`);
+      setErr(`File too large - keep it under ${MAX_DOC_MB} MB (${(file.size / 1024 / 1024).toFixed(1)} MB selected).`);
       return;
     }
     setErr(null);
@@ -296,7 +296,7 @@ export function OrganizerKycReviewPanel({ organizer, thread = [] }: { organizer:
               className={INPUT}
             />
           </label>
-          <p className="text-xs text-muted">Respond to the team note above — your reply and documents go straight to the review team.</p>
+          <p className="text-xs text-muted">Respond to the team note above - your reply and documents go straight to the review team.</p>
         </div>
 
         {message ? (

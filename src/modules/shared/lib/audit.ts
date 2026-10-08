@@ -10,7 +10,7 @@ import { logger } from "./logger";
  * - What field changed, from what value, to what value
  * - Why the change was made (optional reason)
  *
- * This is a best-effort log — failures are logged but do not block the action.
+ * This is a best-effort log - failures are logged but do not block the action.
  * The caller should not wait on or depend on the audit log succeeding.
  */
 
@@ -25,7 +25,7 @@ export interface AuditEntry {
 }
 
 /**
- * Record an audit entry. Best-effort — errors are logged but not thrown.
+ * Record an audit entry. Best-effort - errors are logged but not thrown.
  * Uses the service-role client so it works in server actions and webhooks
  * regardless of the current user's RLS permissions.
  */

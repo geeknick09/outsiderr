@@ -18,7 +18,7 @@ const bodySchema = z.object({
 });
 
 /**
- * POST /api/v1/checkout — reserve inventory + create a Razorpay order.
+ * POST /api/v1/checkout - reserve inventory + create a Razorpay order.
  * Returns a CheckoutSession the client feeds to the Razorpay SDK.
  * Auth: Bearer <supabase-access-token>
  */

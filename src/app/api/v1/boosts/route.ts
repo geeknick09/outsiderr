@@ -15,7 +15,7 @@ const bodySchema = z.object({
 });
 
 /**
- * POST /api/v1/boosts — request a homepage boost slot for an event.
+ * POST /api/v1/boosts - request a homepage boost slot for an event.
  * Auth: Bearer <supabase-access-token> (organizer)
  */
 export async function POST(request: Request) {

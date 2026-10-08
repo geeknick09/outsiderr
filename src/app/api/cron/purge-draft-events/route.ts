@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 /**
  * Cron endpoint to permanently delete stale draft events.
  *
- * Drafts older than `draft_retention_days` (admin setting, default 60 —
+ * Drafts older than `draft_retention_days` (admin setting, default 60 -
  * measured from created_at) are removed entirely: the events row (children
  * cascade) plus their poster/teaser/gallery files in the storage bucket.
  * Organizers are warned at save time that abandoned drafts are purged.

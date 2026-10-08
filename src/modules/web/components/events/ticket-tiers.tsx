@@ -33,7 +33,7 @@ export function TicketTiers({
   ticketsHeld?: number;
 }) {
   const router = useRouter();
-  // Clock tick — re-evaluates phase/booking state without a refresh.
+  // Clock tick - re-evaluates phase/booking state without a refresh.
   const [nowTick, setNowTick] = useState(() => Date.now());
   const nowMs = nowTick;
   const startMs = new Date(event.startsAt).getTime();
@@ -44,7 +44,7 @@ export function TicketTiers({
   const bookingClosed = event.allowBookingDuringEvent ? eventEnded : eventStarted;
   const [navigating, startNavigation] = useTransition();
 
-  // Local tier state — updated in realtime when tickets are sold
+  // Local tier state - updated in realtime when tickets are sold
   const [tiers, setTiers] = useState<TicketTier[]>(event.tiers);
 
   // Realtime: live tier quantity updates when someone books a ticket
@@ -68,7 +68,7 @@ export function TicketTiers({
     },
   });
 
-  // All derived state memoized — nothing recalculates on every render
+  // All derived state memoized - nothing recalculates on every render
   const phaseTiers = useMemo(() => tiers.filter((t) => t.tierType === "FLAT_PHASE"), [tiers]);
   const namedTiers = useMemo(() => tiers.filter((t) => t.tierType !== "FLAT_PHASE"), [tiers]);
   const phaseAvailability = useMemo(
@@ -79,7 +79,7 @@ export function TicketTiers({
   // Realtime phase flips: time-based boundaries (phase opens/closes, event
   // start/end) emit no DB event, so the realtime tier subscription can't see
   // them. This timer wakes at the NEXT boundary, bumps the clock, and the
-  // availability recomputes — then re-arms for the one after it.
+  // availability recomputes - then re-arms for the one after it.
   useEffect(() => {
     const boundaries: number[] = [startMs, endMs];
     for (const t of phaseTiers) {
@@ -107,7 +107,7 @@ export function TicketTiers({
 
   const [selectedId, setSelectedId] = useState(bookableTiers[0]?.id ?? "");
 
-  // Per-user cap: event.maxTicketsPerUser (1–10) minus what they already hold.
+  // Per-user cap: event.maxTicketsPerUser (1-10) minus what they already hold.
   const perUserCap = Math.min(10, Math.max(1, event.maxTicketsPerUser ?? 5));
   const remainingCap = Math.max(0, perUserCap - ticketsHeld);
   const [qtyRaw, setQty] = useState(1);
@@ -122,7 +122,7 @@ export function TicketTiers({
     [bookableTiers, selectedId],
   );
 
-  // Effective qty is clamped to remaining cap + tier stock at render time —
+  // Effective qty is clamped to remaining cap + tier stock at render time -
   // switching tiers can never leave the count out of bounds.
   const tierLeft = selected
     ? selected.quantity - selected.quantitySold - (selected.quantityReserved ?? 0)
@@ -153,7 +153,7 @@ export function TicketTiers({
     );
   }, [selected, qty, remainingCap, event.id, router, startNavigation]);
 
-  // Sold-out phase state — computed once, not in an IIFE inside JSX
+  // Sold-out phase state - computed once, not in an IIFE inside JSX
   const soldOutPhaseState = useMemo(() => {
     if (!hasPhases || bookableTiers.length > 0) return null;
     const allUpcoming = phaseAvailability.length > 0 && phaseAvailability.every((p) => p.isUpcoming);
@@ -164,7 +164,7 @@ export function TicketTiers({
     return { allUpcoming, allClosedOrSoldOut, nextUpcoming };
   }, [hasPhases, bookableTiers.length, phaseAvailability]);
 
-  // Waitlist tiers — memoized
+  // Waitlist tiers - memoized
   const waitlistTiers = useMemo(() => {
     if (!waitlistEnabled) return [];
     return tiers.filter((tier) => {
@@ -181,12 +181,12 @@ export function TicketTiers({
     <section id="tickets" className="glass rounded-3xl p-5">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-base font-bold">
-          {isFreeEvent ? "Free Entry — RSVP" : "Select tickets"}
+          {isFreeEvent ? "Free Entry - RSVP" : "Select tickets"}
         </h2>
         <span className="text-xs text-muted">Max {perUserCap} per person</span>
       </div>
 
-      {/* Phase timeline — show all phases with their status */}
+      {/* Phase timeline - show all phases with their status */}
       {hasPhases ? (
         <div className="mb-4 space-y-2">
           {phaseAvailability.map((p) => {
@@ -289,7 +289,7 @@ export function TicketTiers({
         <div className="mt-5 space-y-4 border-t border-zinc-200 pt-5 dark:border-white/10">
           <input type="hidden" value={1} readOnly />
 
-          {/* Quantity stepper — bounded by the per-user cap and tier stock */}
+          {/* Quantity stepper - bounded by the per-user cap and tier stock */}
           <div className="mb-3 flex items-center justify-between">
             <span className="text-xs font-semibold text-muted">
               Tickets{ticketsHeld > 0 ? ` (you hold ${ticketsHeld})` : ""}
@@ -390,7 +390,7 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-// Extracted from the IIFE — now a proper component that only re-renders when its props change
+// Extracted from the IIFE - now a proper component that only re-renders when its props change
 function SoldOutPhaseMessage({
   state,
 }: {

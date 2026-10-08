@@ -13,7 +13,7 @@ const READER_ID = "outsiderr-qr-reader-event";
 const OUTCOME_STYLES = {
   VALID: {
     icon: CheckCircle2,
-    title: "VALID — Checked In",
+    title: "VALID - Checked In",
     className: "border-emerald-500/50 bg-emerald-500/15 text-emerald-600 dark:text-emerald-300",
   },
   ALREADY_USED: {
@@ -64,7 +64,7 @@ export function EventDoorScanner({
       osc.stop(ctx.currentTime + 0.15);
       osc.onended = () => ctx.close();
     } catch {
-      // Audio not available — non-critical
+      // Audio not available - non-critical
     }
   }, []);
 
@@ -222,7 +222,7 @@ export function EventDoorScanner({
               <p className="text-sm font-black">{result.ticket.eventTitle}</p>
               <div className="my-2 border-t border-black/10 dark:border-white/10" />
               <p className="text-xs font-bold uppercase tracking-wide text-muted">Name</p>
-              <p className="text-sm font-bold">{result.ticket.holderName ?? "—"}</p>
+              <p className="text-sm font-bold">{result.ticket.holderName ?? "-"}</p>
               {result.ticket.holderEmail ? (
                 <>
                   <p className="mt-1 text-xs font-bold uppercase tracking-wide text-muted">Email</p>

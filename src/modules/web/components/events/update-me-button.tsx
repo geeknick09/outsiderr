@@ -49,7 +49,7 @@ export function UpdateMeButton({
         ) : (
           <Bell className="h-4 w-4" />
         )}
-        {subscribed ? "Subscribed — Updates On" : "Update Me"}
+        {subscribed ? "Subscribed - Updates On" : "Update Me"}
       </button>
       {error ? <p className="px-2 text-xs text-red-500">{error}</p> : null}
       {subscribed ? (

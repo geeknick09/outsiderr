@@ -20,7 +20,7 @@ const bodySchema = z.object({
 });
 
 /**
- * POST /api/v1/scanner/walkin — door staff sells a walk-in ticket (PIN-auth).
+ * POST /api/v1/scanner/walkin - door staff sells a walk-in ticket (PIN-auth).
  * Verifies the scanner PIN, then creates the order via create_walkin_order RPC.
  */
 export async function POST(request: Request) {
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     }
 
     const idempotencyKey = parsed.data.idempotencyKey ?? crypto.randomUUID();
-    // create_walkin_order is service-role only — PIN verified above.
+    // create_walkin_order is service-role only - PIN verified above.
     const service = createServiceClient();
     const { data: result, error } = await service.rpc("create_walkin_order", {
       p_event_id: eventId,

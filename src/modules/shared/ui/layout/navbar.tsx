@@ -34,7 +34,7 @@ export async function Navbar({ mobileNav }: { mobileNav?: React.ReactNode } = {}
       .eq("id", user.id)
       .maybeSingle();
     isAdmin = profile?.is_admin === true;
-    // Organizer status is driven by the KYC access state — not the
+    // Organizer status is driven by the KYC access state - not the
     // profiles.is_organizer flag (stays true while PENDING/REJECTED, which
     // would incorrectly show "Organizer Dashboard" to rejected users).
     const organizer = await getOrganizerProfile(user);

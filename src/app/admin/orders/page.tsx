@@ -5,7 +5,7 @@ import type { OrderStatus } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Admin: Transactions — Outsiderr" };
+export const metadata = { title: "Admin: Transactions - Outsiderr" };
 
 const TONE: Record<OrderStatus, "warning" | "success" | "danger" | "neutral" | "violet"> = {
   PENDING_VERIFICATION: "warning",
@@ -107,7 +107,7 @@ export default async function AdminTransactionsPage({
             <div className="min-w-0 flex-1">
               <p className="truncate font-semibold">{order.eventTitle}</p>
               <p className="text-xs text-muted">
-                {order.buyerName ?? "—"} · {order.tierName} × {order.quantity} · {formatPaise(order.totalPaise)}
+                {order.buyerName ?? "-"} · {order.tierName} × {order.quantity} · {formatPaise(order.totalPaise)}
               </p>
               <p className="text-xs text-muted">
                 {order.razorpayPaymentId

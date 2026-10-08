@@ -48,7 +48,7 @@ export function TicketsRealtimeWrapper({
 }: {
   userId: string;
   userName: string;
-  whatsappNumber?: string; // kept for call-site compat — unused post-Razorpay
+  whatsappNumber?: string; // kept for call-site compat - unused post-Razorpay
   submitted: boolean;
   initialOrders: Order[];
   initialTickets: Ticket[];
@@ -106,7 +106,7 @@ export function TicketsRealtimeWrapper({
     enabled: !!userId,
     onPayload: ({ eventType, new: row }) => {
       if (eventType === "INSERT") {
-        // New ticket minted — refresh for full joined data (event title, tier name, etc.)
+        // New ticket minted - refresh for full joined data (event title, tier name, etc.)
         router.refresh();
       } else if (eventType === "UPDATE") {
         setTickets((prev) =>
@@ -120,7 +120,7 @@ export function TicketsRealtimeWrapper({
     },
   });
 
-  // Channel 3: refund status changes — keeps the strip live as the refund
+  // Channel 3: refund status changes - keeps the strip live as the refund
   // pipeline moves REQUESTED → PENDING → INITIATED → COMPLETED/FAILED.
   useRealtime({
     channelName: `user-refunds:${userId}`,
@@ -178,7 +178,7 @@ export function TicketsRealtimeWrapper({
         <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-5 text-sm text-emerald-700 dark:text-emerald-300">
           <p className="text-base font-black">Booking submitted</p>
           <p className="mt-1">
-            Your tickets will appear here as soon as the payment confirms —
+            Your tickets will appear here as soon as the payment confirms -
             usually within a few seconds.
           </p>
         </div>

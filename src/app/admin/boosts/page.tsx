@@ -16,7 +16,7 @@ import { cn } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Admin: Boosts — Outsiderr" };
+export const metadata = { title: "Admin: Boosts - Outsiderr" };
 
 export default async function AdminBoostsPage() {
   const [
@@ -112,11 +112,11 @@ export default async function AdminBoostsPage() {
                   </div>
                   <div>
                     <span className="text-muted">Boost started: </span>
-                    <span className="font-semibold">{boost.startedAt ? formatDateTime(boost.startedAt) : "—"}</span>
+                    <span className="font-semibold">{boost.startedAt ? formatDateTime(boost.startedAt) : "-"}</span>
                   </div>
                   <div>
                     <span className="text-muted">Expires: </span>
-                    <span className="font-semibold">{boost.expiresAt ? formatDateTime(boost.expiresAt) : "—"}</span>
+                    <span className="font-semibold">{boost.expiresAt ? formatDateTime(boost.expiresAt) : "-"}</span>
                   </div>
                 </div>
 

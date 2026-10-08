@@ -20,7 +20,7 @@ const bodySchema = z.object({
 });
 
 /**
- * POST /api/v1/box-office/orders — create a box-office sale (PIN-auth).
+ * POST /api/v1/box-office/orders - create a box-office sale (PIN-auth).
  * Verifies the box-office PIN, then creates the order via create_walkin_order
  * (which sets user_id=NULL and is_box_office=true).
  */
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     }
 
     const idempotencyKey = parsed.data.idempotencyKey ?? crypto.randomUUID();
-    // create_walkin_order is service-role only — PIN verified above.
+    // create_walkin_order is service-role only - PIN verified above.
     const service = createServiceClient();
     const { data: result, error } = await service.rpc("create_walkin_order", {
       p_event_id: eventId,

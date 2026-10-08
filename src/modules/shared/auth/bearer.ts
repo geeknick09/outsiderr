@@ -8,7 +8,7 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./config";
 /**
  * Supabase client scoped to a bearer access token (mobile/API clients).
  *
- * The JWT travels in the `Authorization` header on every request — PostgREST
+ * The JWT travels in the `Authorization` header on every request - PostgREST
  * resolves `auth.uid()` from it, so RLS and security-definer RPCs behave exactly
  * as they do for a cookie-authenticated web user.
  */

@@ -78,6 +78,6 @@ export async function revokeScannerPinAction(
 }
 
 /**
- * Verify a scanner PIN (public — no auth required, used by /scan page).
+ * Verify a scanner PIN (public - no auth required, used by /scan page).
  * Returns event info if valid.
  */

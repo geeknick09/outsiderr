@@ -3,11 +3,11 @@ import { createClient } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Door Scanner — Outsiderr" };
+export const metadata = { title: "Door Scanner - Outsiderr" };
 
 export default async function ScanPage() {
   // Fetch all published events for the event selector.
-  // No Supabase auth required — PIN is the credential.
+  // No Supabase auth required - PIN is the credential.
   const supabase = await createClient();
   const { data: events } = await supabase
     .from("events")

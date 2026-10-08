@@ -27,7 +27,7 @@ export function Modal({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [open, onClose]);
 
-  // Lock body scroll while modal is open — prevents background scroll on mobile
+  // Lock body scroll while modal is open - prevents background scroll on mobile
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;

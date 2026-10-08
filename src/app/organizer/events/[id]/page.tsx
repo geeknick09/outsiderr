@@ -30,7 +30,7 @@ import { formatDateRange, isEventEnded } from "@/modules/shared";
 import { CATEGORY_LABELS } from "@/modules/shared";
 import { getDraftRetentionDays } from "@/modules/shared/server";
 
-// Lazy — EventForm pulls in Leaflet via MapPicker
+// Lazy - EventForm pulls in Leaflet via MapPicker
 const EventForm = lazy(() =>
   import("@/modules/organizer").then((m) => ({ default: m.EventForm })),
 );
@@ -43,7 +43,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const event = await getEvent((await params).id);
-  return { title: event ? `Manage: ${event.title} — Outsiderr` : "Manage Event — Outsiderr" };
+  return { title: event ? `Manage: ${event.title} - Outsiderr` : "Manage Event - Outsiderr" };
 }
 
 export default async function ManageEventPage({
@@ -86,8 +86,8 @@ export default async function ManageEventPage({
 
   if (!event) notFound();
 
-  // Check access level — owner or accepted collaborator. Note: analytics is
-  // null for collaborators without ANALYTICS/FULL permission — that's not a
+  // Check access level - owner or accepted collaborator. Note: analytics is
+  // null for collaborators without ANALYTICS/FULL permission - that's not a
   // 404, they still get the event view.
   const accessLevel = await getEventAccessLevel(user, id);
   if (!accessLevel) notFound();
@@ -97,7 +97,7 @@ export default async function ManageEventPage({
   const canEdit = canEditEvent(accessLevel);
   const canOrders = canManageOrders(accessLevel);
 
-  // Drafts get a dedicated editor (create-form prefilled) — never the live-event
+  // Drafts get a dedicated editor (create-form prefilled) - never the live-event
   // manage UI (walk-in registration, orders, analytics don't apply to drafts).
   if (event.status === "DRAFT") {
     const [pastEventsForLinking, draftRetentionDays] = await Promise.all([
@@ -112,7 +112,7 @@ export default async function ManageEventPage({
           </Link>
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-2xl font-black tracking-tight">{event.title}</h1>
-            <p className="text-sm text-muted">Draft — finish setup or keep editing</p>
+            <p className="text-sm text-muted">Draft - finish setup or keep editing</p>
           </div>
           <Badge tone="warning" className="bg-black/60 text-amber-300">Draft</Badge>
         </div>
@@ -250,7 +250,7 @@ export default async function ManageEventPage({
         ) : null}
       </div>
 
-      {/* Analytics — LIMITED sees it without money figures */}
+      {/* Analytics - LIMITED sees it without money figures */}
 
       <nav aria-label="Event management sections" className="sticky top-16 z-20 -mx-4 flex gap-2 overflow-x-auto border-y border-zinc-200 bg-zinc-50/95 px-4 py-2 backdrop-blur-sm dark:border-white/10 dark:bg-ink/95">
         {[
@@ -282,7 +282,7 @@ export default async function ManageEventPage({
         <WaitlistPanel waitlistCount={analytics.waitlistCount} entries={waitlistEntries} />
       ) : null}
 
-      {/* Payment verification queue — for paid events with manual UPI flow */}
+      {/* Payment verification queue - for paid events with manual UPI flow */}
       {canOrders && orders.some((o) => o.status === "PENDING_VERIFICATION") ? (
         <section className="space-y-3">
           <h2 className="text-lg font-bold">Payment Verification</h2>
@@ -293,7 +293,7 @@ export default async function ManageEventPage({
         </section>
       ) : null}
 
-      {/* Walk-in / manual check-in — available before and during the event */}
+      {/* Walk-in / manual check-in - available before and during the event */}
       {event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast && canScan ? (
         <section className="space-y-3">
           <h2 className="text-lg font-bold">
@@ -317,7 +317,7 @@ export default async function ManageEventPage({
       </section>
       ) : null}
 
-      {/* Edit form — disabled for cancelled, past, and events starting within 2 hours */}
+      {/* Edit form - disabled for cancelled, past, and events starting within 2 hours */}
       {canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast && (startMs - nowMs) > 2 * 60 * 60 * 1000 ? (
         <div id="manage-edit" className="scroll-mt-36">
           <EditEventForm event={event} pastEvents={pastEventsForLinking} lockLogistics={!isOwner} />
@@ -331,7 +331,7 @@ export default async function ManageEventPage({
         </div>
       ) : null}
 
-      {/* Featured & boost — collapsed by default */}
+      {/* Featured & boost - collapsed by default */}
       {canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast ? (
         <div id="manage-promotion" className="scroll-mt-36">
           <CollapsibleSection title="Featured & Boost" description="Hero rotation and homepage slot boosts.">
@@ -363,7 +363,7 @@ export default async function ManageEventPage({
         </div>
       ) : null}
 
-      {/* Door staff — disabled for this release (kept in admin only) */}
+      {/* Door staff - disabled for this release (kept in admin only) */}
       {/* eventPast ? null : doorStaffOrder ? (
         <DoorStaffPaymentPanel
           order={doorStaffOrder}
@@ -380,7 +380,7 @@ export default async function ManageEventPage({
         </section>
       ) : null */}
 
-      {/* Collaboration — everyone on the event sees the roster; only the owner invites/removes */}
+      {/* Collaboration - everyone on the event sees the roster; only the owner invites/removes */}
       {!eventPast && collaborators !== null ? (
         <div id="manage-collaboration" className="scroll-mt-36">
           <CollapsibleSection title="Collaborators" description="Co-organizers, permissions and invites.">
@@ -389,7 +389,7 @@ export default async function ManageEventPage({
         </div>
       ) : null}
 
-      {/* Operations — door staff, scanner + box-office PINs */}
+      {/* Operations - door staff, scanner + box-office PINs */}
       {canScan && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
         <div id="manage-operations" className="scroll-mt-36 space-y-3">
           <CollapsibleSection title="Door Staff & Scanner" description="Staff roster and gate scanner access PINs.">
@@ -404,7 +404,7 @@ export default async function ManageEventPage({
         </div>
       ) : null}
 
-      {/* Cancel / Postpone — owner only, never a collaborator */}
+      {/* Cancel / Postpone - owner only, never a collaborator */}
       {isOwner && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
         <div id="manage-lifecycle" className="scroll-mt-36">
           <CollapsibleSection title="Postpone / Cancel" description="Owner only. Ticket holders are notified automatically.">
@@ -419,7 +419,7 @@ export default async function ManageEventPage({
         </div>
       ) : null}
 
-      {/* Past events — allow gallery photo deletion only */}
+      {/* Past events - allow gallery photo deletion only */}
       {eventPast && canEdit ? (
         <PastEventGalleryManager eventId={event.id} photoUrls={event.photoUrls} />
       ) : null}

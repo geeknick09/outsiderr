@@ -1,4 +1,4 @@
-// Shared types for box office PINs (no server-only import — safe for client components)
+// Shared types for box office PINs (no server-only import - safe for client components)
 
 export interface BoxOfficePin {
   id: string;

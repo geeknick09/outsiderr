@@ -17,11 +17,11 @@ export async function verifyDoorStaffPaymentAction(
   if (!utrReference.trim()) return { error: "Enter the UTR reference number." };
 
   try {
-    // Records the UTR for admin verification — does NOT mark the order paid.
+    // Records the UTR for admin verification - does NOT mark the order paid.
     await submitDoorStaffUtr(orderId, utrReference.trim());
     await notifyAdmins({
       type: "DOOR_STAFF_REQUESTED",
-      message: `Door staff payment submitted (UTR ${utrReference.trim()}) — pending verification.`,
+      message: `Door staff payment submitted (UTR ${utrReference.trim()}) - pending verification.`,
     });
     revalidatePath("/organizer");
     return { error: null };
@@ -42,7 +42,7 @@ export async function createDoorStaffOrderAction(
   if (!staffCount || staffCount < 1) return { error: "Select at least 1 staff member." };
 
   try {
-    // Price is derived server-side from door_staff_pricing — the client's
+    // Price is derived server-side from door_staff_pricing - the client's
     // serviceAmountPaise is ignored.
     await createDoorStaffOrder(user, eventId, staffCount);
     revalidatePath(`/organizer/events/${eventId}`);

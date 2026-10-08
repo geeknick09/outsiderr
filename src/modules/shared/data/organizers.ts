@@ -19,7 +19,7 @@ export interface OrganizerSearchHit {
   verified: boolean | null;
 }
 
-/** Organizers whose name matches the term — powers the search-results strip. */
+/** Organizers whose name matches the term - powers the search-results strip. */
 export async function searchOrganizers(term: string): Promise<OrganizerSearchHit[]> {
   const safe = sanitizeSearchTerm(term);
   if (!safe) return [];

@@ -24,7 +24,7 @@ function stepIndex(status: Refund["status"]): number {
   }
 }
 
-/** Compact timeline under an order — shows where its refund sits. */
+/** Compact timeline under an order - shows where its refund sits. */
 export function RefundStatusStrip({ refund }: { refund: Refund }) {
   const terminal = refund.status === "REJECTED" || refund.status === "FAILED";
   const active = stepIndex(refund.status);
@@ -104,8 +104,8 @@ export function RefundStatusStrip({ refund }: { refund: Refund }) {
           {refund.status === "REJECTED"
             ? (refund.rejectedReason ?? "Refund request was not approved.")
             : refund.lastError
-              ? `Refund hit an error — our team will retry or settle it manually.`
-              : "Refund hit an error — our team will retry or settle it manually."}
+              ? `Refund hit an error - our team will retry or settle it manually.`
+              : "Refund hit an error - our team will retry or settle it manually."}
         </p>
       )}
     </div>

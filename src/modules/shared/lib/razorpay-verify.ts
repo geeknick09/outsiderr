@@ -5,8 +5,8 @@ import crypto from "node:crypto";
  * Razorpay signature verification utilities.
  *
  * Two distinct verification flows:
- *  1. Webhook signature  — HMAC-SHA256 of the raw request body using RAZORPAY_WEBHOOK_SECRET
- *  2. Payment signature  — HMAC-SHA256 of `${order_id}|${payment_id}` using RAZORPAY_KEY_SECRET
+ *  1. Webhook signature  - HMAC-SHA256 of the raw request body using RAZORPAY_WEBHOOK_SECRET
+ *  2. Payment signature  - HMAC-SHA256 of `${order_id}|${payment_id}` using RAZORPAY_KEY_SECRET
  *
  * Both use `crypto.timingSafeEqual` to prevent timing attacks.
  */
@@ -37,7 +37,7 @@ export function verifyRazorpayWebhookSignature(
       Buffer.from(signature, "utf8"),
     );
   } catch {
-    // timingSafeEqual throws if buffers differ in length — that's a failed signature
+    // timingSafeEqual throws if buffers differ in length - that's a failed signature
     return false;
   }
 }

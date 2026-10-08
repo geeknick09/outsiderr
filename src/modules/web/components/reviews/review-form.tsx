@@ -87,7 +87,7 @@ export function ReviewForm({ eventId, eventTitle, onSubmitted }: ReviewFormProps
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Optional — tell others about the vibe, organization, music, etc."
+        placeholder="Optional - tell others about the vibe, organization, music, etc."
         maxLength={1000}
         rows={3}
         className="w-full resize-none rounded-xl border border-zinc-200 bg-white/50 px-3 py-2 text-sm outline-none focus:border-violet-neon dark:border-white/10 dark:bg-white/5"

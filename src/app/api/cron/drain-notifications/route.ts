@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
  * Called every 5 minutes by GitHub Actions (see .github/workflows/cron.yml).
  * Claims due notification_outbox rows and delivers them to external channels
  * (push/email/whatsapp). While no provider env is configured the endpoint
- * skips claiming — rows expire automatically after 24h.
+ * skips claiming - rows expire automatically after 24h.
  *
  * Security: verifies CRON_SECRET header (timing-safe comparison).
  */
@@ -39,7 +39,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // No external provider configured yet — the outbox still records intent and
+  // No external provider configured yet - the outbox still records intent and
   // rows expire after 24h. Flip on by setting one of these env vars.
   const hasPushProvider = Boolean(
     process.env.EXPO_ACCESS_TOKEN ?? process.env.FCM_SERVER_KEY ?? process.env.WEB_PUSH_PRIVATE_KEY,
@@ -57,7 +57,7 @@ export async function GET(request: Request) {
     let failedCount = 0;
     for (const row of claimed ?? []) {
       // Provider delivery lands with the push/email adapters (M3). Until then
-      // this path is unreachable — hasPushProvider gate above.
+      // this path is unreachable - hasPushProvider gate above.
       const ok = false;
       const err = "provider adapter not implemented";
       await supabase.rpc("complete_notification_outbox", {

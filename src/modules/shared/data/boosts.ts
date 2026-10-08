@@ -76,7 +76,7 @@ export async function requestBoost(
 ): Promise<Boost> {
   const supabase = await createClient();
 
-  // Verify the event belongs to this organizer — the insert policy only
+  // Verify the event belongs to this organizer - the insert policy only
   // checks organizer_id, so a caller could otherwise boost anyone's event.
   const { data: eventRow } = await supabase
     .from("events")
@@ -92,7 +92,7 @@ export async function requestBoost(
     throw new Error("This slot is already taken. Pick another slot.");
   }
 
-  // Insert as PENDING — the capture dispatcher activates it on payment
+  // Insert as PENDING - the capture dispatcher activates it on payment
   // (or an admin activates a manual/offline payment).
   const { data, error } = await supabase
     .from("boosts")
@@ -130,7 +130,7 @@ export async function listPendingBoosts(): Promise<BoostWithEvent[]> {
 }
 
 export async function approveBoost(boostId: string): Promise<void> {
-  // Service client — admin-verified upstream; also flips is_featured which
+  // Service client - admin-verified upstream; also flips is_featured which
   // is a privileged column (revoked from authenticated UPDATE).
   const supabase = createServiceClient();
   // Set boost to ACTIVE
