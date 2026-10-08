@@ -662,6 +662,230 @@ export async function updateEventAction(
 }
 
 // ---------------------------------------------------------------------------
+// Section-scoped update — each collapsible edit section saves independently.
+// Fetches current values, overlays only that section's fields, validates only
+// that section, and persists. No cross-section validation bleed.
+// ---------------------------------------------------------------------------
+
+export interface UpdateEventSectionState {
+  error: string | null;
+  saved?: string | null;
+}
+
+const EDIT_SECTIONS = new Set([
+  "details",
+  "schedule",
+  "venue",
+  "media",
+  "information",
+  "contact",
+  "tickets",
+  "misc",
+]);
+
+export async function updateEventSectionAction(
+  _prev: UpdateEventSectionState,
+  formData: FormData,
+): Promise<UpdateEventSectionState> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?next=%2Forganizer");
+
+  const eventId = String(formData.get("eventId") ?? "").trim();
+  const section = String(formData.get("section") ?? "").trim();
+  if (!eventId) return { error: "Missing event ID." };
+  if (!EDIT_SECTIONS.has(section)) return { error: "Unknown section." };
+
+  try {
+    const { getEvent } = await import("@/modules/shared/server");
+    const current = await getEvent(eventId);
+    if (!current) return { error: "Event not found." };
+
+    // Build the merged base input from current values — updateEvent applies
+    // title/description/venue/timing unconditionally, so feed it current values
+    // for any field the section doesn't own.
+    const base = {
+      title: current.title,
+      description: current.description,
+      venueName: current.venueName,
+      venueAddress: current.venueAddress,
+      latitude: current.latitude,
+      longitude: current.longitude,
+      googleMapsLink: current.googleMapsLink,
+      startsAt: current.startsAt,
+      endsAt: current.endsAt,
+      tags: current.tags,
+      city: current.city,
+      category: current.category,
+      categories: current.categories,
+      photoUrls: current.photoUrls ?? [],
+      contactEmail: current.contactEmail,
+      contactPhone: current.contactPhone,
+      instagramUrl: current.instagramUrl,
+      youtubeUrl: current.youtubeUrl,
+      xUrl: current.xUrl,
+      facebookUrl: current.facebookUrl,
+      linkedinUrl: current.linkedinUrl,
+      waitlistEnabled: current.waitlistEnabled,
+      allowBookingDuringEvent: current.allowBookingDuringEvent,
+      thingsToKnow: current.thingsToKnow,
+      terms: current.terms,
+      cardPosterUrl: current.cardPosterUrl,
+      bannerPosterUrl: current.bannerPosterUrl,
+      teaserVideoUrl: current.teaserVideoUrl,
+      linkedPastEventIds: current.linkedPastEventIds ?? [],
+      maxTicketsPerUser: current.maxTicketsPerUser ?? 5,
+    };
+
+    let input: typeof base & { tiers?: TicketTierInput[] } = { ...base };
+
+    if (section === "details") {
+      const title = String(formData.get("title") ?? "").trim();
+      if (!title) return { error: "Give the event a title." };
+      const categories = formData.getAll("categories").map(String).filter(Boolean) as EventCategory[];
+      if (categories.length === 0) return { error: "Select at least one category." };
+      const tags = String(formData.get("tags") ?? "")
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+      if (tags.length === 0) return { error: "Add at least one tag." };
+      input = {
+        ...input,
+        title,
+        description: String(formData.get("description") ?? "").trim(),
+        category: categories[0],
+        categories,
+        tags,
+      };
+    } else if (section === "schedule") {
+      const startsAt = String(formData.get("startsAt") ?? "").trim();
+      const endsAt = String(formData.get("endsAt") ?? "").trim();
+      if (!startsAt) return { error: "Pick a start date and time." };
+      if (!endsAt) return { error: "End date and time is required." };
+      if (new Date(endsAt).getTime() <= new Date(startsAt).getTime()) {
+        return { error: "End date and time must be after the start date and time." };
+      }
+      input = { ...input, startsAt: istToUTC(startsAt), endsAt: istToUTC(endsAt) };
+    } else if (section === "venue") {
+      const venueMode = String(formData.get("venueMode") ?? "NOW");
+      const googleMapsLink = String(formData.get("googleMapsLink") ?? "").trim() || null;
+      if (venueMode === "NOW") {
+        if (!googleMapsLink) {
+          return { error: "Google Maps link is required when venue is not TBA. Paste a maps.google.com or maps.app.goo.gl link." };
+        }
+        const { isGoogleMapsLink } = await import("@/modules/shared");
+        if (!isGoogleMapsLink(googleMapsLink)) {
+          return { error: "Google Maps link must be a valid maps.google.com or maps.app.goo.gl URL." };
+        }
+      }
+      const latitude = String(formData.get("latitude") ?? "").trim();
+      const longitude = String(formData.get("longitude") ?? "").trim();
+      input = {
+        ...input,
+        venueName: venueMode === "TBA" ? "TBA" : String(formData.get("venueName") ?? "").trim(),
+        venueAddress: venueMode === "TBA" ? "" : String(formData.get("venueAddress") ?? "").trim(),
+        googleMapsLink: venueMode === "TBA" ? null : googleMapsLink,
+        latitude: latitude ? Number(latitude) : null,
+        longitude: longitude ? Number(longitude) : null,
+        city: String(formData.get("city") ?? current.city).trim() as City,
+      };
+    } else if (section === "media") {
+      input = {
+        ...input,
+        photoUrls: formData.getAll("photoUrls[]").map(String).filter(Boolean),
+        cardPosterUrl: String(formData.get("cardPosterUrl") ?? "") || null,
+        bannerPosterUrl: String(formData.get("bannerPosterUrl") ?? "") || null,
+        teaserVideoUrl: String(formData.get("teaserVideoUrl") ?? "") || null,
+      };
+    } else if (section === "information") {
+      input = {
+        ...input,
+        thingsToKnow: String(formData.get("thingsToKnow") ?? "").split("\n").map((s) => s.trim()).filter(Boolean),
+        terms: String(formData.get("terms") ?? "").split("\n").map((s) => s.trim()).filter(Boolean),
+      };
+    } else if (section === "contact") {
+      const contactEmail = String(formData.get("contactEmail") ?? "").trim();
+      if (contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
+        return { error: "Contact email looks invalid." };
+      }
+      input = {
+        ...input,
+        contactEmail: contactEmail || null,
+        contactPhone: String(formData.get("contactPhone") ?? "").trim() || null,
+        instagramUrl: String(formData.get("instagramUrl") ?? "").trim() || null,
+        youtubeUrl: String(formData.get("youtubeUrl") ?? "").trim() || null,
+        xUrl: String(formData.get("xUrl") ?? "").trim() || null,
+        facebookUrl: String(formData.get("facebookUrl") ?? "").trim() || null,
+        linkedinUrl: String(formData.get("linkedinUrl") ?? "").trim() || null,
+      };
+    } else if (section === "tickets") {
+      const tierIds = formData.getAll("tierId[]").map(String);
+      const tierNames = formData.getAll("tierName[]").map(String);
+      const tierPrices = formData.getAll("tierPrice[]").map((v) => Number(v));
+      const tierQtys = formData.getAll("tierQty[]").map((v) => Number(v));
+      const tierPhaseOpensAt = formData.getAll("tierPhaseOpensAt[]").map(String);
+      const tierPhaseClosesAt = formData.getAll("tierPhaseClosesAt[]").map(String);
+      if (tierNames.length === 0) return { error: "Add at least one ticket tier." };
+      const tiers: TicketTierInput[] = tierNames.map((name, i) => ({
+        id: tierIds[i] && !tierIds[i].startsWith("new-") ? tierIds[i] : undefined,
+        name,
+        pricePaise: Math.round((tierPrices[i] || 0) * 100),
+        quantity: tierQtys[i] || 0,
+        perks: [],
+        phaseOpensAt: tierPhaseOpensAt[i] ? istToUTC(tierPhaseOpensAt[i]) : null,
+        phaseClosesAt: tierPhaseClosesAt[i] ? istToUTC(tierPhaseClosesAt[i]) : null,
+      }));
+      if (tiers.some((t) => !t.name.trim())) return { error: "All tiers must have a name." };
+      if (tiers.some((t) => t.quantity <= 0)) return { error: "Every tier needs a quantity of at least 1." };
+      if (tiers.some((t) => t.pricePaise < 0)) return { error: "Tier prices can't be negative." };
+
+      // Phase date validation
+      const now = Date.now();
+      let prevBoundary: number | null = null;
+      for (const tier of tiers) {
+        if (tier.phaseOpensAt) {
+          const opens = new Date(tier.phaseOpensAt).getTime();
+          if (opens < now) return { error: `Phase "${tier.name}" has an opening date in the past.` };
+          if (tier.phaseClosesAt) {
+            const closes = new Date(tier.phaseClosesAt).getTime();
+            if (closes <= opens) return { error: `Phase "${tier.name}" closing date must be after its opening date.` };
+          }
+          if (prevBoundary !== null && opens <= prevBoundary) {
+            return { error: `Phase "${tier.name}" must open after the previous phase ends.` };
+          }
+          prevBoundary = tier.phaseClosesAt ? new Date(tier.phaseClosesAt).getTime() : opens;
+        }
+      }
+
+      input = {
+        ...input,
+        tiers,
+        maxTicketsPerUser: Math.min(10, Math.max(1, Number(formData.get("maxTicketsPerUser") ?? 5) || 5)),
+      };
+    } else if (section === "misc") {
+      input = {
+        ...input,
+        waitlistEnabled: formData.get("waitlistEnabled") === "on" || formData.get("waitlistEnabled") === "true",
+        allowBookingDuringEvent: formData.get("allowBookingDuringEvent") === "on" || formData.get("allowBookingDuringEvent") === "true",
+        linkedPastEventIds: formData.getAll("linkedPastEventIds").map(String).filter(Boolean),
+      };
+    }
+
+    await updateEvent(user, eventId, input);
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Could not save changes.",
+    };
+  }
+
+  revalidatePath("/");
+  revalidateTag("events");
+  revalidatePath("/organizer");
+  revalidatePath(`/events/${eventId}`);
+  revalidatePath(`/organizer/events/${eventId}`);
+  return { error: null, saved: section };
+}
+
+// ---------------------------------------------------------------------------
 // Cancel event — stop sales, mark tickets CANCELLED, create refund records,
 // notify all ticket holders. Organizer pays platform fee (non-refundable).
 // ---------------------------------------------------------------------------

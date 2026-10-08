@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { lazy, Suspense } from "react";
 import { BarChart2 } from "lucide-react";
 
-import { AnalyticsPanel } from "@/modules/analytics";
-import { AggregatedAnalytics } from "@/modules/analytics";
+import { AggregatedAnalytics, AnalyticsPanel } from "@/modules/analytics";
 import { BecomeOrganizerForm } from "@/modules/organizer";
 import { ClubForm } from "@/modules/shared";
 import { ClubMembersPanel } from "@/modules/shared";
@@ -13,7 +11,6 @@ import { KycStatusBanner } from "@/modules/organizer";
 import { OrganizerEventsList } from "@/modules/organizer";
 import { OrganizerHeader } from "@/modules/organizer";
 import { OrganizerKycRealtimeRefresher } from "@/modules/organizer";
-import { OrderMonitor } from "@/modules/organizer";
 import { getCurrentUser } from "@/modules/shared/server";
 import { getSettingInt } from "@/modules/shared/server";
 import { createClient } from "@/modules/shared/server";
@@ -23,16 +20,8 @@ import { getOrganizerEventAnalytics, getOrganizerDailyRevenue } from "@/modules/
 import { getOrganizerProfile } from "@/modules/shared/server";
 import { listOrganizerEvents, listCollaboratedEvents } from "@/modules/organizer/server";
 import { OrganizerKycReviewPanel } from "@/modules/organizer";
-import { getOrganizerPastEventsForLinking } from "@/modules/shared/server";
 import { listClubMembers, listMyClubs } from "@/modules/shared/server";
 import { getOrganizerFollowerCount } from "@/modules/shared/server";
-import { listPendingOrders, listOrdersForOrganizerEvents } from "@/modules/shared/server";
-import { getTermsVersion, getDoorStaffPricing, getDoorStaffMax, getDoorStaffAvailable, getDraftRetentionDays } from "@/modules/shared/server";
-
-// Lazy load EventForm — it pulls in Leaflet (~140kB) via MapPicker
-const EventForm = lazy(() =>
-  import("@/modules/organizer").then((m) => ({ default: m.EventForm })),
-);
 
 export const dynamic = "force-dynamic";
 
@@ -132,17 +121,10 @@ export default async function OrganizerPage({
   const rawTab = (await searchParams).tab as Tab | undefined;
   const tab: Tab = TABS.some((t) => t.value === rawTab) ? (rawTab as Tab) : "events";
 
-  const [events, pending, termsVersion, doorStaffPricing, doorStaffMax, doorStaffAvailable, pastEventsForLinking, collabInvites, collabEvents, draftRetentionDays] = await Promise.all([
+  const [events, collabInvites, collabEvents] = await Promise.all([
     listOrganizerEvents(user),
-    listPendingOrders(),
-    getTermsVersion(),
-    getDoorStaffPricing(),
-    getDoorStaffMax(),
-    getDoorStaffAvailable(),
-    getOrganizerPastEventsForLinking(organizerProfile.id),
     getPendingCollaborationInvites(user),
     listCollaboratedEvents(user),
-    getDraftRetentionDays(),
   ]);
 
   // Merge owned events + collaborated events (dedup by id, owned takes precedence)
@@ -150,14 +132,7 @@ export default async function OrganizerPage({
   const collaboratedEvents = collabEvents.filter((e) => !ownedIds.has(e.id));
   const allEvents = [...events, ...collaboratedEvents];
 
-  // Fetch all orders for the organizer's events (for the Order Monitor)
-  const organizerEventIds = allEvents.map((e) => e.id);
-  const [allOrders, followerCount] = await Promise.all([
-    organizerEventIds.length > 0
-      ? listOrdersForOrganizerEvents(organizerEventIds)
-      : Promise.resolve([]),
-    getOrganizerFollowerCount(organizerProfile.id),
-  ]);
+  const followerCount = await getOrganizerFollowerCount(organizerProfile.id);
 
   // Analytics tab: fetch per-event analytics
   // Also fetch for events tab so sorting by waitlist/revenue works

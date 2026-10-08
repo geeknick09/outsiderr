@@ -12,6 +12,7 @@ import { ShareButton } from "@/modules/web";
 import { WalkinCheckinForm } from "@/modules/scanner";
 import { Badge } from "@/modules/shared";
 import { Button } from "@/modules/shared";
+import { CollapsibleSection } from "@/modules/shared";
 
 import { getCurrentUser } from "@/modules/shared/server";
 import { getEvent, getOrganizerPastEventsForLinking } from "@/modules/shared/server";
@@ -319,7 +320,7 @@ export default async function ManageEventPage({
       {/* Edit form — disabled for cancelled, past, and events starting within 2 hours */}
       {canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast && (startMs - nowMs) > 2 * 60 * 60 * 1000 ? (
         <div id="manage-edit" className="scroll-mt-36">
-          <EditEventForm event={event} lockLogistics={!isOwner} />
+          <EditEventForm event={event} pastEvents={pastEventsForLinking} lockLogistics={!isOwner} />
         </div>
       ) : canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast && (startMs - nowMs) <= 2 * 60 * 60 * 1000 ? (
         <div className="glass rounded-3xl p-5">
@@ -330,34 +331,36 @@ export default async function ManageEventPage({
         </div>
       ) : null}
 
-      {/* Front Row — disabled for cancelled and past events */}
+      {/* Featured & boost — collapsed by default */}
       {canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast ? (
-        <section id="manage-promotion" className="scroll-mt-36 space-y-4">
-          <HeroBoostPanel
-            eventId={event.id}
-            boost={heroBoost}
-            pricePaise={heroBoostPrice}
-            durationDays={heroBoostDuration}
-            eventStartsAt={event.startsAt}
-            platformUpiId={process.env.NEXT_PUBLIC_PLATFORM_UPI_ID ?? "outsiderr@upi"}
-          />
-          <section className="glass rounded-3xl p-5">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h2 className="text-base font-bold">Slot Boost</h2>
-                <p className="mt-1 text-sm text-muted">
-                  Get your event featured in the homepage carousel slots.
-                </p>
+        <div id="manage-promotion" className="scroll-mt-36">
+          <CollapsibleSection title="Featured & Boost" description="Hero rotation and homepage slot boosts.">
+            <div className="space-y-4">
+              <HeroBoostPanel
+                eventId={event.id}
+                boost={heroBoost}
+                pricePaise={heroBoostPrice}
+                durationDays={heroBoostDuration}
+                eventStartsAt={event.startsAt}
+                platformUpiId={process.env.NEXT_PUBLIC_PLATFORM_UPI_ID ?? "outsiderr@upi"}
+              />
+              <div className="flex items-center justify-between gap-4 rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
+                <div>
+                  <h3 className="text-sm font-bold">Slot Boost</h3>
+                  <p className="mt-1 text-xs text-muted">
+                    Get your event featured in the homepage carousel slots.
+                  </p>
+                </div>
+                <Link
+                  href={`/organizer/boost?event=${event.id}`}
+                  className="shrink-0 rounded-full bg-neon-gradient px-5 py-2.5 text-sm font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90"
+                >
+                  Boost Event
+                </Link>
               </div>
-              <Link
-                href={`/organizer/boost?event=${event.id}`}
-                className="shrink-0 rounded-full bg-neon-gradient px-5 py-2.5 text-sm font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90"
-              >
-                Boost Event
-              </Link>
             </div>
-          </section>
-        </section>
+          </CollapsibleSection>
+        </div>
       ) : null}
 
       {/* Door staff — disabled for this release (kept in admin only) */}
@@ -379,35 +382,41 @@ export default async function ManageEventPage({
 
       {/* Collaboration — everyone on the event sees the roster; only the owner invites/removes */}
       {!eventPast && collaborators !== null ? (
-        <section id="manage-collaboration" className="scroll-mt-36">
-        <CollaborationPanel eventId={event.id} collaborators={collaborators} canManage={isOwner} />
-        </section>
+        <div id="manage-collaboration" className="scroll-mt-36">
+          <CollapsibleSection title="Collaborators" description="Co-organizers, permissions and invites.">
+            <CollaborationPanel eventId={event.id} collaborators={collaborators} canManage={isOwner} />
+          </CollapsibleSection>
+        </div>
       ) : null}
 
-      {/* Door staff management — every collaborator level gets ops access */}
+      {/* Operations — door staff, scanner + box-office PINs */}
       {canScan && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
-        <section id="manage-operations" className="scroll-mt-36 space-y-4">
-          <EventStaffManager eventId={event.id} staff={eventStaff} />
-          <ScannerPinManager eventId={event.id} pins={scannerPins} />
-          <BoxOfficePinManager eventId={event.id} pins={boxOfficePins} />
-        </section>
+        <div id="manage-operations" className="scroll-mt-36 space-y-3">
+          <CollapsibleSection title="Door Staff & Scanner" description="Staff roster and gate scanner access PINs.">
+            <div className="space-y-4">
+              <EventStaffManager eventId={event.id} staff={eventStaff} />
+              <ScannerPinManager eventId={event.id} pins={scannerPins} />
+            </div>
+          </CollapsibleSection>
+          <CollapsibleSection title="Box Office PINs" description="PINs for on-ground box-office sales.">
+            <BoxOfficePinManager eventId={event.id} pins={boxOfficePins} />
+          </CollapsibleSection>
+        </div>
       ) : null}
 
       {/* Cancel / Postpone — owner only, never a collaborator */}
       {isOwner && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
-        <section id="manage-lifecycle" className="scroll-mt-36 rounded-3xl border border-red-500/30 p-5">
-          <h2 className="text-base font-bold text-red-500">Event actions</h2>
-          <p className="mt-1 text-sm text-muted">
-            Cancel or postpone this event. Ticket holders will be notified automatically.
-          </p>
-          <div className="mt-4">
-            <CancelPostponeButtons
-              event={event}
-              cancellationChargePercent={cancelChargePct}
-              postponementChargePercent={postponeChargePct}
-            />
-          </div>
-        </section>
+        <div id="manage-lifecycle" className="scroll-mt-36">
+          <CollapsibleSection title="Postpone / Cancel" description="Owner only. Ticket holders are notified automatically.">
+            <div className="rounded-2xl border border-red-500/30 p-4">
+              <CancelPostponeButtons
+                event={event}
+                cancellationChargePercent={cancelChargePct}
+                postponementChargePercent={postponeChargePct}
+              />
+            </div>
+          </CollapsibleSection>
+        </div>
       ) : null}
 
       {/* Past events — allow gallery photo deletion only */}
