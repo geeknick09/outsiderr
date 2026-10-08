@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BarChart2 } from "lucide-react";
 
-import { AggregatedAnalytics, AnalyticsPanel } from "@/modules/analytics";
+import { AggregatedAnalytics, AudienceAnalytics } from "@/modules/analytics";
 import { BecomeOrganizerForm } from "@/modules/organizer";
 import { ClubForm } from "@/modules/shared";
 import { ClubMembersPanel } from "@/modules/shared";
@@ -15,8 +14,8 @@ import { getCurrentUser } from "@/modules/shared/server";
 import { getSettingInt } from "@/modules/shared/server";
 import { createClient } from "@/modules/shared/server";
 import { getPendingCollaborationInvites } from "@/modules/shared/server";
-import { getOrganizerAccessState } from "@/modules/shared";
-import { getOrganizerEventAnalytics, getOrganizerDailyRevenue } from "@/modules/analytics/server";
+import { getOrganizerAccessState, formatDateRange } from "@/modules/shared";
+import { getOrganizerEventAnalytics, getOrganizerDailyRevenue, getOrganizerAudienceAnalytics } from "@/modules/analytics/server";
 import { getOrganizerProfile } from "@/modules/shared/server";
 import { listOrganizerEvents, listCollaboratedEvents } from "@/modules/organizer/server";
 import { OrganizerKycReviewPanel } from "@/modules/organizer";
@@ -144,6 +143,11 @@ export default async function OrganizerPage({
       tab === "analytics" ? getOrganizerDailyRevenue(user) : Promise.resolve([]),
     ]);
   }
+
+  let audience: Awaited<ReturnType<typeof getOrganizerAudienceAnalytics>> = null;
+  if (tab === "analytics") {
+    audience = await getOrganizerAudienceAnalytics(user);
+  }
   const analyticsMap: Record<string, NonNullable<(typeof analyticsData)[number]>> = {};
   for (const a of analyticsData) {
     if (a) analyticsMap[a.eventId] = a;
@@ -172,7 +176,17 @@ export default async function OrganizerPage({
       />
 
       <div className="flex flex-wrap items-center gap-2">
-        {TABS.map((t) => (
+        <TabLink
+          href="/organizer?tab=events"
+          label="My Events"
+          active={tab === "events"}
+        />
+        <TabLink
+          href="/organizer/create"
+          label="Create Event"
+          active={false}
+        />
+        {TABS.filter((t) => t.value !== "events").map((t) => (
           <TabLink
             key={t.value}
             href={`/organizer?tab=${t.value}`}
@@ -182,12 +196,6 @@ export default async function OrganizerPage({
         ))}
         <TabLink href="/organizer/payments" label="Payments" active={false} />
         <TabLink href="/organizer/refunds" label="Refunds" active={false} />
-        <Link
-          href="/organizer/create"
-          className="rounded-full bg-neon-gradient px-4 py-2 text-sm font-semibold text-white shadow-glow-violet"
-        >
-          Create Event
-        </Link>
       </div>
 
       {/* Collaboration invites - shown at top of dashboard if any pending */}
@@ -208,39 +216,35 @@ export default async function OrganizerPage({
                   <AggregatedAnalytics events={nonDraftEvents} analyticsData={nonDraftAnalytics} dailyRevenue={dailyRevenue} />
                 </div>
 
-                {/* Per-event breakdown */}
+                {/* Audience insights - loyalty, age, gender, city, category trends */}
+                {audience ? (
+                  <div>
+                    <h2 className="mb-3 text-lg font-bold">Audience Insights</h2>
+                    <AudienceAnalytics data={audience} />
+                  </div>
+                ) : null}
+
+                {/* Latest events - per-event analytics live on the manage page */}
                 {nonDraftEvents.length > 0 ? (
                   <div>
-                    <h2 className="mb-3 text-lg font-bold">Per-Event Breakdown</h2>
-                    <div className="space-y-6">
-                      {nonDraftEvents.map((event) => {
-                        const analytics = analyticsMap[event.id];
-                        if (!analytics) return null;
-                        return (
-                          <div key={event.id} className="space-y-3">
-                            <div className="flex items-center justify-between">
-                              <Link
-                                href={`/organizer/events/${event.id}`}
-                                className="text-base font-bold hover:text-violet-neon"
-                              >
-                                {event.title}
-                              </Link>
-                              <Link
-                                href={`/organizer/events/${event.id}/report`}
-                                className="flex items-center gap-1.5 text-xs text-muted hover:text-violet-neon"
-                              >
-                                <BarChart2 className="h-3.5 w-3.5" />
-                                Print report
-                              </Link>
-                            </div>
-                            <AnalyticsPanel
-                              analytics={analytics}
-                              capacity={event.totalCapacity}
-                              ticketsSold={event.ticketsSold}
-                            />
-                          </div>
-                        );
-                      })}
+                    <h2 className="mb-3 text-lg font-bold">Latest Events</h2>
+                    <p className="mb-2 text-xs text-muted">
+                      Open an event to see its per-event analytics and print the report.
+                    </p>
+                    <div className="space-y-1.5">
+                      {nonDraftEvents.slice(0, 10).map((event) => (
+                        <Link
+                          key={event.id}
+                          href={`/organizer/events/${event.id}`}
+                          target="_blank"
+                          className="flex items-center justify-between rounded-xl border border-zinc-200 px-4 py-2.5 text-sm font-semibold transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10"
+                        >
+                          <span className="truncate">{event.title}</span>
+                          <span className="ml-3 shrink-0 text-xs text-muted">
+                            {formatDateRange(event.startsAt, event.endsAt ?? null)} ↗
+                          </span>
+                        </Link>
+                      ))}
                     </div>
                   </div>
                 ) : null}
