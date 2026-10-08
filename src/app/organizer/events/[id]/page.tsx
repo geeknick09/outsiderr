@@ -7,7 +7,7 @@ import { lazy, Suspense } from "react";
 
 import { AnalyticsPanel } from "@/modules/analytics";
 import { AttendeesTable } from "@/modules/organizer";
-import { EditEventForm, CancelPostponeButtons, CollaborationPanel, EventStaffManager, ScannerPinManager, BoxOfficePinManager, HeroBoostPanel, PastEventGalleryManager } from "@/modules/organizer";
+import { EditEventForm, CancelPostponeButtons, CollaborationPanel, EventStaffManager, ScannerPinManager, BoxOfficePinManager, HeroBoostPanel, PastEventGalleryManager, WaitlistPanel, VerificationQueue } from "@/modules/organizer";
 import { ShareButton } from "@/modules/web";
 import { WalkinCheckinForm } from "@/modules/scanner";
 import { Badge } from "@/modules/shared";
