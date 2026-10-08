@@ -92,7 +92,7 @@ export function PremiumUpgradeCard({ plans }: { plans: { months: number; pricePa
         session={session}
         verifyAction={verifyPremiumPaymentAction}
         failureAction={handlePremiumFailureAction}
-        successRedirect="/organizer?tab=analytics"
+        successRedirect="/organizer/analytics"
         onCancel={() => setSession(null)}
         onError={(msg) => {
           setError(msg);

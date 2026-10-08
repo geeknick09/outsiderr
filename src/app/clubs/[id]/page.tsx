@@ -140,7 +140,7 @@ export default async function ClubDetailPage({
           <div className="glass rounded-3xl p-5 text-center">
             <p className="text-sm font-semibold">This is your club.</p>
             <Link
-              href="/organizer?tab=clubs"
+              href="/organizer/clubs"
               className="mt-2 inline-block text-sm text-violet-neon hover:underline"
             >
               Manage members →

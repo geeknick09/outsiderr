@@ -38,7 +38,7 @@ export default function ManageEventError({
             Try again
           </button>
           <Link
-            href="/organizer?tab=events"
+            href="/organizer"
             className="rounded-full border border-zinc-200 px-5 py-2.5 text-sm font-semibold text-muted transition-all hover:border-violet-neon dark:border-white/10"
           >
             Back to dashboard

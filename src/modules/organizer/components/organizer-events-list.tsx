@@ -294,7 +294,7 @@ export function OrganizerEventsList({
           ) : activeTab === "published" ? (
             <>
               Nothing live yet.{" "}
-              <Link href="/organizer?tab=create" className="underline hover:text-violet-neon">
+              <Link href="/organizer/create" className="underline hover:text-violet-neon">
                 Put an event out
               </Link>
               .

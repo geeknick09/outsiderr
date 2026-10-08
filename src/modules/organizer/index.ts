@@ -24,6 +24,7 @@ export * from "./components/organizer-events-list";
 export * from "./components/organizer-header";
 export * from "./components/organizer-kyc-realtime";
 export * from "./components/organizer-kyc-review-panel";
+export * from "./components/organizer-nav";
 export * from "./components/past-event-gallery-manager";
 export * from "./components/poster-guidelines";
 export * from "./components/premium-gate";
