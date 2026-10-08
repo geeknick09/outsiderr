@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { KeyRound, UserPlus } from "lucide-react";
 
 import {
@@ -39,7 +39,14 @@ export function StaffManager({
   cash: CashRow[];
 }) {
   const [state, formAction, pending] = useActionState<RegisterStaffState, FormData>(registerStaffAction, { error: null });
+  const formRef = useRef<HTMLFormElement>(null);
   const [shownPin, setShownPin] = useState<{ name: string; pin: string } | null>(null);
+
+  // Clear the form only after a successful registration. A form action would reset it on every
+  // attempt, so a validation error would wipe what the owner typed.
+  useEffect(() => {
+    if (state.pin && !state.error) formRef.current?.reset();
+  }, [state]);
   const [notice, setNotice] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
@@ -76,7 +83,15 @@ export function StaffManager({
         </div>
       ) : null}
 
-      <form action={formAction} className="glass grid gap-3 rounded-3xl p-5 sm:grid-cols-3" onSubmit={() => setShownPin(null)}>
+      <form
+        ref={formRef}
+        onSubmit={(e) => {
+          e.preventDefault();
+          setShownPin(null);
+          formAction(new FormData(e.currentTarget));
+        }}
+        className="glass grid gap-3 rounded-3xl p-5 sm:grid-cols-3"
+      >
         <p className="flex items-center gap-2 text-sm font-bold sm:col-span-3">
           <UserPlus className="h-4 w-4 text-violet-neon" /> Register staff
         </p>
