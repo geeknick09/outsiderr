@@ -60,7 +60,13 @@ export function EditEventForm({ event, lockLogistics = false }: { event: EventDe
         ))}
       </nav>
 
-      <EditDetailsSection event={event} lockLogistics={lockLogistics} onSave={() => setDirty(true)} />\n\n      <EditTimeSection event={event} lockLogistics={lockLogistics} onSave={() => setDirty(true)} />\n      <EditVenueSection event={event} lockLogistics={lockLogistics} latitude={event.latitude ? String(event.latitude) : ""} longitude={event.longitude ? String(event.longitude) : ""} onLocationChange={(newLat, newLng) => { setLat(String(newLat)); setLng(String(newLng)); setDirty(true); }} onSave={() => setDirty(true)} />\n\n      <section id="event-media" className="scroll-mt-36 space-y-4 rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
+      <EditDetailsSection event={event} lockLogistics={lockLogistics} onSave={() => setDirty(true)} />
+
+      <EditTimeSection event={event} lockLogistics={lockLogistics} onSave={() => setDirty(true)} />
+
+      <EditVenueSection event={event} lockLogistics={lockLogistics} onSave={() => setDirty(true)} />
+
+      <section id="event-media" className="scroll-mt-36 space-y-4 rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
       <h3 className="text-sm font-bold">Media & gallery</h3>
       {/* Gallery */}
       <div className="space-y-2">
