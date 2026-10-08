@@ -13,7 +13,7 @@ export function ManageTabs({ tabs, defaultTab }: ManageTabsProps) {
   const [active, setActive] = useState(defaultTab ?? tabs[0]?.id);
   return (
     <div>
-      <div className="flex gap-1 overflow-x-auto border-b border-zinc-200 dark:border-white/10" role="tablist">
+      <div className="no-scrollbar flex gap-1 overflow-x-auto border-b border-zinc-200 dark:border-white/10" role="tablist">
         {tabs.map((t) => (
           <button
             key={t.id}
