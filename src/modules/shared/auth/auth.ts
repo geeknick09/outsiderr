@@ -57,6 +57,29 @@ function writeBearerCache(token: string, identity: Omit<CachedIdentity, "expires
   bearerIdentityCache.set(token, { ...identity, expiresAt });
 }
 
+/**
+ * Lightweight variant of getCurrentUser for paths that only need the id
+ * (follow/unfollow, etc.) — skips the profiles fetch entirely.
+ */
+export async function getAuthUserId(): Promise<string | null> {
+  const supabase = await createClient();
+  const bearerToken = getApiContextToken();
+  if (bearerToken) {
+    const cached = readBearerCache(bearerToken);
+    if (cached) return cached.id;
+  }
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) return null;
+  if (bearerToken) {
+    writeBearerCache(bearerToken, {
+      id: data.user.id,
+      email: data.user.email ?? null,
+      metaName: data.user.user_metadata?.full_name,
+    });
+  }
+  return data.user.id;
+}
+
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   const supabase = await createClient();
   const bearerToken = getApiContextToken();

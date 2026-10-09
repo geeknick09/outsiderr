@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { UserPlus, UserCheck, Loader2 } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { UserPlus, UserCheck } from "lucide-react";
 import { followOrganizerAction, unfollowOrganizerAction } from "@/modules/shared/actions/engagement";
 
 export function FollowOrganizerButton({
@@ -16,13 +16,18 @@ export function FollowOrganizerButton({
   const [following, setFollowing] = useState(isFollowing);
   const [pending, startTransition] = useTransition();
 
+  // Sync if the server-rendered value changes (e.g. after revalidatePath).
+  useEffect(() => {
+    setFollowing(isFollowing);
+  }, [isFollowing]);
+
   function handleClick() {
+    const next = !following;
+    setFollowing(next); // optimistic — instant toggle, revert if the server fails
     startTransition(async () => {
-      const action = following ? unfollowOrganizerAction : followOrganizerAction;
+      const action = next ? followOrganizerAction : unfollowOrganizerAction;
       const result = await action(organizerId);
-      if (!result.error) {
-        setFollowing(!following);
-      }
+      if (result.error) setFollowing(!next);
     });
   }
 
@@ -41,9 +46,7 @@ export function FollowOrganizerButton({
           : "bg-neon-gradient text-white shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_25px_rgba(139,92,246,0.5)]"
       }`}
     >
-      {pending ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : following ? (
+      {following ? (
         <UserCheck className="h-4 w-4" />
       ) : (
         <UserPlus className="h-4 w-4" />

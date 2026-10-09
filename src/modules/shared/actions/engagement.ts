@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { getCurrentUser } from "../auth/auth";
+import { getAuthUserId, getCurrentUser } from "../auth/auth";
 import { createClient } from "../auth/server";
 
 // ================================================================
@@ -71,8 +71,8 @@ export async function unsubscribeFromEventAction(eventId: string): Promise<{ err
  * Follow an organizer.
  */
 export async function followOrganizerAction(organizerId: string): Promise<{ error: string | null }> {
-  const user = await getCurrentUser();
-  if (!user) return { error: "Please log in to follow organizers." };
+  const userId = await getAuthUserId();
+  if (!userId) return { error: "Please log in to follow organizers." };
 
   const supabase = await createClient();
 
@@ -83,13 +83,13 @@ export async function followOrganizerAction(organizerId: string): Promise<{ erro
     .eq("id", organizerId)
     .maybeSingle();
 
-  if (organizer?.owner_id === user.id) {
+  if (organizer?.owner_id === userId) {
     return { error: "You can't follow your own organizer profile." };
   }
 
   const { error } = await supabase
     .from("organizer_follows")
-    .upsert({ organizer_id: organizerId, follower_id: user.id }, { onConflict: "organizer_id,follower_id", ignoreDuplicates: true });
+    .upsert({ organizer_id: organizerId, follower_id: userId }, { onConflict: "organizer_id,follower_id", ignoreDuplicates: true });
 
   if (error) return { error: error.message };
 
@@ -101,15 +101,15 @@ export async function followOrganizerAction(organizerId: string): Promise<{ erro
  * Unfollow an organizer.
  */
 export async function unfollowOrganizerAction(organizerId: string): Promise<{ error: string | null }> {
-  const user = await getCurrentUser();
-  if (!user) return { error: "Please log in." };
+  const userId = await getAuthUserId();
+  if (!userId) return { error: "Please log in." };
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("organizer_follows")
     .delete()
     .eq("organizer_id", organizerId)
-    .eq("follower_id", user.id);
+    .eq("follower_id", userId);
 
   if (error) return { error: error.message };
 
