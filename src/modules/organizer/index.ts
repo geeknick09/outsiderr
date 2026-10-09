@@ -33,6 +33,5 @@ export * from "./components/past-event-gallery-manager";
 export * from "./components/poster-guidelines";
 export * from "./components/premium-gate";
 export * from "./components/print-button";
-export * from "./components/scanner-pin-manager";
 export * from "./components/verification-queue";
 export * from "./components/waitlist-panel";

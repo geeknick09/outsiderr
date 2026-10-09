@@ -98,25 +98,45 @@ describe.skipIf(!connectionString)("box office - end to end on the database", ()
     await client.query("rollback to savepoint no_tier");
   });
 
-  it("registers a staff member and issues a PIN that is stored hashed", async () => {
+  it("registers a staff member with a password that is stored hashed", async () => {
     s.phone = "8" + String(Date.now()).slice(-9);
-    const [reg] = await q(`select * from public.staff_register('ADMIN', null, 'E2E Counter', 'e2e@example.com', $1, null)`, [s.phone]);
-    s.staffId = reg.staff_id;
-    s.pin = reg.pin;
-    expect(reg.pin).toMatch(/^\d{6}$/);
-    const [row] = await q(`select pin_hash from public.staff_members where id=$1`, [s.staffId]);
-    expect(row.pin_hash).not.toBe(s.pin);
-    expect(row.pin_hash.startsWith("$2")).toBe(true);
+    s.pin = "d00r-pass-99";
+    const [reg] = await q(`select public.staff_register('ADMIN', null, 'E2E Counter', 'e2e@example.com', $1, $2, null)`, [s.phone, s.pin]);
+    s.staffId = reg.staff_register;
+    expect(s.staffId).toMatch(/^[0-9a-f-]{36}$/);
+    const [row] = await q(`select password_hash from public.staff_members where id=$1`, [s.staffId]);
+    expect(row.password_hash).not.toBe(s.pin);
+    expect(row.password_hash.startsWith("$2")).toBe(true);
   });
 
-  it("staff sign in with the right PIN only", async () => {
+  it("staff sign in with phone or email + the right password only", async () => {
     const [ok] = await q(`select * from public.staff_login_session($1,$2)`, [s.phone, s.pin]);
     expect(ok.token).toMatch(/^[0-9a-f]{64}$/);
     s.token = ok.token;
-    const wrong = await q(`select * from public.staff_login_session($1,'000000')`, [s.phone]);
+    const [byEmail] = await q(`select * from public.staff_login_session('e2e@example.com',$1)`, [s.pin]);
+    expect(byEmail.staff_id).toBe(s.staffId);
+    const wrong = await q(`select * from public.staff_login_session($1,'not-the-password')`, [s.phone]);
     expect(wrong.length).toBe(0);
     const [who] = await q(`select * from public.staff_session_staff($1)`, [s.token]);
     expect(who.staff_id).toBe(s.staffId);
+  });
+
+  it("organizer/admin can set a new password and it takes effect", async () => {
+    await q(`select public.staff_set_password($1,'n3w-p4ss')`, [s.staffId]);
+    const [ok] = await q(`select * from public.staff_login_session($1,'n3w-p4ss')`, [s.phone]);
+    expect(ok.staff_id).toBe(s.staffId);
+    const old = await q(`select * from public.staff_login_session($1,$2)`, [s.phone, s.pin]);
+    expect(old.length).toBe(0);
+    s.pin = "n3w-p4ss";
+    await client.query("savepoint short_pw");
+    await expect(q(`select public.staff_set_password($1,'short')`, [s.staffId])).rejects.toThrow(/at least 6/);
+    await client.query("rollback to savepoint short_pw");
+  });
+
+  it("a staff token cannot open a door session before assignment", async () => {
+    await client.query("savepoint door_unassigned");
+    await expect(q(`select * from public.staff_door_session($1,$2)`, [s.token, s.evA.id])).rejects.toThrow(/not assigned/);
+    await client.query("rollback to savepoint door_unassigned");
   });
 
   it("unassigned staff cannot sell at an event", async () => {
@@ -141,6 +161,20 @@ describe.skipIf(!connectionString)("box office - end to end on the database", ()
     expect(o.sale_channel).toBe("COUNTER_CASH");
     const [out] = await q(`select * from public.staff_cash_outstanding($1,$2)`, [s.staffId, s.evA.id]);
     expect(Number(out.amount_paise)).toBe(Number(o.total_paise));
+  });
+
+  it("a staff token opens a door session for an assigned event only", async () => {
+    const [door] = await q(`select * from public.staff_door_session($1,$2)`, [s.token, s.evA.id]);
+    expect(door.token).toMatch(/^[0-9a-f]{64}$/);
+    expect(door.staff_name).toBe("E2E Counter");
+    expect(door.event_id).toBe(s.evA.id);
+    s.staffDoor = door.token;
+    await client.query("savepoint door_wrong_event");
+    await expect(q(`select * from public.staff_door_session($1,$2)`, [s.token, s.evB.id])).rejects.toThrow(/not assigned/);
+    await client.query("rollback to savepoint door_wrong_event");
+    await client.query("savepoint door_bad_token");
+    await expect(q(`select * from public.staff_door_session('deadbeef',$1)`, [s.evA.id])).rejects.toThrow(/session has ended/);
+    await client.query("rollback to savepoint door_bad_token");
   });
 
   it("organizer confirms the cash handover once; the amount is computed by the server", async () => {
@@ -239,22 +273,22 @@ describe.skipIf(!connectionString)("box office - end to end on the database", ()
   });
 
   it("unassigned staff cannot start a counter Razorpay sale either", async () => {
-    const [reg] = await q(`select * from public.staff_register('ADMIN', null, 'No Access', null, $1, null)`, ["6" + String(Date.now()).slice(-9)]);
+    const [reg] = await q(`select public.staff_register('ADMIN', null, 'No Access', null, $1, 'x-pass-123', null)`, ["6" + String(Date.now()).slice(-9)]);
     await client.query("savepoint rzp_unassigned");
     await expect(
       q(`select * from public.create_counter_reserved_order($1,$2,$3,'X','9000000010',null,null,$4)`,
-        [reg.staff_id, s.evA.id, s.evA.tier_id, randomUUID()]),
+        [reg.staff_register, s.evA.id, s.evA.tier_id, randomUUID()]),
     ).rejects.toThrow(/not assigned/);
     await client.query("rollback to savepoint rzp_unassigned");
   });
 
   it("organizer staff cannot be assigned to another organizer's event", async () => {
     const orgOwner = s.evA.organizer_id;
-    const [reg] = await q(`select * from public.staff_register('ORGANIZER', $1, 'Org Staff', null, $2, null)`, [orgOwner, "7" + String(Date.now()).slice(-9)]);
+    const [reg] = await q(`select public.staff_register('ORGANIZER', $1, 'Org Staff', null, $2, 'org-staff-pw', null)`, [orgOwner, "7" + String(Date.now()).slice(-9)]);
     await client.query("savepoint cross_org");
-    await expect(q(`select public.staff_set_assignment($1,$2,true)`, [reg.staff_id, s.evB.id])).rejects.toThrow(/own events/);
+    await expect(q(`select public.staff_set_assignment($1,$2,true)`, [reg.staff_register, s.evB.id])).rejects.toThrow(/own events/);
     await client.query("rollback to savepoint cross_org");
-    await q(`select public.staff_set_assignment($1,$2,true)`, [reg.staff_id, s.evA.id]);
+    await q(`select public.staff_set_assignment($1,$2,true)`, [reg.staff_register, s.evA.id]);
   });
 
   it("a door PIN opens only its own event", async () => {
@@ -267,6 +301,16 @@ describe.skipIf(!connectionString)("box office - end to end on the database", ()
     s.door = door.token;
     expect((await q(`select * from public.scanner_login_session($1,'000000')`, [s.evA.id])).length).toBe(0);
     expect((await q(`select public.scanner_session_event($1) as e`, [s.door]))[0].e).toBe(s.evA.id);
+  });
+
+  it("scans through a staff door session are attributed to the staff member", async () => {
+    const scanId = randomUUID();
+    // A never-before-scanned hash lands INVALID but still writes a scan_log row.
+    await q(`select * from public.check_in_ticket_by_token('no-such-qr',$1,$2)`, [s.staffDoor, scanId]);
+    const [log] = await q(`select actor_type, actor_id, actor_name from public.scan_log where client_scan_id=$1`, [scanId]);
+    expect(log.actor_type).toBe("STAFF");
+    expect(log.actor_id).toBe(s.staffId);
+    expect(log.actor_name).toBe("E2E Counter");
   });
 
   it("a valid ticket scans VALID once, then ALREADY_USED", async () => {

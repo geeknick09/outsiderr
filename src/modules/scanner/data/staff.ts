@@ -12,7 +12,7 @@ export interface StaffRecord {
   email: string | null;
   phone: string;
   isActive: boolean;
-  pinSetAt: string;
+  passwordSetAt: string;
   assignedEventIds: string[];
 }
 
@@ -28,7 +28,7 @@ export async function listStaffRecords(ownerType: StaffOwnerType, organizerId: s
   const svc = createServiceClient();
   let query = svc
     .from("staff_members")
-    .select("id, owner_type, organizer_id, name, email, phone, is_active, pin_set_at")
+    .select("id, owner_type, organizer_id, name, email, phone, is_active, password_set_at")
     .eq("owner_type", ownerType);
   if (organizerId) query = query.eq("organizer_id", organizerId);
   const { data: staff } = await query.order("created_at", { ascending: false });
@@ -53,7 +53,7 @@ export async function listStaffRecords(ownerType: StaffOwnerType, organizerId: s
     email: s.email,
     phone: s.phone,
     isActive: s.is_active,
-    pinSetAt: s.pin_set_at,
+    passwordSetAt: s.password_set_at,
     assignedEventIds: byStaff.get(s.id) ?? [],
   }));
 }

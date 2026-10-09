@@ -23,5 +23,5 @@ export default async function OrganizerStaffPage() {
     orderCount: o.orderCount,
     amountPaise: o.amountPaise,
   }));
-  return <StaffManager staff={staff} events={events} cash={cash} scopeLabel="Your box office staff - assigned to your events only" />;
+  return <StaffManager staff={staff} events={events} cash={cash} scopeLabel="Your event staff - they work the door (/scan) and the box office" />;
 }

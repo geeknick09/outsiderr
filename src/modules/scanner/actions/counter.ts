@@ -10,6 +10,7 @@ import {
   RATE_LIMITS,
   UUID_RE,
   staffRegisterSchema,
+  staffLoginSchema,
 } from "@/modules/shared";
 import { normalisePhone, type CheckoutSession } from "@/modules/shared";
 import { listCounterEvents, resolveCounterStaff, type CounterEvent, type CounterStaff } from "../data/counter";
@@ -20,22 +21,25 @@ import {
 } from "../data/counter-payment";
 
 
-/** Phone + personal PIN -> counter session token (12h). Rate limited per device. */
+/** Phone or email + password -> staff session token (12h). Rate limited per device. */
 export async function counterLoginAction(
-  phone: string,
-  pin: string,
+  identifier: string,
+  password: string,
 ): Promise<{ error: string | null; token?: string; staff?: CounterStaff }> {
   const h = await headers();
   const rl = rateLimit(`counter-login:${getRateLimitIdentifier(h)}`, RATE_LIMITS.PIN_VERIFY);
   if (rl.limited) return { error: "Too many attempts. Please wait a minute and try again." };
 
-  const p = normalisePhone(phone);
-  if (p.length !== 10 || !/^\d{6}$/.test(pin)) return { error: "Enter your 10-digit phone and 6-digit PIN." };
+  const v = validate(staffLoginSchema, { identifier, password });
+  if (!v.success) return { error: v.error };
 
-  const { data, error } = await createServiceClient().rpc("staff_login_session", { p_phone: p, p_pin: pin });
+  const { data, error } = await createServiceClient().rpc("staff_login_session", {
+    p_identifier: v.data.identifier,
+    p_password: v.data.password,
+  });
   if (error) return { error: error.message };
   const row = data?.[0];
-  if (!row) return { error: "Phone or PIN is incorrect, or your access is inactive." };
+  if (!row) return { error: "Phone/email or password is incorrect, or your access is inactive." };
   return {
     error: null,
     token: row.token,

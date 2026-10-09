@@ -49,18 +49,23 @@ describe("phone normalisation", () => {
 });
 
 describe("staff registration input", () => {
-  it("accepts a name, a phone, and an empty email", () => {
-    const v = validate(staffRegisterSchema, { name: "Asha Rao", email: "", phone: "9876543210" });
+  it("accepts a name, a phone, an empty email, and a password", () => {
+    const v = validate(staffRegisterSchema, { name: "Asha Rao", email: "", phone: "9876543210", password: "secret-1" });
     expect(v.success).toBe(true);
   });
 
   it("rejects a one-character name", () => {
-    const v = validate(staffRegisterSchema, { name: "A", email: "", phone: "9876543210" });
+    const v = validate(staffRegisterSchema, { name: "A", email: "", phone: "9876543210", password: "secret-1" });
     expect(v.success).toBe(false);
   });
 
   it("rejects a malformed email", () => {
-    const v = validate(staffRegisterSchema, { name: "Asha Rao", email: "not-an-email", phone: "9876543210" });
+    const v = validate(staffRegisterSchema, { name: "Asha Rao", email: "not-an-email", phone: "9876543210", password: "secret-1" });
+    expect(v.success).toBe(false);
+  });
+
+  it("rejects a password shorter than 6 characters", () => {
+    const v = validate(staffRegisterSchema, { name: "Asha Rao", email: "", phone: "9876543210", password: "short" });
     expect(v.success).toBe(false);
   });
 });

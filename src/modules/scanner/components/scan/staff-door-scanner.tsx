@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 import { checkInWithTokenAction } from "@/modules/scanner/actions/check-in";
-import { scannerLoginAction } from "@/modules/scanner/actions/scan";
+import { staffDoorSessionAction } from "@/modules/scanner/actions/scan";
 import { useRealtime } from "@/modules/shared";
 import { formatDateRange } from "@/modules/shared";
 import { ScannerSyncManager, type SyncStatus } from "../../offline/sync-manager";
@@ -40,12 +40,12 @@ export function StaffDoorScanner({
   events,
   initialCheckInCount = 0,
   staffName,
-  pin,
+  staffToken,
 }: {
   events: StaffEvent[];
   initialCheckInCount?: number;
   staffName?: string;
-  pin?: string;
+  staffToken?: string;
 }) {
   const router = useRouter();
   const [selectedEventId, setSelectedEventId] = useState<string>(
@@ -66,22 +66,26 @@ export function StaffDoorScanner({
   const scannerRef = useRef<{ start: () => void; stop: () => void } | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const syncManagerRef = useRef<ScannerSyncManager | null>(null);
-  // Event-scoped door session. The PIN signs in once; scans send only this token.
+  // Event-scoped door session. The staff sign-in happens once; scans send only
+  // this token.
   const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!pin || !selectedEventId) return;
+    if (!staffToken || !selectedEventId) return;
     let cancelled = false;
     setToken(null);
-    scannerLoginAction(selectedEventId, pin).then((r) => {
+    staffDoorSessionAction(staffToken, selectedEventId).then((r) => {
       if (cancelled) return;
       if (r.error || !r.token) setError(r.error ?? "Could not start the door session.");
-      else setToken(r.token);
+      else {
+        setToken(r.token);
+        if (r.checkedInCount != null) setCheckInCount(r.checkedInCount);
+      }
     });
     return () => {
       cancelled = true;
     };
-  }, [pin, selectedEventId]);
+  }, [staffToken, selectedEventId]);
 
   const selectedEvent = events.find((e) => e.id === selectedEventId);
 
@@ -392,7 +396,7 @@ export function StaffDoorScanner({
       </div>
 
       {/* Offline status indicator */}
-      {pin ? <OfflineStatus status={syncStatus} /> : null}
+      {token ? <OfflineStatus status={syncStatus} /> : null}
 
       {/* Check-in counter */}
       <div className="grid grid-cols-3 gap-3">

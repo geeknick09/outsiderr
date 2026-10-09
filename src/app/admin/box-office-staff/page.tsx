@@ -16,5 +16,5 @@ export default async function AdminBoxOfficeStaffPage() {
     orderCount: o.orderCount,
     amountPaise: o.amountPaise,
   }));
-  return <StaffManager staff={staff} events={events} cash={cash} scopeLabel="Team Outsiderr staff - can be assigned to any event" />;
+  return <StaffManager staff={staff} events={events} cash={cash} scopeLabel="Team Outsiderr staff - door and box office, any event" />;
 }

@@ -7010,7 +7010,9 @@ begin
                                  actor_type, actor_id, actor_name, client_scan_id)
     values (v_session.event_id, v_ticket_id, p_qr_hash, v_outcome,
             case when p_source = 'OFFLINE_SYNC' then 'OFFLINE_SYNC' else 'ONLINE' end,
-            'DOOR_PIN', v_session.scanner_pin_id, v_session.staff_name, p_client_scan_id)
+            case when v_session.staff_member_id is not null then 'STAFF' else 'DOOR_PIN' end,
+            coalesce(v_session.staff_member_id, v_session.scanner_pin_id),
+            v_session.staff_name, p_client_scan_id)
     on conflict (client_scan_id) do nothing;
   end if;
 
@@ -7280,3 +7282,176 @@ begin
 end;
 $$;
 grant execute on function public.set_event_status(uuid, text) to authenticated, service_role;
+
+
+-- =============================================================================
+-- STEP 44 — Staff password sign-in (door scanner + box office)
+--
+-- Staff members now get a real password chosen by the organizer/admin at
+-- registration instead of a generated 6-digit PIN. Sign-in accepts the staff
+-- member's phone number OR email + password and works for both /scan (door)
+-- and /box-office (counter) - one credential, both tools.
+-- =============================================================================
+
+-- pin_hash is a bcrypt hash either way - rename so the schema stays honest.
+do $$
+begin
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'staff_members' and column_name = 'pin_hash') then
+    alter table public.staff_members rename column pin_hash to password_hash;
+  end if;
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'staff_members' and column_name = 'pin_set_at') then
+    alter table public.staff_members rename column pin_set_at to password_set_at;
+  end if;
+end $$;
+
+-- Door sessions can now belong to a staff member instead of a legacy event PIN.
+alter table public.scanner_sessions alter column scanner_pin_id drop not null;
+alter table public.scanner_sessions
+  add column if not exists staff_member_id uuid references public.staff_members(id) on delete cascade;
+
+-- staff_register: the organizer/admin supplies the password. Returns the new
+-- staff id - nothing secret to display.
+drop function if exists public.staff_register(text, uuid, text, text, text, uuid);
+create or replace function public.staff_register(
+  p_owner_type   text,
+  p_organizer_id uuid,
+  p_name         text,
+  p_email        text,
+  p_phone        text,
+  p_password     text,
+  p_actor        uuid
+) returns uuid
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_id uuid;
+begin
+  if p_password is null or length(p_password) < 6 then
+    raise exception 'Password must be at least 6 characters';
+  end if;
+  insert into public.staff_members (owner_type, organizer_id, name, email, phone, password_hash, created_by)
+  values (p_owner_type, p_organizer_id, btrim(p_name), nullif(btrim(coalesce(p_email, '')), ''),
+          p_phone, extensions.crypt(p_password, extensions.gen_salt('bf', 8)), p_actor)
+  returning id into v_id;
+  return v_id;
+end;
+$$;
+
+-- Organizer/admin sets a new password (no generated secret to hand out).
+create or replace function public.staff_set_password(p_staff_id uuid, p_password text)
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+begin
+  if p_password is null or length(p_password) < 6 then
+    raise exception 'Password must be at least 6 characters';
+  end if;
+  update public.staff_members
+     set password_hash = extensions.crypt(p_password, extensions.gen_salt('bf', 8)),
+         password_set_at = now()
+   where id = p_staff_id;
+  if not found then raise exception 'Staff member not found'; end if;
+end;
+$$;
+
+-- Identifier (phone digits or email, case-insensitive) + password -> staff
+-- session token (12h). The token opens the counter AND the door for every
+-- event the staff member is assigned to.
+drop function if exists public.staff_login_session(text, text);
+create or replace function public.staff_login_session(p_identifier text, p_password text)
+returns table (token text, staff_id uuid, name text, owner_type text, organizer_id uuid)
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_staff public.staff_members;
+  v_token text;
+  v_ident text := btrim(p_identifier);
+  v_digits text := regexp_replace(coalesce(p_identifier, ''), '\D', '', 'g');
+begin
+  if v_digits like '91%' and length(v_digits) > 10 then
+    v_digits := right(v_digits, 10);
+  end if;
+  for v_staff in
+    select * from public.staff_members
+     where is_active = true
+       and (phone = v_digits or lower(email) = lower(v_ident))
+  loop
+    if extensions.crypt(p_password, v_staff.password_hash) = v_staff.password_hash then
+      v_token := encode(extensions.gen_random_bytes(32), 'hex');
+      insert into public.staff_sessions (staff_id, token_hash, expires_at)
+      values (v_staff.id, encode(extensions.digest(v_token, 'sha256'), 'hex'), now() + interval '12 hours');
+      return query select v_token, v_staff.id, v_staff.name, v_staff.owner_type, v_staff.organizer_id;
+      return;
+    end if;
+  end loop;
+  return;
+end;
+$$;
+
+-- Staff token + event -> door session token (scan-only scope, 12h).
+create or replace function public.staff_door_session(p_session_token text, p_event_id uuid)
+returns table (
+  token text, event_id uuid, staff_name text, event_title text,
+  organizer_name text, starts_at timestamptz, ends_at timestamptz,
+  valid_count integer, checked_in_count integer
+)
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_staff  record;
+  v_token  text;
+  v_event  public.events;
+begin
+  select s.id, s.name into v_staff
+    from public.staff_members s
+    join public.staff_sessions ss on ss.staff_id = s.id
+   where ss.token_hash = encode(extensions.digest(p_session_token, 'sha256'), 'hex')
+     and ss.expires_at > now() and s.is_active = true;
+  if not found then raise exception 'Your session has ended. Please sign in again.'; end if;
+
+  if not exists (
+    select 1 from public.staff_event_assignments a
+     where a.staff_id = v_staff.id and a.event_id = p_event_id and a.is_active = true
+  ) then
+    raise exception 'You are not assigned to this event';
+  end if;
+
+  select * into v_event from public.events where id = p_event_id;
+  if not found then raise exception 'Event not found'; end if;
+
+  v_token := encode(extensions.gen_random_bytes(32), 'hex');
+  insert into public.scanner_sessions (scanner_pin_id, staff_member_id, event_id, staff_name, token_hash, expires_at)
+  values (null, v_staff.id, p_event_id, v_staff.name,
+          encode(extensions.digest(v_token, 'sha256'), 'hex'), now() + interval '12 hours');
+
+  return query
+    select v_token, v_event.id, v_staff.name, v_event.title,
+           coalesce((select o.name from public.organizers o where o.id = v_event.organizer_id), 'Organizer'),
+           v_event.starts_at, v_event.ends_at,
+           (select count(*)::int from public.tickets t where t.event_id = v_event.id and t.status = 'VALID'),
+           (select count(*)::int from public.tickets t where t.event_id = v_event.id and t.status = 'USED');
+end;
+$$;
+
+-- Retired PIN helpers.
+drop function if exists public.staff_reset_pin(uuid);
+drop function if exists public._new_staff_pin();
+
+revoke execute on function public.staff_register(text, uuid, text, text, text, text, uuid) from public, anon, authenticated;
+revoke execute on function public.staff_set_password(uuid, text) from public, anon, authenticated;
+revoke execute on function public.staff_login_session(text, text) from public, anon, authenticated;
+revoke execute on function public.staff_door_session(text, uuid) from public, anon, authenticated;
+grant execute on function public.staff_register(text, uuid, text, text, text, text, uuid) to service_role;
+grant execute on function public.staff_set_password(uuid, text) to service_role;
+grant execute on function public.staff_login_session(text, text) to service_role;
+grant execute on function public.staff_door_session(text, uuid) to service_role;

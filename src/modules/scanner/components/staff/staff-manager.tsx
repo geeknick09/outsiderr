@@ -6,9 +6,9 @@ import { KeyRound, UserPlus } from "lucide-react";
 import {
   confirmCashHandoverAction,
   registerStaffAction,
-  resetStaffPinAction,
   setStaffActiveAction,
   setStaffAssignmentAction,
+  setStaffPasswordAction,
   type RegisterStaffState,
 } from "../../actions/staff";
 import type { AssignableEvent, StaffRecord } from "../../data/staff";
@@ -26,7 +26,8 @@ export interface CashRow {
 const INPUT =
   "w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white";
 
-/** Named box-office staff: register, reset PIN, deactivate, and assign events. */
+/** Named staff: register with a password, deactivate, and assign events. The same
+ * credential signs into the door scanner (/scan) and the box office. */
 export function StaffManager({
   staff,
   events,
@@ -40,69 +41,65 @@ export function StaffManager({
 }) {
   const [state, formAction, pending] = useActionState<RegisterStaffState, FormData>(registerStaffAction, { error: null });
   const formRef = useRef<HTMLFormElement>(null);
-  const [shownPin, setShownPin] = useState<{ name: string; pin: string } | null>(null);
+  const [passwordFor, setPasswordFor] = useState<string | null>(null);
+  const [passwordValue, setPasswordValue] = useState("");
 
   // Clear the form only after a successful registration. A form action would reset it on every
   // attempt, so a validation error would wipe what the owner typed.
   useEffect(() => {
-    if (state.pin && !state.error) formRef.current?.reset();
+    if (state.name && !state.error) formRef.current?.reset();
   }, [state]);
   const [notice, setNotice] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
-  const pinBanner =
-    state.pin && !shownPin && state.name ? { name: state.name, pin: state.pin } : shownPin;
-
-  function run(fn: () => Promise<{ error: string | null; pin?: string }>, label: string, onPin?: (pin: string) => void) {
+  function run(fn: () => Promise<{ error: string | null }>, label: string) {
     setNotice(null);
     startTransition(async () => {
       const res = await fn();
       if (res.error) return setNotice(res.error);
-      if (res.pin && onPin) onPin(res.pin);
       setNotice(label);
+    });
+  }
+
+  function savePassword(staffId: string) {
+    setNotice(null);
+    startTransition(async () => {
+      const res = await setStaffPasswordAction(staffId, passwordValue);
+      if (res.error) return setNotice(res.error);
+      setPasswordFor(null);
+      setPasswordValue("");
+      setNotice("Password updated.");
     });
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black">Box office staff</h1>
-        <p className="text-sm text-muted">{scopeLabel}. Staff sign in at the counter with their phone and personal PIN.</p>
+        <h1 className="text-2xl font-black">Staff</h1>
+        <p className="text-sm text-muted">{scopeLabel}. Staff sign in at /scan and /box-office with their phone or email and password.</p>
       </div>
-
-      {pinBanner ? (
-        <div className="glass rounded-2xl border border-amber-400/50 p-4">
-          <p className="flex items-center gap-2 text-sm font-bold">
-            <KeyRound className="h-4 w-4 text-amber-400" /> PIN for {pinBanner.name}
-          </p>
-          <p className="mt-1 font-mono text-3xl font-black tracking-[0.3em]">{pinBanner.pin}</p>
-          <p className="mt-1 text-xs text-muted">Shown once. Share it with them now. It cannot be read again; reset it to issue a new one.</p>
-          <button type="button" onClick={() => setShownPin(null)} className="mt-2 text-xs font-semibold text-violet-neon hover:underline">
-            Dismiss
-          </button>
-        </div>
-      ) : null}
 
       <form
         ref={formRef}
         onSubmit={(e) => {
           e.preventDefault();
-          setShownPin(null);
           formAction(new FormData(e.currentTarget));
         }}
-        className="glass grid gap-3 rounded-3xl p-5 sm:grid-cols-3"
+        className="glass grid gap-3 rounded-3xl p-5 sm:grid-cols-2"
       >
-        <p className="flex items-center gap-2 text-sm font-bold sm:col-span-3">
+        <p className="flex items-center gap-2 text-sm font-bold sm:col-span-2">
           <UserPlus className="h-4 w-4 text-violet-neon" /> Register staff
         </p>
         <input name="name" required placeholder="Full name" className={INPUT} />
         <input name="phone" required inputMode="tel" placeholder="10-digit phone" className={INPUT} />
         <input name="email" type="email" placeholder="Email (optional)" className={INPUT} />
-        <div className="sm:col-span-3 flex items-center gap-3">
+        <input name="password" required type="text" autoComplete="off" minLength={6} placeholder="Password (min 6 chars)" className={INPUT} />
+        <div className="sm:col-span-2 flex items-center gap-3">
           <button type="submit" disabled={pending} className="rounded-full bg-neon-gradient px-5 py-2 text-sm font-bold text-white disabled:opacity-50">
-            {pending ? "Registering..." : "Register and generate PIN"}
+            {pending ? "Registering..." : "Register staff"}
           </button>
           {state.error ? <p className="text-sm text-red-500">{state.error}</p> : null}
+          {state.name && !state.error ? <p className="text-sm text-emerald-500">{state.name} registered - share the credentials with them.</p> : null}
         </div>
       </form>
 
@@ -121,7 +118,7 @@ export function StaffManager({
             <p className="font-mono font-bold">{formatPaise(row.amountPaise)}</p>
             <button
               type="button"
-              onClick={() => run(() => confirmCashHandoverAction(row.staffId, row.eventId).then((r) => ({ error: r.error })), "Handover confirmed.")}
+              onClick={() => run(() => confirmCashHandoverAction(row.staffId, row.eventId), "Handover confirmed.")}
               className="rounded-full bg-neon-gradient px-3 py-1.5 text-xs font-bold text-white"
             >
               Confirm received
@@ -154,12 +151,37 @@ export function StaffManager({
                 </button>
                 <button
                   type="button"
-                  onClick={() => run(() => resetStaffPinAction(s.id), "PIN reset.", (pin) => setShownPin({ name: s.name, pin }))}
+                  onClick={() => {
+                    setPasswordFor(passwordFor === s.id ? null : s.id);
+                    setPasswordValue("");
+                  }}
                   className="rounded-full border border-amber-400/50 px-3 py-1.5 text-xs font-semibold text-amber-500"
                 >
-                  Reset PIN
+                  <span className="inline-flex items-center gap-1"><KeyRound className="h-3 w-3" />Set password</span>
                 </button>
               </div>
+
+              {passwordFor === s.id ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    autoComplete="off"
+                    minLength={6}
+                    value={passwordValue}
+                    onChange={(e) => setPasswordValue(e.target.value)}
+                    placeholder="New password (min 6 chars)"
+                    className={INPUT}
+                  />
+                  <button
+                    type="button"
+                    disabled={passwordValue.length < 6}
+                    onClick={() => savePassword(s.id)}
+                    className="shrink-0 rounded-full bg-neon-gradient px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+                  >
+                    Save
+                  </button>
+                </div>
+              ) : null}
 
               <div className="grid gap-1.5 sm:grid-cols-2">
                 {events.length === 0 ? <p className="text-xs text-muted">No live events to assign.</p> : null}

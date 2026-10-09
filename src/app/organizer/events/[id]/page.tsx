@@ -7,7 +7,7 @@ import { lazy, Suspense } from "react";
 
 import { AnalyticsPanel } from "@/modules/analytics";
 import { AttendeesTable } from "@/modules/organizer";
-import { EditEventForm, CancelPostponeButtons, CollaborationPanel, ScannerPinManager, HeroBoostPanel, PastEventGalleryManager, WaitlistPanel, VerificationQueue, EventOverview, ManageTabs } from "@/modules/organizer";
+import { EditEventForm, CancelPostponeButtons, CollaborationPanel, HeroBoostPanel, PastEventGalleryManager, WaitlistPanel, VerificationQueue, EventOverview, ManageTabs } from "@/modules/organizer";
 import { ShareButton } from "@/modules/web";
 import { Badge } from "@/modules/shared";
 import { Button } from "@/modules/shared";
@@ -15,8 +15,7 @@ import { CollapseAllProvider, CollapsibleSection } from "@/modules/shared";
 
 import { getCurrentUser } from "@/modules/shared/server";
 import { getEvent, getOrganizerPastEventsForLinking } from "@/modules/shared/server";
-import { listEventScannerPins } from "@/modules/shared/server";
-import { EventCounterStaff } from "@/modules/scanner";
+import { EventStaff } from "@/modules/scanner";
 import { listEventCounterStaff } from "@/modules/scanner/server";
 import { getOrganizerEventAnalytics } from "@/modules/analytics/server";
 import { getEventCollaboratorsForOwner, getEventAccessLevel, canViewAnalytics, canViewMoney, canScanTickets, canEditEvent, canManageOrders } from "@/modules/shared/server";
@@ -57,7 +56,7 @@ export default async function ManageEventPage({
 
   // Load all page data in parallel. Log the real error server-side before letting
   // the route-level error.tsx handle the fallback UI for the user.
-  const [event, analytics, cancelChargePct, postponeChargePct, heroBoost, heroBoostPrice, heroBoostDuration, orders, tickets, waitlistEntries, scannerPins, collaborators, counterStaff] = await Promise.all([
+  const [event, analytics, cancelChargePct, postponeChargePct, heroBoost, heroBoostPrice, heroBoostDuration, orders, tickets, waitlistEntries, collaborators, eventStaff] = await Promise.all([
     getEvent(id),
     getOrganizerEventAnalytics(user, id),
     getCancellationChargePercent(),
@@ -68,7 +67,6 @@ export default async function ManageEventPage({
     listEventOrders(id),
     listEventTickets(id),
     listEventWaitlist(id),
-    listEventScannerPins(user, id),
     getEventCollaboratorsForOwner(user, id),
     listEventCounterStaff(id),
   ]).catch((err: unknown) => {
@@ -278,14 +276,9 @@ export default async function ManageEventPage({
               ) : null}
 
               {canScan && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
-                <>
-                  <CollapsibleSection title="Door Scanner PINs" description="PINs that open the door scanner at /scan - no account needed.">
-                    <ScannerPinManager eventId={event.id} pins={scannerPins} />
-                  </CollapsibleSection>
-                  <CollapsibleSection title="Box Office" description="Counter staff sign in at /box-office with their phone + personal PIN and can take cash or card/UPI.">
-                    <EventCounterStaff eventId={event.id} staff={counterStaff} />
-                  </CollapsibleSection>
-                </>
+                <CollapsibleSection title="Staff" description="Door + box-office staff. They sign in at /scan and /box-office with the phone or email + password you set here.">
+                  <EventStaff eventId={event.id} staff={eventStaff} />
+                </CollapsibleSection>
               ) : null}
 
               {isOwner && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (

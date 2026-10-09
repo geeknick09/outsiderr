@@ -4,13 +4,13 @@ export * from "./offline/sync-manager";
 export * from "./offline/scanner-db";
 
 export * from "./components/scan/offline-status";
-export * from "./components/scan/pin-login";
+export * from "./components/scan/staff-login";
 export { ScanPageClient } from "./components/scan/scan-page-client";
 export * from "./components/scan/staff-door-scanner";
 export * from "./components/scan/staff-door-scanner-lazy";
 export * from "./components/box-office/box-office-page-client";
 export * from "./components/staff/staff-manager";
-export * from "./components/staff/event-counter-staff";
+export * from "./components/staff/event-staff";
 export * from "./components/counter/counter-client";
 export * from "./components/door-scanner";
 export * from "./components/event-door-scanner";

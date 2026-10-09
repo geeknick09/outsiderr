@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser, createClient, createServiceClient, getOrganizerProfile } from "@/modules/shared/server";
-import { validate, staffRegisterSchema, staffIdSchema, UUID_RE, normalisePhone } from "@/modules/shared";
+import { validate, staffRegisterSchema, staffPasswordSchema, staffIdSchema, UUID_RE, normalisePhone } from "@/modules/shared";
 import { getStaffOwner, type StaffOwnerType } from "../data/staff";
 
 interface Actor {
@@ -48,11 +48,10 @@ function revalidateStaff() {
 
 export interface RegisterStaffState {
   error: string | null;
-  pin?: string;
   name?: string;
 }
 
-/** Registers a staff member. The PIN is returned once and never stored in plaintext. */
+/** Registers a staff member with a password the organizer/admin chooses. */
 export async function registerStaffAction(_prev: RegisterStaffState, formData: FormData): Promise<RegisterStaffState> {
   const actor = await resolveActor();
   if ("error" in actor) return { error: actor.error };
@@ -61,16 +60,18 @@ export async function registerStaffAction(_prev: RegisterStaffState, formData: F
     name: String(formData.get("name") ?? ""),
     email: String(formData.get("email") ?? "").trim(),
     phone: normalisePhone(String(formData.get("phone") ?? "")),
+    password: String(formData.get("password") ?? ""),
   });
   if (!v.success) return { error: v.error };
   if (v.data.phone.length !== 10) return { error: "Enter a 10-digit phone number." };
 
-  const { data, error } = await createServiceClient().rpc("staff_register", {
+  const { error } = await createServiceClient().rpc("staff_register", {
     p_owner_type: actor.ownerType,
     p_organizer_id: actor.organizerId ?? undefined,
     p_name: v.data.name,
     p_email: v.data.email,
     p_phone: v.data.phone,
+    p_password: v.data.password,
     p_actor: actor.userId,
   });
   if (error) {
@@ -78,21 +79,27 @@ export async function registerStaffAction(_prev: RegisterStaffState, formData: F
     return { error: error.message };
   }
   revalidateStaff();
-  return { error: null, pin: data?.[0]?.pin, name: v.data.name };
+  return { error: null, name: v.data.name };
 }
 
-export async function resetStaffPinAction(staffId: string): Promise<{ error: string | null; pin?: string }> {
+/** Organizer/admin sets a new password for a staff member. */
+export async function setStaffPasswordAction(staffId: string, password: string): Promise<{ error: string | null }> {
   const v = validate(staffIdSchema, { staffId });
   if (!v.success) return { error: v.error };
+  const pv = staffPasswordSchema.safeParse(password);
+  if (!pv.success) return { error: pv.error.issues[0]?.message ?? "Password too short." };
   const actor = await resolveActor();
   if ("error" in actor) return { error: actor.error };
   const denied = await ensureOwns(actor, v.data.staffId);
   if (denied) return { error: denied };
 
-  const { data: pin, error } = await createServiceClient().rpc("staff_reset_pin", { p_staff_id: v.data.staffId });
+  const { error } = await createServiceClient().rpc("staff_set_password", {
+    p_staff_id: v.data.staffId,
+    p_password: pv.data,
+  });
   if (error) return { error: error.message };
   revalidateStaff();
-  return { error: null, pin: pin ?? undefined };
+  return { error: null };
 }
 
 export async function setStaffActiveAction(staffId: string, active: boolean): Promise<{ error: string | null }> {
@@ -135,21 +142,20 @@ export async function setStaffAssignmentAction(
   return { error: null };
 }
 
-export interface AddCounterStaffState {
+export interface AddEventStaffState {
   error: string | null;
-  pin?: string;
   name?: string;
-  /** true when the phone matched an existing staff member - no new PIN was issued. */
+  /** true when the phone matched an existing staff member under this owner. */
   reused?: boolean;
 }
 
 /**
- * Event-page counter staff: register a new staff member (or reuse an existing
- * one with the same phone) and assign them to this event in one step.
- * The PIN is returned once for new staff; reused staff keep their current PIN
- * (reset it to issue a fresh one).
+ * Event-page staff: register a new staff member (or reuse an existing one with
+ * the same phone) and assign them to this event in one step. The organizer sets
+ * the password; staff sign in at /scan and /box-office with phone or email +
+ * password. On reuse, a non-empty password updates their credentials.
  */
-export async function addEventCounterStaffAction(formData: FormData): Promise<AddCounterStaffState> {
+export async function upsertEventStaffAction(formData: FormData): Promise<AddEventStaffState> {
   const actor = await resolveActor();
   if ("error" in actor) return { error: actor.error };
 
@@ -160,7 +166,7 @@ export async function addEventCounterStaffAction(formData: FormData): Promise<Ad
   if (actor.ownerType === "ORGANIZER") {
     const { data: ev } = await svc.from("events").select("organizer_id").eq("id", eventId).maybeSingle();
     if (!ev || ev.organizer_id !== actor.organizerId) {
-      return { error: "You can only add counter staff to your own events." };
+      return { error: "You can only add staff to your own events." };
     }
   }
 
@@ -168,13 +174,13 @@ export async function addEventCounterStaffAction(formData: FormData): Promise<Ad
     name: String(formData.get("name") ?? ""),
     email: String(formData.get("email") ?? "").trim(),
     phone: normalisePhone(String(formData.get("phone") ?? "")),
+    password: String(formData.get("password") ?? ""),
   });
   if (!v.success) return { error: v.error };
   if (v.data.phone.length !== 10) return { error: "Enter a 10-digit phone number." };
 
   // Reuse an existing staff member with the same phone under this owner.
   let staffId: string;
-  let pin: string | undefined;
   let reused = false;
   let query = svc
     .from("staff_members")
@@ -190,6 +196,12 @@ export async function addEventCounterStaffAction(formData: FormData): Promise<Ad
     if (!existing.is_active) {
       await svc.from("staff_members").update({ is_active: true }).eq("id", staffId);
     }
+    // A fresh password was typed - treat it as a credential update.
+    const { error: pwError } = await svc.rpc("staff_set_password", {
+      p_staff_id: staffId,
+      p_password: v.data.password,
+    });
+    if (pwError) return { error: pwError.message };
   } else {
     const { data, error } = await svc.rpc("staff_register", {
       p_owner_type: actor.ownerType,
@@ -197,15 +209,16 @@ export async function addEventCounterStaffAction(formData: FormData): Promise<Ad
       p_name: v.data.name,
       p_email: v.data.email,
       p_phone: v.data.phone,
+      p_password: v.data.password,
       p_actor: actor.userId,
     });
     if (error) {
       if (error.message.includes("duplicate key")) return { error: "This phone number is already registered as staff." };
       return { error: error.message };
     }
-    staffId = data?.[0]?.staff_id;
-    pin = data?.[0]?.pin;
-    if (!staffId) return { error: "Could not register the staff member." };
+    const newId = data as string | null;
+    if (!newId) return { error: "Could not register the staff member." };
+    staffId = newId;
   }
 
   const { error } = await svc.rpc("staff_set_assignment", {
@@ -217,7 +230,7 @@ export async function addEventCounterStaffAction(formData: FormData): Promise<Ad
 
   revalidateStaff();
   revalidatePath(`/organizer/events/${eventId}`);
-  return { error: null, pin, name: v.data.name, reused };
+  return { error: null, name: v.data.name, reused };
 }
 
 /** Organizer/admin confirms cash handed over. The amount is computed on the server. */

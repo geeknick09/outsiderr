@@ -2,7 +2,7 @@
 
 import { headers } from "next/headers";
 import { createClient, createServiceClient } from "@/modules/shared/server";
-import { validate, verifyScannerPinSchema, rateLimit, getRateLimitIdentifier, RATE_LIMITS } from "@/modules/shared";
+import { validate, verifyScannerPinSchema, staffLoginSchema, rateLimit, getRateLimitIdentifier, RATE_LIMITS, UUID_RE } from "@/modules/shared";
 
 export async function verifyScannerPinAction(
   eventId: string,
@@ -75,6 +75,111 @@ export async function verifyScannerPinAction(
       checkedInCount: row.checked_in_count ?? 0,
       staffName: row.staff_name ?? "",
     },
+  };
+}
+
+export interface StaffDoorEvent {
+  id: string;
+  title: string;
+  startsAt: string;
+  endsAt: string | null;
+  status: string;
+  organizerName: string;
+}
+
+/**
+ * Staff sign-in for the door scanner: phone or email + password ->
+ * staff session token + the events they are assigned to.
+ */
+export async function staffDoorLoginAction(
+  identifier: string,
+  password: string,
+): Promise<{ error: string | null; staffToken?: string; staffName?: string; events?: StaffDoorEvent[] }> {
+  const v = validate(staffLoginSchema, { identifier, password });
+  if (!v.success) return { error: v.error };
+  const h = await headers();
+  const rl = rateLimit(`staff-door-login:${getRateLimitIdentifier(h)}`, RATE_LIMITS.PIN_VERIFY);
+  if (rl.limited) return { error: "Too many attempts. Please try again in a minute." };
+
+  const supabase = createServiceClient();
+  const { data, error } = await supabase.rpc("staff_login_session", {
+    p_identifier: v.data.identifier,
+    p_password: v.data.password,
+  });
+  if (error) return { error: error.message };
+  const row = data?.[0];
+  if (!row) return { error: "Phone/email or password is incorrect, or your access is inactive." };
+
+  const { data: assigned } = await supabase
+    .from("staff_event_assignments")
+    .select("event_id")
+    .eq("staff_id", row.staff_id)
+    .eq("is_active", true);
+  const ids = (assigned ?? []).map((a) => a.event_id);
+  let events: StaffDoorEvent[] = [];
+  if (ids.length) {
+    const { data: evs } = await supabase
+      .from("events")
+      .select("id, title, starts_at, ends_at, status, organizer_id")
+      .in("id", ids)
+      .in("status", ["PUBLISHED", "POSTPONED"])
+      .order("starts_at", { ascending: true });
+    const orgIds = [...new Set((evs ?? []).map((e) => e.organizer_id))];
+    const { data: orgs } = orgIds.length
+      ? await supabase.from("organizers_public").select("id, name").in("id", orgIds)
+      : { data: [] };
+    const orgMap = Object.fromEntries((orgs ?? []).map((o) => [o.id, o.name]));
+    events = (evs ?? []).map((e) => ({
+      id: e.id,
+      title: e.title,
+      startsAt: e.starts_at,
+      endsAt: e.ends_at,
+      status: e.status,
+      organizerName: orgMap[e.organizer_id] ?? "Organizer",
+    }));
+  }
+
+  return { error: null, staffToken: row.token, staffName: row.name, events };
+}
+
+/**
+ * Staff session + event -> event-scoped door token. The device sends the door
+ * token for scans from now on, never the staff password.
+ */
+export async function staffDoorSessionAction(
+  staffToken: string,
+  eventId: string,
+): Promise<{
+  error: string | null;
+  token?: string;
+  eventTitle?: string;
+  organizerName?: string;
+  startsAt?: string;
+  endsAt?: string | null;
+  status?: string;
+  staffName?: string;
+  validCount?: number;
+  checkedInCount?: number;
+}> {
+  if (!staffToken || !UUID_RE.test(eventId)) return { error: "Pick an event to scan for." };
+
+  const { data, error } = await createServiceClient().rpc("staff_door_session", {
+    p_session_token: staffToken,
+    p_event_id: eventId,
+  });
+  if (error) return { error: error.message };
+  const row = data?.[0];
+  if (!row?.token) return { error: "Could not start the door session." };
+  return {
+    error: null,
+    token: row.token,
+    eventTitle: row.event_title ?? "",
+    organizerName: row.organizer_name ?? "",
+    startsAt: row.starts_at ?? "",
+    endsAt: row.ends_at,
+    staffName: row.staff_name ?? "",
+    validCount: row.valid_count ?? 0,
+    checkedInCount: row.checked_in_count ?? 0,
   };
 }
 

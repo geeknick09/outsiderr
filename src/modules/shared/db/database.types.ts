@@ -267,8 +267,8 @@ export type StaffMemberRow = {
   name: string;
   email: string | null;
   phone: string;
-  pin_hash: string;
-  pin_set_at: string;
+  password_hash: string;
+  password_set_at: string;
   is_active: boolean;
   created_by: string | null;
   created_at: string;
@@ -646,7 +646,7 @@ export type Database = {
       organizer_follows: Table<OrganizerFollowRow, "organizer_id" | "follower_id">;
       event_collaborators: Table<EventCollaboratorRow, "event_id" | "organizer_id" | "invited_by">;
       organizer_premium_purchases: Table<OrganizerPremiumPurchaseRow, "organizer_id" | "user_id" | "status">;
-      staff_members: Table<StaffMemberRow, "owner_type" | "name" | "phone" | "pin_hash">;
+      staff_members: Table<StaffMemberRow, "owner_type" | "name" | "phone" | "password_hash">;
       staff_event_assignments: Table<StaffEventAssignmentRow, "staff_id" | "event_id">;
       scan_log: Table<ScanLogRow, "event_id" | "qr_hash" | "outcome" | "actor_type">;
     };
@@ -1080,20 +1080,34 @@ export type Database = {
         Returns: boolean;
       };
       staff_register: {
-        Args: { p_owner_type: string; p_organizer_id: string | undefined; p_name: string; p_email: string | null; p_phone: string; p_actor: string };
-        Returns: { staff_id: string; pin: string }[];
-      };
-      staff_reset_pin: {
-        Args: { p_staff_id: string };
+        Args: { p_owner_type: string; p_organizer_id: string | undefined; p_name: string; p_email: string | null; p_phone: string; p_password: string; p_actor: string };
         Returns: string;
+      };
+      staff_set_password: {
+        Args: { p_staff_id: string; p_password: string };
+        Returns: undefined;
       };
       staff_set_assignment: {
         Args: { p_staff_id: string; p_event_id: string; p_active: boolean };
         Returns: undefined;
       };
       staff_login_session: {
-        Args: { p_phone: string; p_pin: string };
+        Args: { p_identifier: string; p_password: string };
         Returns: { token: string; staff_id: string; name: string; owner_type: string; organizer_id: string | null }[];
+      };
+      staff_door_session: {
+        Args: { p_session_token: string; p_event_id: string };
+        Returns: {
+          token: string;
+          event_id: string;
+          staff_name: string;
+          event_title: string;
+          organizer_name: string;
+          starts_at: string;
+          ends_at: string | null;
+          valid_count: number;
+          checked_in_count: number;
+        }[];
       };
       staff_session_staff: {
         Args: { p_token: string };

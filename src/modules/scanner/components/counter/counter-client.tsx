@@ -26,6 +26,8 @@ export function CounterClient() {
   const [events, setEvents] = useState<CounterEvent[]>([]);
   const [booting, setBooting] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loginId, setLoginId] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
   const [pending, startTransition] = useTransition();
 
   const [eventId, setEventId] = useState("");
@@ -57,10 +59,10 @@ export function CounterClient() {
     });
   }, []);
 
-  function signIn(form: FormData) {
+  function signIn() {
     setError(null);
     startTransition(async () => {
-      const res = await counterLoginAction(String(form.get("phone") ?? ""), String(form.get("pin") ?? ""));
+      const res = await counterLoginAction(loginId, loginPassword);
       if (res.error || !res.token || !res.staff) return setError(res.error ?? "Could not sign in.");
       window.sessionStorage.setItem(TOKEN_KEY, res.token);
       setToken(res.token);
@@ -122,16 +124,16 @@ export function CounterClient() {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          signIn(new FormData(e.currentTarget));
+          signIn();
         }}
         className="glass mx-auto max-w-sm space-y-4 rounded-3xl p-6"
       >
         <div>
           <h1 className="text-xl font-black">Box office sign-in</h1>
-          <p className="text-xs text-muted">Use the phone number and personal PIN your organizer or Outsiderr gave you.</p>
+          <p className="text-xs text-muted">Use the phone or email and password your organizer or Outsiderr gave you.</p>
         </div>
-        <input name="phone" required inputMode="tel" placeholder="10-digit phone" className={INPUT} />
-        <input name="pin" required inputMode="numeric" maxLength={6} pattern="\d{6}" placeholder="6-digit PIN" className={INPUT} />
+        <input required autoComplete="username" value={loginId} onChange={(e) => setLoginId(e.target.value)} placeholder="Phone or email" className={INPUT} />
+        <input required type="password" autoComplete="current-password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} placeholder="Password" className={INPUT} />
         {error ? <p className="text-sm text-red-500">{error}</p> : null}
         <button type="submit" disabled={pending} className="w-full rounded-full bg-neon-gradient py-2.5 text-sm font-bold text-white disabled:opacity-50">
           {pending ? "Signing in..." : "Sign in"}

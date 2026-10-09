@@ -45,11 +45,20 @@ export const boxOfficeOrderSchema = z.object({
   mode: z.enum(["WALKIN_PREEVENT", "WALKIN_QR", "WALKIN_INSTANT"]),
 });
 
-// ─── Box office staff registry ───────────────────────────────────────
+// ─── Staff registry (door + box office) ─────────────────────────────
+export const staffPasswordSchema = z.string().min(6, "Password must be at least 6 characters").max(100, "Password too long");
+
 export const staffRegisterSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters").max(100, "Name too long"),
   email,
   phone,
+  password: staffPasswordSchema,
+});
+
+/** Identifier on sign-in: phone number or email + password. */
+export const staffLoginSchema = z.object({
+  identifier: z.string().trim().min(3, "Enter your phone or email").max(254),
+  password: z.string().min(1, "Enter your password").max(100),
 });
 
 export const staffIdSchema = z.object({ staffId: uuid });

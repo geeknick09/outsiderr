@@ -18,7 +18,7 @@ export function StaffDoorScannerLazy(props: {
   events: { id: string; title: string; startsAt: string; endsAt: string | null; status: string; organizerName: string }[];
   initialCheckInCount: number;
   staffName?: string;
-  pin?: string;
+  staffToken?: string;
 }) {
   return <StaffDoorScanner {...props} />;
 }
