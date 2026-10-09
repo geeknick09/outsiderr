@@ -76,7 +76,7 @@ export async function createCommunityAction(
       // rotating invite token = the community's invite link slug
       const supabase = createServiceClient();
       const token = crypto.randomUUID().slice(0, 8);
-      await supabase.from("communities").update({ invite_token: token }).eq("id", communityId);
+      await supabase.from("community_invites").upsert({ community_id: communityId, token }, { onConflict: "community_id" });
     }
   } catch (error) {
     return {

@@ -13,7 +13,7 @@ import { Badge } from "@/modules/shared";
 import { Button } from "@/modules/shared";
 import { CollapseAllProvider, CollapsibleSection } from "@/modules/shared";
 
-import { getCurrentUser } from "@/modules/shared/server";
+import { getCurrentUser, createServiceClient } from "@/modules/shared/server";
 import { getEvent, getOrganizerPastEventsForLinking } from "@/modules/shared/server";
 import { EventStaff } from "@/modules/scanner";
 import { GuestlistPanel } from "@/modules/organizer";
@@ -88,6 +88,10 @@ export default async function ManageEventPage({
   const accessLevel = await getEventAccessLevel(user, id);
   if (!accessLevel) notFound();
   const isOwner = accessLevel === "OWNER";
+  const eventInviteToken =
+    isOwner && event.visibility === "INVITE_ONLY"
+      ? await createServiceClient().rpc("get_event_invite_token", { p_event_id: event.id, p_actor_id: user.id }).then((r) => (typeof r.data === "string" ? r.data : null))
+      : null;
   const canView = canViewAnalytics(accessLevel);
   const canScan = canScanTickets(accessLevel);
   const canEdit = canEditEvent(accessLevel);
@@ -270,6 +274,15 @@ export default async function ManageEventPage({
                     </div>
                   </div>
                 </CollapsibleSection>
+              ) : null}
+
+              {eventInviteToken ? (
+                <div className="glass rounded-3xl border border-violet-neon/40 p-4">
+                  <p className="text-xs font-bold uppercase tracking-wide text-violet-neon">Invite-only event</p>
+                  <p className="mt-1 break-all text-sm">
+                    Share link: <span className="font-mono text-xs">{`/events/${event.id}?invite=${eventInviteToken}`}</span>
+                  </p>
+                </div>
               ) : null}
 
               {!eventPast && collaborators !== null ? (

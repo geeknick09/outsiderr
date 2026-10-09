@@ -92,13 +92,12 @@ export default async function EventDetailsPage({
       .eq("status", "ACCEPTED")
       .maybeSingle();
     isCommunityMember = !!mem;
-    if (event.visibility === "INVITE_ONLY") {
-      const { data: evRow } = await supabase
-        .from("events")
-        .select("invite_token")
-        .eq("id", event.id)
-        .maybeSingle();
-      inviteValid = !!invite && evRow?.invite_token === invite;
+    if (event.visibility === "INVITE_ONLY" && invite) {
+      const { data: ok } = await supabase.rpc("event_invite_valid", {
+        p_event_id: event.id,
+        p_token: invite,
+      });
+      inviteValid = ok === true;
     }
   }
   const isOwnerOrAdmin = user && event.organizer.ownerId === user.id;

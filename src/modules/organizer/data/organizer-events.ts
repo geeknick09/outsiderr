@@ -230,12 +230,17 @@ export async function createEvent(
       pricing_mode: input.pricingMode,
       community_id: input.communityId ?? null,
       visibility: input.visibility ?? "OPEN",
-      invite_token: input.inviteToken ?? null,
       status: input.status ?? "PUBLISHED",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
     .select("id")
     .single();
+  if (!error && input.inviteToken) {
+    const { createServiceClient } = await import("@/modules/shared/server");
+    await createServiceClient()
+      .from("event_invites")
+      .upsert({ event_id: event.id, token: input.inviteToken }, { onConflict: "event_id" });
+  }
   if (error) {
     console.error("createEvent insert error:", error);
     throw new Error(`Database error: ${error.message} (code: ${error.code ?? "unknown"})`);
@@ -525,7 +530,7 @@ export async function updateEvent(
       ...(input.pricingMode !== undefined ? { pricing_mode: input.pricingMode } : {}),
       ...(input.communityId !== undefined ? { community_id: input.communityId } : {}),
       ...(input.visibility !== undefined ? { visibility: input.visibility } : {}),
-      ...(input.inviteToken !== undefined ? { invite_token: input.inviteToken } : {}),
+
       ...(input.maxTicketsPerUser !== undefined
         ? { max_tickets_per_user: Math.min(10, Math.max(1, input.maxTicketsPerUser)) }
         : {}),
@@ -538,6 +543,17 @@ export async function updateEvent(
     .maybeSingle();
   if (error) throw error;
   if (!updatedEvent) throw new Error("Event not found or not owned by you.");
+
+  // Invite token lives in a service-role-only side table.
+  if (input.inviteToken !== undefined) {
+    const { createServiceClient } = await import("@/modules/shared/server");
+    const svc = createServiceClient();
+    if (input.inviteToken) {
+      await svc.from("event_invites").upsert({ event_id: eventId, token: input.inviteToken }, { onConflict: "event_id" });
+    } else {
+      await svc.from("event_invites").delete().eq("event_id", eventId);
+    }
+  }
 
   // Send notifications to ticket holders if key details changed
   if (currentEvent) {

@@ -49,7 +49,7 @@ export async function listCommunities(city?: City): Promise<Community[]> {
     avatarUrl: row.avatar_url,
     coverUrl: row.cover_url ?? null,
     galleryUrls: row.gallery_urls ?? [],
-    inviteToken: row.invite_token,
+    
     instagramHandle: row.instagram_handle,
     upiId: row.upi_id ?? null,
     membershipType: row.membership_type as JoinMode,
@@ -83,7 +83,7 @@ export async function getCommunity(id: string): Promise<Community | null> {
     avatarUrl: data.avatar_url,
     coverUrl: data.cover_url ?? null,
     galleryUrls: data.gallery_urls ?? [],
-    inviteToken: data.invite_token,
+    
     instagramHandle: data.instagram_handle,
     upiId: data.upi_id ?? null,
     membershipType: data.membership_type as JoinMode,
@@ -291,7 +291,7 @@ export async function listMyCommunities(user: CurrentUser): Promise<Community[]>
     avatarUrl: row.avatar_url,
     coverUrl: row.cover_url ?? null,
     galleryUrls: row.gallery_urls ?? [],
-    inviteToken: row.invite_token,
+    
     instagramHandle: row.instagram_handle,
     upiId: row.upi_id ?? null,
     membershipType: row.membership_type as JoinMode,
@@ -331,7 +331,7 @@ export async function listPendingCommunities(): Promise<Community[]> {
     avatarUrl: row.avatar_url,
     coverUrl: row.cover_url ?? null,
     galleryUrls: row.gallery_urls ?? [],
-    inviteToken: row.invite_token,
+    
     instagramHandle: row.instagram_handle,
     upiId: row.upi_id ?? null,
     membershipType: row.membership_type as JoinMode,
@@ -540,7 +540,7 @@ export async function listFollowedCommunities(user: CurrentUser): Promise<Commun
     id: row.id, ownerId: row.owner_id, ownerName: "", name: row.name, bio: row.bio,
     type: row.type as CommunityType, city: row.city as City | null,
     avatarUrl: row.avatar_url, coverUrl: row.cover_url ?? null,
-    galleryUrls: row.gallery_urls ?? [], inviteToken: row.invite_token,
+    galleryUrls: row.gallery_urls ?? [], 
     instagramHandle: row.instagram_handle, upiId: row.upi_id ?? null,
     membershipType: row.membership_type as JoinMode, membershipFeePaise: row.membership_fee_paise,
     terms: row.terms ?? [], memberCount: row.member_count ?? 0, verified: row.verified,

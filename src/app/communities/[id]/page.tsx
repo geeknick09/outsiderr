@@ -6,7 +6,7 @@ import { AtSign, BadgeCheck, CalendarDays, Lock, MapPin, Users } from "lucide-re
 
 import { JoinCommunityForm, CommunityFollowButton } from "@/modules/web";
 import { Badge } from "@/modules/shared";
-import { getCurrentUser } from "@/modules/shared/server";
+import { getCurrentUser, createClient } from "@/modules/shared/server";
 import {
   getCommunity,
   getMyMembership,
@@ -65,10 +65,16 @@ export default async function CommunityDetailPage({
   // Log the view (fire-and-forget; logged-in users only)
   if (user && !isOwner) void logPageViewAction("COMMUNITY", community.id);
 
-  const validInvite =
-    community.membershipType === "INVITE_ONLY" &&
-    !!invite &&
-    community.inviteToken === invite;
+  // invite_token is column-revoked — validate via SECURITY DEFINER RPC.
+  let validInvite = false;
+  if (community.membershipType === "INVITE_ONLY" && invite) {
+    const supabase = await createClient();
+    const { data } = await supabase.rpc("community_invite_valid", {
+      p_community_id: community.id,
+      p_token: invite,
+    });
+    validInvite = data === true;
+  }
 
   const upcoming = events.filter((e) => new Date(e.startsAt).getTime() >= Date.now());
   const past = events.filter((e) => new Date(e.startsAt).getTime() < Date.now());

@@ -31,6 +31,7 @@ export function CommunityManageTabs({
   imports,
   analytics,
   nonJoiners,
+  inviteToken = null,
   initialTab = "members",
 }: {
   community: Community;
@@ -38,6 +39,7 @@ export function CommunityManageTabs({
   imports: { id: string; filename: string; status: string; validRows: number; invalidRows: number; createdAt: string }[];
   analytics: Analytics | null;
   nonJoiners: string[];
+  inviteToken?: string | null;
   initialTab?: "members" | "requests" | "import" | "analytics";
 }) {
   const [tab, setTab] = useState<"members" | "requests" | "import" | "analytics">(initialTab);
@@ -67,13 +69,13 @@ export function CommunityManageTabs({
             {t.label}
           </button>
         ))}
-        {community.membershipType === "INVITE_ONLY" && community.inviteToken ? (
+        {community.membershipType === "INVITE_ONLY" && inviteToken ? (
           <Link
-            href={`/communities/${community.id}?invite=${community.inviteToken}`}
+            href={`/communities/${community.id}?invite=${inviteToken}`}
             className="ml-auto rounded-full border border-dashed border-violet-neon px-4 py-2 text-xs font-bold text-violet-neon"
             title="Your invite link — share it to admit members"
           >
-            Invite link: /communities/{community.id.slice(0, 8)}…?invite={community.inviteToken}
+            Invite link: /communities/{community.id.slice(0, 8)}…?invite={inviteToken}
           </Link>
         ) : null}
       </div>

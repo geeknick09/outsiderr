@@ -465,7 +465,6 @@ export interface Community {
   avatarUrl: string | null;
   coverUrl: string | null;
   galleryUrls: string[];
-  inviteToken: string | null;
   instagramHandle: string | null;
   upiId: string | null;
   membershipType: JoinMode;

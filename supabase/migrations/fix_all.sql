@@ -677,7 +677,7 @@ begin
    where id = p_order_id;
 
   update public.events
-     set registrations_count = registrations_count + v_order.quantity
+     set registrations_count = registrations_count + v_order.quantity * greatest(1, coalesce(v_tier.admits, 1))
    where id = v_order.event_id;
 
   -- Clear the user's waitlist entry for this tier — they got the ticket.
@@ -695,7 +695,7 @@ begin
         sha256((v_order.id::text || ':' || g::text || ':' || gen_random_uuid()::text)::bytea),
         'hex'
       )
-    from generate_series(1, v_order.quantity) g
+    from generate_series(1, v_order.quantity * greatest(1, coalesce(v_tier.admits, 1))) g
     returning *;
 end;
 $$;
@@ -1733,7 +1733,7 @@ begin
          invoice_number = v_invoice
    where id = p_order_id;
   update public.events
-     set registrations_count = registrations_count + v_order.quantity
+     set registrations_count = registrations_count + v_order.quantity * greatest(1, coalesce(v_tier.admits, 1))
    where id = v_order.event_id;
   -- Clear the user's waitlist entry for this tier — they got the ticket.
   delete from public.waitlist
@@ -1743,7 +1743,7 @@ begin
     select
       v_order.id, v_order.event_id, v_order.tier_id, v_order.user_id,
       encode(sha256((v_order.id::text || ':' || g::text || ':' || gen_random_uuid()::text)::bytea), 'hex')
-    from generate_series(1, v_order.quantity) g
+    from generate_series(1, v_order.quantity * greatest(1, coalesce(v_tier.admits, 1))) g
     returning *;
 end;
 $$;
@@ -3116,7 +3116,7 @@ begin
    where id = p_tier_id;
 
   update public.events
-     set registrations_count = registrations_count + p_quantity
+     set registrations_count = registrations_count + p_quantity * greatest(1, coalesce(v_tier.admits, 1))
    where id = p_event_id;
 
   -- Clear the user's waitlist entry for this tier — they got the ticket.
@@ -3575,7 +3575,7 @@ begin
    where id = p_order_id;
 
   update public.events
-     set registrations_count = registrations_count + v_order.quantity
+     set registrations_count = registrations_count + v_order.quantity * greatest(1, coalesce(v_tier.admits, 1))
    where id = v_order.event_id;
 
   -- Journal the sale (manual-UPI path has no Razorpay payment id).
@@ -3613,7 +3613,7 @@ begin
     select
       v_order.id, v_order.event_id, v_order.tier_id, v_order.user_id,
       encode(sha256((v_order.id::text || ':' || g::text || ':' || gen_random_uuid()::text)::bytea), 'hex')
-    from generate_series(1, v_order.quantity) g
+    from generate_series(1, v_order.quantity * greatest(1, coalesce(v_tier.admits, 1))) g
     returning *;
 end;
 $$;
@@ -4451,14 +4451,14 @@ begin
       sha256((v_order.id::text || ':' || g::text || ':' || gen_random_uuid()::text)::bytea),
       'hex'
     )
-  from generate_series(1, p_quantity) g;
+  from generate_series(1, p_quantity * greatest(1, coalesce(v_tier.admits, 1))) g;
 
   update public.ticket_tiers
      set quantity_sold = quantity_sold + p_quantity
    where id = p_tier_id;
 
   update public.events
-     set registrations_count = registrations_count + p_quantity
+     set registrations_count = registrations_count + p_quantity * greatest(1, coalesce(v_tier.admits, 1))
    where id = p_event_id;
 
   delete from public.waitlist
@@ -5805,14 +5805,14 @@ begin
       sha256((v_order.id::text || ':' || g::text || ':' || gen_random_uuid()::text)::bytea),
       'hex'
     )
-  from generate_series(1, p_quantity) g;
+  from generate_series(1, p_quantity * greatest(1, coalesce(v_tier.admits, 1))) g;
 
   update public.ticket_tiers
      set quantity_sold = quantity_sold + p_quantity
    where id = p_tier_id;
 
   update public.events
-     set registrations_count = registrations_count + p_quantity
+     set registrations_count = registrations_count + p_quantity * greatest(1, coalesce(v_tier.admits, 1))
    where id = p_event_id;
 
   delete from public.waitlist
@@ -7878,7 +7878,8 @@ begin
     end if;
     v_status := 'PENDING';
   else -- INVITE_ONLY
-    if v_c.invite_token is null or p_invite_token is distinct from v_c.invite_token then
+    if not exists (select 1 from public.community_invites i
+                    where i.community_id = p_community_id and i.token = p_invite_token) then
       raise exception 'This community is invite-only. You need an invite link.';
     end if;
     v_status := 'ACCEPTED';
@@ -8461,3 +8462,135 @@ end;
 $$;
 revoke execute on function public.send_outreach_blast(uuid, text, uuid, text, uuid[]) from public, anon, authenticated;
 grant execute on function public.send_outreach_blast(uuid, text, uuid, text, uuid[]) to service_role;
+
+
+-- ============================================================================
+-- STEP 45.9 — invite tokens are secrets, not public columns
+--
+-- events.invite_token + communities.invite_token were readable by anyone via
+-- the public SELECT policies — an INVITE_ONLY "secret link" was scrapable.
+-- Column-level revokes hide them from anon + authenticated (PostgREST simply
+-- omits them from `select *`). Validation goes through SECURITY DEFINER RPCs:
+--   *_invite_valid  — cheap boolean check used by public pages with ?invite=
+--   get_*_invite_token — owner/admin only, to show the shareable link
+-- ============================================================================
+
+-- Move secrets to side tables: column-level revoke can't subtract from a
+-- table-level SELECT grant, so the tokens move to RLS-deny tables readable
+-- only by service_role (and SECURITY DEFINER functions).
+
+create table if not exists public.event_invites (
+  event_id uuid primary key references public.events(id) on delete cascade,
+  token    text not null unique,
+  created_at timestamptz not null default now()
+);
+create table if not exists public.community_invites (
+  community_id uuid primary key references public.communities(id) on delete cascade,
+  token    text not null unique,
+  created_at timestamptz not null default now()
+);
+alter table public.event_invites     enable row level security;
+alter table public.community_invites enable row level security;
+revoke all on public.event_invites     from public, anon, authenticated;
+revoke all on public.community_invites from public, anon, authenticated;
+grant select, insert, update, delete on public.event_invites     to service_role;
+grant select, insert, update, delete on public.community_invites to service_role;
+
+-- migrate any live tokens before dropping the public columns
+insert into public.event_invites (event_id, token)
+  select id, invite_token from public.events where invite_token is not null
+  on conflict (event_id) do nothing;
+insert into public.community_invites (community_id, token)
+  select id, invite_token from public.communities where invite_token is not null
+  on conflict (community_id) do nothing;
+
+alter table public.events      drop column if exists invite_token;
+alter table public.communities drop column if exists invite_token;
+
+-- invite-token check for public pages (rate of false positives is irrelevant;
+-- the token space is 80-bit random).
+drop function if exists public.event_invite_valid(uuid, text);
+create or replace function public.event_invite_valid(p_event_id uuid, p_token text)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.events e
+    join public.event_invites i on i.event_id = e.id
+     where e.id = p_event_id
+       and e.visibility = 'INVITE_ONLY'
+       and i.token = p_token
+  );
+$$;
+revoke execute on function public.event_invite_valid(uuid, text) from public;
+grant execute on function public.event_invite_valid(uuid, text) to anon, authenticated, service_role;
+
+drop function if exists public.community_invite_valid(uuid, text);
+create or replace function public.community_invite_valid(p_community_id uuid, p_token text)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.communities c
+    join public.community_invites i on i.community_id = c.id
+     where c.id = p_community_id
+       and c.membership_type = 'INVITE_ONLY'
+       and i.token = p_token
+  );
+$$;
+revoke execute on function public.community_invite_valid(uuid, text) from public;
+grant execute on function public.community_invite_valid(uuid, text) to anon, authenticated, service_role;
+
+-- Owner/admin fetch of the shareable link (organizer manage pages).
+drop function if exists public.get_event_invite_token(uuid, uuid);
+create or replace function public.get_event_invite_token(p_event_id uuid, p_actor_id uuid)
+returns text
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select i.token
+    from public.event_invites i
+    join public.events e on e.id = i.event_id
+    join public.organizers o on o.id = e.organizer_id
+   where e.id = p_event_id
+     and (o.owner_id = p_actor_id
+          or exists (select 1 from public.profiles where id = p_actor_id and is_admin = true)
+          or exists (
+            select 1 from public.event_collaborators ec
+            join public.organizers eo on eo.id = ec.organizer_id
+             where ec.event_id = e.id and ec.status = 'ACTIVE' and eo.owner_id = p_actor_id
+          ));
+$$;
+revoke execute on function public.get_event_invite_token(uuid, uuid) from public, anon;
+grant execute on function public.get_event_invite_token(uuid, uuid) to authenticated, service_role;
+
+drop function if exists public.get_community_invite_token(uuid, uuid);
+create or replace function public.get_community_invite_token(p_community_id uuid, p_actor_id uuid)
+returns text
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select i.token
+    from public.community_invites i
+    join public.communities c on c.id = i.community_id
+    join public.organizers o on o.id = c.owner_id
+   where c.id = p_community_id
+     and (o.owner_id = p_actor_id
+          or exists (select 1 from public.profiles where id = p_actor_id and is_admin = true));
+$$;
+revoke execute on function public.get_community_invite_token(uuid, uuid) from public, anon;
+grant execute on function public.get_community_invite_token(uuid, uuid) to authenticated, service_role;
+
+-- Tell PostgREST to recompute its schema so the revoked columns disappear
+-- from `select *` right away.
+notify pgrst, 'reload schema';

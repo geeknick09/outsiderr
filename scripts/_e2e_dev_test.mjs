@@ -132,8 +132,33 @@ async function main() {
   try {
     const clubIds = (await admin.from("communities").select("id").ilike("name", "DEVTEST%")).data?.map((c) => c.id) ?? [];
     if (clubIds.length) {
+      // community events + children must go before the community row itself
+      const commEvIds = (await admin.from("events").select("id").in("community_id", clubIds)).data?.map((e) => e.id) ?? [];
+      if (commEvIds.length) {
+        const commOrderIds = (await admin.from("orders").select("id").in("event_id", commEvIds)).data?.map((o) => o.id) ?? [];
+        if (commOrderIds.length) {
+          await admin.from("tickets").delete().in("order_id", commOrderIds);
+          await admin.from("orders").delete().in("id", commOrderIds);
+        }
+        await admin.from("ticket_tiers").delete().in("event_id", commEvIds);
+        await admin.from("events").delete().in("id", commEvIds);
+      }
+      await admin.from("community_invites").delete().in("community_id", clubIds);
       await admin.from("community_members").delete().in("community_id", clubIds);
+      await admin.from("community_join_questions").delete().in("community_id", clubIds);
+      await admin.from("community_follows").delete().in("community_id", clubIds);
       await admin.from("communities").delete().in("id", clubIds);
+    }
+    // group-event tiers/orders made by the T-section
+    const ge = (await admin.from("events").select("id").ilike("title", "DEVTEST Group Event%")).data?.map((e) => e.id) ?? [];
+    if (ge.length) {
+      const goIds = (await admin.from("orders").select("id").in("event_id", ge)).data?.map((o) => o.id) ?? [];
+      if (goIds.length) {
+        await admin.from("tickets").delete().in("order_id", goIds);
+        await admin.from("orders").delete().in("id", goIds);
+      }
+      await admin.from("ticket_tiers").delete().in("event_id", ge);
+      await admin.from("events").delete().in("id", ge);
     }
   } catch {}
   await admin.from("ticket_tiers").update({ quantity_sold: 0, quantity_reserved: 0 }).in("event_id", testEventIds);
@@ -474,6 +499,101 @@ async function main() {
     const joinAgain = await api(`/communities/${clubId}/join`, { token: U.u1.token });
     const memberCount = (await admin.from("community_members").select("id").eq("community_id", clubId).eq("user_id", U.u1.uid)).data?.length;
     report("R3. rejoin idempotent (1 member row)", joinAgain.ok !== undefined && memberCount === 1, `rows=${memberCount}`);
+  }
+
+
+  // ── T: communities platform ─────────────────────────────────────
+  // T1-T3: join modes
+  const priv = await api("/communities", { token: U.org.token, body: { name: "DEVTEST Private Community", bio: "e2e", type: "CLUB", membershipType: "PRIVATE" } });
+  const privId = priv.data?.communityId;
+  report("T1. private community created", !!privId, JSON.stringify(priv.error ?? ""));
+  if (privId) {
+    const j = await api(`/communities/${privId}/join`, { token: U.u2.token });
+    const mj = (await admin.from("community_members").select("id,status").eq("community_id", privId).eq("user_id", U.u2.uid).maybeSingle()).data;
+    report("T2. private join is PENDING", j.ok === true && mj?.status === "PENDING", `status=${mj?.status}`);
+    if (mj?.id) {
+      const appr = await admin.rpc("set_community_membership", { p_actor_id: U.org.uid, p_member_id: mj.id, p_status: "ACCEPTED" });
+      const after = (await admin.from("community_members").select("status").eq("id", mj.id).single()).data;
+      const cnt = (await admin.from("communities").select("member_count").eq("id", privId).single()).data;
+      report("T3. owner approve → ACCEPTED + count bump", !appr.error && after?.status === "ACCEPTED" && cnt?.member_count === 1, `err=${appr.error?.message ?? ""}`);
+    }
+  }
+
+  // T4-T5: invite-only community — token is a secret in community_invites
+  const inv = await api("/communities", { token: U.org.token, body: { name: "DEVTEST Invite Community", bio: "e2e", type: "CLUB", membershipType: "INVITE_ONLY" } });
+  const invId = inv.data?.communityId;
+  if (invId) {
+    const tok = `devtest-secret-${Math.floor(Math.random() * 1e6)}`;
+    await admin.from("community_invites").upsert({ community_id: invId, token: tok }, { onConflict: "community_id" });
+    const noTok = await api(`/communities/${invId}/join`, { token: U.u1.token });
+    const withTok = await api(`/communities/${invId}/join`, { token: U.u1.token, body: { inviteToken: tok } });
+    const mrow = (await admin.from("community_members").select("status").eq("community_id", invId).eq("user_id", U.u1.uid).maybeSingle()).data;
+    report("T4. invite-only without token rejected", noTok.ok === false, `err=${noTok.error ?? noTok.status}`);
+    report("T5. invite-only with token accepted", withTok.ok === true && mrow?.status === "ACCEPTED", `status=${mrow?.status} err=${withTok.error ?? ""}`);
+  }
+
+  // T6: tokens never leak through the REST surface
+  const leakCheck = await admin.from("events").select("id").eq("id", paid.id).single();
+  const anonRes = await fetch(`${SB_URL}/rest/v1/events?select=*&id=eq.${leakCheck.data.id}`, {
+    headers: { apikey: ANON, authorization: `Bearer ${ANON}` },
+  });
+  const anonRow = (await anonRes.json())?.[0] ?? {};
+  report("T6. invite_token not in anon select *", !("invite_token" in anonRow), Object.keys(anonRow).filter(k => k.includes("invite")).join(","));
+
+  // T7-T8: community event visibility gates in the booking RPCs
+  if (privId) {
+    const { data: cev } = await admin.from("events").insert({
+      organizer_id: paid.organizer_id, title: "DEVTEST Community Event", description: "e2e",
+      things_to_know: [], category: "JAM_GIG", city: "KOLKATA", venue_name: "Test", latitude: 22.57, longitude: 88.36,
+      starts_at: new Date(Date.now() + 7 * 864e5).toISOString(), ends_at: new Date(Date.now() + 7.25 * 864e5).toISOString(),
+      status: "PUBLISHED", community_id: privId, visibility: "MEMBERS_ONLY",
+    }).select("id").single();
+    const { data: ctier } = await admin.from("ticket_tiers").insert({
+      event_id: cev.id, name: "GA", price_paise: 0, quantity: 10, admits: 1, sort_order: 0,
+    }).select("id").single();
+    const nonMember = await userClient(U.u1.token).rpc("create_free_order", {
+      p_event_id: cev.id, p_tier_id: ctier.id, p_quantity: 1, p_invite_token: null,
+      p_buyer_name: "U1", p_buyer_phone: "+919000000001", p_buyer_email: null, p_buyer_gender: null,
+    });
+    report("T7. MEMBERS_ONLY blocks non-member", !!nonMember.error, `err=${nonMember.error?.message?.slice(0,60)}`);
+    // u2 is an ACCEPTED member (T3)
+    const member = await userClient(U.u2.token).rpc("create_free_order", {
+      p_event_id: cev.id, p_tier_id: ctier.id, p_quantity: 1, p_invite_token: null,
+      p_buyer_name: "U2", p_buyer_phone: "+919000000002", p_buyer_email: null, p_buyer_gender: null,
+    });
+    report("T8. MEMBERS_ONLY admits member", !member.error, `err=${member.error?.message?.slice(0,60)}`);
+  }
+
+  // T9: group ticket — admits=3 mints 3 tickets per unit
+  {
+    const { data: gev } = await admin.from("events").insert({
+      organizer_id: paid.organizer_id, title: "DEVTEST Group Event", description: "e2e",
+      things_to_know: [], category: "JAM_GIG", city: "KOLKATA", venue_name: "Test", latitude: 22.57, longitude: 88.36,
+      starts_at: new Date(Date.now() + 7 * 864e5).toISOString(), ends_at: new Date(Date.now() + 7.25 * 864e5).toISOString(),
+      status: "PUBLISHED",
+    }).select("id").single();
+    const { data: gtier } = await admin.from("ticket_tiers").insert({
+      event_id: gev.id, name: "Squad of 3", price_paise: 0, quantity: 5, admits: 3, sort_order: 0,
+    }).select("id").single();
+    const order = await userClient(U.u1.token).rpc("create_free_order", {
+      p_event_id: gev.id, p_tier_id: gtier.id, p_quantity: 1, p_invite_token: null,
+      p_buyer_name: "Squad", p_buyer_phone: "+919000000003", p_buyer_email: null, p_buyer_gender: null,
+    });
+    const oid = order.data?.order_id ?? order.data?.id;
+    const tk = oid ? (await admin.from("tickets").select("id").eq("order_id", oid)).data : [];
+    report("T9. group tier mints 3 tickets", tk.length === 3, `tickets=${tk.length} err=${order.error?.message?.slice(0,60) ?? ""}`);
+  }
+
+  // T10: guestlist — free ticket + shareable link, zero ledger
+  {
+    const gl = await admin.rpc("create_guestlist_entry", {
+      p_actor_id: U.org.uid, p_event_id: paid.id,
+      p_name: "Dev Guest", p_phone: "+919000000099", p_email: null,
+    });
+    const gid = typeof gl.data === "string" ? gl.data : gl.data?.ticket_id;
+    const trow = gid ? (await admin.from("tickets").select("status,order_id").eq("id", gid).maybeSingle()).data : null;
+    const ledger = trow?.order_id ? (await admin.from("payment_ledger").select("id").eq("order_id", trow.order_id)).data : [];
+    report("T10. guestlist ticket valid + no ledger", !!trow && trow.status === "VALID" && ledger.length === 0, `gl=${JSON.stringify(gl.error?.message ?? gl.data)}`);
   }
 
   // ── S: postponement refund request (free event is POSTPONED) ──────

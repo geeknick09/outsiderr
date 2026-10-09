@@ -257,7 +257,6 @@ create table if not exists public.events (
   community_id        uuid         references public.communities(id),
   visibility          text         not null default 'OPEN'
                        check (visibility in ('OPEN','MEMBERS_ONLY','INVITE_ONLY')),
-  invite_token        text,
   followers_notified_at timestamptz,
   created_at          timestamptz     not null default now()
 );
@@ -807,7 +806,6 @@ create table if not exists public.communities (
                       check (membership_type in ('OPEN','PRIVATE','INVITE_ONLY')),
   membership_fee_paise integer   not null default 0,
   terms               text[]      not null default '{}',
-  invite_token        text,
   member_count        integer     not null default 0,
   verified            boolean     not null default false,
   created_at          timestamptz not null default now()
@@ -889,6 +887,18 @@ create table if not exists public.community_import_items (
   row_error       text,
   linked_user_id  uuid        references public.profiles(id),
   created_at      timestamptz not null default now()
+);
+
+create table if not exists public.event_invites (
+  event_id uuid primary key references public.events(id) on delete cascade,
+  token    text not null unique,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.community_invites (
+  community_id uuid primary key references public.communities(id) on delete cascade,
+  token    text not null unique,
+  created_at timestamptz not null default now()
 );
 
 create table if not exists public.page_views (

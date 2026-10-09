@@ -104,7 +104,6 @@ export type EventRow = {
   max_tickets_per_user?: number;
   community_id?: string | null;
   visibility?: string;
-  invite_token?: string | null;
   tags: string[];
   photo_urls: string[];
   pricing_mode: PricingMode;
@@ -245,7 +244,6 @@ export type CommunityRow = {
   avatar_url: string | null;
   cover_url: string | null;
   gallery_urls: string[];
-  invite_token: string | null;
   instagram_handle: string | null;
   upi_id: string | null;
   membership_type: string;
@@ -356,6 +354,18 @@ export type CommunityMemberRow = {
   created_at: string;
 }
 
+
+export type CommunityInviteRow = {
+  community_id: string;
+  token: string;
+  created_at: string;
+}
+
+export type EventInviteRow = {
+  event_id: string;
+  token: string;
+  created_at: string;
+}
 
 export type CommunityJoinQuestionRow = {
   id: string;
@@ -677,6 +687,8 @@ type Table<Row, Required extends keyof Row = never> = {
 export type Database = {
   public: {
     Tables: {
+      community_invites: Table<CommunityInviteRow, "community_id" | "token">;
+      event_invites: Table<EventInviteRow, "event_id" | "token">;
       profiles: Table<ProfileRow, "id">;
       organizers: Table<OrganizerRow, "owner_id" | "name">;
       events: Table<
@@ -1017,6 +1029,22 @@ export type Database = {
       community_analytics: {
         Args: { p_community_id: string };
         Returns: unknown;
+      };
+      community_invite_valid: {
+        Args: { p_community_id: string; p_token: string };
+        Returns: boolean;
+      };
+      event_invite_valid: {
+        Args: { p_event_id: string; p_token: string };
+        Returns: boolean;
+      };
+      get_community_invite_token: {
+        Args: { p_community_id: string; p_actor_id: string };
+        Returns: string | null;
+      };
+      get_event_invite_token: {
+        Args: { p_event_id: string; p_actor_id: string };
+        Returns: string | null;
       };
       community_non_joiners: {
         Args: { p_community_id: string };
