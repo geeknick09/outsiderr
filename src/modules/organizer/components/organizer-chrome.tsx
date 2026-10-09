@@ -25,6 +25,7 @@ export function OrganizerChrome({
     pathname === "/organizer/create" ||
     pathname === "/organizer/analytics" ||
     pathname === "/organizer/communities" ||
+    pathname === "/organizer/ledger" ||
     pathname === "/organizer/payments" ||
     pathname === "/organizer/refunds" ||
     pathname === "/organizer/staff";

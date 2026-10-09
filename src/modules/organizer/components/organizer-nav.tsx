@@ -5,11 +5,9 @@ import { usePathname } from "next/navigation";
 
 const ITEMS: { href: string; label: string; exact?: boolean }[] = [
   { href: "/organizer", label: "My Events", exact: true },
-  { href: "/organizer/create", label: "Create Event" },
   { href: "/organizer/analytics", label: "Analytics" },
   { href: "/organizer/communities", label: "Communities" },
-  { href: "/organizer/payments", label: "Payments" },
-  { href: "/organizer/refunds", label: "Refunds" },
+  { href: "/organizer/ledger", label: "Ledger" },
 ];
 
 /**

@@ -148,6 +148,7 @@ export default async function CheckoutPage({
               defaultEmail={user?.email ?? ""}
               defaultGender={user?.gender ?? ""}
               totalRupees={formatPaise(price.totalPaise)}
+              showPromoCode={event.promoterMode === "PROMO_CODE"}
             />
           )}
         </div>

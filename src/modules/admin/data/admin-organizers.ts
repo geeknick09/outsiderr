@@ -114,6 +114,13 @@ export interface AdminOrganizerDetail {
     city: string;
     startsAt: string;
   }[];
+  communities: {
+    id: string;
+    name: string;
+    city: string | null;
+    memberCount: number;
+    membershipType: string;
+  }[];
   stats: {
     totalEvents: number;
     publishedEvents: number;
@@ -149,7 +156,7 @@ export async function getAdminOrganizerDetail(organizerId: string): Promise<Admi
     .order("starts_at", { ascending: false });
   const eventIds = (events ?? []).map((e) => e.id);
 
-  const [{ data: owner }, { data: ledger }, { data: tiers }, { data: purchases }, { data: audit }] =
+  const [{ data: owner }, { data: ledger }, { data: tiers }, { data: purchases }, { data: audit }, { data: comms }] =
     await Promise.all([
       supabase.from("profiles").select("id, full_name, phone, email").eq("id", org.owner_id).maybeSingle(),
       supabase.from("payment_ledger").select("gross_amount_paise").eq("organizer_id", organizerId).in("type", ["TICKET_SALE", "BOOST_SALE", "PREMIUM_SALE"]),
@@ -158,6 +165,7 @@ export async function getAdminOrganizerDetail(organizerId: string): Promise<Admi
         : Promise.resolve({ data: [] }),
       supabase.from("organizer_premium_purchases").select("months, amount_paise, paid_at").eq("organizer_id", organizerId).eq("status", "PAID").order("paid_at", { ascending: false }),
       supabase.from("admin_change_log").select("admin_id, old_value, new_value, reason, created_at").eq("table_name", "organizers").eq("entity_id", organizerId).eq("field_name", "premium_until").order("created_at", { ascending: false }).limit(50),
+      supabase.from("communities").select("id, name, city, member_count, membership_type").eq("owner_id", organizerId).order("created_at", { ascending: false }),
     ]);
 
   // Resolve admin emails for audit rows (service client bypasses RLS).
@@ -200,6 +208,13 @@ export async function getAdminOrganizerDetail(organizerId: string): Promise<Admi
     owner: owner
       ? { id: owner.id, fullName: owner.full_name, phone: owner.phone, email: owner.email }
       : null,
+    communities: (comms ?? []).map((c) => ({
+      id: c.id,
+      name: c.name,
+      city: c.city,
+      memberCount: c.member_count ?? 0,
+      membershipType: c.membership_type ?? "OPEN",
+    })),
     events: evts.map((e) => ({
       id: e.id,
       title: e.title,

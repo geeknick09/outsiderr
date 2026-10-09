@@ -46,6 +46,24 @@ export async function getOrganizerProfile(
     bankAccountName: (data as { bank_account_name?: string | null }).bank_account_name ?? null,
     bankAccountType: (data as { bank_account_type?: string | null }).bank_account_type ?? null,
     bankDocumentUrl: (data as { bank_document_url?: string | null }).bank_document_url ?? null,
+    bankAccounts: await (async () => {
+      const svc = createServiceClient();
+      const { data: accounts } = await svc
+        .from("organizer_bank_accounts")
+        .select("id, label, account_name, account_number, ifsc, account_type, is_default")
+        .eq("organizer_id", data.id)
+        .order("is_default", { ascending: false })
+        .order("created_at");
+      return (accounts ?? []).map((a) => ({
+        id: a.id,
+        label: a.label,
+        accountName: a.account_name,
+        accountNumber: a.account_number,
+        ifsc: a.ifsc,
+        accountType: a.account_type,
+        isDefault: a.is_default,
+      }));
+    })(),
     rejectionCount: Number((data as { rejection_count?: number | null }).rejection_count ?? 0),
     kycStatus: (data as { kyc_status?: string }).kyc_status ?? "NOT_SUBMITTED",
     kycReviewedAt: (data as { kyc_reviewed_at?: string | null }).kyc_reviewed_at ?? null,

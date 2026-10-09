@@ -596,6 +596,90 @@ async function main() {
     report("T10. guestlist ticket valid + no ledger", !!trow && trow.status === "VALID" && ledger.length === 0, `gl=${JSON.stringify(gl.error?.message ?? gl.data)}`);
   }
 
+  // ── P: promoter program (LINK + PROMO_CODE) ───────────────────────
+  {
+    // paid event opted into LINK mode at 20% commission
+    const { data: pev } = await admin.from("events").insert({
+      organizer_id: paid.organizer_id, title: "DEVTEST Promoter Link Event", description: "e2e",
+      things_to_know: [], category: "JAM_GIG", city: "KOLKATA", venue_name: "Test", latitude: 22.57, longitude: 88.36,
+      starts_at: new Date(Date.now() + 7 * 864e5).toISOString(), ends_at: new Date(Date.now() + 7.25 * 864e5).toISOString(),
+      status: "PUBLISHED", promoter_mode: "LINK", promoter_commission_bps: 2000,
+    }).select("id").single();
+    const { data: ptier } = await admin.from("ticket_tiers").insert({
+      event_id: pev.id, name: "GA", price_paise: 100000, quantity: 50, sort_order: 0,
+    }).select("id").single();
+
+    // P1/P2: two promoters get distinct slugs
+    const reg1 = await userClient(U.u1.token).rpc("register_event_promoter", { p_event_id: pev.id });
+    const reg2 = await userClient(U.u2.token).rpc("register_event_promoter", { p_event_id: pev.id });
+    report("P1. promoter registers → unique slug", !!(reg1.data?.slug && reg2.data?.slug && reg1.data.slug !== reg2.data.slug),
+      `s1=${reg1.data?.slug} s2=${reg2.data?.slug} err=${reg1.error?.message?.slice(0,50)}`);
+
+    // P2b: self-referral — promoter can't attribute their own order
+    const selfOrder = await userClient(U.u1.token).rpc("create_reserved_order", {
+      p_event_id: pev.id, p_tier_id: ptier.id, p_quantity: 1, p_idempotency_key: null,
+      p_buyer_name: "Self", p_buyer_phone: "+919000000010", p_buyer_email: null, p_buyer_gender: null,
+      p_invite_token: null, p_promoter_slug: reg1.data?.slug, p_promo_code: null,
+    });
+    const selfRow = selfOrder.data ? (await admin.from("orders").select("promoter_id").eq("id", selfOrder.data.id).single()).data : null;
+    report("P2. self-referral not attributed", !!selfRow && selfRow.promoter_id === null,
+      `order=${selfOrder.data?.id ?? "none"} attr=${selfRow?.promoter_id}`);
+
+    // P3: attributed order — promoter_id + 20% commission snapshot
+    const promOrder = await userClient(U.adm.token).rpc("create_reserved_order", {
+      p_event_id: pev.id, p_tier_id: ptier.id, p_quantity: 1, p_idempotency_key: null,
+      p_buyer_name: "Promo Buyer", p_buyer_phone: "+919000000011", p_buyer_email: null, p_buyer_gender: null,
+      p_invite_token: null, p_promoter_slug: reg1.data?.slug, p_promo_code: null,
+    });
+    const poRow = promOrder.data ? (await admin.from("orders").select("promoter_id,promoter_commission_paise,organizer_payout_paise,subtotal_paise").eq("id", promOrder.data.id).single()).data : null;
+    report("P3. link order attributed (20% comm)", !!poRow && poRow.promoter_id && poRow.promoter_commission_paise === 20000,
+      `comm=${poRow?.promoter_commission_paise} subtotal=${poRow?.subtotal_paise} err=${promOrder.error?.message?.slice(0,60)}`);
+
+    // P4: capture mints the earning
+    await captureOrder(promOrder.data.id);
+    const earn = (await admin.from("promoter_earnings").select("amount_paise,status,kind").eq("order_id", promOrder.data.id).maybeSingle()).data;
+    report("P4. capture → promoter earning", !!earn && earn.amount_paise === 20000 && earn.status === "EARNED",
+      `earn=${JSON.stringify(earn)}`);
+
+    // P5: refund reverses proportionally (full refund → full reversal)
+    const refundIns = await admin.from("refunds").insert({
+      order_id: promOrder.data.id, event_id: pev.id,
+      amount_paise: poRow.total_paise ?? 20000, status: "COMPLETED",
+    }).select("id").single();
+    if (refundIns.error) console.log("   refund insert:", refundIns.error.message);
+    const earn2 = (await admin.from("promoter_earnings").select("reversed_paise,status").eq("order_id", promOrder.data.id).single()).data;
+    report("P5. refund reverses promoter commission", !!earn2 && (earn2.status === "REVERSED" || earn2.reversed_paise > 0),
+      `rev=${earn2?.reversed_paise} status=${earn2?.status}`);
+
+    // P6/P7: PROMO_CODE mode — wrong code rejected, right code discounts
+    const { data: cev2 } = await admin.from("events").insert({
+      organizer_id: paid.organizer_id, title: "DEVTEST Promo Code Event", description: "e2e",
+      things_to_know: [], category: "JAM_GIG", city: "KOLKATA", venue_name: "Test", latitude: 22.57, longitude: 88.36,
+      starts_at: new Date(Date.now() + 7 * 864e5).toISOString(), ends_at: new Date(Date.now() + 7.25 * 864e5).toISOString(),
+      status: "PUBLISHED", promoter_mode: "PROMO_CODE", promo_buyer_discount_bps: 1000, promo_promoter_bps: 500,
+    }).select("id").single();
+    const { data: ctier2 } = await admin.from("ticket_tiers").insert({
+      event_id: cev2.id, name: "GA", price_paise: 100000, quantity: 50, sort_order: 0,
+    }).select("id").single();
+    const regC = await userClient(U.u1.token).rpc("register_event_promoter", { p_event_id: cev2.id });
+    const code = regC.data?.code;
+    const badCode = await userClient(U.adm.token).rpc("create_reserved_order", {
+      p_event_id: cev2.id, p_tier_id: ctier2.id, p_quantity: 1, p_idempotency_key: null,
+      p_buyer_name: "Bad Code", p_buyer_phone: "+919000000012", p_buyer_email: null, p_buyer_gender: null,
+      p_invite_token: null, p_promoter_slug: null, p_promo_code: "NOTACODE",
+    });
+    report("P6. wrong promo code rejected", !!badCode.error && /invalid promo code/i.test(badCode.error.message ?? ""),
+      `err=${badCode.error?.message?.slice(0,50)}`);
+    const goodOrder = await userClient(U.adm.token).rpc("create_reserved_order", {
+      p_event_id: cev2.id, p_tier_id: ctier2.id, p_quantity: 1, p_idempotency_key: null,
+      p_buyer_name: "Good Code", p_buyer_phone: "+919000000013", p_buyer_email: null, p_buyer_gender: null,
+      p_invite_token: null, p_promoter_slug: null, p_promo_code: code,
+    });
+    const goRow = goodOrder.data ? (await admin.from("orders").select("discount_paise,promoter_commission_paise,subtotal_paise,total_paise,promoter_id").eq("id", goodOrder.data.id).single()).data : null;
+    report("P7. promo code → buyer discount + promoter comm", !!goRow && goRow.discount_paise === 10000 && goRow.promoter_commission_paise === 5000 && goRow.promoter_id,
+      `disc=${goRow?.discount_paise} comm=${goRow?.promoter_commission_paise} err=${goodOrder.error?.message?.slice(0,50)}`);
+  }
+
   // ── S: postponement refund request (free event is POSTPONED) ──────
   const refundReq = await api("/refunds/postponement", { token: U.u1.token, body: { eventId: free.id } });
   const refundErr = refundReq.error ?? "";

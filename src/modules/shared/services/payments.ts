@@ -34,6 +34,8 @@ export interface StartPaymentInput {
   buyerGender?: string | null;
   idempotencyKey?: string | null;
   inviteToken?: string | null;
+  promoterSlug?: string | null;
+  promoCode?: string | null;
   /** Extra display fields for the checkout modal. */
   itemTitle?: string | null;
 }
@@ -83,6 +85,8 @@ export async function startPayment(
         buyerGender: input.buyerGender?.trim() || null,
         idempotencyKey: input.idempotencyKey ?? null,
         inviteToken: input.inviteToken ?? null,
+        promoterSlug: input.promoterSlug ?? null,
+        promoCode: input.promoCode ?? null,
       });
       orderIdForFail = reserved.id;
       const found = await findIntentByTicketOrder(reserved.id);

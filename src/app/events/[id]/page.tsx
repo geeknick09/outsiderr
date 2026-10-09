@@ -15,6 +15,7 @@ import { ShareEventButton } from "@/modules/web";
 import { TagPills } from "@/modules/web";
 import { TermsAccordion } from "@/modules/web";
 import { TicketTiers } from "@/modules/web";
+import { PromoteButton } from "@/modules/web";
 import { UpdateMeButton } from "@/modules/web";
 import { FollowOrganizerButton } from "@/modules/web";
 import { Badge } from "@/modules/shared";
@@ -644,6 +645,16 @@ export default async function EventDetailsPage({
               inviteToken={inviteValid ? invite! : null}
             />
           )}
+
+          {/* Promote & earn - only when the organizer opted in */}
+          {user && !eventEnded && event.promoterMode && event.promoterMode !== "NONE" ? (
+            <PromoteButton
+              eventId={event.id}
+              mode={event.promoterMode}
+              linkRateBps={event.promoterCommissionBps ?? 1000}
+              buyerDiscountBps={event.promoBuyerDiscountBps ?? 500}
+            />
+          ) : null}
 
           {/* Update Me button - only for logged-in non-ticket-holders */}
           {user && !eventEnded ? <UpdateMeButton eventId={event.id} isSubscribed={isSubscribed} /> : null}

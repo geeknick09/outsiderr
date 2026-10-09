@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowDownUp, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { ArrowDownUp, BarChart3, ChevronLeft, ChevronRight, Search, Settings2, Users, X } from "lucide-react";
 
 import { Badge } from "@/modules/shared";
 import { formatDateTime, isEventEnded } from "@/modules/shared";
@@ -67,15 +67,13 @@ const TAB_LABELS: Record<LifecycleTab, string> = {
 
 function EventListRow({ event }: { event: EventRow }) {
   const status = getStatusBadge(event);
+  const published = event.status === "PUBLISHED" || event.status === "POSTPONED";
   return (
-    <Link
-      href={`/organizer/events/${event.id}`}
-      className="glass flex flex-wrap items-center justify-between gap-3 rounded-3xl p-4 transition-colors hover:border-violet-neon/50"
-    >
-      <div className="min-w-0">
+    <div className="glass flex flex-wrap items-center justify-between gap-3 rounded-3xl p-4">
+      <Link href={`/organizer/events/${event.id}`} className="min-w-0 flex-1">
         <p className="truncate font-semibold">{event.title}</p>
         <p className="text-xs text-muted">{formatDateTime(event.startsAt)}</p>
-      </div>
+      </Link>
       <div className="flex items-center gap-2">
         {event.collaboratorPermission ? (
           <Badge tone="violet">
@@ -86,8 +84,36 @@ function EventListRow({ event }: { event: EventRow }) {
           <Badge tone="neutral">{event.registrationsCount} registered</Badge>
         ) : null}
         <Badge tone={status.tone}>{status.label}</Badge>
+        {published ? (
+          <span className="flex items-center gap-1">
+            <Link
+              href={`/organizer/events/${event.id}?tab=analytics`}
+              title="Analytics"
+              aria-label="Analytics"
+              className="rounded-full border border-zinc-200 p-2 text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10"
+            >
+              <BarChart3 className="h-4 w-4" />
+            </Link>
+            <Link
+              href={`/organizer/events/${event.id}?tab=attendees`}
+              title="Attendees"
+              aria-label="Attendees"
+              className="rounded-full border border-zinc-200 p-2 text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10"
+            >
+              <Users className="h-4 w-4" />
+            </Link>
+            <Link
+              href={`/organizer/events/${event.id}`}
+              title="Manage"
+              aria-label="Manage"
+              className="rounded-full bg-neon-gradient p-2 text-white transition-all hover:shadow-glow-violet"
+            >
+              <Settings2 className="h-4 w-4" />
+            </Link>
+          </span>
+        ) : null}
       </div>
-    </Link>
+    </div>
   );
 }
 

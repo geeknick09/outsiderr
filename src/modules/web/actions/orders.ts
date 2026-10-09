@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 
 import { getCurrentUser } from "@/modules/shared/server";
 import {
@@ -46,6 +47,8 @@ export async function submitPaymentAction(
     buyerGender: String(formData.get("buyerGender") ?? ""),
     utrReference: String(formData.get("utrReference") ?? ""),
     inviteToken: String(formData.get("inviteToken") ?? "") || null,
+    promoterSlug: (await cookies()).get("oc_promo")?.value ?? null,
+    promoCode: String(formData.get("promoCode") ?? "").trim() || null,
   });
 
   if (result.error) return { error: result.error };
@@ -72,6 +75,8 @@ export async function createCheckoutAction(
     buyerEmail: String(formData.get("buyerEmail") ?? ""),
     buyerGender: String(formData.get("buyerGender") ?? ""),
     inviteToken: String(formData.get("inviteToken") ?? "") || null,
+    promoterSlug: (await cookies()).get("oc_promo")?.value ?? null,
+    promoCode: String(formData.get("promoCode") ?? "").trim() || null,
   });
 }
 

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Pencil, Rocket, Users } from "lucide-react";
+import { Pencil, Plus, Rocket, Users } from "lucide-react";
 import Link from "next/link";
 
 import { EditOrganizerProfile } from "./edit-organizer-profile";
@@ -157,10 +157,16 @@ export function OrganizerHeader({ organizer, followerCount }: { organizer: Organ
       </div>
 
       <div className="flex flex-wrap gap-2">
+        <Link href="/organizer/create">
+          <Button size="sm" className="shadow-glow-violet">
+            <Plus className="h-4 w-4" />
+            Create
+          </Button>
+        </Link>
         <Link href="/organizer/boost">
           <Button variant="secondary" size="sm">
             <Rocket className="h-4 w-4" />
-            Boost event
+            Boost
           </Button>
         </Link>
       </div>

@@ -37,3 +37,5 @@ export * from "./components/verification-queue";
 export * from "./components/waitlist-panel";
 export { CommunityManageTabs } from "./components/community/community-manage-tabs";
 export { GuestlistPanel } from "./components/community/guestlist-panel";
+export * from "./components/bank-accounts-panel";
+export * from "./components/promoters-panel";

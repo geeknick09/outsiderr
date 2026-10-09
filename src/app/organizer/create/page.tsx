@@ -41,6 +41,9 @@ export default async function CreateEventPage() {
     listMyCommunities(user),
   ]);
 
+  const { listBankAccounts } = await import("@/modules/organizer/actions/bank-accounts");
+  const bankAccounts = await listBankAccounts();
+
   return (
     <div className="space-y-6 py-6">
       <div>
@@ -61,6 +64,7 @@ export default async function CreateEventPage() {
           pastEvents={pastEventsForLinking}
           draftRetentionDays={draftRetentionDays}
           communities={myCommunities.filter((c) => c.verified).map((c) => ({ id: c.id, name: c.name }))}
+          bankAccounts={bankAccounts}
         />
       </Suspense>
     </div>

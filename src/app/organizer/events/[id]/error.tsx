@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import Link from "next/link";
 
 /**
  * Route-level error boundary for /organizer/events/[id].
@@ -28,14 +27,7 @@ export default function ManageEventError({
         {error.digest ? (
           <p className="mt-1 font-mono text-xs text-zinc-400">Ref: {error.digest}</p>
         ) : null}
-        <div className="mt-6 flex justify-center">
-          <Link
-            href="/organizer"
-            className="rounded-full border border-zinc-200 px-5 py-2.5 text-sm font-semibold text-muted transition-all hover:border-violet-neon dark:border-white/10"
-          >
-            Back to dashboard
-          </Link>
-        </div>
+
       </div>
     </div>
   );

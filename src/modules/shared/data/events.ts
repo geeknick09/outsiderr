@@ -142,6 +142,10 @@ function toDetail(
     linkedPastEventIds: (row as { linked_past_event_ids?: string[] }).linked_past_event_ids ?? [],
     communityId: (row as { community_id?: string | null }).community_id ?? null,
     visibility: ((row as { visibility?: string }).visibility ?? "OPEN") as EventDetail["visibility"],
+    promoterMode: ((row as { promoter_mode?: string }).promoter_mode ?? "NONE") as EventDetail["promoterMode"],
+    promoterCommissionBps: (row as { promoter_commission_bps?: number }).promoter_commission_bps ?? 1000,
+    promoBuyerDiscountBps: (row as { promo_buyer_discount_bps?: number }).promo_buyer_discount_bps ?? 500,
+    promoPromoterBps: (row as { promo_promoter_bps?: number }).promo_promoter_bps ?? 500,
     community: community
       ? {
           id: community.id,

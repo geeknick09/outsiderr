@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { formatPaise } from "@/modules/shared";
+import { SalesTrendChart } from "./sales-trend-chart";
 import type { EventAnalytics } from "@/modules/shared";
 
 export function AnalyticsPanel({
@@ -99,6 +100,9 @@ export function AnalyticsPanel({
           </div>
         </div>
       ) : null}
+
+      {/* Sales trend */}
+      {showMoney ? <SalesTrendChart data={analytics.salesByDay} /> : null}
 
       {/* Per-tier breakdown */}
       {analytics.tierBreakdown.length > 0 ? (

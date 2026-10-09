@@ -3095,7 +3095,7 @@ begin
   ) values (
     p_event_id, p_tier_id, auth.uid(), p_quantity,
     0, 0, 0, 0,
-    v_event.fee_payer, 'CONFIRMED', p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender
+    coalesce(v_event.fee_payer, 'BUYER')::fee_payer, 'CONFIRMED', p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender
   )
   returning * into v_order;
 
@@ -3805,7 +3805,7 @@ begin
   ) values (
     p_event_id, p_tier_id, auth.uid(), p_quantity,
     0, 0, 0, 0,
-    v_event.fee_payer, 'CONFIRMED', p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender
+    coalesce(v_event.fee_payer, 'BUYER')::fee_payer, 'CONFIRMED', p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender
   )
   returning * into v_order;
 
@@ -4437,7 +4437,7 @@ begin
   ) values (
     p_event_id, p_tier_id, auth.uid(), p_quantity,
     0, 0, 0, 0,
-    v_event.fee_payer, 'CONFIRMED', p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender
+    coalesce(v_event.fee_payer, 'BUYER')::fee_payer, 'CONFIRMED', p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender
   )
   returning * into v_order;
 
@@ -5696,7 +5696,7 @@ begin
     p_event_id, p_tier_id, auth.uid(), p_quantity,
     v_tier.price_paise, v_subtotal, v_platform_fee,
     v_commission, v_convenience, v_gateway, v_payout,
-    v_total, v_fee_payer, 'RESERVED', 'ONLINE',
+    v_total, v_fee_payer::fee_payer, 'RESERVED', 'ONLINE',
     p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender,
     now(), now() + make_interval(mins => v_ttl_min),
     p_idempotency_key
@@ -5791,7 +5791,7 @@ begin
   ) values (
     p_event_id, p_tier_id, auth.uid(), p_quantity,
     0, 0, 0, 0,
-    v_event.fee_payer, 'CONFIRMED', p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender
+    coalesce(v_event.fee_payer, 'BUYER')::fee_payer, 'CONFIRMED', p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender
   )
   returning * into v_order;
 
@@ -8594,3 +8594,818 @@ grant execute on function public.get_community_invite_token(uuid, uuid) to authe
 -- Tell PostgREST to recompute its schema so the revoked columns disappear
 -- from `select *` right away.
 notify pgrst, 'reload schema';
+
+-- Community creation is open (no admin approval) - verify everything.
+update public.communities set verified = true where verified = false;
+
+-- ---------- 46.x communities.category (discovery chips) ----------
+alter table public.communities add column if not exists category text;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'communities_category_check') then
+    alter table public.communities add constraint communities_category_check check (category is null or category in (
+      'FITNESS','HIP_HOP','ELECTRONIC','EXTREME_SPORTS','GAMING','FASHION','AUTOMOTIVE','ART_DESIGN'
+    ));
+  end if;
+end $$;
+create index if not exists communities_category_idx on public.communities(category);
+
+-- ---------- 46.y organizer_bank_accounts + per-event payout account ----------
+create table if not exists public.organizer_bank_accounts (
+  id             uuid primary key default gen_random_uuid(),
+  organizer_id   uuid not null references public.organizers(id) on delete cascade,
+  label          text,
+  account_name   text not null,
+  account_number text not null,
+  ifsc           text not null,
+  account_type   text,
+  is_default     boolean not null default false,
+  created_at     timestamptz not null default now()
+);
+alter table public.organizer_bank_accounts enable row level security;
+-- owners see/manage their own accounts; service_role for everything else
+do $$ begin
+  if not exists (select 1 from pg_policies where tablename = 'organizer_bank_accounts' and policyname = 'organizer_bank_accounts_owner') then
+    create policy organizer_bank_accounts_owner on public.organizer_bank_accounts
+      for all to authenticated
+      using (organizer_id in (select id from public.organizers where owner_id = auth.uid()))
+      with check (organizer_id in (select id from public.organizers where owner_id = auth.uid()));
+  end if;
+end $$;
+grant select, insert, update, delete on public.organizer_bank_accounts to authenticated;
+grant all on public.organizer_bank_accounts to service_role;
+
+-- only one default per organizer
+create unique index if not exists organizer_bank_one_default_idx
+  on public.organizer_bank_accounts(organizer_id) where is_default;
+
+-- events can pick which account the payout lands in
+alter table public.events add column if not exists payout_account_id uuid references public.organizer_bank_accounts(id) on delete set null;
+-- payouts can snapshot which account admin paid into
+alter table public.payout_records add column if not exists bank_account_id uuid;
+
+-- seed the table from legacy KYC bank fields so every verified organizer has a default account
+insert into public.organizer_bank_accounts (organizer_id, label, account_name, account_number, ifsc, account_type, is_default)
+select o.id, 'Primary account', o.bank_account_name, o.bank_account_number, o.bank_ifsc, o.bank_account_type, true
+from public.organizers o
+where o.bank_account_number is not null
+  and o.bank_ifsc is not null
+  and not exists (select 1 from public.organizer_bank_accounts a where a.organizer_id = o.id);
+
+-- ---------- 46.z recurring community events ----------
+alter table public.events add column if not exists recurrence text;
+alter table public.events add column if not exists recurrence_parent_id uuid references public.events(id) on delete set null;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'events_recurrence_check') then
+    alter table public.events add constraint events_recurrence_check
+      check (recurrence is null or recurrence = 'WEEKLY');
+  end if;
+end $$;
+-- recurrence only makes sense on community events
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'events_recurrence_community_check') then
+    alter table public.events add constraint events_recurrence_community_check
+      check (recurrence is null or community_id is not null);
+  end if;
+end $$;
+create index if not exists events_recurrence_parent_idx on public.events(recurrence_parent_id);
+-- ═══════════════════════════════════════════════════════════════════════════
+-- STEP 47: PROMOTER PROGRAM — share-links OR promo codes, organizer-funded
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- Settings ---------------------------------------------------------------
+insert into public.platform_settings (key, value) values
+  ('promoter_commission_min_bps', '500'),
+  ('promoter_commission_max_bps', '3000'),
+  ('promo_discount_max_bps',      '1500'),
+  ('promo_promoter_max_bps',      '1500'),
+  ('promoter_hold_days',          '7'),
+  ('promoter_min_payout_paise',   '100000'),
+  ('promoter_cookie_days',        '30')
+on conflict (key) do nothing;
+
+-- Event columns ----------------------------------------------------------
+alter table public.events
+  add column if not exists promoter_mode text not null default 'NONE',
+  add column if not exists promoter_commission_bps integer not null default 1000,
+  add column if not exists promo_buyer_discount_bps integer not null default 500,
+  add column if not exists promo_promoter_bps integer not null default 500;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'events_promoter_mode_check') then
+    alter table public.events add constraint events_promoter_mode_check
+      check (promoter_mode in ('NONE','LINK','PROMO_CODE'));
+  end if;
+end $$;
+
+-- Order columns ----------------------------------------------------------
+alter table public.orders
+  add column if not exists promoter_id uuid,
+  add column if not exists promoter_commission_paise integer not null default 0,
+  add column if not exists discount_paise integer not null default 0,
+  add column if not exists promoter_via text,
+  add column if not exists promoter_link_id uuid,
+  add column if not exists promo_code text;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'orders_promoter_via_check') then
+    alter table public.orders add constraint orders_promoter_via_check
+      check (promoter_via is null or promoter_via in ('LINK','PROMO_CODE'));
+  end if;
+end $$;
+
+-- Tables ------------------------------------------------------------------
+create table if not exists public.promoters (
+  id                  uuid primary key default gen_random_uuid(),
+  user_id             uuid not null unique references public.profiles(id) on delete cascade,
+  upi_id              text,
+  payout_account_name text,
+  payout_account_number text,
+  payout_ifsc         text,
+  payout_pan          text,
+  is_blocked          boolean not null default false,
+  created_at          timestamptz not null default now()
+);
+
+create table if not exists public.promoter_links (
+  id          uuid primary key default gen_random_uuid(),
+  promoter_id uuid not null references public.promoters(id) on delete cascade,
+  event_id    uuid not null references public.events(id) on delete cascade,
+  slug        text not null unique,
+  is_active   boolean not null default true,
+  created_at  timestamptz not null default now(),
+  unique (promoter_id, event_id)
+);
+
+create table if not exists public.promoter_promo_codes (
+  id          uuid primary key default gen_random_uuid(),
+  promoter_id uuid not null references public.promoters(id) on delete cascade,
+  event_id    uuid not null references public.events(id) on delete cascade,
+  code        text not null unique,
+  is_active   boolean not null default true,
+  created_at  timestamptz not null default now(),
+  unique (promoter_id, event_id)
+);
+
+create table if not exists public.promoter_clicks (
+  id         uuid primary key default gen_random_uuid(),
+  link_id    uuid not null references public.promoter_links(id) on delete cascade,
+  clicked_at timestamptz not null default now(),
+  ip_hash    text,
+  ua_hash    text,
+  referrer   text
+);
+create index if not exists promoter_clicks_link_idx on public.promoter_clicks(link_id, clicked_at desc);
+
+create table if not exists public.promoter_earnings (
+  id                        uuid primary key default gen_random_uuid(),
+  order_id                  uuid unique references public.orders(id) on delete set null,
+  promoter_id               uuid not null references public.promoters(id) on delete cascade,
+  event_id                  uuid not null references public.events(id) on delete cascade,
+  organizer_id              uuid not null references public.organizers(id) on delete cascade,
+  via                       text not null check (via in ('LINK','PROMO_CODE')),
+  link_id                   uuid references public.promoter_links(id) on delete set null,
+  promo_code_id             uuid references public.promoter_promo_codes(id) on delete set null,
+  ticket_subtotal_paise     integer not null default 0,
+  commission_bps            integer not null default 0,
+  amount_paise              integer not null,
+  kind                      text not null default 'EARNING' check (kind in ('EARNING','CLAWBACK')),
+  status                    text not null default 'EARNED' check (status in ('EARNED','PAID','REVERSED')),
+  reversed_paise            integer not null default 0,
+  payout_id                 uuid,
+  refund_id                 uuid references public.refunds(id) on delete set null,
+  reverses_id               uuid references public.promoter_earnings(id) on delete set null,
+  created_at                timestamptz not null default now(),
+  paid_at                   timestamptz
+);
+create index if not exists promoter_earnings_promoter_idx on public.promoter_earnings(promoter_id, status);
+create index if not exists promoter_earnings_event_idx on public.promoter_earnings(event_id);
+
+create table if not exists public.promoter_payouts (
+  id               uuid primary key default gen_random_uuid(),
+  promoter_id      uuid not null references public.promoters(id) on delete cascade,
+  amount_paise     integer not null,
+  status           text not null default 'PENDING' check (status in ('PENDING','PROCESSING','COMPLETED','FAILED')),
+  payout_snapshot  jsonb not null default '{}'::jsonb,
+  bank_reference   text,
+  notes            text,
+  initiated_at     timestamptz not null default now(),
+  completed_at     timestamptz,
+  created_at       timestamptz not null default now()
+);
+
+-- Default-deny everywhere; all access via service_role + SECURITY DEFINER.
+do $$
+declare t text;
+begin
+  foreach t in array array['promoters','promoter_links','promoter_promo_codes','promoter_clicks','promoter_earnings','promoter_payouts'] loop
+    execute format('alter table public.%I enable row level security', t);
+    execute format('revoke all on public.%I from anon, authenticated', t);
+    execute format('grant all on public.%I to service_role', t);
+  end loop;
+end $$;
+
+-- ═════════════════════════════════════════════════════════════════════════
+-- FIX: visibility checks must read event_invites (invite_token column dropped)
+-- New signature adds p_promoter_slug + p_promo_code. Drop every other
+-- create_reserved_order overload so PostgREST resolves unambiguously.
+-- ═════════════════════════════════════════════════════════════════════════
+do $$
+declare r record;
+begin
+  for r in
+    select p.oid, pg_get_function_identity_arguments(p.oid) args
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'create_reserved_order'
+  loop
+    if r.args !~* 'p_promoter_slug' then
+      execute format('drop function public.create_reserved_order(%s)', r.args);
+    end if;
+  end loop;
+end $$;
+
+create or replace function public.create_reserved_order(
+  p_event_id              uuid,
+  p_tier_id               uuid,
+  p_quantity              integer,
+  p_idempotency_key       text default null,
+  p_buyer_name            text default null,
+  p_buyer_phone           text default null,
+  p_buyer_email           text default null,
+  p_buyer_gender          text default null,
+  p_invite_token          text default null,
+  p_promoter_slug         text default null,
+  p_promo_code            text default null
+)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order          public.orders;
+  v_tier           public.ticket_tiers;
+  v_event          public.events;
+  v_existing_count integer;
+  v_cap            integer;
+  v_subtotal       integer;
+  v_commission     integer;
+  v_convenience    integer;
+  v_platform_fee   integer;
+  v_gateway_bps    integer;
+  v_gateway        integer;
+  v_total          integer;
+  v_payout         integer;
+  v_fee_payer      text;
+  v_ttl_min        integer;
+  v_promoter       public.promoters;
+  v_link           public.promoter_links;
+  v_pcode          public.promoter_promo_codes;
+  v_via            text;
+  v_discount       integer := 0;
+  v_promo_amt      integer := 0;
+  v_net            integer;
+begin
+  if auth.uid() is null then raise exception 'Sign in to book tickets'; end if;
+  if p_quantity is null or p_quantity < 1 then raise exception 'Quantity must be at least 1'; end if;
+
+  select * into v_event from public.events where id = p_event_id;
+  if not found then raise exception 'Event not found'; end if;
+  if v_event.status not in ('PUBLISHED', 'POSTPONED') then
+    raise exception 'This event is not open for booking';
+  end if;
+
+  if (case when coalesce(v_event.allow_booking_during_event, false)
+           then coalesce(v_event.ends_at, v_event.starts_at)
+           else v_event.starts_at end) <= now() then
+    raise exception 'Online booking is closed for this event';
+  end if;
+
+  -- Community event gating (invite token lives in event_invites side table)
+  if coalesce(v_event.visibility, 'OPEN') = 'MEMBERS_ONLY' then
+    if not exists (
+      select 1 from public.community_members
+      where community_id = v_event.community_id and user_id = auth.uid() and status = 'ACCEPTED'
+    ) then
+      raise exception 'MEMBERS_ONLY: This event is for community members only. Join the community first.';
+    end if;
+  elsif coalesce(v_event.visibility, 'OPEN') = 'INVITE_ONLY' then
+    if not exists (select 1 from public.event_invites i
+                   where i.event_id = p_event_id and i.token = coalesce(p_invite_token, ''))
+       and not exists (
+         select 1 from public.community_members
+         where community_id = v_event.community_id and user_id = auth.uid() and status = 'ACCEPTED'
+       ) then
+      raise exception 'INVITE_REQUIRED: This event is invite-only. Open it via the shared link.';
+    end if;
+  end if;
+
+  select * into v_tier from public.ticket_tiers where id = p_tier_id for update;
+  if not found then raise exception 'Ticket tier not found'; end if;
+  if v_tier.event_id <> p_event_id then raise exception 'Ticket tier does not belong to this event'; end if;
+  if v_tier.price_paise = 0 then raise exception 'Use the free order flow for free tickets'; end if;
+  if v_tier.quantity - v_tier.quantity_sold - coalesce(v_tier.quantity_reserved, 0) < p_quantity then
+    raise exception 'Not enough tickets available';
+  end if;
+
+  v_cap := greatest(1, least(coalesce(v_event.max_tickets_per_user, 5), 10));
+  select coalesce(sum(quantity), 0) into v_existing_count
+    from public.orders
+   where event_id = p_event_id and user_id = auth.uid()
+     and status in ('CONFIRMED','RESERVED','PENDING_VERIFICATION','REFUND_REQUESTED');
+  if v_existing_count + p_quantity > v_cap then
+    raise exception 'You can book at most % ticket(s) for this event (you already hold %)', v_cap, v_existing_count;
+  end if;
+
+  v_subtotal := v_tier.price_paise * p_quantity;
+
+  -- Promoter attribution (typed code beats link cookie; one mechanism per order)
+  if p_promo_code is not null and length(trim(p_promo_code)) > 0 then
+    select * into v_pcode
+      from public.promoter_promo_codes
+     where event_id = p_event_id
+       and code = upper(trim(p_promo_code))
+       and is_active;
+    if not found then raise exception 'Invalid promo code'; end if;
+    select * into v_promoter from public.promoters where id = v_pcode.promoter_id;
+    if not found or v_promoter.is_blocked or v_promoter.user_id = auth.uid()
+       or coalesce(v_event.promoter_mode, 'NONE') <> 'PROMO_CODE' then
+      raise exception 'Invalid promo code';
+    end if;
+    v_via        := 'PROMO_CODE';
+    v_discount   := round(v_subtotal * least(coalesce(v_event.promo_buyer_discount_bps, 0), 1500) / 10000.0);
+    v_promo_amt  := round(v_subtotal * least(coalesce(v_event.promo_promoter_bps, 0), 1500) / 10000.0);
+  elsif p_promoter_slug is not null and length(trim(p_promoter_slug)) > 0
+        and coalesce(v_event.promoter_mode, 'NONE') = 'LINK' then
+    select * into v_link
+      from public.promoter_links
+     where event_id = p_event_id
+       and slug = lower(trim(p_promoter_slug))
+       and is_active;
+    if found then
+      select * into v_promoter from public.promoters where id = v_link.promoter_id;
+      if found and not v_promoter.is_blocked and v_promoter.user_id <> auth.uid() then
+        v_via        := 'LINK';
+        v_promo_amt  := round(v_subtotal * least(greatest(coalesce(v_event.promoter_commission_bps, 1000), 500), 3000) / 10000.0);
+        v_discount   := 0;
+      else
+        v_promoter.id := null;  -- stale/blocked/self slug → no attribution
+      end if;
+    end if;
+  end if;
+
+  -- Money: commission on GROSS subtotal; convenience + gateway on the
+  -- discounted payable. Promoter funded from the organizer payout.
+  v_net         := greatest(0, v_subtotal - v_discount);
+  v_commission  := case when coalesce(v_event.commission_enabled, true)
+                        then round(v_subtotal * coalesce(v_event.commission_bps, 1000) / 10000.0)
+                        else 0 end;
+  v_convenience := case when coalesce(v_event.convenience_fee_enabled, true)
+                        then round(v_net * coalesce(v_event.convenience_fee_bps, 200) / 10000.0)
+                        else 0 end;
+  v_gateway_bps := public._setting_int('gateway_fee_bps', 236);
+  v_gateway     := round((v_net + v_convenience) * v_gateway_bps / (10000.0 - v_gateway_bps));
+  v_platform_fee := v_commission + v_convenience;
+  v_fee_payer   := coalesce(v_event.fee_payer, 'BUYER');
+  v_ttl_min     := public._setting_int('reservation_ttl_minutes', 15);
+
+  if v_fee_payer = 'ORGANIZER' then
+    v_total  := v_net;
+    v_payout := v_net - v_commission - v_convenience - v_gateway - v_promo_amt;
+  else
+    v_total  := v_net + v_convenience + v_gateway;
+    v_payout := v_net - v_commission - v_promo_amt;
+  end if;
+
+  if v_payout < 0 then
+    raise exception 'Promo fees exceed ticket value';
+  end if;
+
+  update public.ticket_tiers
+     set quantity_reserved = quantity_reserved + p_quantity
+   where id = p_tier_id;
+
+  insert into public.orders (
+    event_id, tier_id, user_id, quantity,
+    unit_price_paise, subtotal_paise, platform_fee_paise,
+    commission_paise, convenience_fee_paise, gateway_fee_paise, organizer_payout_paise,
+    total_paise, fee_payer, status, order_source,
+    buyer_name, buyer_phone, buyer_email, buyer_gender,
+    reserved_at, reservation_expires_at, idempotency_key,
+    discount_paise, promoter_id, promoter_via, promoter_link_id, promo_code,
+    promoter_commission_paise
+  ) values (
+    p_event_id, p_tier_id, auth.uid(), p_quantity,
+    v_tier.price_paise, v_subtotal, v_platform_fee,
+    v_commission, v_convenience, v_gateway, v_payout,
+    v_total, v_fee_payer::fee_payer, 'RESERVED', 'ONLINE',
+    p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender,
+    now(), now() + make_interval(mins => v_ttl_min),
+    p_idempotency_key,
+    v_discount,
+    case when v_via is not null then v_promoter.id else null end,
+    v_via,
+    case when v_via = 'LINK' then v_link.id else null end,
+    case when v_via = 'PROMO_CODE' then upper(trim(p_promo_code)) else null end,
+    v_promo_amt
+  )
+  returning * into v_order;
+
+  insert into public.payment_intents (
+    kind, ref_id, user_id, amount_paise, idempotency_key, expires_at
+  ) values (
+    'TICKET_ORDER', v_order.id, v_order.user_id, v_order.total_paise,
+    p_idempotency_key, v_order.reservation_expires_at
+  );
+
+  return v_order;
+end;
+$$;
+
+grant execute on function public.create_reserved_order(uuid, uuid, integer, text, text, text, text, text, text, text, text)
+  to authenticated, service_role;
+
+-- Fix create_free_order's stale invite_token reference (side-table now).
+create or replace function public.create_free_order(
+  p_event_id uuid,
+  p_tier_id  uuid,
+  p_quantity integer,
+  p_buyer_name   text default null,
+  p_buyer_phone  text default null,
+  p_buyer_email  text default null,
+  p_buyer_gender text default null,
+  p_invite_token text default null
+)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order   public.orders;
+  v_tier    public.ticket_tiers;
+  v_event   public.events;
+  v_existing_count integer;
+  v_cap integer;
+begin
+  if auth.uid() is null then raise exception 'Sign in to RSVP'; end if;
+  if p_quantity is null or p_quantity < 1 then raise exception 'Quantity must be at least 1'; end if;
+
+  select * into v_event from public.events where id = p_event_id;
+  if not found then raise exception 'Event not found'; end if;
+  if v_event.status not in ('PUBLISHED', 'POSTPONED') then
+    raise exception 'This event is not open for booking';
+  end if;
+  if (case when coalesce(v_event.allow_booking_during_event, false)
+           then coalesce(v_event.ends_at, v_event.starts_at)
+           else v_event.starts_at end) <= now() then
+    raise exception 'Online booking is closed for this event';
+  end if;
+
+  if coalesce(v_event.visibility, 'OPEN') = 'MEMBERS_ONLY' then
+    if not exists (
+      select 1 from public.community_members
+      where community_id = v_event.community_id and user_id = auth.uid() and status = 'ACCEPTED'
+    ) then
+      raise exception 'MEMBERS_ONLY: This event is for community members only. Join the community first.';
+    end if;
+  elsif coalesce(v_event.visibility, 'OPEN') = 'INVITE_ONLY' then
+    if not exists (select 1 from public.event_invites i
+                   where i.event_id = p_event_id and i.token = coalesce(p_invite_token, ''))
+       and not exists (
+         select 1 from public.community_members
+         where community_id = v_event.community_id and user_id = auth.uid() and status = 'ACCEPTED'
+       ) then
+      raise exception 'INVITE_REQUIRED: This event is invite-only. Open it via the shared link.';
+    end if;
+  end if;
+
+  select * into v_tier from public.ticket_tiers where id = p_tier_id for update;
+  if not found then raise exception 'Ticket tier not found'; end if;
+  if v_tier.event_id <> p_event_id then raise exception 'Ticket tier does not belong to this event'; end if;
+  if v_tier.price_paise <> 0 then raise exception 'This function is for free tickets only'; end if;
+  if v_tier.quantity - v_tier.quantity_sold - coalesce(v_tier.quantity_reserved, 0) < p_quantity then
+    raise exception 'Not enough tickets available';
+  end if;
+
+  v_cap := greatest(1, least(coalesce(v_event.max_tickets_per_user, 5), 10));
+  select count(*) into v_existing_count
+  from public.tickets
+   where event_id = p_event_id and user_id = auth.uid() and status in ('VALID','USED');
+  if v_existing_count + (p_quantity * greatest(1, coalesce(v_tier.admits, 1))) > v_cap then
+    raise exception 'You can hold at most % ticket(s) for this event (you already hold %)', v_cap, v_existing_count;
+  end if;
+
+  insert into public.orders (
+    event_id, tier_id, user_id, quantity,
+    unit_price_paise, subtotal_paise, platform_fee_paise, total_paise,
+    fee_payer, status, buyer_name, buyer_phone, buyer_email, buyer_gender
+  ) values (
+    p_event_id, p_tier_id, auth.uid(), p_quantity,
+    0, 0, 0, 0,
+    coalesce(v_event.fee_payer, 'BUYER')::fee_payer, 'CONFIRMED', p_buyer_name, p_buyer_phone, p_buyer_email, p_buyer_gender
+  )
+  returning * into v_order;
+
+  insert into public.tickets (order_id, event_id, tier_id, user_id, qr_hash)
+  select
+    v_order.id, p_event_id, p_tier_id, auth.uid(),
+    encode(sha256((v_order.id::text || ':' || g::text || ':' || gen_random_uuid()::text)::bytea), 'hex')
+  from generate_series(1, p_quantity * greatest(1, coalesce(v_tier.admits, 1))) g;
+
+  update public.ticket_tiers set quantity_sold = quantity_sold + p_quantity where id = p_tier_id;
+  update public.events set registrations_count = registrations_count + p_quantity * greatest(1, coalesce(v_tier.admits, 1)) where id = p_event_id;
+  delete from public.waitlist where tier_id = p_tier_id and user_id = auth.uid();
+
+  return v_order;
+end;
+$$;
+
+grant execute on function public.create_free_order(uuid, uuid, integer, text, text, text, text, text)
+  to authenticated, service_role;
+
+-- ═════════════════════════════════════════════════════════════════════════
+-- Promoter RPCs
+-- ═════════════════════════════════════════════════════════════════════════
+
+-- register_event_promoter: any signed-in user can promote an opted-in event.
+-- Returns the promoter's share link slug or promo code (idempotent).
+create or replace function public.register_event_promoter(p_event_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_event    public.events;
+  v_promoter public.promoters;
+  v_link     public.promoter_links;
+  v_code     public.promoter_promo_codes;
+  v_slug     text;
+  v_name     text;
+  i          integer;
+begin
+  if auth.uid() is null then raise exception 'Sign in to promote events'; end if;
+
+  select * into v_event from public.events where id = p_event_id;
+  if not found then raise exception 'Event not found'; end if;
+  if coalesce(v_event.promoter_mode, 'NONE') = 'NONE' then
+    raise exception 'This event has no promoter program';
+  end if;
+  if v_event.status not in ('PUBLISHED', 'POSTPONED') then
+    raise exception 'This event is not open';
+  end if;
+
+  -- owner + accepted collaborators can't promote their own event
+  if exists (select 1 from public.organizers o
+             where o.id = v_event.organizer_id and o.owner_id = auth.uid()) then
+    raise exception 'Organizers can''t promote their own event';
+  end if;
+  if exists (select 1 from public.event_collaborators c
+             join public.organizers o on o.id = c.organizer_id
+             where c.event_id = p_event_id and o.owner_id = auth.uid() and c.status = 'ACCEPTED') then
+    raise exception 'Collaborators can''t promote this event';
+  end if;
+
+  select * into v_promoter from public.promoters where user_id = auth.uid();
+  if not found then
+    insert into public.promoters (user_id) values (auth.uid()) returning * into v_promoter;
+  end if;
+  if v_promoter.is_blocked then raise exception 'Your promoter account is blocked'; end if;
+
+  if v_event.promoter_mode = 'LINK' then
+    select * into v_link from public.promoter_links
+     where promoter_id = v_promoter.id and event_id = p_event_id;
+    if found then
+      if not v_link.is_active then raise exception 'Removed as promoter for this event'; end if;
+      return jsonb_build_object('mode','LINK','slug',v_link.slug);
+    end if;
+    for i in 1..10 loop
+      v_slug := lower(substr(encode(extensions.gen_random_bytes(4), 'hex'), 1, 8));
+      begin
+        insert into public.promoter_links (promoter_id, event_id, slug)
+        values (v_promoter.id, p_event_id, v_slug)
+        returning * into v_link;
+        exit;
+      exception when unique_violation then
+        if i = 10 then raise; end if;
+      end;
+    end loop;
+    return jsonb_build_object('mode','LINK','slug',v_link.slug);
+  else
+    select * into v_code from public.promoter_promo_codes
+     where promoter_id = v_promoter.id and event_id = p_event_id;
+    if found then
+      if not v_code.is_active then raise exception 'Removed as promoter for this event'; end if;
+      return jsonb_build_object('mode','PROMO_CODE','code',v_code.code);
+    end if;
+    select coalesce(left(upper(regexp_replace(full_name, '[^A-Za-z]', '', 'g')), 8), 'PROMO')
+      into v_name from public.profiles where id = auth.uid();
+    for i in 1..10 loop
+      declare v_candidate text;
+      begin
+        v_candidate := v_name || '-' || upper(substr(encode(extensions.gen_random_bytes(2), 'hex'), 1, 4));
+        insert into public.promoter_promo_codes (promoter_id, event_id, code)
+        values (v_promoter.id, p_event_id, v_candidate)
+        returning * into v_code;
+        exit;
+      exception when unique_violation then
+        if i = 10 then raise; end if;
+      end;
+    end loop;
+    return jsonb_build_object('mode','PROMO_CODE','code',v_code.code);
+  end if;
+end;
+$$;
+
+grant execute on function public.register_event_promoter(uuid) to authenticated;
+
+-- organizer_remove_promoter: deactivate a promoter's link AND code for an event.
+create or replace function public.organizer_remove_promoter(p_promoter_id uuid, p_event_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_authorized boolean := false;
+begin
+  select exists (
+    select 1 from public.events e
+    join public.organizers o on o.id = e.organizer_id
+    where e.id = p_event_id and o.owner_id = auth.uid()
+  ) or exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.role = 'ADMIN'
+  ) into v_authorized;
+  if not v_authorized then raise exception 'Not authorized'; end if;
+
+  update public.promoter_links set is_active = false
+   where promoter_id = p_promoter_id and event_id = p_event_id;
+  update public.promoter_promo_codes set is_active = false
+   where promoter_id = p_promoter_id and event_id = p_event_id;
+end;
+$$;
+
+grant execute on function public.organizer_remove_promoter(uuid, uuid) to authenticated;
+
+-- log_promoter_click: called by /p/<slug> (service-role path inserts directly,
+-- but grant this for completeness/future client use).
+create or replace function public.promoter_slug_lookup(p_slug text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_link public.promoter_links;
+begin
+  select * into v_link from public.promoter_links l
+   where l.slug = lower(p_slug) and l.is_active;
+  if not found then return null; end if;
+  return jsonb_build_object('link_id', v_link.id, 'event_id', v_link.event_id);
+end;
+$$;
+
+grant execute on function public.promoter_slug_lookup(text) to anon, authenticated, service_role;
+-- Snapshot the effective bps on the order at reservation time.
+alter table public.orders add column if not exists promoter_commission_bps integer not null default 0;
+
+update public.orders o set promoter_commission_bps =
+  case when o.promoter_via = 'LINK'
+       then (select e.promoter_commission_bps from public.events e where e.id = o.event_id)
+       else (select e.promo_promoter_bps from public.events e where e.id = o.event_id) end
+ where o.promoter_id is not null and o.promoter_commission_bps = 0;
+
+-- ── Earning on confirmation: a confirmed paid order with a promoter mints
+-- an EARNING row. Covers apply_captured_payment, admin approval, manual
+-- settle — every CONFIRMED transition, idempotent via unique(order_id).
+create or replace function public.trg_promoter_earning()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.promoter_id is not null
+     and new.status = 'CONFIRMED'
+     and new.status is distinct from old.status then
+    insert into public.promoter_earnings (
+      order_id, promoter_id, event_id, organizer_id, via,
+      link_id, promo_code_id, ticket_subtotal_paise, commission_bps, amount_paise
+    ) values (
+      new.id, new.promoter_id, new.event_id,
+      (select organizer_id from public.events where id = new.event_id),
+      new.promoter_via,
+      case when new.promoter_via = 'LINK' then new.promoter_link_id else null end,
+      case when new.promoter_via = 'PROMO_CODE' then
+        (select id from public.promoter_promo_codes where event_id = new.event_id and code = new.promo_code limit 1)
+        else null end,
+      new.subtotal_paise,
+      new.promoter_commission_bps,
+      new.promoter_commission_paise
+    ) on conflict (order_id) do nothing;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_promoter_earning on public.orders;
+create trigger trg_promoter_earning
+  after update on public.orders
+  for each row execute function public.trg_promoter_earning();
+
+-- ── Reversal on refund: every refund path (cancel, postponement, admin)
+-- reverses promoter commission proportionally. Unpaid earnings claw in
+-- place; paid earnings mint a negative CLAWBACK row against future payouts.
+create or replace function public.trg_refund_reverse_promoter()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_earn     public.promoter_earnings;
+  v_order    public.orders;
+  v_claw     integer;
+  v_remaining integer;
+begin
+  select * into v_order from public.orders where id = new.order_id;
+  if not found or v_order.promoter_id is null then return new; end if;
+
+  select * into v_earn from public.promoter_earnings
+   where order_id = new.order_id and kind = 'EARNING';
+  if not found then return new; end if;
+
+  -- proportional claw: refund.amount / order.total × earning
+  v_claw := least(
+    round(coalesce(new.amount_paise, 0)::numeric / nullif(greatest(v_order.total_paise, 1), 0) * v_earn.amount_paise),
+    v_earn.amount_paise - v_earn.reversed_paise
+  );
+  if v_claw <= 0 then return new; end if;
+
+  if v_earn.status = 'PAID' then
+    insert into public.promoter_earnings (
+      order_id, promoter_id, event_id, organizer_id, via,
+      link_id, promo_code_id, ticket_subtotal_paise, commission_bps,
+      amount_paise, kind, status, refund_id, reverses_id
+    ) values (
+      null, v_earn.promoter_id, v_earn.event_id, v_earn.organizer_id, v_earn.via,
+      v_earn.link_id, v_earn.promo_code_id, 0, v_earn.commission_bps,
+      -v_claw, 'CLAWBACK', 'EARNED', new.id, v_earn.id
+    );
+  else
+    v_remaining := v_earn.amount_paise - (v_earn.reversed_paise + v_claw);
+    update public.promoter_earnings
+       set reversed_paise = reversed_paise + v_claw,
+           status = case when v_remaining <= 0 then 'REVERSED' else status end,
+           refund_id = new.id
+     where id = v_earn.id;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_refund_reverse_promoter on public.refunds;
+create trigger trg_refund_reverse_promoter
+  after insert on public.refunds
+  for each row execute function public.trg_refund_reverse_promoter();
+
+-- admin_set_promoter_blocked
+create or replace function public.admin_set_promoter_blocked(p_promoter_id uuid, p_blocked boolean)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (select 1 from public.profiles p
+                 where p.id = auth.uid() and (p.is_admin or p.role = 'ADMIN')) then
+    raise exception 'Admin only';
+  end if;
+  update public.promoters set is_blocked = p_blocked where id = p_promoter_id;
+end;
+$$;
+
+grant execute on function public.admin_set_promoter_blocked(uuid, boolean) to authenticated;
+
+-- settleable_promoter_paise: earnings older than event.ends_at + hold_days,
+-- net of clawbacks. Used by the promoter dashboard + admin payout screen.
+create or replace function public.promoter_payable_paise(p_promoter_id uuid)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_hold int;
+  v_sum  integer;
+begin
+  v_hold := public._setting_int('promoter_hold_days', 7);
+  select coalesce(sum(e.amount_paise - e.reversed_paise), 0) into v_sum
+    from public.promoter_earnings e
+    join public.events ev on ev.id = e.event_id
+   where e.promoter_id = p_promoter_id
+     and e.status in ('EARNED','REVERSED')
+     and ev.ends_at + make_interval(days => v_hold) <= now();
+  return greatest(v_sum, 0);
+end;
+$$;
+
+grant execute on function public.promoter_payable_paise(uuid) to authenticated, service_role;

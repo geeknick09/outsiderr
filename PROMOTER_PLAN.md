@@ -5,7 +5,7 @@ share-links (promoter earns a % off the organizer payout) or promo codes (buyer 
 promoter commission). Commissions settle 7 days after the event ends, are paid manually by
 admin to bank/PAN-verified promoters, and reverse automatically on every refund path.
 
-Status: **planned, not built** (2026-10-09). See build order at the bottom.
+Status: **BUILT** (STEP 47 in fix_all.sql; API e2e P1-P7 green). See build order at the bottom.
 
 ## Decisions (confirmed with owner)
 

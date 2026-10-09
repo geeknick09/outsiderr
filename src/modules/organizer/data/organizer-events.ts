@@ -56,6 +56,12 @@ export interface CreateEventInput {
   communityId?: string | null;
   visibility?: "OPEN" | "MEMBERS_ONLY" | "INVITE_ONLY";
   inviteToken?: string | null;
+  payoutAccountId?: string | null;
+  recurrence?: "WEEKLY" | null;
+  promoterMode?: "NONE" | "LINK" | "PROMO_CODE";
+  promoterCommissionBps?: number;
+  promoBuyerDiscountBps?: number;
+  promoPromoterBps?: number;
 }
 
 export async function listOrganizerEvents(
@@ -63,6 +69,9 @@ export async function listOrganizerEvents(
 ): Promise<EventSummary[]> {
   const organizer = await getOrganizerProfile(user);
   if (!organizer) return [];
+
+  // Weekly community events that ended get their next occurrence spawned.
+  await spawnDueRecurrences(organizer.id);
 
   const supabase = await createClient();
   const { data: events } = await supabase
@@ -229,6 +238,12 @@ export async function createEvent(
       max_tickets_per_user: input.maxTicketsPerUser ?? 5,
       pricing_mode: input.pricingMode,
       community_id: input.communityId ?? null,
+      payout_account_id: input.payoutAccountId ?? null,
+      recurrence: input.recurrence ?? null,
+      promoter_mode: input.promoterMode ?? "NONE",
+      promoter_commission_bps: input.promoterCommissionBps ?? 1000,
+      promo_buyer_discount_bps: input.promoBuyerDiscountBps ?? 500,
+      promo_promoter_bps: input.promoPromoterBps ?? 500,
       visibility: input.visibility ?? "OPEN",
       status: input.status ?? "PUBLISHED",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -449,6 +464,11 @@ export interface UpdateEventInput {
   communityId?: string | null;
   visibility?: "OPEN" | "MEMBERS_ONLY" | "INVITE_ONLY";
   inviteToken?: string | null;
+  payoutAccountId?: string | null;
+  promoterMode?: "NONE" | "LINK" | "PROMO_CODE";
+  promoterCommissionBps?: number;
+  promoBuyerDiscountBps?: number;
+  promoPromoterBps?: number;
 }
 
 
@@ -529,6 +549,11 @@ export async function updateEvent(
       ...(input.linkedPastEventIds !== undefined ? { linked_past_event_ids: input.linkedPastEventIds } : {}),
       ...(input.pricingMode !== undefined ? { pricing_mode: input.pricingMode } : {}),
       ...(input.communityId !== undefined ? { community_id: input.communityId } : {}),
+      ...(input.payoutAccountId !== undefined ? { payout_account_id: input.payoutAccountId } : {}),
+      ...(input.promoterMode !== undefined ? { promoter_mode: input.promoterMode } : {}),
+      ...(input.promoterCommissionBps !== undefined ? { promoter_commission_bps: input.promoterCommissionBps } : {}),
+      ...(input.promoBuyerDiscountBps !== undefined ? { promo_buyer_discount_bps: input.promoBuyerDiscountBps } : {}),
+      ...(input.promoPromoterBps !== undefined ? { promo_promoter_bps: input.promoPromoterBps } : {}),
       ...(input.visibility !== undefined ? { visibility: input.visibility } : {}),
 
       ...(input.maxTicketsPerUser !== undefined
@@ -741,4 +766,105 @@ export async function deleteEvent(
     .eq("id", eventId)
     .eq("organizer_id", organizer.id);
   if (error) throw error;
+}
+
+/**
+ * Recurring community events (recurrence = "WEEKLY"): once an occurrence has
+ * ended, clone it into the next week (same everything, fresh invite token).
+ * Chain semantics - each event spawns at most one child; the child itself
+ * recurs when it ends. Idempotent via the child check.
+ */
+export async function spawnDueRecurrences(organizerId: string): Promise<number> {
+  const { createServiceClient } = await import("@/modules/shared/server");
+  const svc = createServiceClient();
+
+  const { data: due } = await svc
+    .from("events")
+    .select("id, starts_at, ends_at, community_id")
+    .eq("organizer_id", organizerId)
+    .eq("recurrence", "WEEKLY")
+    .in("status", ["PUBLISHED"])
+    .lt("ends_at", new Date().toISOString());
+  if (!due?.length) return 0;
+
+  const parentIds = due.map((e) => e.id);
+  const { data: children } = await svc
+    .from("events")
+    .select("recurrence_parent_id")
+    .in("recurrence_parent_id", parentIds);
+  const spawned = new Set((children ?? []).map((c) => c.recurrence_parent_id));
+  const toSpawn = due.filter((e) => !spawned.has(e.id));
+  if (!toSpawn.length) return 0;
+
+  let created = 0;
+  for (const parent of toSpawn) {
+    const { data: full } = await svc.from("events").select("*").eq("id", parent.id).single();
+    if (!full || !full.community_id) continue;
+
+    const week = 7 * 24 * 60 * 60 * 1000;
+    const { data: child, error } = await svc
+      .from("events")
+      .insert({
+        organizer_id: full.organizer_id,
+        title: full.title,
+        description: full.description,
+        things_to_know: full.things_to_know,
+        category: full.category,
+        categories: full.categories,
+        city: full.city,
+        venue_name: full.venue_name,
+        venue_address: full.venue_address,
+        latitude: full.latitude,
+        longitude: full.longitude,
+        google_maps_link: full.google_maps_link,
+        starts_at: new Date(new Date(full.starts_at ?? Date.now()).getTime() + week).toISOString(),
+        ends_at: new Date(new Date(full.ends_at ?? Date.now()).getTime() + week).toISOString(),
+        card_poster_url: full.card_poster_url,
+        banner_poster_url: full.banner_poster_url,
+        teaser_video_url: full.teaser_video_url,
+        fee_payer: full.fee_payer,
+        waitlist_enabled: full.waitlist_enabled,
+        terms: full.terms,
+        tags: full.tags,
+        photo_urls: full.photo_urls,
+        contact_email: full.contact_email,
+        contact_phone: full.contact_phone,
+        instagram_url: full.instagram_url,
+        youtube_url: full.youtube_url,
+        x_url: full.x_url,
+        facebook_url: full.facebook_url,
+        linkedin_url: full.linkedin_url,
+        linked_past_event_ids: full.linked_past_event_ids,
+        max_tickets_per_user: full.max_tickets_per_user,
+        pricing_mode: full.pricing_mode,
+        community_id: full.community_id,
+        payout_account_id: full.payout_account_id,
+        visibility: full.visibility,
+        recurrence: "WEEKLY",
+        recurrence_parent_id: parent.id,
+        status: "PUBLISHED",
+      } as never)
+      .select("id")
+      .single();
+    if (error || !child) continue;
+
+    const { data: tiers } = await svc
+      .from("ticket_tiers")
+      .select("name, tier_type, price_paise, quantity, sort_order, phase_opens_at, phase_closes_at, admits")
+      .eq("event_id", parent.id);
+    if (tiers?.length) {
+      await svc.from("ticket_tiers").insert(
+        tiers.map((t) => ({ ...t, event_id: child.id, quantity_sold: 0, quantity_reserved: 0 })) as never,
+      );
+    }
+
+    if (full.visibility === "INVITE_ONLY") {
+      await svc.from("event_invites").insert({
+        event_id: child.id,
+        token: crypto.randomUUID().slice(0, 12),
+      });
+    }
+    created += 1;
+  }
+  return created;
 }

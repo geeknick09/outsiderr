@@ -63,7 +63,7 @@ export function EventSearch() {
             submit(query);
           }
         }}
-        placeholder="Search events, venues, organizers…"
+        placeholder="Search events, communities, organizers…"
         className="glass w-full rounded-2xl border border-zinc-200 py-3 pl-11 pr-10 text-sm outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon dark:border-white/10 dark:text-white"
       />
       {isPending ? (

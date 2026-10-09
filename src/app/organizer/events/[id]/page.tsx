@@ -19,6 +19,8 @@ import { EventStaff } from "@/modules/scanner";
 import { GuestlistPanel } from "@/modules/organizer";
 import { listGuestlist } from "@/modules/shared/actions/communities";
 import { listEventCounterStaff } from "@/modules/scanner/server";
+import { getEventPromoters } from "@/modules/shared/server";
+import { PromotersPanel } from "@/modules/organizer";
 import { getOrganizerEventAnalytics } from "@/modules/analytics/server";
 import { getEventCollaboratorsForOwner, getEventAccessLevel, canViewAnalytics, canViewMoney, canScanTickets, canEditEvent, canManageOrders } from "@/modules/shared/server";
 import { listEventOrders, listEventTickets } from "@/modules/shared/server";
@@ -48,9 +50,12 @@ export async function generateMetadata({
 
 export default async function ManageEventPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
+  const { tab } = await searchParams;
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=%2Forganizer");
 
@@ -85,6 +90,8 @@ export default async function ManageEventPage({
   // Check access level - owner or accepted collaborator. Note: analytics is
   // null for collaborators without ANALYTICS/FULL permission - that's not a
   // 404, they still get the event view.
+  const promoters = event ? await getEventPromoters(event.organizer.id, id) : [];
+
   const accessLevel = await getEventAccessLevel(user, id);
   if (!accessLevel) notFound();
   const isOwner = accessLevel === "OWNER";
@@ -297,6 +304,12 @@ export default async function ManageEventPage({
                 </CollapsibleSection>
               ) : null}
 
+              {event.promoterMode !== "NONE" ? (
+                <CollapsibleSection title="Promoters" description="People driving sales for this event — links/codes, clicks, earned commission.">
+                  <PromotersPanel eventId={event.id} promoters={promoters} />
+                </CollapsibleSection>
+              ) : null}
+
               {canScan && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
                 <CollapsibleSection title="Staff" description="Door + box-office staff. They sign in at /scan and /box-office with the phone or email + password you set here.">
                   <EventStaff eventId={event.id} staff={eventStaff} />
@@ -378,7 +391,12 @@ export default async function ManageEventPage({
               }]
             : []),
         ];
-        return <ManageTabs tabs={tabs} />;
+        return (
+          <ManageTabs
+            tabs={tabs}
+            defaultTab={tab === "analytics" || tab === "attendees" || tab === "details" ? tab : "details"}
+          />
+        );
       })()}
     </div>
   );

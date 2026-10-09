@@ -259,7 +259,7 @@ export async function getEventAnalytics(eventId: string): Promise<EventAnalytics
   const supabase = await createClient();
   const [eventRes, ordersRes, ticketsRes, waitlistRes, tiersRes] = await Promise.all([
     supabase.from("events").select("title").eq("id", eventId).single(),
-    supabase.from("orders").select("status, subtotal_paise, commission_paise, convenience_fee_paise, platform_fee_paise, organizer_payout_paise").eq("event_id", eventId),
+    supabase.from("orders").select("status, subtotal_paise, commission_paise, convenience_fee_paise, platform_fee_paise, organizer_payout_paise, created_at, quantity").eq("event_id", eventId),
     supabase.from("tickets").select("status").eq("event_id", eventId),
     supabase.from("waitlist").select("id", { count: "exact", head: true }).eq("event_id", eventId).eq("status", "WAITING"),
     supabase.from("ticket_tiers").select("id, name, tier_type, price_paise, quantity, quantity_sold, phase_opens_at, phase_closes_at").eq("event_id", eventId).order("sort_order"),
@@ -273,6 +273,22 @@ export async function getEventAnalytics(eventId: string): Promise<EventAnalytics
   const convenience = confirmed.reduce((s, o) => s + (o.convenience_fee_paise ?? 0), 0);
   const platformFee = confirmed.reduce((s, o) => s + (o.platform_fee_paise ?? 0), 0);
   const payout = confirmed.reduce((s, o) => s + (o.organizer_payout_paise ?? 0), 0);
+
+  // Daily sales trend - confirmed orders grouped by creation day.
+  const byDay = new Map<string, { orders: number; tickets: number; revenuePaise: number }>();
+  for (const o of confirmed) {
+    const day = (o.created_at ?? "").slice(0, 10);
+    if (!day) continue;
+    const b = byDay.get(day) ?? { orders: 0, tickets: 0, revenuePaise: 0 };
+    b.orders += 1;
+    b.tickets += o.quantity ?? 1;
+    b.revenuePaise += o.subtotal_paise ?? 0;
+    byDay.set(day, b);
+  }
+  const salesByDay = [...byDay.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, v]) => ({ date, ...v }));
+
   return {
     eventId, eventTitle: eventRes.data?.title ?? "Event",
     totalOrders: orders.length,
@@ -286,6 +302,7 @@ export async function getEventAnalytics(eventId: string): Promise<EventAnalytics
     netPayoutPaise: payout,
     checkIns: tickets.filter((t) => t.status === "USED").length,
     waitlistCount: waitlistRes.count ?? 0,
+    salesByDay,
     tierBreakdown: tiers.map((t) => ({
       tierId: t.id,
       tierName: t.name,

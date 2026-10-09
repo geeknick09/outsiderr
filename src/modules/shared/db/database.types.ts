@@ -103,6 +103,13 @@ export type EventRow = {
   registrations_count: number;
   max_tickets_per_user?: number;
   community_id?: string | null;
+  payout_account_id?: string | null;
+  promoter_mode?: string;
+  promoter_commission_bps?: number;
+  promo_buyer_discount_bps?: number;
+  promo_promoter_bps?: number;
+  recurrence?: string | null;
+  recurrence_parent_id?: string | null;
   visibility?: string;
   tags: string[];
   photo_urls: string[];
@@ -178,6 +185,13 @@ export type OrderRow = {
   refund_offered: boolean;
   refund_offer_reason: string | null;
   created_at: string;
+  promoter_id?: string | null;
+  promoter_commission_paise?: number;
+  promoter_commission_bps?: number;
+  discount_paise?: number;
+  promoter_via?: string | null;
+  promoter_link_id?: string | null;
+  promo_code?: string | null;
 }
 
 export type TicketRow = {
@@ -234,12 +248,99 @@ export type BoostSlotPriceRow = {
   price_paise: number;
 }
 
+export type OrganizerBankAccountRow = {
+  id: string;
+  organizer_id: string;
+  label: string | null;
+  account_name: string;
+  account_number: string;
+  ifsc: string;
+  account_type: string | null;
+  is_default: boolean;
+  created_at: string;
+}
+
+export type PromoterRow = {
+  id: string;
+  user_id: string;
+  upi_id: string | null;
+  payout_account_name: string | null;
+  payout_account_number: string | null;
+  payout_ifsc: string | null;
+  payout_pan: string | null;
+  is_blocked: boolean;
+  created_at: string;
+}
+
+export type PromoterLinkRow = {
+  id: string;
+  promoter_id: string;
+  event_id: string;
+  slug: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export type PromoterPromoCodeRow = {
+  id: string;
+  promoter_id: string;
+  event_id: string;
+  code: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export type PromoterClickRow = {
+  id: string;
+  link_id: string;
+  clicked_at: string;
+  ip_hash: string | null;
+  ua_hash: string | null;
+  referrer: string | null;
+}
+
+export type PromoterEarningRow = {
+  id: string;
+  order_id: string | null;
+  promoter_id: string;
+  event_id: string;
+  organizer_id: string;
+  via: string;
+  link_id: string | null;
+  promo_code_id: string | null;
+  ticket_subtotal_paise: number;
+  commission_bps: number;
+  amount_paise: number;
+  kind: string;
+  status: string;
+  reversed_paise: number;
+  payout_id: string | null;
+  refund_id: string | null;
+  reverses_id: string | null;
+  created_at: string;
+  paid_at: string | null;
+}
+
+export type PromoterPayoutRow = {
+  id: string;
+  promoter_id: string;
+  amount_paise: number;
+  status: string;
+  payout_snapshot: Record<string, unknown>;
+  bank_reference: string | null;
+  notes: string | null;
+  initiated_at: string;
+  completed_at: string | null;
+  created_at: string;
+}
+
 export type CommunityRow = {
   id: string;
   owner_id: string;
   name: string;
   bio: string | null;
   type: string;
+  category: string | null;
   city: string | null;
   avatar_url: string | null;
   cover_url: string | null;
@@ -706,6 +807,13 @@ export type Database = {
       boosts: Table<BoostRow, "event_id" | "organizer_id" | "slot" | "amount_paid_paise" | "starts_at" | "ends_at">;
       boost_slot_prices: Table<BoostSlotPriceRow, "slot" | "price_paise">;
       communities: Table<CommunityRow, "owner_id" | "name" | "type" | "membership_type">;
+      organizer_bank_accounts: Table<OrganizerBankAccountRow, "organizer_id" | "account_name" | "account_number" | "ifsc">;
+      promoters: Table<PromoterRow, "user_id">;
+      promoter_links: Table<PromoterLinkRow, "promoter_id" | "event_id" | "slug">;
+      promoter_promo_codes: Table<PromoterPromoCodeRow, "promoter_id" | "event_id" | "code">;
+      promoter_clicks: Table<PromoterClickRow, "link_id">;
+      promoter_earnings: Table<PromoterEarningRow, "promoter_id" | "event_id" | "organizer_id" | "via" | "amount_paise">;
+      promoter_payouts: Table<PromoterPayoutRow, "promoter_id" | "amount_paise" | "status">;
       community_members: Table<CommunityMemberRow, "community_id" | "user_id" | "status">;
       community_join_questions: Table<CommunityJoinQuestionRow, "community_id" | "question">;
       community_join_answers: Table<CommunityJoinAnswerRow, "member_id" | "question" | "answer">;
@@ -1029,6 +1137,26 @@ export type Database = {
       community_analytics: {
         Args: { p_community_id: string };
         Returns: unknown;
+      };
+      register_event_promoter: {
+        Args: { p_event_id: string };
+        Returns: { mode: "LINK" | "PROMO_CODE"; slug?: string; code?: string };
+      };
+      organizer_remove_promoter: {
+        Args: { p_promoter_id: string; p_event_id: string };
+        Returns: undefined;
+      };
+      admin_set_promoter_blocked: {
+        Args: { p_promoter_id: string; p_blocked: boolean };
+        Returns: undefined;
+      };
+      promoter_slug_lookup: {
+        Args: { p_slug: string };
+        Returns: { link_id: string; event_id: string } | null;
+      };
+      promoter_payable_paise: {
+        Args: { p_promoter_id: string };
+        Returns: number;
       };
       community_invite_valid: {
         Args: { p_community_id: string; p_token: string };

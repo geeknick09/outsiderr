@@ -83,3 +83,16 @@ export const PREDEFINED_EVENT_TAGS: string[] = [
   // Workshop
   "Workshop", "Masterclass",
 ];
+
+/** Community discovery categories — drives the home-page chips + community form select. */
+export const COMMUNITY_CATEGORIES = [
+  { value: "FITNESS", label: "Fitness & Movements" },
+  { value: "HIP_HOP", label: "Hip Hop & Street Culture" },
+  { value: "ELECTRONIC", label: "Electronic Music & Nightlife" },
+  { value: "EXTREME_SPORTS", label: "Extreme Sports & Action" },
+  { value: "GAMING", label: "Gaming & Esports" },
+  { value: "FASHION", label: "Fashion & Sneaker Culture" },
+  { value: "AUTOMOTIVE", label: "Automotive & Motor Culture" },
+  { value: "ART_DESIGN", label: "Art, Design & Creators" },
+] as const;
+export type CommunityCategory = (typeof COMMUNITY_CATEGORIES)[number]["value"];

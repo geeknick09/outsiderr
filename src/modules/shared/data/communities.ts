@@ -9,6 +9,7 @@ export interface CreateCommunityInput {
   name: string;
   bio: string;
   type: CommunityType;
+  category?: string | null;
   city: City | null;
   avatarUrl: string | null;
   coverUrl: string | null;
@@ -46,7 +47,7 @@ export async function listCommunities(city?: City): Promise<Community[]> {
     bio: row.bio,
     type: row.type as CommunityType,
     city: row.city as City | null,
-    avatarUrl: row.avatar_url,
+    avatarUrl: row.avatar_url, category: row.category ?? null,
     coverUrl: row.cover_url ?? null,
     galleryUrls: row.gallery_urls ?? [],
     
@@ -80,7 +81,7 @@ export async function getCommunity(id: string): Promise<Community | null> {
     bio: data.bio,
     type: data.type as CommunityType,
     city: data.city as City | null,
-    avatarUrl: data.avatar_url,
+    avatarUrl: data.avatar_url, category: data.category ?? null,
     coverUrl: data.cover_url ?? null,
     galleryUrls: data.gallery_urls ?? [],
     
@@ -115,6 +116,7 @@ export async function createCommunity(
         bio: input.bio || null,
         type: input.type,
         city: input.city,
+        category: input.category ?? null,
         avatar_url: input.avatarUrl ?? null,
         cover_url: input.coverUrl ?? null,
         instagram_handle: input.instagramHandle,
@@ -122,7 +124,7 @@ export async function createCommunity(
         membership_type: input.membershipType,
         membership_fee_paise: input.membershipFeePaise,
         terms: input.terms,
-        verified: false,
+        verified: true,
       })
       .select("id")
       .single();
@@ -165,7 +167,7 @@ export async function createCommunity(
       membership_type: input.membershipType,
       membership_fee_paise: input.membershipFeePaise,
       terms: input.terms,
-      verified: false,
+      verified: true,
     })
     .select("id")
     .single();
@@ -288,7 +290,7 @@ export async function listMyCommunities(user: CurrentUser): Promise<Community[]>
     bio: row.bio,
     type: row.type as CommunityType,
     city: row.city as City | null,
-    avatarUrl: row.avatar_url,
+    avatarUrl: row.avatar_url, category: row.category ?? null,
     coverUrl: row.cover_url ?? null,
     galleryUrls: row.gallery_urls ?? [],
     
@@ -328,7 +330,7 @@ export async function listPendingCommunities(): Promise<Community[]> {
     bio: row.bio,
     type: row.type as CommunityType,
     city: row.city as City | null,
-    avatarUrl: row.avatar_url,
+    avatarUrl: row.avatar_url, category: row.category ?? null,
     coverUrl: row.cover_url ?? null,
     galleryUrls: row.gallery_urls ?? [],
     
@@ -539,7 +541,7 @@ export async function listFollowedCommunities(user: CurrentUser): Promise<Commun
   return (comms ?? []).map((row) => ({
     id: row.id, ownerId: row.owner_id, ownerName: "", name: row.name, bio: row.bio,
     type: row.type as CommunityType, city: row.city as City | null,
-    avatarUrl: row.avatar_url, coverUrl: row.cover_url ?? null,
+    avatarUrl: row.avatar_url, category: row.category ?? null, coverUrl: row.cover_url ?? null,
     galleryUrls: row.gallery_urls ?? [], 
     instagramHandle: row.instagram_handle, upiId: row.upi_id ?? null,
     membershipType: row.membership_type as JoinMode, membershipFeePaise: row.membership_fee_paise,

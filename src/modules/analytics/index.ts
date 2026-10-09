@@ -6,3 +6,4 @@ export * from "./components/user-analytics-export";
 export * from "./components/analytics-panel";
 export * from "./components/aggregated-analytics";
 export * from "./components/audience-analytics";
+export * from "./components/sales-trend-chart";

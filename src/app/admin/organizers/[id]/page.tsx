@@ -19,7 +19,7 @@ export default async function AdminOrganizerDetailPage({
   const detail = await getAdminOrganizerDetail(id);
   if (!detail) notFound();
 
-  const { organizer: o, owner, events, stats } = detail;
+  const { organizer: o, owner, events, communities, stats } = detail;
   const isPremium = !!o.premiumUntil && new Date(o.premiumUntil).getTime() > Date.now();
 
   return (
@@ -119,6 +119,29 @@ export default async function AdminOrganizerDetailPage({
             </Section>
           ) : null}
         </div>
+
+        {/* Communities */}
+        <Section title={`Communities (${communities.length})`}>
+          {communities.length === 0 ? (
+            <p className="text-sm text-muted">No communities yet.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {communities.map((c) => (
+                <Link
+                  key={c.id}
+                  href={`/communities/${c.id}`}
+                  className="flex items-center justify-between rounded-xl border border-zinc-200 px-3 py-2 text-sm transition-colors hover:border-violet-neon dark:border-white/10"
+                >
+                  <span className="min-w-0 flex-1 truncate font-semibold">{c.name}</span>
+                  <span className="ml-3 flex shrink-0 items-center gap-2 text-xs text-muted">
+                    {c.membershipType} · {c.memberCount} members{c.city ? ` · ${c.city}` : ""}
+                    <ExternalLink className="h-3 w-3" />
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </Section>
 
         {/* Events */}
         <Section title={`Events (${events.length})`}>

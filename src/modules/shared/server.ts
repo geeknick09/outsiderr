@@ -31,6 +31,7 @@ export * from "./data/orders";
 export * from "./data/organizer-profile";
 export * from "./data/organizers";
 export * from "./data/payments";
+export * from "./data/promoters";
 export * from "./data/platform-settings";
 export * from "./data/refunds";
 export * from "./data/profile";

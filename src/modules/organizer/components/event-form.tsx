@@ -123,6 +123,7 @@ export function EventForm({
   draftEvent,
   draftRetentionDays = 60,
   communities = [],
+  bankAccounts = [],
 }: {
   organizerName?: string;
   termsVersion?: string;
@@ -133,6 +134,8 @@ export function EventForm({
   draftRetentionDays?: number;
   /** Organizer's verified communities for the "community event" option. */
   communities?: { id: string; name: string; communityId?: string }[];
+  /** Payout bank accounts — event picks where its payout lands (default = first). */
+  bankAccounts?: { id: string; label: string | null; accountName: string; accountNumber: string; ifsc: string; isDefault: boolean }[];
 }) {
   const [state, formAction, pending] = useActionState<CreateEventState, FormData>(
     createEventAction,
@@ -148,9 +151,6 @@ export function EventForm({
     (draftEvent?.visibility as "OPEN" | "MEMBERS_ONLY" | "INVITE_ONLY" | undefined) ?? "OPEN",
   );
 
-  function stepCls(n: number) {
-    return step === n ? "contents" : "hidden";
-  }
 
   // Map a draft row into the same shape the form restores after a failed submit
   const initialValues = useMemo<CreateEventState["values"] | undefined>(() => {
@@ -203,6 +203,7 @@ export function EventForm({
       linkedinUrl: draftEvent.linkedinUrl ?? "",
       linkedPastEventIds: draftEvent.linkedPastEventIds ?? [],
       maxTicketsPerUser: String(draftEvent.maxTicketsPerUser ?? 5),
+      payoutAccountId: draftEvent.payoutAccountId ?? "",
     };
   }, [draftEvent]);
 
@@ -459,6 +460,15 @@ export function EventForm({
                   </span>
                 </label>
               ))}
+              <label className="flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-zinc-200 p-3 transition-all has-[:checked]:border-violet-neon has-[:checked]:bg-violet-neon/5 dark:border-white/10">
+                <input type="checkbox" name="recurrence" value="WEEKLY" className="h-4 w-4 accent-violet-neon" />
+                <span>
+                  <span className="block text-sm font-bold">Repeats weekly</span>
+                  <span className="text-xs text-muted">
+                    Same time &amp; venue every week — the next occurrence is auto-created after this one ends.
+                  </span>
+                </span>
+              </label>
               <p className="text-[11px] text-muted">
                 Community events don&apos;t support collaborators yet.
               </p>
@@ -840,6 +850,40 @@ export function EventForm({
           </Field>
           <Field label="Contact phone (for attendee queries) *">
             <PhoneInput name="contactPhone" required defaultValue={sv?.contactPhone ?? ""} />
+          </Field>
+        </div>
+
+        {bankAccounts.length > 0 ? (
+          <Field label="Payout bank account (for this event)">
+            <select name="payoutAccountId" defaultValue={sv?.payoutAccountId ?? bankAccounts.find((a) => a.isDefault)?.id ?? bankAccounts[0].id} className={INPUT}>
+              {bankAccounts.map((a) => (
+                <option key={a.id} value={a.id} className={OPTION}>
+                  {(a.label ?? a.accountName) + " · ••••" + a.accountNumber.slice(-4) + " · " + a.ifsc}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : null}
+
+        <Field label="Promoter program (optional)">
+          <select name="promoterMode" defaultValue={sv?.promoterMode ?? "NONE"} className={INPUT}>
+            <option value="NONE" className={OPTION}>None</option>
+            <option value="LINK" className={OPTION}>Share links — promoters earn a % of each sale</option>
+            <option value="PROMO_CODE" className={OPTION}>Promo codes — buyer discount + promoter commission</option>
+          </select>
+        </Field>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field label="Link commission %">
+            <input name="promoterCommissionBps" type="number" min={5} max={30} step={0.5}
+              defaultValue={String(Number(sv?.promoterCommissionBps ?? 1000) / 100)} className={INPUT} />
+          </Field>
+          <Field label="Buyer discount % (code mode)">
+            <input name="promoBuyerDiscountBps" type="number" min={0} max={15} step={0.5}
+              defaultValue={String(Number(sv?.promoBuyerDiscountBps ?? 500) / 100)} className={INPUT} />
+          </Field>
+          <Field label="Promoter % (code mode)">
+            <input name="promoPromoterBps" type="number" min={0} max={15} step={0.5}
+              defaultValue={String(Number(sv?.promoPromoterBps ?? 500) / 100)} className={INPUT} />
           </Field>
         </div>
 

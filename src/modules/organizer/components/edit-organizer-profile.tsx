@@ -5,6 +5,8 @@ import { Check, Loader2, Paperclip, Upload, X } from "lucide-react";
 
 import { updateOrganizerAction, type UpdateOrganizerState } from "../actions/organizer";
 import { Button } from "@/modules/shared";
+import { BankAccountsPanel } from "./bank-accounts-panel";
+import type { BankAccount } from "../actions/bank-accounts";
 import { ImageUploadWithCrop } from "@/modules/shared";
 import { QrCode } from "@/modules/shared";
 import { uploadPublicFile, compressImage } from "@/modules/shared";
@@ -21,6 +23,7 @@ export function EditOrganizerProfile({
   organizer: Organizer;
   onClose: () => void;
 }) {
+  const [initialAccounts] = useState<BankAccount[]>(organizer.bankAccounts ?? []);
   const [state, formAction, pending] = useActionState<UpdateOrganizerState, FormData>(
     updateOrganizerAction,
     { error: null },
@@ -473,6 +476,9 @@ export function EditOrganizerProfile({
             </Button>
           </div>
         </form>
+        <div className="border-t border-zinc-200 px-6 py-4 dark:border-white/10">
+          <BankAccountsPanel accounts={initialAccounts} />
+        </div>
       </div>
     </div>
   );

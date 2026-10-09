@@ -9,6 +9,8 @@ import type { Order, ScanResult, Ticket } from "../lib/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export interface CreateFreeOrderInput {
+  promoterSlug?: string | null;
+  promoCode?: string | null;
   eventId: string;
   tierId: string;
   quantity: number;
@@ -34,6 +36,8 @@ export interface CreateReservedOrderInput {
   inviteToken?: string | null;
   /** Double-click/retry safety - replays return the same order. */
   idempotencyKey?: string | null;
+  promoterSlug?: string | null;
+  promoCode?: string | null;
 }
 
 /**
@@ -557,6 +561,8 @@ export async function createReservedOrder(
     p_buyer_email: input.buyerEmail || null,
     p_buyer_gender: input.buyerGender || null,
     p_invite_token: input.inviteToken || null,
+    p_promoter_slug: input.promoterSlug || null,
+    p_promo_code: input.promoCode || null,
   });
 
   if (error) throw new Error(error.message || "Failed to reserve tickets.");

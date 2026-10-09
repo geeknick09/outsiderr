@@ -11,10 +11,9 @@ import {
   setJoinQuestions,
   type CreateCommunityInput,
 } from "../data/communities";
-import { getOrganizerProfile } from "../data/organizer-profile";
 import { createClient } from "../auth/server";
 import { createServiceClient } from "../auth/service";
-import { City, CommunityType, JoinMode } from "../lib/types";
+import { CommunityType, JoinMode } from "../lib/types";
 import { normalizeCityKey } from "../lib/india-cities";
 
 export interface CreateCommunityState {
@@ -28,8 +27,6 @@ export async function createCommunityAction(
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=%2Fcommunities%2Fcreate");
 
-  const organizer = await getOrganizerProfile(user);
-  if (!organizer) return { error: "Only organizers can create a community." };
 
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { error: "Give your community a name." };
@@ -53,6 +50,7 @@ export async function createCommunityAction(
   const input: CreateCommunityInput = {
     name,
     bio: String(formData.get("bio") ?? "").trim(),
+    category: String(formData.get("category") ?? "").trim() || null,
     type: String(formData.get("type") ?? "CLUB") as CommunityType,
     city: String(formData.get("city") ?? "").trim()
       ? normalizeCityKey(String(formData.get("city")))

@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { CategoryFilter } from "@/modules/web";
 import { EventSearch } from "@/modules/web";
+import { JoinCommunitySection } from "@/modules/web";
 import { EventSection } from "@/modules/web";
 import { FeaturedCarousel } from "@/modules/web";
 import { HeroCarousel } from "@/modules/web";
@@ -133,6 +134,9 @@ export default async function DiscoveryPage({
         <>
       {/* Hero Boost carousel - only shown in "All" view (no category filter) */}
       {!category && heroEvents.length > 0 ? <HeroCarousel events={heroEvents} /> : null}
+
+      {/* Community discovery chips */}
+      {!category && !search ? <JoinCommunitySection /> : null}
 
       {/* Your Events Today - only for logged-in users with events today */}
       {myEventsToday.length > 0 ? (

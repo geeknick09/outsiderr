@@ -50,6 +50,11 @@ export interface CreateEventState {
     linkedinUrl: string;
     linkedPastEventIds: string[];
     maxTicketsPerUser: string;
+    payoutAccountId?: string;
+    promoterMode?: string;
+    promoterCommissionBps?: string;
+    promoBuyerDiscountBps?: string;
+    promoPromoterBps?: string;
   };
 }
 
@@ -135,6 +140,11 @@ function extractFormValues(formData: FormData): CreateEventState["values"] {
     linkedinUrl: String(formData.get("linkedinUrl") ?? ""),
     linkedPastEventIds: formData.getAll("linkedPastEventIds").map(String).filter(Boolean),
     maxTicketsPerUser: String(formData.get("maxTicketsPerUser") ?? ""),
+    payoutAccountId: String(formData.get("payoutAccountId") ?? ""),
+    promoterMode: String(formData.get("promoterMode") ?? "NONE"),
+    promoterCommissionBps: String(formData.get("promoterCommissionBps") ?? ""),
+    promoBuyerDiscountBps: String(formData.get("promoBuyerDiscountBps") ?? ""),
+    promoPromoterBps: String(formData.get("promoPromoterBps") ?? ""),
   };
 }
 
@@ -479,6 +489,13 @@ export async function createEventAction(
       communityId: communityId,
       visibility: visibility,
       inviteToken: inviteToken,
+      payoutAccountId: String(formData.get("payoutAccountId") ?? "").trim() || null,
+      recurrence: communityId && formData.get("recurrence") === "WEEKLY" ? "WEEKLY" : null,
+      promoterMode: (["LINK", "PROMO_CODE"].includes(String(formData.get("promoterMode")))
+        ? String(formData.get("promoterMode")) : "NONE") as "NONE" | "LINK" | "PROMO_CODE",
+      promoterCommissionBps: Math.min(3000, Math.max(500, Math.round(Number(formData.get("promoterCommissionBps") ?? 10) * 100) || 1000)),
+      promoBuyerDiscountBps: Math.min(1500, Math.max(0, Math.round(Number(formData.get("promoBuyerDiscountBps") ?? 5) * 100) || 0)),
+      promoPromoterBps: Math.min(1500, Math.max(0, Math.round(Number(formData.get("promoPromoterBps") ?? 5) * 100) || 0)),
       status: isDraft ? "DRAFT" : "PUBLISHED",
     });
     }

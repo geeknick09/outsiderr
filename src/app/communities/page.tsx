@@ -6,8 +6,7 @@ import { AtSign, Clock, MapPin, Users } from "lucide-react";
 import { Badge } from "@/modules/shared";
 import { getCurrentUser } from "@/modules/shared/server";
 import { listCommunities } from "@/modules/shared/server";
-import { getOrganizerProfile } from "@/modules/shared/server";
-import { CITIES, cityLabel } from "@/modules/shared";
+import { CITIES, COMMUNITY_CATEGORIES, cityLabel } from "@/modules/shared";
 import { cn } from "@/modules/shared";
 import type { City, CommunityType, JoinMode } from "@/modules/shared";
 
@@ -32,16 +31,14 @@ const MEMBERSHIP_TONE: Record<JoinMode, "success" | "warning" | "neutral"> = {
   INVITE_ONLY: "neutral",
 };
 
-export default async function ClubsPage({
+export default async function CommunitiesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ city?: string; submitted?: string }>;
+  searchParams: Promise<{ city?: string; category?: string; submitted?: string }>;
 }) {
-  const { city, submitted } = await searchParams;
+  const { city, category, submitted } = await searchParams;
   const cityFilter = city && city !== "ALL" ? (city as City) : undefined;
   const [communities, user] = await Promise.all([listCommunities(cityFilter), getCurrentUser()]);
-  const organizer = user ? await getOrganizerProfile(user) : null;
-  const isOrganizer = !!organizer;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 py-6">
@@ -52,7 +49,7 @@ export default async function ClubsPage({
             Join a community. Run together, skate together, rap together.
           </p>
         </div>
-        {isOrganizer ? (
+        {user ? (
           <Link
             href="/communities/create"
             className="flex shrink-0 items-center gap-1.5 rounded-full bg-neon-gradient px-4 py-2 text-sm font-bold text-white transition-opacity hover:opacity-90"
@@ -63,15 +60,25 @@ export default async function ClubsPage({
         ) : null}
       </div>
 
-      {/* Submission success banner */}
       {submitted === "1" ? (
         <div className="flex items-center gap-2.5 rounded-2xl bg-lime-400/15 px-4 py-3 text-sm text-lime-600 dark:text-lime-400">
           <Clock className="h-4 w-4 shrink-0" />
-          <span>
-            Your community has been submitted! It will appear here once the Outsiderr team approves it (usually within 24-48 hours).
-          </span>
+          <span>Your community is live — share it with your people.</span>
         </div>
       ) : null}
+
+      {/* Category filter */}
+      <div className="flex flex-wrap gap-2">
+        <CityChip href={`/communities${cityFilter ? `?city=${cityFilter}` : ""}`} active={!category} label="All" />
+        {COMMUNITY_CATEGORIES.map((c) => (
+          <CityChip
+            key={c.value}
+            href={`/communities?category=${c.value}${cityFilter ? `&city=${cityFilter}` : ""}`}
+            active={category === c.value}
+            label={c.label}
+          />
+        ))}
+      </div>
 
       {/* City filter */}
       <div className="flex flex-wrap gap-2">
@@ -90,7 +97,7 @@ export default async function ClubsPage({
       {communities.length === 0 ? (
         <div className="glass rounded-3xl p-8 text-center">
           <p className="text-sm text-muted">No communities or crews here yet.</p>
-          {isOrganizer ? (
+          {user ? (
             <Link
               href="/communities/create"
               className="mt-3 inline-block text-sm font-semibold text-violet-neon underline-offset-2 hover:underline"
@@ -101,7 +108,9 @@ export default async function ClubsPage({
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {communities.map((community) => (
+          {communities
+            .filter((c) => !category || c.category === category)
+            .map((community) => (
             <Link
               key={community.id}
               href={`/communities/${community.id}`}

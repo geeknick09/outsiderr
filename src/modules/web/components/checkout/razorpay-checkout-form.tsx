@@ -31,6 +31,7 @@ export function RazorpayCheckoutForm({
   defaultEmail,
   defaultGender,
   totalRupees,
+  showPromoCode = false,
 }: {
   eventId: string;
   inviteToken?: string | null;
@@ -41,6 +42,8 @@ export function RazorpayCheckoutForm({
   defaultEmail: string;
   defaultGender: string;
   totalRupees: string;
+  /** Event opted into PROMO_CODE mode — show the code field. */
+  showPromoCode?: boolean;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -164,6 +167,15 @@ export function RazorpayCheckoutForm({
           </select>
         </label>
       </div>
+
+      {showPromoCode ? (
+        <label className="block space-y-1.5">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+            Promo code <span className="normal-case text-zinc-400">(optional)</span>
+          </span>
+          <input name="promoCode" placeholder="Promoter's code" autoComplete="off" className={INPUT} />
+        </label>
+      ) : null}
 
       {error ? <p className="text-sm text-red-500">{error}</p> : null}
 

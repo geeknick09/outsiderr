@@ -41,3 +41,6 @@ export * from "./components/tickets/tickets-realtime-wrapper";
 export { CommunityFollowButton } from "./components/community-follow-button";
 export { JoinCommunityForm } from "./components/join-community-form";
 export { FollowingSection } from "./components/profile/following-section";
+export * from "./components/community/join-community-section";
+export * from "./components/promoter/promote-button";
+export * from "./components/promoter/promoter-dashboard";

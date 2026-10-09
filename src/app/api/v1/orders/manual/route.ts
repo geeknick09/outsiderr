@@ -14,7 +14,9 @@ const bodySchema = z.object({
   buyerName: z.string().max(200).optional().nullable(),
   buyerPhone: z.string().max(20).optional().nullable(),
   buyerEmail: z.string().email().max(200).optional().nullable(),
-  buyerGender: z.string().max(50).optional().nullable(),
+  inviteToken: z.string().max(64).optional().nullable(),
+  promoterSlug: z.string().max(32).optional().nullable(),
+  promoCode: z.string().max(32).optional().nullable(),
   utrReference: z.string().max(100).optional().nullable(),
 });
 

@@ -116,6 +116,16 @@ export interface Organizer {
   bankAccountName?: string | null;
   bankAccountType?: string | null;
   bankDocumentUrl?: string | null;
+  /** Saved payout bank accounts (organizer_bank_accounts). */
+  bankAccounts?: {
+    id: string;
+    label: string | null;
+    accountName: string;
+    accountNumber: string;
+    ifsc: string;
+    accountType: string | null;
+    isDefault: boolean;
+  }[];
   /** Staged KYC/payout edits awaiting admin re-verification (column → new value). */
   pendingKyc?: Record<string, string | null> | null;
   rejectionCount?: number;
@@ -206,7 +216,12 @@ export interface EventDetail extends EventSummary {
   terms: string[];
   organizer: Organizer;
   communityId?: string | null;
+  payoutAccountId?: string | null;
   visibility?: "OPEN" | "MEMBERS_ONLY" | "INVITE_ONLY";
+  promoterMode?: "NONE" | "LINK" | "PROMO_CODE";
+  promoterCommissionBps?: number;
+  promoBuyerDiscountBps?: number;
+  promoPromoterBps?: number;
   community?: { id: string; name: string; avatarUrl: string | null; membershipType: JoinMode } | null;
   tiers: TicketTier[];
   photoUrls: string[];
@@ -369,6 +384,7 @@ export interface EventAnalytics {
   netPayoutPaise: number;          // what organizer receives = subtotal - commission
   checkIns: number;
   waitlistCount: number;
+  salesByDay: { date: string; orders: number; tickets: number; revenuePaise: number }[];
   tierBreakdown: TierAnalytics[];
 }
 
@@ -461,6 +477,7 @@ export interface Community {
   name: string;
   bio: string | null;
   type: CommunityType;
+  category: string | null;
   city: City | null;
   avatarUrl: string | null;
   coverUrl: string | null;
@@ -605,3 +622,41 @@ export interface CheckoutSession {
   /** Reservation expiry - Razorpay checkout/retry can't outlast this. */
   expiresAt?: string | null;
 }
+
+// ── Promoter program ────────────────────────────────────────────────────────
+export type PromoterEarningView = {
+  id: string;
+  eventTitle: string;
+  via: string;
+  kind: "EARNING" | "CLAWBACK";
+  amountPaise: number;
+  status: string;
+  createdAt: string;
+};
+
+export type PromoterDashboard = {
+  isPromoter: boolean;
+  payoutReady: boolean;
+  payouts: { id: string; amountPaise: number; status: string; initiatedAt: string }[];
+  balances: {
+    clicks: number;
+    redemptions: number;
+    earnedPaise: number;
+    payablePaise: number;
+    paidPaise: number;
+    clawedPaise: number;
+  };
+  programs: {
+    eventId: string;
+    eventTitle: string;
+    mode: "LINK" | "PROMO_CODE";
+    slug?: string;
+    code?: string;
+    clicks: number;
+    salesPaise: number;
+    earnedPaise: number;
+  }[];
+  earnings: PromoterEarningView[];
+  hasPayoutDetails: boolean;
+  masked: { account: string | null; ifsc: string | null; pan: string | null; upi: string | null };
+};

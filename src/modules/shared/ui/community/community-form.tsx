@@ -5,8 +5,9 @@ import { AtSign, Plus, Upload } from "lucide-react";
 
 import { createCommunityAction, type CreateCommunityState } from "../../actions/communities";
 import { Button } from "../ui/button";
-import { CITIES } from "../../lib/constants";
+import { CITIES, COMMUNITY_CATEGORIES } from "../../lib/constants";
 import { uploadPublicFile } from "../../lib/upload";
+import { ImageUploadWithCrop } from "../ui/image-cropper";
 
 const INPUT =
   "w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white";
@@ -73,16 +74,17 @@ export function CommunityForm() {
               <p className="text-xs text-muted">No cover photo</p>
             </div>
           )}
-          <label className="absolute bottom-2 right-2 flex cursor-pointer items-center gap-1.5 rounded-xl bg-black/60 px-3 py-1.5 text-xs text-white backdrop-blur hover:bg-black/80">
-            <Upload className="h-3.5 w-3.5" />
-            {uploadingCover ? "Uploading…" : coverUrl ? "Change" : "Upload"}
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => void handleUpload(e.target.files?.[0], "cover")}
-            />
-          </label>
+          <ImageUploadWithCrop
+            aspect={16 / 9}
+            onCropped={(f) => void handleUpload(f, "cover")}
+            className="absolute bottom-2 right-2 flex cursor-pointer items-center gap-1.5 rounded-xl bg-black/60 px-3 py-1.5 text-xs text-white backdrop-blur hover:bg-black/80"
+            label={
+              <>
+                <Upload className="h-3.5 w-3.5" />
+                {uploadingCover ? "Uploading…" : coverUrl ? "Change" : "Upload"}
+              </>
+            }
+          />
         </div>
         <input type="hidden" name="coverUrl" value={coverUrl} />
       </div>
@@ -99,27 +101,31 @@ export function CommunityForm() {
               No photo
             </div>
           )}
-          <label className="flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-3 text-sm text-muted hover:border-violet-neon dark:border-white/15">
-            <Upload className="h-4 w-4" />
-            {uploadingAvatar ? "Uploading…" : avatarUrl ? "Change" : "Upload"}
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => void handleUpload(e.target.files?.[0], "avatar")}
-            />
-          </label>
+          <ImageUploadWithCrop
+            aspect={1}
+            onCropped={(f) => void handleUpload(f, "avatar")}
+            className="flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-3 text-sm text-muted hover:border-violet-neon dark:border-white/15"
+            label={
+              <>
+                <Upload className="h-4 w-4" />
+                {uploadingAvatar ? "Uploading…" : avatarUrl ? "Change" : "Upload"}
+              </>
+            }
+          />
         </div>
         <input type="hidden" name="avatarUrl" value={avatarUrl} />
         {uploadError ? <p className="text-xs text-amber-500">{uploadError}</p> : null}
       </div>
 
+      <input type="hidden" name="type" value="CLUB" />
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block space-y-1.5">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted">Type</span>
-          <select name="type" className={INPUT} defaultValue="CLUB">
-            <option value="CLUB" className={OPTION}>Community (open community)</option>
-            <option value="CREW" className={OPTION}>Crew (audition / invite)</option>
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted">Category *</span>
+          <select name="category" required className={INPUT} defaultValue="">
+            <option value="" disabled className={OPTION}>Pick what this community is about</option>
+            {COMMUNITY_CATEGORIES.map((c) => (
+              <option key={c.value} value={c.value} className={OPTION}>{c.label}</option>
+            ))}
           </select>
         </label>
         <label className="block space-y-1.5">

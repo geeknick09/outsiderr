@@ -31,6 +31,10 @@ export interface CheckoutInput {
   utrReference?: string | null;
   /** INVITE_ONLY community events: the ?invite= token from the shared link. */
   inviteToken?: string | null;
+  /** Promoter link slug (oc_promo cookie). */
+  promoterSlug?: string | null;
+  /** Typed promo code — beats the link cookie. */
+  promoCode?: string | null;
 }
 
 function validPhoneOrError(phone: string | null | undefined): string | null {
@@ -96,6 +100,8 @@ export async function runManualCheckout(
     buyerEmail: input.buyerEmail?.trim() || null,
     buyerGender: input.buyerGender?.trim() || null,
     inviteToken: input.inviteToken ?? null,
+    promoterSlug: input.promoterSlug ?? null,
+    promoCode: input.promoCode ?? null,
   };
 
   let orderId: string | undefined;
@@ -144,6 +150,8 @@ export async function runCheckout(
     buyerGender,
     idempotencyKey: input.utrReference ?? null, // reuses the slot as a client idempotency key
     inviteToken: input.inviteToken ?? null,
+    promoterSlug: input.promoterSlug ?? null,
+    promoCode: input.promoCode ?? null,
   });
   if (error || !result?.session) return { error: error ?? "Could not start payment." };
 
