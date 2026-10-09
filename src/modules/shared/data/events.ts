@@ -15,6 +15,7 @@ import type {
   EventCategory,
   EventDetail,
   EventSummary,
+  JoinMode,
   Organizer,
   PricingMode,
   TicketTier,
@@ -67,6 +68,7 @@ function toTier(row: TicketTierRow): TicketTier {
     quantityReserved: (row as { quantity_reserved?: number }).quantity_reserved ?? 0,
     perks: row.perks ?? [],
     sortOrder: row.sort_order,
+    admits: (row as { admits?: number }).admits ?? 1,
     tierType: ((row as { tier_type?: string }).tier_type as TierType) ?? "NAMED",
     phaseOrder: (row as { phase_order?: number | null }).phase_order ?? null,
     phaseOpensAt: (row as { phase_opens_at?: string | null }).phase_opens_at ?? null,
@@ -106,6 +108,7 @@ function toDetail(
   row: EventRow,
   organizer: Organizer,
   tiers: TicketTier[],
+  community?: { id: string; name: string; avatar_url: string | null; membership_type: string } | null,
 ): EventDetail {
   return {
     ...toSummary(row, tiers),
@@ -137,6 +140,16 @@ function toDetail(
     facebookUrl: (row as { facebook_url?: string | null }).facebook_url ?? null,
     linkedinUrl: (row as { linkedin_url?: string | null }).linkedin_url ?? null,
     linkedPastEventIds: (row as { linked_past_event_ids?: string[] }).linked_past_event_ids ?? [],
+    communityId: (row as { community_id?: string | null }).community_id ?? null,
+    visibility: ((row as { visibility?: string }).visibility ?? "OPEN") as EventDetail["visibility"],
+    community: community
+      ? {
+          id: community.id,
+          name: community.name,
+          avatarUrl: community.avatar_url,
+          membershipType: community.membership_type as JoinMode,
+        }
+      : null,
   };
 }
 
@@ -148,6 +161,7 @@ export async function listEvents(query: EventQuery = {}): Promise<EventSummary[]
     .from("events")
     .select("*")
     .in("status", ["PUBLISHED", "POSTPONED"])
+    .neq("visibility", "INVITE_ONLY")
     .order("starts_at", { ascending: true });
 
   if (query.city) request = request.eq("city", query.city);
@@ -217,7 +231,8 @@ export async function getEvent(id: string): Promise<EventDetail | null> {
     .maybeSingle();
   if (!event) return null;
 
-  const [{ data: organizer }, { data: tiers }] = await Promise.all([
+  const communityId = (event as { community_id?: string | null }).community_id ?? null;
+  const [{ data: organizer }, { data: tiers }, { data: community }] = await Promise.all([
     // Public read path → sanitized view (base organizers table is owner/admin only)
     supabase.from("organizers_public").select("*").eq("id", event.organizer_id).maybeSingle(),
     supabase
@@ -225,11 +240,18 @@ export async function getEvent(id: string): Promise<EventDetail | null> {
       .select("*")
       .eq("event_id", event.id)
       .order("sort_order", { ascending: true }),
+    communityId
+      ? supabase
+          .from("communities")
+          .select("id, name, avatar_url, membership_type")
+          .eq("id", communityId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   if (!organizer) return null;
 
-  return toDetail(event, toOrganizer(organizer), (tiers ?? []).map(toTier));
+  return toDetail(event, toOrganizer(organizer), (tiers ?? []).map(toTier), community);
 }
 
 /**

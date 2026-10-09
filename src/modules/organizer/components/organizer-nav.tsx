@@ -7,14 +7,14 @@ const ITEMS: { href: string; label: string; exact?: boolean }[] = [
   { href: "/organizer", label: "My Events", exact: true },
   { href: "/organizer/create", label: "Create Event" },
   { href: "/organizer/analytics", label: "Analytics" },
-  { href: "/organizer/clubs", label: "Clubs" },
+  { href: "/organizer/communities", label: "Communities" },
   { href: "/organizer/payments", label: "Payments" },
   { href: "/organizer/refunds", label: "Refunds" },
 ];
 
 /**
  * Dashboard-level tab bar. Rendered by the /organizer layout so it stays
- * visible on every organizer page (create, analytics, clubs, payments,
+ * visible on every organizer page (create, analytics, communities, payments,
  * refunds). Hidden on manage/scan/box-office which have their own chrome.
  */
 export function OrganizerNav() {

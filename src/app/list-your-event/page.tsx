@@ -46,7 +46,7 @@ export default async function ListYourEventPage() {
             <span className="bg-neon-gradient bg-clip-text text-transparent">Outsiderr</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-base text-muted sm:text-lg">
-            Cyphers, battles, skate comps, run clubs, jams, workshops - if it&apos;s happening
+            Cyphers, battles, skate comps, run communities, jams, workshops - if it&apos;s happening
             outside the mainstream, it belongs here. Reach the communities that matter.
           </p>
           {blocked ? (
@@ -208,7 +208,7 @@ export default async function ListYourEventPage() {
               "Skateboard comps",
               "MTB & stunt events",
               "BMX jams",
-              "Run clubs & marathons",
+              "Run communities & marathons",
               "Walkathons",
               "Underground gigs & jams",
               "DJ sets & open decks",

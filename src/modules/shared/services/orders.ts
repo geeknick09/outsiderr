@@ -29,6 +29,8 @@ export interface CheckoutInput {
   buyerEmail?: string | null;
   buyerGender?: string | null;
   utrReference?: string | null;
+  /** INVITE_ONLY community events: the ?invite= token from the shared link. */
+  inviteToken?: string | null;
 }
 
 function validPhoneOrError(phone: string | null | undefined): string | null {
@@ -93,6 +95,7 @@ export async function runManualCheckout(
     buyerPhone: input.buyerPhone?.trim() || (user.phone ?? ""),
     buyerEmail: input.buyerEmail?.trim() || null,
     buyerGender: input.buyerGender?.trim() || null,
+    inviteToken: input.inviteToken ?? null,
   };
 
   let orderId: string | undefined;
@@ -140,6 +143,7 @@ export async function runCheckout(
     buyerEmail,
     buyerGender,
     idempotencyKey: input.utrReference ?? null, // reuses the slot as a client idempotency key
+    inviteToken: input.inviteToken ?? null,
   });
   if (error || !result?.session) return { error: error ?? "Could not start payment." };
 

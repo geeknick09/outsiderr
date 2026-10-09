@@ -373,16 +373,35 @@ Updates organizer profile (UPI ID, QR URL, bio, social links).
 
 ---
 
-### Clubs (`src/actions/clubs.ts`)
+### Communities (`src/modules/shared/actions/communities.ts`)
 
-#### `createClubAction(prevState, formData)`
-Creates a club (requires admin approval).
+#### `createCommunityAction(prevState, formData)`
+Creates a community (PUBLIC / PRIVATE / INVITE) with join questions, cover/avatar/gallery, city, bio, T&C.
 
-#### `joinClubAction(clubId)`
-User requests to join a club.
+#### `joinCommunityAction(communityId, { answers?, inviteToken?, refCode? })`
+Joins per membership type: PUBLIC → instant; PRIVATE → pending + answers; INVITE → invite-token gated. Referral `refCode` is attributed either way.
 
-#### `acceptMemberAction(memberId, clubId)` / `rejectMemberAction(memberId, clubId)`
-Club admin accepts or rejects a join request.
+#### `followCommunityAction(id)` / `unfollowCommunityAction(id)`
+Community follows — notify on that community's events only (organizer follows notify on all). Both roll into the organizer's follower count via union.
+
+#### `setMemberStatusAction(memberId, communityId, "ACCEPTED"|"REJECTED"|"REMOVED")`
+Owner manages membership (private-community requests + member removal).
+
+#### `requestMemberImportAction(communityId, filename, csv)` → stages rows as REQUESTED.
+#### `adminApproveImportAction(importId)` / `adminRejectImportAction(importId, note?)`
+Admin approves → `review_member_import` bumps member_count; `link_imported_members` binds rows to real profiles on phone/email match (including future signups via profile trigger).
+
+#### `sendOutreachBlastAction(entityType, entityId, message, userIds)`
+One-click in-app blast to funnel lists (viewed-not-joined / viewed-not-bought). `send_outreach_blast` RPC does the batched insert.
+
+#### `addGuestEntryAction(eventId, name, phone?, email?)` → free ticket + `/guest/[qr_hash]` link.
+Capped at 10/event; order_source=GUESTLIST; zero ledger rows.
+
+#### `logPageViewAction("COMMUNITY"|"EVENT", entityId)` — dedupe per user/entity/day.
+
+### Events — community fields
+
+`createEvent` accepts `communityId`, `visibility` (`OPEN`/`MEMBERS_ONLY`/`INVITE_ONLY`), `inviteToken` (server-generated for INVITE_ONLY). Community ownership is checked server-side. `create_reserved_order` / `create_free_order` enforce: MEMBERS_ONLY requires an ACCEPTED `community_members` row; INVITE_ONLY requires the token (or membership). Group tickets: `ticket_tiers.admits` (1–20) — one unit mints `admits` tickets; `registrations_count` counts people.
 
 ---
 
@@ -536,7 +555,7 @@ Supabase Auth with:
 | Role | Access |
 |------|--------|
 | **Anonymous** | Discovery feed, event details, legal pages |
-| **Authenticated user** | Checkout, tickets, profile, clubs, waitlist, notifications |
+| **Authenticated user** | Checkout, tickets, profile, communities, waitlist, notifications |
 | **Organizer** | Everything a user can do + event creation, event management, verification queue, QR scanner, analytics, reports |
 | **Door staff** | QR scanner only (`/scan` and `/organizer/events/[id]/scan`) |
 | **Admin** | Everything + admin dashboard, all events, all orders, refunds, payouts, fee overrides, user management, platform settings |

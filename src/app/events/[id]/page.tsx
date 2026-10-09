@@ -48,10 +48,13 @@ export async function generateMetadata({
 
 export default async function EventDetailsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ invite?: string }>;
 }) {
   const { id } = await params;
+  const { invite } = await searchParams;
   const [event, user] = await Promise.all([getEvent(id), getCurrentUser()]);
   if (!event) notFound();
 
@@ -74,6 +77,40 @@ export default async function EventDetailsPage({
 
   const banner = event.bannerPosterUrl ?? event.cardPosterUrl;
   const cardPoster = event.cardPosterUrl ?? event.bannerPosterUrl;
+
+  // ── Community event gating ──────────────────────────────────────────
+  const isCommunityEvent = !!event.communityId;
+  let isCommunityMember = false;
+  let inviteValid = false;
+  if (isCommunityEvent && user) {
+    const supabase = await createClient();
+    const { data: mem } = await supabase
+      .from("community_members")
+      .select("id")
+      .eq("community_id", event.communityId!)
+      .eq("user_id", user.id)
+      .eq("status", "ACCEPTED")
+      .maybeSingle();
+    isCommunityMember = !!mem;
+    if (event.visibility === "INVITE_ONLY") {
+      const { data: evRow } = await supabase
+        .from("events")
+        .select("invite_token")
+        .eq("id", event.id)
+        .maybeSingle();
+      inviteValid = !!invite && evRow?.invite_token === invite;
+    }
+  }
+  const isOwnerOrAdmin = user && event.organizer.ownerId === user.id;
+  // INVITE_ONLY events are hidden unless you have the link token (or you're a member/owner).
+  if (event.visibility === "INVITE_ONLY" && !inviteValid && !isCommunityMember && !isOwnerOrAdmin) {
+    notFound();
+  }
+  // Log the view (logged-in users only, for the funnel analytics)
+  if (user && !isOwnerOrAdmin) {
+    const { logPageViewAction } = await import("@/modules/shared/actions/communities");
+    void logPageViewAction("EVENT", event.id);
+  }
 
   // Waitlist data for sold-out tiers (passed to TicketTiers so it can show
   // "On waitlist" state and waitlist counts)
@@ -298,6 +335,54 @@ export default async function EventDetailsPage({
                   </li>
                 ))}
               </ul>
+            </section>
+          ) : null}
+
+          {event.community ? (
+            <section className="glass rounded-3xl border-2 border-violet-neon/30 p-5">
+              <h2 className="mb-3 text-xs font-bold uppercase tracking-wide text-violet-neon">
+                A community event by
+              </h2>
+              <Link
+                href={`/communities/${event.community.id}`}
+                className="flex items-center gap-4 hover:opacity-80"
+              >
+                {event.community.avatarUrl ? (
+                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl">
+                    <Image
+                      src={event.community.avatarUrl}
+                      alt={event.community.name}
+                      fill
+                      sizes="56px"
+                      className="object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-neon-gradient text-lg font-black text-white">
+                    {event.community.name.slice(0, 1)}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold">{event.community.name}</p>
+                  <p className="mt-0.5 text-xs text-muted">
+                    {event.community.membershipType === "PRIVATE"
+                      ? "Private community — request to join"
+                      : event.community.membershipType === "INVITE_ONLY"
+                      ? "Invite-only community"
+                      : "Open community"}
+                  </p>
+                </div>
+                <Badge tone="violet">{event.visibility === "MEMBERS_ONLY" ? "Members only" : event.visibility === "INVITE_ONLY" ? "Invite only" : "Community"}</Badge>
+              </Link>
+              {event.visibility === "MEMBERS_ONLY" && !isCommunityMember && !isOwnerOrAdmin ? (
+                <p className="mt-3 rounded-2xl bg-amber-500/10 px-4 py-3 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                  Not a member?{" "}
+                  <Link href={`/communities/${event.community.id}`} className="underline">
+                    Join {event.community.name}
+                  </Link>{" "}
+                  to unlock booking — before tickets run out.
+                </p>
+              ) : null}
             </section>
           ) : null}
 
@@ -538,7 +623,28 @@ export default async function EventDetailsPage({
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-          <TicketTiers event={event} waitlistData={waitlistData} waitlistEnabled={event.waitlistEnabled} ticketsHeld={ticketsHeld} />
+          {event.visibility === "MEMBERS_ONLY" && !isCommunityMember && !isOwnerOrAdmin ? (
+            <section className="glass rounded-3xl p-5 text-center">
+              <p className="text-sm font-bold">Members only</p>
+              <p className="mt-1 text-xs text-muted">
+                Tickets for this event are reserved for members of {event.community?.name}.
+              </p>
+              <Link
+                href={`/communities/${event.communityId}`}
+                className="mt-3 inline-block rounded-full bg-neon-gradient px-5 py-2 text-sm font-bold text-white"
+              >
+                Join the community
+              </Link>
+            </section>
+          ) : (
+            <TicketTiers
+              event={event}
+              waitlistData={waitlistData}
+              waitlistEnabled={event.waitlistEnabled}
+              ticketsHeld={ticketsHeld}
+              inviteToken={inviteValid ? invite! : null}
+            />
+          )}
 
           {/* Update Me button - only for logged-in non-ticket-holders */}
           {user && !eventEnded ? <UpdateMeButton eventId={event.id} isSubscribed={isSubscribed} /> : null}

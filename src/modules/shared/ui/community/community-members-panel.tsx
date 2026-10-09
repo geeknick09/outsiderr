@@ -3,16 +3,16 @@
 import { useTransition } from "react";
 import { AtSign, Check, Loader2, X } from "lucide-react";
 
-import { acceptMemberAction, rejectMemberAction } from "../../actions/clubs";
+import { acceptMemberAction, rejectMemberAction } from "../../actions/communities";
 import { Badge } from "../ui/badge";
-import { Club, ClubMember } from "../../lib/types";
+import { Community, CommunityMember } from "../../lib/types";
 
-export function ClubMembersPanel({
-  club,
+export function CommunityMembersPanel({
+  community,
   members,
 }: {
-  club: Club;
-  members: ClubMember[];
+  community: Community;
+  members: CommunityMember[];
 }) {
   const pending = members.filter((m) => m.status === "PENDING");
   const accepted = members.filter((m) => m.status === "ACCEPTED");
@@ -21,7 +21,7 @@ export function ClubMembersPanel({
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <h3 className="text-base font-bold">{club.name}</h3>
+        <h3 className="text-base font-bold">{community.name}</h3>
         <Badge tone="neutral">{accepted.length} members</Badge>
         {pending.length > 0 ? <Badge tone="warning">{pending.length} pending</Badge> : null}
       </div>
@@ -33,7 +33,7 @@ export function ClubMembersPanel({
             Pending requests
           </h4>
           {pending.map((member) => (
-            <MemberRow key={member.id} member={member} clubId={club.id} showActions />
+            <MemberRow key={member.id} member={member} communityId={community.id} showActions />
           ))}
         </section>
       ) : null}
@@ -45,7 +45,7 @@ export function ClubMembersPanel({
             Members
           </h4>
           {accepted.map((member) => (
-            <MemberRow key={member.id} member={member} clubId={club.id} />
+            <MemberRow key={member.id} member={member} communityId={community.id} />
           ))}
         </section>
       ) : null}
@@ -57,7 +57,7 @@ export function ClubMembersPanel({
             Rejected
           </h4>
           {rejected.map((member) => (
-            <MemberRow key={member.id} member={member} clubId={club.id} />
+            <MemberRow key={member.id} member={member} communityId={community.id} />
           ))}
         </section>
       ) : null}
@@ -71,11 +71,11 @@ export function ClubMembersPanel({
 
 function MemberRow({
   member,
-  clubId,
+  communityId,
   showActions,
 }: {
-  member: ClubMember;
-  clubId: string;
+  member: CommunityMember;
+  communityId: string;
   showActions?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
@@ -105,7 +105,7 @@ function MemberRow({
           <button
             type="button"
             disabled={pending}
-            onClick={() => startTransition(async () => { await acceptMemberAction(member.id, clubId); })}
+            onClick={() => startTransition(async () => { await acceptMemberAction(member.id, communityId); })}
             className="flex items-center gap-1 rounded-lg border border-zinc-200 px-2.5 py-1 text-xs text-muted hover:border-lime-400 hover:text-lime-600 disabled:opacity-50 dark:border-white/10"
           >
             {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
@@ -114,7 +114,7 @@ function MemberRow({
           <button
             type="button"
             disabled={pending}
-            onClick={() => startTransition(async () => { await rejectMemberAction(member.id, clubId); })}
+            onClick={() => startTransition(async () => { await rejectMemberAction(member.id, communityId); })}
             className="flex items-center gap-1 rounded-lg border border-zinc-200 px-2.5 py-1 text-xs text-muted hover:border-red-400 hover:text-red-500 disabled:opacity-50 dark:border-white/10"
           >
             {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}

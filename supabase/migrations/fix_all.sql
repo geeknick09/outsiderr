@@ -150,8 +150,17 @@ alter table public.waitlist              enable row level security;
 alter table public.push_subscriptions    enable row level security;
 alter table public.boosts                enable row level security;
 alter table public.boost_slot_prices     enable row level security;
-alter table public.clubs                 enable row level security;
-alter table public.club_members          enable row level security;
+do $$ begin
+  -- Guarded: table is renamed to communities later in this bundle (STEP 45).
+  if exists (select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
+             where n.nspname='public' and c.relname='clubs' and c.relkind='r') then
+    alter table public.clubs enable row level security;
+  end if;
+  if exists (select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
+             where n.nspname='public' and c.relname='club_members' and c.relkind='r') then
+    alter table public.club_members enable row level security;
+  end if;
+end $$;
 alter table public.refunds               enable row level security;
 alter table public.event_notifications   enable row level security;
 alter table public.platform_settings     enable row level security;
@@ -346,7 +355,12 @@ create policy "boost prices public" on public.boost_slot_prices
 create policy "boost prices admin update" on public.boost_slot_prices
   for update using (public.is_current_user_admin());
 
--- ===== clubs =====
+-- ===== clubs ===== (guarded: renamed to communities in STEP 45)
+do $$ begin
+if not exists (select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
+               where n.nspname='public' and c.relname='clubs' and c.relkind='r') then
+  return;
+end if;
 drop policy if exists "clubs are publicly readable" on public.clubs;
 create policy "clubs are publicly readable" on public.clubs
   for select using (true);
@@ -392,6 +406,7 @@ create policy "club owners can update membership status" on public.club_members
       where c.id = club_id and o.owner_id = auth.uid()
     )
   );
+end $$;
 
 -- ===== refunds =====
 drop policy if exists "users can read own refunds" on public.refunds;
@@ -1207,8 +1222,13 @@ create trigger on_profile_insert
 -- ----------------------------------------------------------------
 -- STEP 8: Unique constraint on club_members (prevent duplicate joins)
 -- ----------------------------------------------------------------
-create unique index if not exists club_members_club_user_unique
-  on public.club_members(club_id, user_id);
+do $$ begin
+  if exists (select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
+             where n.nspname='public' and c.relname='club_members' and c.relkind='r') then
+    create unique index if not exists club_members_club_user_unique
+      on public.club_members(club_id, user_id);
+  end if;
+end $$;
 
 -- ----------------------------------------------------------------
 -- STEP 13: Allow PHASED pricing mode on events
@@ -3089,7 +3109,7 @@ begin
       sha256((v_order.id::text || ':' || g::text || ':' || gen_random_uuid()::text)::bytea),
       'hex'
     )
-  from generate_series(1, p_quantity) g;
+  from generate_series(1, p_quantity * greatest(1, coalesce(v_tier.admits, 1))) g;
 
   update public.ticket_tiers
      set quantity_sold = quantity_sold + p_quantity
@@ -3115,7 +3135,12 @@ $$;
 -- ================================================================
 
 -- ---- 1. Missing columns (schema drift — code references them; never migrated)
-alter table public.clubs add column if not exists cover_url text;
+do $$ begin
+  if exists (select 1 from pg_class c join pg_namespace n on n.oid=c.relnamespace
+             where n.nspname='public' and c.relname='clubs' and c.relkind='r') then
+    alter table public.clubs add column if not exists cover_url text;
+  end if;
+end $$;
 alter table public.organizers add column if not exists rejection_count integer not null default 0;
 
 -- ---- 2. is_event_manager(): event owner OR admin OR ACCEPTED FULL collaborator.
@@ -3157,7 +3182,11 @@ revoke execute on function public.expire_reserved_orders() from public, anon, au
 revoke execute on function public.set_razorpay_order_id(uuid, text) from public, anon, authenticated;
 revoke execute on function public.requeue_waitlist_entry(uuid) from public, anon, authenticated;
 revoke execute on function public.offer_waitlist_next(uuid) from public, anon;
-revoke execute on function public.increment_club_member_count(uuid) from public, anon;
+do $$ begin
+  if to_regprocedure('public.increment_club_member_count(uuid)') is not null then
+    execute 'revoke execute on function public.increment_club_member_count(uuid) from public, anon';
+  end if;
+end $$;
 
 grant execute on function public.confirm_razorpay_order(uuid, text, text, text) to service_role;
 grant execute on function public.fail_razorpay_order(uuid) to service_role;
@@ -3168,7 +3197,11 @@ grant execute on function public.expire_reserved_orders() to service_role;
 grant execute on function public.set_razorpay_order_id(uuid, text) to service_role;
 grant execute on function public.requeue_waitlist_entry(uuid) to service_role;
 grant execute on function public.offer_waitlist_next(uuid) to authenticated, service_role;
-grant execute on function public.increment_club_member_count(uuid) to authenticated, service_role;
+do $$ begin
+  if to_regprocedure('public.increment_club_member_count(uuid)') is not null then
+    execute 'grant execute on function public.increment_club_member_count(uuid) to authenticated, service_role';
+  end if;
+end $$;
 
 -- ---- 4. event_staff self-claim hardening ---------------------------------------
 -- The claim path may only fill user_id on an unresolved row; identity columns
@@ -3786,14 +3819,14 @@ begin
       sha256((v_order.id::text || ':' || g::text || ':' || gen_random_uuid()::text)::bytea),
       'hex'
     )
-  from generate_series(1, p_quantity) g;
+  from generate_series(1, p_quantity * greatest(1, coalesce(v_tier.admits, 1))) g;
 
   update public.ticket_tiers
      set quantity_sold = quantity_sold + p_quantity
    where id = p_tier_id;
 
   update public.events
-     set registrations_count = registrations_count + p_quantity
+     set registrations_count = registrations_count + p_quantity * greatest(1, coalesce(v_tier.admits, 1))
    where id = p_event_id;
 
   delete from public.waitlist
@@ -3863,7 +3896,7 @@ begin
          invoice_number = v_invoice
    where id = p_order_id;
   update public.events
-     set registrations_count = registrations_count + v_order.quantity
+     set registrations_count = registrations_count + v_order.quantity * greatest(1, coalesce(v_tier.admits, 1))
    where id = v_order.event_id;
   delete from public.waitlist
    where tier_id = v_order.tier_id and user_id = v_order.user_id;
@@ -3877,7 +3910,7 @@ begin
     select
       v_order.id, v_order.event_id, v_order.tier_id, v_order.user_id,
       encode(sha256((v_order.id::text || ':' || g::text || ':' || gen_random_uuid()::text)::bytea), 'hex')
-    from generate_series(1, v_order.quantity) g
+    from generate_series(1, v_order.quantity * greatest(1, coalesce(v_tier.admits, 1))) g
     returning *;
 end;
 $$;
@@ -4378,6 +4411,7 @@ begin
            else v_event.starts_at end) <= now() then
     raise exception 'Online booking is closed for this event';
   end if;
+
 
   select * into v_tier from public.ticket_tiers where id = p_tier_id for update;
   if not found then raise exception 'Ticket tier not found'; end if;
@@ -5245,10 +5279,14 @@ grant  execute on function public.set_razorpay_order_id(uuid, text) to service_r
 grant  execute on function public.expire_reserved_orders()     to service_role;
 
 --    User-facing but internally gated → authenticated only (never anon/public).
-revoke execute on function public.create_reserved_order(uuid, uuid, integer, text, text, text, text, text) from public, anon;
+do $$ begin if exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='create_reserved_order' and p.pronargs=8) then
+    revoke execute on function public.create_reserved_order(uuid, uuid, integer, text, text, text, text, text) from public, anon;
+  end if; end $$;
 revoke execute on function public.cancel_event(uuid, text, integer) from public, anon;
 revoke execute on function public.request_postponement_refund(uuid, uuid) from public, anon;
-grant  execute on function public.create_reserved_order(uuid, uuid, integer, text, text, text, text, text) to authenticated;
+do $$ begin if exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='create_reserved_order' and p.pronargs=8) then
+    grant execute on function public.create_reserved_order(uuid, uuid, integer, text, text, text, text, text) to authenticated;
+  end if; end $$;
 grant  execute on function public.cancel_event(uuid, text, integer) to authenticated;
 grant  execute on function public.request_postponement_refund(uuid, uuid) to authenticated;
 
@@ -5533,7 +5571,8 @@ grant update (max_tickets_per_user) on public.events to authenticated;
 -- create_reserved_order — cap = sum(quantity) of the user's active orders on
 -- the event + this order must fit. (8-arg live signature.)
 -- ---------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.create_reserved_order(p_event_id uuid, p_tier_id uuid, p_quantity integer, p_idempotency_key text DEFAULT NULL::text, p_buyer_name text DEFAULT NULL::text, p_buyer_phone text DEFAULT NULL::text, p_buyer_email text DEFAULT NULL::text, p_buyer_gender text DEFAULT NULL::text)
+DROP FUNCTION IF EXISTS public.create_reserved_order(uuid, uuid, integer, text, text, text, text, text);
+CREATE OR REPLACE FUNCTION public.create_reserved_order(p_event_id uuid, p_tier_id uuid, p_quantity integer, p_idempotency_key text DEFAULT NULL::text, p_buyer_name text DEFAULT NULL::text, p_buyer_phone text DEFAULT NULL::text, p_buyer_email text DEFAULT NULL::text, p_buyer_gender text DEFAULT NULL::text, p_invite_token text DEFAULT NULL::text)
  RETURNS orders
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -5581,6 +5620,24 @@ begin
            then coalesce(v_event.ends_at, v_event.starts_at)
            else v_event.starts_at end) <= now() then
     raise exception 'Online booking is closed for this event';
+  end if;
+
+  -- STEP 45: community event gating
+  if coalesce(v_event.visibility, 'OPEN') = 'MEMBERS_ONLY' then
+    if not exists (
+      select 1 from public.community_members
+      where community_id = v_event.community_id and user_id = auth.uid() and status = 'ACCEPTED'
+    ) then
+      raise exception 'MEMBERS_ONLY: This event is for community members only. Join the community first.';
+    end if;
+  elsif coalesce(v_event.visibility, 'OPEN') = 'INVITE_ONLY' then
+    if coalesce(p_invite_token, '') is distinct from coalesce(v_event.invite_token, '')
+       and not exists (
+         select 1 from public.community_members
+         where community_id = v_event.community_id and user_id = auth.uid() and status = 'ACCEPTED'
+       ) then
+      raise exception 'INVITE_REQUIRED: This event is invite-only. Open it via the shared link.';
+    end if;
   end if;
 
   select * into v_tier from public.ticket_tiers where id = p_tier_id for update;
@@ -5661,7 +5718,9 @@ $function$;
 -- ---------------------------------------------------------------------------
 -- create_free_order — same cap for free RSVPs.
 -- ---------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.create_free_order(p_event_id uuid, p_tier_id uuid, p_quantity integer, p_buyer_name text DEFAULT NULL::text, p_buyer_phone text DEFAULT NULL::text, p_buyer_email text DEFAULT NULL::text, p_buyer_gender text DEFAULT NULL::text)
+DROP FUNCTION IF EXISTS public.create_free_order(uuid, uuid, integer, text, text, text, text);
+DROP FUNCTION IF EXISTS public.create_free_order(uuid, uuid, integer, text, text);
+CREATE OR REPLACE FUNCTION public.create_free_order(p_event_id uuid, p_tier_id uuid, p_quantity integer, p_buyer_name text DEFAULT NULL::text, p_buyer_phone text DEFAULT NULL::text, p_buyer_email text DEFAULT NULL::text, p_buyer_gender text DEFAULT NULL::text, p_invite_token text DEFAULT NULL::text)
  RETURNS orders
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -5688,6 +5747,24 @@ begin
            then coalesce(v_event.ends_at, v_event.starts_at)
            else v_event.starts_at end) <= now() then
     raise exception 'Online booking is closed for this event';
+  end if;
+
+  -- STEP 45: community event gating
+  if coalesce(v_event.visibility, 'OPEN') = 'MEMBERS_ONLY' then
+    if not exists (
+      select 1 from public.community_members
+      where community_id = v_event.community_id and user_id = auth.uid() and status = 'ACCEPTED'
+    ) then
+      raise exception 'MEMBERS_ONLY: This event is for community members only. Join the community first.';
+    end if;
+  elsif coalesce(v_event.visibility, 'OPEN') = 'INVITE_ONLY' then
+    if coalesce(p_invite_token, '') is distinct from coalesce(v_event.invite_token, '')
+       and not exists (
+         select 1 from public.community_members
+         where community_id = v_event.community_id and user_id = auth.uid() and status = 'ACCEPTED'
+       ) then
+      raise exception 'INVITE_REQUIRED: This event is invite-only. Open it via the shared link.';
+    end if;
   end if;
 
   select * into v_tier from public.ticket_tiers where id = p_tier_id for update;
@@ -6053,8 +6130,8 @@ begin
 
   elsif p_kind = 'CLUB_MEMBERSHIP' then
     select cl.membership_fee_paise, cm.user_id into v_amount, v_owner
-      from public.club_members cm
-      join public.clubs cl on cl.id = cm.club_id
+      from public.community_members cm
+      join public.communities cl on cl.id = cm.community_id
      where cm.id = p_ref_id and cm.status = 'PENDING';
     if not found or v_owner <> auth.uid() then raise exception 'Not authorized'; end if;
     if v_amount is null or v_amount <= 0 then raise exception 'This club is free — no payment needed'; end if;
@@ -6268,12 +6345,12 @@ begin
     ) on conflict (razorpay_payment_id) where razorpay_payment_id is not null do nothing;
 
   elsif v_intent.kind = 'CLUB_MEMBERSHIP' then
-    update public.club_members
+    update public.community_members
        set status = 'ACCEPTED'
      where id = v_intent.ref_id and status = 'PENDING';
     if found then
-      update public.clubs set member_count = member_count + 1
-       where id = (select club_id from public.club_members where id = v_intent.ref_id);
+      update public.communities set member_count = member_count + 1
+       where id = (select community_id from public.community_members where id = v_intent.ref_id);
     end if;
     insert into public.payment_ledger (
       order_id, event_id, organizer_id, type, gross_amount_paise,
@@ -6473,8 +6550,8 @@ $$;
 -- create_reserved_order: retire the obsolete 15-arg overload, then set privileges on
 -- the 8-arg live signature. Kept at the end so the function exists before these run.
 drop function if exists public.create_reserved_order(uuid, uuid, integer, integer, integer, integer, integer, integer, integer, integer, text, text, text, text, text);
-revoke execute on function public.create_reserved_order(uuid, uuid, integer, text, text, text, text, text) from public, anon;
-grant  execute on function public.create_reserved_order(uuid, uuid, integer, text, text, text, text, text) to authenticated;
+revoke execute on function public.create_reserved_order(uuid, uuid, integer, text, text, text, text, text, text) from public, anon;
+grant  execute on function public.create_reserved_order(uuid, uuid, integer, text, text, text, text, text, text) to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Phase 1 (box-office redesign): named staff registry.
@@ -6641,6 +6718,9 @@ alter table public.cash_handovers enable row level security;
 
 -- Login: phone + personal PIN -> bearer token. Phones can repeat across owners, so
 -- every active match is checked against the PIN.
+-- (Drop first: the live param names changed to p_identifier/p_password in STEP 44,
+--  and CREATE OR REPLACE cannot rename input params.)
+drop function if exists public.staff_login_session(text, text);
 create or replace function public.staff_login_session(p_phone text, p_pin text)
 returns table (token text, staff_id uuid, name text, owner_type text, organizer_id uuid)
 language plpgsql
@@ -7455,3 +7535,929 @@ grant execute on function public.staff_register(text, uuid, text, text, text, te
 grant execute on function public.staff_set_password(uuid, text) to service_role;
 grant execute on function public.staff_login_session(text, text) to service_role;
 grant execute on function public.staff_door_session(text, uuid) to service_role;
+
+-- ===========================================================================
+-- STEP 45: Communities — clubs → communities rename + community feature schema
+-- (rename tables, join modes + questions, follows, referrals, member imports,
+--  page views, community events, group tiers, guestlist, members-only gate)
+-- ===========================================================================
+
+-- ---------- 45.1 renames (guarded: this bundle is re-runnable) ----------
+do $$ begin
+  if exists (select 1 from pg_class t join pg_namespace n on n.oid = t.relnamespace
+             where n.nspname='public' and t.relname='clubs' and t.relkind='r') then
+    alter table public.clubs rename to communities;
+  end if;
+  if exists (select 1 from pg_class t join pg_namespace n on n.oid = t.relnamespace
+             where n.nspname='public' and t.relname='club_members' and t.relkind='r') then
+    alter table public.club_members rename to community_members;
+    alter table public.community_members rename column club_id to community_id;
+  end if;
+end $$;
+
+-- ---------- 45.2 membership_type -> join modes ----------
+alter table public.communities drop constraint if exists clubs_membership_type_check;
+alter table public.communities drop constraint if exists communities_membership_type_check;
+update public.communities
+   set membership_type = case when membership_type = 'AUDITION' then 'PRIVATE' else 'OPEN' end
+ where membership_type not in ('OPEN','PRIVATE','INVITE_ONLY');
+alter table public.communities drop constraint if exists communities_membership_check;
+alter table public.communities
+  add constraint communities_membership_check
+  check (membership_type in ('OPEN','PRIVATE','INVITE_ONLY'));
+alter table public.communities alter column membership_type set default 'OPEN';
+
+-- ---------- 45.3 community columns ----------
+alter table public.communities add column if not exists gallery_urls text[] not null default '{}';
+alter table public.communities add column if not exists invite_token text;
+create unique index if not exists communities_invite_token_key
+  on public.communities(invite_token) where invite_token is not null;
+
+alter table public.community_members add column if not exists referred_by_member_id uuid
+  references public.community_members(id);
+alter table public.community_members add column if not exists imported_from uuid;
+alter table public.community_members add column if not exists imported_events_attended integer not null default 0;
+alter table public.community_members add column if not exists invite_code text;
+create unique index if not exists community_members_invite_code_key
+  on public.community_members(invite_code) where invite_code is not null;
+
+-- ---------- 45.4 events: community link + visibility + invite token ----------
+alter table public.events add column if not exists community_id uuid
+  references public.communities(id) on delete set null;
+alter table public.events add column if not exists visibility text not null default 'OPEN';
+alter table public.events add column if not exists invite_token text;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'events_visibility_check') then
+    alter table public.events add constraint events_visibility_check
+      check (visibility in ('OPEN','MEMBERS_ONLY','INVITE_ONLY')
+             and (community_id is not null or visibility = 'OPEN'));
+  end if;
+end $$;
+create unique index if not exists events_invite_token_key
+  on public.events(invite_token) where invite_token is not null;
+create index if not exists events_community_idx
+  on public.events(community_id) where community_id is not null;
+
+-- ---------- 45.5 group tickets: one tier unit admits N ----------
+alter table public.ticket_tiers add column if not exists admits integer not null default 1;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'ticket_tiers_admits_check') then
+    alter table public.ticket_tiers add constraint ticket_tiers_admits_check
+      check (admits between 1 and 20);
+  end if;
+end $$;
+
+-- ---------- 45.6 orders: guestlist channel ----------
+alter table public.orders alter column user_id drop not null;
+alter table public.orders drop constraint if exists orders_order_source_check;
+alter table public.orders drop constraint if exists orders_order_source_check;
+alter table public.orders add constraint orders_order_source_check
+  check (order_source in ('ONLINE','MANUAL_UPI','WALKIN_PREEVENT','WALKIN_QR','WALKIN_INSTANT','BOX_OFFICE','GUESTLIST'));
+
+-- ---------- 45.6b communities cleanup: free-form city + REMOVED member status ----------
+alter table public.communities drop constraint if exists clubs_city_check;
+alter table public.community_members drop constraint if exists club_members_status_check;
+alter table public.community_members add constraint club_members_status_check
+  check (status in ('PENDING','ACCEPTED','REJECTED','REMOVED'));
+
+-- ---------- 45.7 new enum values ----------
+do $$ begin
+  alter type public.event_notification_type add value if not exists 'OUTREACH';
+exception when others then null; end $$;
+do $$ begin
+  alter type public.event_notification_type add value if not exists 'NEW_EVENT';
+exception when others then null; end $$;
+
+-- ---------- 45.8 new tables ----------
+create table if not exists public.community_join_questions (
+  id           uuid        primary key default gen_random_uuid(),
+  community_id uuid        not null references public.communities(id) on delete cascade,
+  question     text        not null,
+  is_mandatory boolean     not null default false,
+  sort_order   integer     not null default 0,
+  created_at   timestamptz not null default now()
+);
+create index if not exists cjq_community_idx on public.community_join_questions(community_id, sort_order);
+
+create table if not exists public.community_join_answers (
+  id         uuid        primary key default gen_random_uuid(),
+  member_id  uuid        not null references public.community_members(id) on delete cascade,
+  question   text        not null,
+  answer     text        not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists cja_member_idx on public.community_join_answers(member_id);
+
+create table if not exists public.community_follows (
+  community_id uuid        not null references public.communities(id) on delete cascade,
+  follower_id  uuid        not null references public.profiles(id) on delete cascade,
+  created_at   timestamptz not null default now(),
+  primary key (community_id, follower_id)
+);
+create index if not exists community_follows_user_idx on public.community_follows(follower_id);
+
+create table if not exists public.community_member_imports (
+  id           uuid        primary key default gen_random_uuid(),
+  community_id uuid        not null references public.communities(id) on delete cascade,
+  organizer_id uuid        not null references public.organizers(id) on delete cascade,
+  status       text        not null default 'REQUESTED'
+               check (status in ('REQUESTED','APPROVED','REJECTED')),
+  filename     text        not null,
+  total_rows   integer     not null default 0,
+  valid_rows   integer     not null default 0,
+  invalid_rows integer     not null default 0,
+  requested_by uuid        not null references public.profiles(id),
+  reviewed_by  uuid        references public.profiles(id),
+  review_note  text,
+  created_at   timestamptz not null default now(),
+  reviewed_at  timestamptz
+);
+create index if not exists cmi_status_idx on public.community_member_imports(status);
+
+create table if not exists public.community_import_items (
+  id              uuid        primary key default gen_random_uuid(),
+  import_id       uuid        not null references public.community_member_imports(id) on delete cascade,
+  full_name       text        not null,
+  phone           text,
+  email           text,
+  events_attended integer     not null default 0,
+  status          text        not null default 'VALID'
+                  check (status in ('VALID','INVALID','LINKED')),
+  row_error       text,
+  linked_user_id  uuid        references public.profiles(id),
+  created_at      timestamptz not null default now()
+);
+create index if not exists cii_import_idx on public.community_import_items(import_id);
+create index if not exists cii_phone_idx  on public.community_import_items(phone)  where phone is not null;
+create index if not exists cii_email_idx  on public.community_import_items(email)  where email is not null;
+
+create table if not exists public.page_views (
+  id          uuid        primary key default gen_random_uuid(),
+  user_id     uuid        not null references public.profiles(id) on delete cascade,
+  entity_type text        not null check (entity_type in ('COMMUNITY','EVENT')),
+  entity_id   uuid        not null,
+  viewed_day  date        not null default (now() at time zone 'Asia/Kolkata')::date,
+  created_at  timestamptz not null default now(),
+  unique (user_id, entity_type, entity_id, viewed_day)
+);
+create index if not exists page_views_entity_idx on public.page_views(entity_type, entity_id);
+
+alter table public.community_join_questions enable row level security;
+alter table public.community_join_answers   enable row level security;
+alter table public.community_follows        enable row level security;
+alter table public.community_member_imports enable row level security;
+alter table public.community_import_items   enable row level security;
+alter table public.page_views               enable row level security;
+
+drop policy if exists "join questions readable by everyone" on public.community_join_questions;
+create policy "join questions readable by everyone" on public.community_join_questions
+  for select using (true);
+
+drop policy if exists "join answers readable by owner and self" on public.community_join_answers;
+create policy "join answers readable by owner and self" on public.community_join_answers
+  for select using (
+    exists (select 1 from public.community_members cm
+             where cm.id = member_id and cm.user_id = auth.uid())
+    or exists (select 1 from public.community_members cm
+                join public.communities c on c.id = cm.community_id
+                join public.organizers o on o.id = c.owner_id
+               where cm.id = member_id and o.owner_id = auth.uid())
+  );
+
+drop policy if exists "community follows public read" on public.community_follows;
+create policy "community follows public read" on public.community_follows
+  for select using (true);
+drop policy if exists "community follows own insert" on public.community_follows;
+create policy "community follows own insert" on public.community_follows
+  for insert with check (follower_id = auth.uid());
+drop policy if exists "community follows own delete" on public.community_follows;
+create policy "community follows own delete" on public.community_follows
+  for delete using (follower_id = auth.uid());
+
+drop policy if exists "imports visible to community owner" on public.community_member_imports;
+create policy "imports visible to community owner" on public.community_member_imports
+  for select using (
+    exists (select 1 from public.organizers o
+             where o.id = organizer_id and o.owner_id = auth.uid())
+  );
+drop policy if exists "import items visible to community owner" on public.community_import_items;
+create policy "import items visible to community owner" on public.community_import_items
+  for select using (
+    exists (select 1 from public.community_member_imports i
+             join public.organizers o on o.id = i.organizer_id
+            where i.id = import_id and o.owner_id = auth.uid())
+  );
+
+drop policy if exists "users log own views" on public.page_views;
+create policy "users log own views" on public.page_views
+  for insert with check (user_id = auth.uid());
+drop policy if exists "users read own views" on public.page_views;
+create policy "users read own views" on public.page_views
+  for select using (user_id = auth.uid());
+
+-- Re-create the renamed-table policies under community names (the renamed
+-- policies still work; this keeps names consistent going forward).
+drop policy if exists "clubs are publicly readable" on public.communities;
+drop policy if exists "communities are publicly readable" on public.communities;
+create policy "communities are publicly readable" on public.communities
+  for select using (true);
+drop policy if exists "organizers can insert clubs" on public.communities;
+drop policy if exists "organizers can insert communities" on public.communities;
+create policy "organizers can insert communities" on public.communities
+  for insert with check (
+    exists (select 1 from public.organizers o where o.id = communities.owner_id and o.owner_id = auth.uid())
+  );
+drop policy if exists "organizers can update own clubs" on public.communities;
+drop policy if exists "organizers can update own communities" on public.communities;
+create policy "organizers can update own communities" on public.communities
+  for update using (
+    exists (select 1 from public.organizers o where o.id = communities.owner_id and o.owner_id = auth.uid())
+  );
+
+drop policy if exists "members are visible to club owner and self" on public.community_members;
+drop policy if exists "members are visible to community owner and self" on public.community_members;
+create policy "members are visible to community owner and self" on public.community_members
+  for select using (
+    user_id = auth.uid()
+    or exists (select 1 from public.communities c
+                join public.organizers o on o.id = c.owner_id
+               where c.id = community_id and o.owner_id = auth.uid())
+  );
+drop policy if exists "users can request to join" on public.community_members;
+drop policy if exists "users can request to join community" on public.community_members;
+create policy "users can request to join community" on public.community_members
+  for insert with check (user_id = auth.uid());
+drop policy if exists "users can update own membership" on public.community_members;
+create policy "users can update own membership" on public.community_members
+  for update using (user_id = auth.uid());
+drop policy if exists "club owners can update membership status" on public.community_members;
+drop policy if exists "community owners can update membership" on public.community_members;
+create policy "community owners can update membership" on public.community_members
+  for update using (
+    exists (select 1 from public.communities c
+             join public.organizers o on o.id = c.owner_id
+            where c.id = community_id and o.owner_id = auth.uid())
+  );
+
+-- ---------- 45.9 RPCs ----------
+
+-- Renamed counter helper (drop the old name).
+drop function if exists public.increment_club_member_count(uuid);
+create or replace function public.increment_community_member_count(p_community_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update public.communities set member_count = member_count + 1 where id = p_community_id;
+end;
+$$;
+revoke execute on function public.increment_community_member_count(uuid) from public, anon;
+grant execute on function public.increment_community_member_count(uuid) to authenticated, service_role;
+
+-- join_community: mode-aware join with questions + invite token + referral code.
+drop function if exists public.join_community(uuid, uuid, jsonb, text, text);
+create or replace function public.join_community(
+  p_user_id      uuid,
+  p_community_id uuid,
+  p_answers      jsonb default '[]'::jsonb,
+  p_invite_token text default null,
+  p_ref_code     text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_c        public.communities%rowtype;
+  v_status   text;
+  v_member   uuid;
+  v_ref      uuid;
+  v_missing  int;
+  a          jsonb;
+begin
+  -- users can only join themselves; the service role may act for anyone
+  if auth.uid() is not null and auth.uid() <> p_user_id then
+    raise exception 'Cannot join on behalf of another user';
+  end if;
+
+  select * into v_c from public.communities where id = p_community_id;
+  if not found then raise exception 'Community not found'; end if;
+
+  select id, status into v_member, v_status
+    from public.community_members
+   where community_id = p_community_id and user_id = p_user_id;
+  if found then
+    return jsonb_build_object('member_id', v_member, 'status', v_status, 'existing', true);
+  end if;
+
+  -- referral code -> referring member of this community
+  if p_ref_code is not null then
+    select id into v_ref from public.community_members
+     where community_id = p_community_id
+       and invite_code = p_ref_code
+       and status = 'ACCEPTED';
+  end if;
+
+  if v_c.membership_type = 'OPEN' then
+    v_status := 'ACCEPTED';
+  elsif v_c.membership_type = 'PRIVATE' then
+    select count(*) into v_missing
+      from public.community_join_questions q
+     where q.community_id = p_community_id
+       and q.is_mandatory
+       and not exists (
+             select 1 from jsonb_array_elements(p_answers) x
+              where x->>'question_id' = q.id::text
+                and length(coalesce(x->>'answer','')) > 0
+           );
+    if v_missing > 0 then
+      raise exception 'Please answer all required questions.';
+    end if;
+    v_status := 'PENDING';
+  else -- INVITE_ONLY
+    if v_c.invite_token is null or p_invite_token is distinct from v_c.invite_token then
+      raise exception 'This community is invite-only. You need an invite link.';
+    end if;
+    v_status := 'ACCEPTED';
+  end if;
+
+  insert into public.community_members (
+    community_id, user_id, status, referred_by_member_id, invite_code
+  ) values (
+    p_community_id, p_user_id, v_status, v_ref,
+    substr(encode(extensions.gen_random_bytes(5), 'hex'), 1, 8)
+  )
+  on conflict (community_id, user_id) do nothing
+  returning id into v_member;
+
+  if v_member is null then
+    select id, status into v_member, v_status
+      from public.community_members
+     where community_id = p_community_id and user_id = p_user_id;
+    return jsonb_build_object('member_id', v_member, 'status', v_status, 'existing', true);
+  end if;
+
+  -- snapshot answers (question text at join time)
+  for a in select * from jsonb_array_elements(p_answers) loop
+    insert into public.community_join_answers (member_id, question, answer)
+    select q.question, a->>'answer'
+      from public.community_join_questions q
+     where q.id = (a->>'question_id')::uuid;
+  end loop;
+
+  if v_status = 'ACCEPTED' then
+    update public.communities set member_count = member_count + 1 where id = p_community_id;
+  end if;
+
+  return jsonb_build_object('member_id', v_member, 'status', v_status, 'existing', false);
+end;
+$$;
+revoke execute on function public.join_community(uuid, uuid, jsonb, text, text) from public, anon;
+grant execute on function public.join_community(uuid, uuid, jsonb, text, text) to authenticated, service_role;
+
+-- Owner/admin approves or rejects a pending member.
+drop function if exists public.set_community_membership(uuid, uuid, text);
+create or replace function public.set_community_membership(
+  p_actor_id uuid,
+  p_member_id uuid,
+  p_status   text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_member public.community_members%rowtype;
+begin
+  if p_status not in ('ACCEPTED','REJECTED') then raise exception 'Invalid status'; end if;
+
+  select * into v_member from public.community_members where id = p_member_id;
+  if not found then raise exception 'Member not found'; end if;
+
+  if not exists (
+    select 1 from public.communities c
+     join public.organizers o on o.id = c.owner_id
+     where c.id = v_member.community_id and o.owner_id = p_actor_id
+  ) and not exists (
+    select 1 from public.profiles where id = p_actor_id and is_admin = true
+  ) then
+    raise exception 'Not authorized';
+  end if;
+
+  update public.community_members set status = p_status where id = p_member_id;
+  if p_status = 'ACCEPTED' and v_member.status <> 'ACCEPTED' then
+    update public.communities set member_count = member_count + 1
+     where id = v_member.community_id;
+  end if;
+end;
+$$;
+revoke execute on function public.set_community_membership(uuid, uuid, text) from public, anon, authenticated;
+grant execute on function public.set_community_membership(uuid, uuid, text) to service_role;
+
+-- notify_event_followers: community events fan out to org followers +
+-- community followers + ACCEPTED members (deduped); normal events unchanged.
+create or replace function public.notify_event_followers(p_event_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_e public.events%rowtype;
+begin
+  update public.events
+     set followers_notified_at = now()
+   where id = p_event_id
+     and followers_notified_at is null;
+  if not found then
+    return; -- already notified (or event missing)
+  end if;
+
+  select * into v_e from public.events where id = p_event_id;
+
+  insert into public.event_notifications (event_id, user_id, type, message)
+  select p_event_id, uid, 'NEW_EVENT',
+         o.name || ' just launched "' || v_e.title || '".'
+    from (
+      select f.follower_id as uid
+        from public.organizer_follows f
+       where f.organizer_id = v_e.organizer_id
+      union
+      select cf.follower_id
+        from public.community_follows cf
+       where cf.community_id = v_e.community_id
+      union
+      select cm.user_id
+        from public.community_members cm
+       where cm.community_id = v_e.community_id and cm.status = 'ACCEPTED'
+    ) u
+    join public.organizers o on o.id = v_e.organizer_id;
+end;
+$$;
+revoke execute on function public.notify_event_followers(uuid) from public, anon, authenticated;
+grant execute on function public.notify_event_followers(uuid) to service_role;
+
+-- MEMBERS_ONLY booking gate: any new order on a members-only community event
+-- must come from an ACCEPTED member (matched by user_id or buyer_phone).
+create or replace function public.trg_orders_visibility_gate()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_visibility text;
+  v_community  uuid;
+  v_uid        uuid;
+begin
+  select visibility, community_id into v_visibility, v_community
+    from public.events where id = new.event_id;
+  if not found or v_visibility <> 'MEMBERS_ONLY' or new.order_source = 'GUESTLIST' then
+    return new;
+  end if;
+
+  v_uid := new.user_id;
+  if v_uid is null and new.buyer_phone is not null then
+    select id into v_uid from public.profiles
+     where right(regexp_replace(coalesce(phone,''), '\D', '', 'g'), 10)
+           = right(regexp_replace(new.buyer_phone, '\D', '', 'g'), 10)
+       and phone is not null
+     limit 1;
+  end if;
+
+  if v_uid is null or not exists (
+    select 1 from public.community_members
+     where community_id = v_community and user_id = v_uid and status = 'ACCEPTED'
+  ) then
+    raise exception 'This event is for community members only. Join the community first.';
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists orders_visibility_gate on public.orders;
+create trigger orders_visibility_gate
+  before insert on public.orders
+  for each row execute function public.trg_orders_visibility_gate();
+
+-- Guestlist: organizer mints a free ticket (cap 10 per event; no ledger/payment).
+drop function if exists public.create_guestlist_entry(uuid, uuid, text, text, text);
+create or replace function public.create_guestlist_entry(
+  p_actor_id uuid,
+  p_event_id uuid,
+  p_name     text,
+  p_phone    text default null,
+  p_email    text default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_e      public.events%rowtype;
+  v_tier   uuid;
+  v_count  int;
+  v_order  uuid;
+  v_ticket uuid;
+begin
+  select * into v_e from public.events where id = p_event_id;
+  if not found then raise exception 'Event not found'; end if;
+
+  if not exists (
+    select 1 from public.organizers o
+     where o.id = v_e.organizer_id and o.owner_id = p_actor_id
+  ) and not exists (
+    select 1 from public.profiles where id = p_actor_id and is_admin = true
+  ) then
+    raise exception 'Not authorized';
+  end if;
+
+  if v_e.status <> 'PUBLISHED' then raise exception 'Event must be published first.'; end if;
+  if coalesce(p_phone, p_email) is null then
+    raise exception 'Phone number or email is required for a guest.';
+  end if;
+
+  select count(*) into v_count
+    from public.orders
+   where event_id = p_event_id and order_source = 'GUESTLIST';
+  if v_count >= 10 then
+    raise exception 'Guestlist is full (max 10 guests per event).';
+  end if;
+
+  select id into v_tier from public.ticket_tiers
+   where event_id = p_event_id order by price_paise limit 1;
+  if v_tier is null then raise exception 'Event has no ticket tier.'; end if;
+
+  insert into public.orders (
+    event_id, tier_id, user_id, quantity,
+    unit_price_paise, subtotal_paise, platform_fee_paise, commission_paise,
+    convenience_fee_paise, organizer_payout_paise, total_paise,
+    fee_payer, status, order_source, buyer_name, buyer_phone, buyer_email, confirmed_at
+  ) values (
+    p_event_id, v_tier, null, 1,
+    0, 0, 0, 0, 0, 0, 0,
+    'ORGANIZER', 'CONFIRMED', 'GUESTLIST', p_name, p_phone, p_email, now()
+  ) returning id into v_order;
+
+  insert into public.tickets (order_id, event_id, tier_id, user_id, qr_hash)
+  values (v_order, p_event_id, v_tier, null, encode(extensions.gen_random_bytes(16), 'hex'))
+  returning id into v_ticket;
+
+  return v_ticket;
+end;
+$$;
+revoke execute on function public.create_reserved_order(uuid, uuid, integer, text, text, text, text, text, text) from public, anon;
+grant  execute on function public.create_reserved_order(uuid, uuid, integer, text, text, text, text, text, text) to authenticated;
+revoke execute on function public.create_free_order(uuid, uuid, integer, text, text, text, text, text) from public, anon;
+grant  execute on function public.create_free_order(uuid, uuid, integer, text, text, text, text, text) to authenticated;
+revoke execute on function public.create_guestlist_entry(uuid, uuid, text, text, text) from public, anon, authenticated;
+grant execute on function public.create_guestlist_entry(uuid, uuid, text, text, text) to service_role;
+
+-- Member import: organizer stages rows; invalid rows are recorded, not imported.
+drop function if exists public.request_member_import(uuid, uuid, text, jsonb);
+create or replace function public.request_member_import(
+  p_actor_id     uuid,
+  p_community_id uuid,
+  p_filename     text,
+  p_items        jsonb
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_import  uuid;
+  v_valid   int := 0;
+  v_invalid int := 0;
+  it        jsonb;
+  v_name    text;
+  v_phone   text;
+  v_email   text;
+  v_err     text;
+begin
+  if not exists (
+    select 1 from public.communities c
+     join public.organizers o on o.id = c.owner_id
+     where c.id = p_community_id and o.owner_id = p_actor_id
+  ) then
+    raise exception 'Not authorized';
+  end if;
+
+  insert into public.community_member_imports (
+    community_id, organizer_id, filename, total_rows, requested_by
+  )
+  select p_community_id, c.owner_id, p_filename,
+         jsonb_array_length(coalesce(p_items, '[]'::jsonb)), p_actor_id
+    from public.communities c where c.id = p_community_id
+  returning id into v_import;
+
+  for it in select * from jsonb_array_elements(coalesce(p_items, '[]'::jsonb)) loop
+    v_name  := nullif(trim(coalesce(it->>'name','')), '');
+    v_phone := nullif(right(regexp_replace(coalesce(it->>'phone',''), '\D', '', 'g'), 10), '');
+    v_email := nullif(lower(trim(coalesce(it->>'email',''))), '');
+    v_err   := null;
+
+    if v_name is null then
+      v_err := 'Missing name';
+    elsif v_phone is not null and length(v_phone) <> 10 then
+      v_err := 'Invalid phone number';
+      v_phone := null;
+    end if;
+    if v_err is null and v_phone is null
+       and (v_email is null or v_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$') then
+      v_err := 'Needs a valid phone or email';
+      v_email := null;
+    end if;
+
+    if v_err is null then
+      v_valid := v_valid + 1;
+      insert into public.community_import_items
+        (import_id, full_name, phone, email, events_attended, status)
+      values (v_import, v_name, v_phone, v_email,
+              greatest(0, coalesce((it->>'events_attended')::int, 0)), 'VALID');
+    else
+      v_invalid := v_invalid + 1;
+      insert into public.community_import_items
+        (import_id, full_name, phone, email, events_attended, status, row_error)
+      values (v_import, coalesce(v_name,'(no name)'), v_phone, v_email, 0, 'INVALID', v_err);
+    end if;
+  end loop;
+
+  update public.community_member_imports
+     set valid_rows = v_valid, invalid_rows = v_invalid
+   where id = v_import;
+
+  return v_import;
+end;
+$$;
+revoke execute on function public.request_member_import(uuid, uuid, text, jsonb) from public, anon, authenticated;
+grant execute on function public.request_member_import(uuid, uuid, text, jsonb) to service_role;
+
+-- Admin approves/rejects a staged import.
+drop function if exists public.review_member_import(uuid, uuid, boolean, text);
+create or replace function public.review_member_import(
+  p_admin_id uuid,
+  p_import_id uuid,
+  p_approve  boolean,
+  p_note     text default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_import public.community_member_imports%rowtype;
+begin
+  if not exists (select 1 from public.profiles where id = p_admin_id and is_admin = true) then
+    raise exception 'Not authorized';
+  end if;
+
+  select * into v_import from public.community_member_imports where id = p_import_id;
+  if not found then raise exception 'Import not found'; end if;
+  if v_import.status <> 'REQUESTED' then raise exception 'Import already reviewed'; end if;
+
+  update public.community_member_imports
+     set status = case when p_approve then 'APPROVED' else 'REJECTED' end,
+         reviewed_by = p_admin_id, review_note = p_note, reviewed_at = now()
+   where id = p_import_id;
+
+  if p_approve then
+    -- imported members count toward the community total once approved
+    update public.communities
+       set member_count = member_count + v_import.valid_rows
+     where id = v_import.community_id;
+  end if;
+end;
+$$;
+revoke execute on function public.review_member_import(uuid, uuid, boolean, text) from public, anon, authenticated;
+grant execute on function public.review_member_import(uuid, uuid, boolean, text) to service_role;
+
+-- Link approved import rows to real users when they exist (or sign up later).
+drop function if exists public.link_imported_members(uuid);
+create or replace function public.link_imported_members(p_user_id uuid)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_p    record;
+  v_item record;
+  v_n    int := 0;
+begin
+  select right(regexp_replace(coalesce(phone,''), '\D', '', 'g'), 10) as phone10,
+         lower(coalesce(email,'')) as email_l
+    into v_p from public.profiles where id = p_user_id;
+  if not found then return 0; end if;
+
+  for v_item in
+    select ii.id, ii.import_id, ii.events_attended, i.community_id
+      from public.community_import_items ii
+      join public.community_member_imports i on i.id = ii.import_id
+     where i.status = 'APPROVED'
+       and ii.status = 'VALID'
+       and (
+         (v_p.phone10 <> '' and ii.phone = v_p.phone10)
+         or (v_p.email_l <> '' and lower(ii.email) = v_p.email_l)
+       )
+  loop
+    insert into public.community_members (
+      community_id, user_id, status, imported_from, imported_events_attended, invite_code
+    ) values (
+      v_item.community_id, p_user_id, 'ACCEPTED', v_item.import_id,
+      v_item.events_attended, substr(encode(extensions.gen_random_bytes(5), 'hex'), 1, 8)
+    )
+    on conflict (community_id, user_id) do update
+      set imported_events_attended = greatest(community_members.imported_events_attended,
+                                              excluded.imported_events_attended);
+    update public.community_import_items
+       set status = 'LINKED', linked_user_id = p_user_id
+     where id = v_item.id;
+    v_n := v_n + 1;
+  end loop;
+  return v_n;
+end;
+$$;
+revoke execute on function public.link_imported_members(uuid) from public, anon, authenticated;
+grant execute on function public.link_imported_members(uuid) to service_role;
+
+-- Trigger: link on profile insert or phone/email change.
+create or replace function public.trg_profiles_link_imports()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.link_imported_members(new.id);
+  return new;
+end;
+$$;
+drop trigger if exists profiles_link_imports on public.profiles;
+create trigger profiles_link_imports
+  after insert or update of phone, email on public.profiles
+  for each row execute function public.trg_profiles_link_imports();
+
+-- Page views (logged-in users only; dedupes per user/entity/day).
+drop function if exists public.log_page_view(text, uuid);
+create or replace function public.log_page_view(p_entity_type text, p_entity_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then return; end if;
+  insert into public.page_views (user_id, entity_type, entity_id)
+  values (auth.uid(), p_entity_type, p_entity_id)
+  on conflict (user_id, entity_type, entity_id, viewed_day) do nothing;
+end;
+$$;
+revoke execute on function public.log_page_view(text, uuid) from public, anon;
+grant execute on function public.log_page_view(text, uuid) to authenticated;
+
+-- Community analytics bundle for the owner.
+drop function if exists public.community_analytics(uuid);
+create or replace function public.community_analytics(p_community_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v jsonb;
+begin
+  select jsonb_build_object(
+    'total_members', (
+      select count(*) from (
+        select cm.user_id from public.community_members cm
+         where cm.community_id = p_community_id and cm.status = 'ACCEPTED'
+        union
+        select ii.linked_user_id from public.community_import_items ii
+         join public.community_member_imports i on i.id = ii.import_id
+         where i.community_id = p_community_id and i.status = 'APPROVED'
+           and ii.status in ('VALID','LINKED')
+      ) m
+    ),
+    'new_members_30d', (
+      select count(*) from public.community_members
+       where community_id = p_community_id and status = 'ACCEPTED'
+         and created_at > now() - interval '30 days'
+    ),
+    'pending_requests', (
+      select count(*) from public.community_members
+       where community_id = p_community_id and status = 'PENDING'
+    ),
+    'events_total', (
+      select count(*) from public.events where community_id = p_community_id
+    ),
+    'attendees', (
+      select count(distinct t.user_id)
+        from public.tickets t join public.events e on e.id = t.event_id
+       where e.community_id = p_community_id and t.status = 'USED' and t.user_id is not null
+    ),
+    'repeat_attendees', (
+      select count(*) from (
+        select t.user_id from public.tickets t
+         join public.events e on e.id = t.event_id
+        where e.community_id = p_community_id and t.status = 'USED' and t.user_id is not null
+        group by t.user_id having count(distinct t.event_id) >= 2
+      ) r
+    ),
+    'views', (
+      select count(distinct user_id) from public.page_views
+       where entity_type = 'COMMUNITY' and entity_id = p_community_id
+    ),
+    'followers', (
+      select count(*) from public.community_follows where community_id = p_community_id
+    )
+  ) into v;
+  return v;
+end;
+$$;
+revoke execute on function public.community_analytics(uuid) from public, anon, authenticated;
+grant execute on function public.community_analytics(uuid) to service_role;
+
+-- Funnel lists: users who viewed but didn't join / didn't buy.
+drop function if exists public.community_non_joiners(uuid);
+create or replace function public.community_non_joiners(p_community_id uuid)
+returns setof uuid
+language sql
+security definer
+set search_path = public
+as $$
+  select distinct v.user_id
+    from public.page_views v
+   where v.entity_type = 'COMMUNITY' and v.entity_id = p_community_id
+     and not exists (select 1 from public.community_members m
+                      where m.community_id = p_community_id
+                        and m.user_id = v.user_id and m.status in ('ACCEPTED','PENDING'));
+$$;
+
+drop function if exists public.event_non_buyers(uuid);
+create or replace function public.event_non_buyers(p_event_id uuid)
+returns setof uuid
+language sql
+security definer
+set search_path = public
+as $$
+  select distinct v.user_id
+    from public.page_views v
+   where v.entity_type = 'EVENT' and v.entity_id = p_event_id
+     and not exists (select 1 from public.orders o
+                      where o.event_id = p_event_id and o.user_id = v.user_id
+                        and o.status in ('CONFIRMED','PENDING_VERIFICATION','RESERVED'));
+$$;
+
+revoke execute on function public.community_non_joiners(uuid) from public, anon, authenticated;
+revoke execute on function public.event_non_buyers(uuid) from public, anon, authenticated;
+grant execute on function public.community_non_joiners(uuid) to service_role;
+grant execute on function public.event_non_buyers(uuid) to service_role;
+
+-- One-click in-app outreach blast (WhatsApp/email adapters come later).
+drop function if exists public.send_outreach_blast(uuid, text, uuid, text, uuid[]);
+create or replace function public.send_outreach_blast(
+  p_actor_id   uuid,
+  p_entity_type text,
+  p_entity_id  uuid,
+  p_message    text,
+  p_user_ids   uuid[]
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_ok boolean;
+begin
+  if p_entity_type = 'EVENT' then
+    select exists (
+      select 1 from public.events e join public.organizers o on o.id = e.organizer_id
+       where e.id = p_entity_id and o.owner_id = p_actor_id
+    ) into v_ok;
+  else
+    select exists (
+      select 1 from public.communities c join public.organizers o on o.id = c.owner_id
+       where c.id = p_entity_id and o.owner_id = p_actor_id
+    ) into v_ok;
+  end if;
+  if not v_ok and not exists (select 1 from public.profiles where id = p_actor_id and is_admin = true) then
+    raise exception 'Not authorized';
+  end if;
+
+  insert into public.event_notifications (event_id, user_id, type, message)
+  select case when p_entity_type = 'EVENT' then p_entity_id else null end,
+         u, 'OUTREACH', p_message
+    from unnest(p_user_ids) u;
+  return coalesce(array_length(p_user_ids, 1), 0);
+end;
+$$;
+revoke execute on function public.send_outreach_blast(uuid, text, uuid, text, uuid[]) from public, anon, authenticated;
+grant execute on function public.send_outreach_blast(uuid, text, uuid, text, uuid[]) to service_role;

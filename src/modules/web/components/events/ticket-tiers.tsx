@@ -25,12 +25,15 @@ export function TicketTiers({
   waitlistData = [],
   waitlistEnabled = true,
   ticketsHeld = 0,
+  inviteToken = null,
 }: {
   event: EventDetail;
   waitlistData?: WaitlistTierData[];
   waitlistEnabled?: boolean;
   /** Tickets this user already holds for the event (server-computed). */
   ticketsHeld?: number;
+  /** INVITE_ONLY community events: forward the invite token through checkout. */
+  inviteToken?: string | null;
 }) {
   const router = useRouter();
   // Clock tick - re-evaluates phase/booking state without a refresh.
@@ -149,9 +152,9 @@ export function TicketTiers({
   const handleBook = useCallback(() => {
     if (!selected || remainingCap <= 0) return;
     startNavigation(() =>
-      router.push(`/checkout?event=${event.id}&tier=${selected.id}&qty=${qty}`),
+      router.push(`/checkout?event=${event.id}&tier=${selected.id}&qty=${qty}${inviteToken ? `&invite=${inviteToken}` : ""}`),
     );
-  }, [selected, qty, remainingCap, event.id, router, startNavigation]);
+  }, [selected, qty, remainingCap, event.id, inviteToken, router, startNavigation]);
 
   // Sold-out phase state - computed once, not in an IIFE inside JSX
   const soldOutPhaseState = useMemo(() => {
@@ -270,6 +273,9 @@ export function TicketTiers({
                   <p className="text-sm font-black">
                     {tier.pricePaise === 0 ? "Free" : formatPaise(tier.pricePaise)}
                   </p>
+                  {(tier.admits ?? 1) > 1 ? (
+                    <p className="mt-0.5 text-[10px] font-bold text-violet-neon">admits {tier.admits}</p>
+                  ) : null}
                 </div>
               </div>
             </button>

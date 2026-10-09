@@ -30,7 +30,7 @@ export interface CreateEventState {
     freeQuantity: string;
     flatPrice: string;
     flatQuantity: string;
-    tiers: { name: string; price: string; quantity: string; perks: string }[];
+    tiers: { name: string; price: string; quantity: string; perks: string; admits: string }[];
     feePayer: string;
     needsDoorStaff: boolean;
     waitlistEnabled: boolean;
@@ -65,12 +65,14 @@ function parseTiers(formData: FormData): TicketTierInput[] {
   const prices = formData.getAll("tierPrice").map(String);
   const quantities = formData.getAll("tierQuantity").map(String);
   const perks = formData.getAll("tierPerks").map(String);
+  const admits = formData.getAll("tierAdmits").map(String);
 
   return names
     .map((name, index) => ({
       name: name.trim(),
       pricePaise: Math.round(Number(prices[index] ?? 0) * 100),
       quantity: Number(quantities[index] ?? 0),
+      admits: Math.min(10, Math.max(1, Number(admits[index] ?? 1) || 1)),
       perks: (perks[index] ?? "")
         .split(",")
         .map((perk) => perk.trim())
@@ -85,6 +87,7 @@ function extractFormValues(formData: FormData): CreateEventState["values"] {
   const tierPrices = formData.getAll("tierPrice").map(String);
   const tierQuantities = formData.getAll("tierQuantity").map(String);
   const tierPerks = formData.getAll("tierPerks").map(String);
+  const tierAdmits = formData.getAll("tierAdmits").map(String);
 
   return {
     title: String(formData.get("title") ?? ""),
@@ -111,6 +114,7 @@ function extractFormValues(formData: FormData): CreateEventState["values"] {
       price: tierPrices[i] ?? "",
       quantity: tierQuantities[i] ?? "",
       perks: tierPerks[i] ?? "",
+      admits: tierAdmits[i] ?? "1",
     })),
     feePayer: String(formData.get("feePayer") ?? "BUYER"),
     needsDoorStaff: formData.get("needsDoorStaff") === "on",
@@ -241,6 +245,24 @@ export async function createEventAction(
   const effectiveTitle = title || "Untitled draft";
 
   const needsDoorStaff = formData.get("needsDoorStaff") === "on";
+
+  // Community event: the organizer picks one of their communities and a visibility mode.
+  const communityId = String(formData.get("communityId") ?? "").trim() || null;
+  const visibility = (communityId
+    ? String(formData.get("visibility") ?? "OPEN")
+    : "OPEN") as "OPEN" | "MEMBERS_ONLY" | "INVITE_ONLY";
+  // Invite-only community events get a share token for the /events/[id]?invite= link.
+  const inviteToken =
+    communityId && visibility === "INVITE_ONLY" ? crypto.randomUUID().slice(0, 12) : null;
+  if (communityId) {
+    const { getCommunity } = await import("@/modules/shared/server");
+    const community = await getCommunity(communityId);
+    const { getOrganizerProfile } = await import("@/modules/shared/server");
+    const org = await getOrganizerProfile(user);
+    if (!community || !org || community.ownerId !== org.id) {
+      return { error: "Pick one of your own communities for a community event.", values: extractFormValues(formData) };
+    }
+  }
 
   // For drafts, only require a title - everything else can be filled in later
   if (!isDraft) {
@@ -454,6 +476,9 @@ export async function createEventAction(
       linkedinUrl: String(formData.get("linkedinUrl") ?? "").trim() || null,
       linkedPastEventIds: formData.getAll("linkedPastEventIds").map(String).filter(Boolean),
       maxTicketsPerUser: Math.min(10, Math.max(1, Number(formData.get("maxTicketsPerUser") ?? 5) || 5)),
+      communityId: communityId,
+      visibility: visibility,
+      inviteToken: inviteToken,
       status: isDraft ? "DRAFT" : "PUBLISHED",
     });
     }

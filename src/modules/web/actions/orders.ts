@@ -45,6 +45,7 @@ export async function submitPaymentAction(
     buyerEmail: String(formData.get("buyerEmail") ?? ""),
     buyerGender: String(formData.get("buyerGender") ?? ""),
     utrReference: String(formData.get("utrReference") ?? ""),
+    inviteToken: String(formData.get("inviteToken") ?? "") || null,
   });
 
   if (result.error) return { error: result.error };
@@ -70,6 +71,7 @@ export async function createCheckoutAction(
     buyerPhone: String(formData.get("buyerPhone") ?? ""),
     buyerEmail: String(formData.get("buyerEmail") ?? ""),
     buyerGender: String(formData.get("buyerGender") ?? ""),
+    inviteToken: String(formData.get("inviteToken") ?? "") || null,
   });
 }
 

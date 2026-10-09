@@ -130,10 +130,10 @@ async function main() {
   try { await admin.from("event_reviews").delete().in("event_id", testEventIds); } catch {}
   try { await admin.from("event_collaborators").delete().in("event_id", testEventIds); } catch {}
   try {
-    const clubIds = (await admin.from("clubs").select("id").ilike("name", "DEVTEST%")).data?.map((c) => c.id) ?? [];
+    const clubIds = (await admin.from("communities").select("id").ilike("name", "DEVTEST%")).data?.map((c) => c.id) ?? [];
     if (clubIds.length) {
-      await admin.from("club_members").delete().in("club_id", clubIds);
-      await admin.from("clubs").delete().in("id", clubIds);
+      await admin.from("community_members").delete().in("community_id", clubIds);
+      await admin.from("communities").delete().in("id", clubIds);
     }
   } catch {}
   await admin.from("ticket_tiers").update({ quantity_sold: 0, quantity_reserved: 0 }).in("event_id", testEventIds);
@@ -464,15 +464,15 @@ async function main() {
   }
 
   // ── R: clubs ──────────────────────────────────────────────────────
-  const club = await api("/clubs", { token: U.org.token, body: { name: "DEVTEST E2E Club", bio: "e2e", type: "CLUB", city: "KOLKATA", membershipType: "FREE" } });
-  const clubId = club.data?.clubId;
-  report("R1. club created via API", club.ok === true && !!clubId, JSON.stringify(club.error ?? ""));
+  const club = await api("/communities", { token: U.org.token, body: { name: "DEVTEST E2E Community", bio: "e2e", kind: "COMMUNITY", city: "KOLKATA", membershipType: "OPEN" } });
+  const clubId = club.data?.communityId ?? club.data?.clubId;
+  report("R1. community created via API", club.ok === true && !!clubId, JSON.stringify(club.error ?? ""));
   if (clubId) {
-    const join = await api(`/clubs/${clubId}/join`, { token: U.u1.token });
-    const memberRow = (await admin.from("club_members").select("id").eq("club_id", clubId).eq("user_id", U.u1.uid).maybeSingle()).data;
-    report("R2. user joins free club", join.ok === true && !!memberRow, JSON.stringify(join.error ?? ""));
-    const joinAgain = await api(`/clubs/${clubId}/join`, { token: U.u1.token });
-    const memberCount = (await admin.from("club_members").select("id").eq("club_id", clubId).eq("user_id", U.u1.uid)).data?.length;
+    const join = await api(`/communities/${clubId}/join`, { token: U.u1.token });
+    const memberRow = (await admin.from("community_members").select("id").eq("community_id", clubId).eq("user_id", U.u1.uid).maybeSingle()).data;
+    report("R2. user joins open community", join.ok === true && !!memberRow, JSON.stringify(join.error ?? ""));
+    const joinAgain = await api(`/communities/${clubId}/join`, { token: U.u1.token });
+    const memberCount = (await admin.from("community_members").select("id").eq("community_id", clubId).eq("user_id", U.u1.uid)).data?.length;
     report("R3. rejoin idempotent (1 member row)", joinAgain.ok !== undefined && memberCount === 1, `rows=${memberCount}`);
   }
 

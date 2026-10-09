@@ -8,7 +8,7 @@ import { logger } from "@/modules/shared/server";
 import { adminDeleteEvent, adminUpdateEvent, adminUpdateEventStatus, adminToggleEventFeatured, adminToggleUserAdmin } from "../data/admin";
 import { updateSlotPrice } from "@/modules/shared/server";
 import { approveBoost, rejectBoost } from "@/modules/shared/server";
-import { setClubVerified } from "@/modules/shared/server";
+import { setCommunityVerified } from "@/modules/shared/server";
 import { approveOrder, rejectOrder } from "@/modules/shared/server";
 import { createClient, createServiceClient } from "@/modules/shared/server";
 import { isEventReadOnly } from "@/modules/shared";
@@ -254,18 +254,18 @@ export async function adminUpdateEventFeesAction(
   }
 }
 
-export async function adminApproveClubAction(clubId: string): Promise<void> {
+export async function adminApproveCommunityAction(communityId: string): Promise<void> {
   await requireAdmin();
-  await setClubVerified(clubId, true);
-  revalidatePath("/admin/clubs");
-  revalidatePath("/clubs");
+  await setCommunityVerified(communityId, true);
+  revalidatePath("/admin/communities");
+  revalidatePath("/communities");
 }
 
-export async function adminRejectClubAction(clubId: string): Promise<void> {
+export async function adminRejectCommunityAction(communityId: string): Promise<void> {
   await requireAdmin();
-  await setClubVerified(clubId, false);
-  revalidatePath("/admin/clubs");
-  revalidatePath("/clubs");
+  await setCommunityVerified(communityId, false);
+  revalidatePath("/admin/communities");
+  revalidatePath("/communities");
 }
 
 // ============================================================================

@@ -9,6 +9,7 @@ export interface TicketTierInput {
   name: string;
   pricePaise: number;
   quantity: number;
+  admits?: number;   // group ticket: one tier unit admits N people
   perks: string[];
   tierType?: "NAMED" | "FLAT_PHASE";
   phaseOrder?: number | null;
@@ -52,6 +53,9 @@ export interface CreateEventInput {
   status?: import("@/modules/shared").EventStatus;
   /** Per-account ticket cap (1-10, default 5). */
   maxTicketsPerUser?: number;
+  communityId?: string | null;
+  visibility?: "OPEN" | "MEMBERS_ONLY" | "INVITE_ONLY";
+  inviteToken?: string | null;
 }
 
 export async function listOrganizerEvents(
@@ -224,6 +228,9 @@ export async function createEvent(
       linked_past_event_ids: input.linkedPastEventIds ?? [],
       max_tickets_per_user: input.maxTicketsPerUser ?? 5,
       pricing_mode: input.pricingMode,
+      community_id: input.communityId ?? null,
+      visibility: input.visibility ?? "OPEN",
+      invite_token: input.inviteToken ?? null,
       status: input.status ?? "PUBLISHED",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any)
@@ -244,6 +251,7 @@ export async function createEvent(
       price_paise: tier.pricePaise,
       quantity: tier.quantity,
       perks: tier.perks,
+      admits: tier.admits ?? 1,
       sort_order: index,
       tier_type: tier.tierType ?? "NAMED",
       phase_order: tier.phaseOrder ?? null,
@@ -413,7 +421,7 @@ export interface UpdateEventInput {
   city?: City;
   category?: EventCategory;
   categories?: EventCategory[];
-  tiers?: { id?: string; name: string; pricePaise: number; quantity: number; perks: string[]; tierType?: "NAMED" | "FLAT_PHASE"; phaseOrder?: number | null; phaseOpensAt?: string | null; phaseClosesAt?: string | null }[];
+  tiers?: { id?: string; name: string; pricePaise: number; quantity: number; admits?: number; perks: string[]; tierType?: "NAMED" | "FLAT_PHASE"; phaseOrder?: number | null; phaseOpensAt?: string | null; phaseClosesAt?: string | null }[];
   photoUrls?: string[];
   contactEmail?: string | null;
   contactPhone?: string | null;
@@ -433,6 +441,9 @@ export interface UpdateEventInput {
   pricingMode?: PricingMode;
   /** Per-account ticket cap for this event - clamped to 1-10. */
   maxTicketsPerUser?: number;
+  communityId?: string | null;
+  visibility?: "OPEN" | "MEMBERS_ONLY" | "INVITE_ONLY";
+  inviteToken?: string | null;
 }
 
 
@@ -512,6 +523,9 @@ export async function updateEvent(
       ...(input.teaserVideoUrl !== undefined ? { teaser_video_url: input.teaserVideoUrl } : {}),
       ...(input.linkedPastEventIds !== undefined ? { linked_past_event_ids: input.linkedPastEventIds } : {}),
       ...(input.pricingMode !== undefined ? { pricing_mode: input.pricingMode } : {}),
+      ...(input.communityId !== undefined ? { community_id: input.communityId } : {}),
+      ...(input.visibility !== undefined ? { visibility: input.visibility } : {}),
+      ...(input.inviteToken !== undefined ? { invite_token: input.inviteToken } : {}),
       ...(input.maxTicketsPerUser !== undefined
         ? { max_tickets_per_user: Math.min(10, Math.max(1, input.maxTicketsPerUser)) }
         : {}),

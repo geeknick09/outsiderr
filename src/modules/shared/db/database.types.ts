@@ -102,6 +102,9 @@ export type EventRow = {
   terms: string[];
   registrations_count: number;
   max_tickets_per_user?: number;
+  community_id?: string | null;
+  visibility?: string;
+  invite_token?: string | null;
   tags: string[];
   photo_urls: string[];
   pricing_mode: PricingMode;
@@ -125,6 +128,7 @@ export type TicketTierRow = {
   quantity_sold: number;
   quantity_reserved: number;
   perks: string[];
+  admits?: number;
   sort_order: number;
   tier_type: string;
   phase_order: number | null;
@@ -231,7 +235,7 @@ export type BoostSlotPriceRow = {
   price_paise: number;
 }
 
-export type ClubRow = {
+export type CommunityRow = {
   id: string;
   owner_id: string;
   name: string;
@@ -240,6 +244,8 @@ export type ClubRow = {
   city: string | null;
   avatar_url: string | null;
   cover_url: string | null;
+  gallery_urls: string[];
+  invite_token: string | null;
   instagram_handle: string | null;
   upi_id: string | null;
   membership_type: string;
@@ -336,13 +342,79 @@ export type AdminChangeLogRow = {
   created_at: string;
 }
 
-export type ClubMemberRow = {
+export type CommunityMemberRow = {
   id: string;
-  club_id: string;
+  community_id: string;
   user_id: string;
   status: string;
   instagram_link: string | null;
   utr_reference: string | null;
+  referred_by_member_id: string | null;
+  imported_from: string | null;
+  imported_events_attended: number;
+  invite_code: string | null;
+  created_at: string;
+}
+
+
+export type CommunityJoinQuestionRow = {
+  id: string;
+  community_id: string;
+  question: string;
+  is_mandatory: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
+export type CommunityJoinAnswerRow = {
+  id: string;
+  member_id: string;
+  question: string;
+  answer: string;
+  created_at: string;
+}
+
+export type CommunityFollowRow = {
+  community_id: string;
+  follower_id: string;
+  created_at: string;
+}
+
+export type CommunityMemberImportRow = {
+  id: string;
+  community_id: string;
+  organizer_id: string;
+  status: string;
+  filename: string;
+  total_rows: number;
+  valid_rows: number;
+  invalid_rows: number;
+  requested_by: string;
+  reviewed_by: string | null;
+  review_note: string | null;
+  created_at: string;
+  reviewed_at: string | null;
+}
+
+export type CommunityImportItemRow = {
+  id: string;
+  import_id: string;
+  full_name: string;
+  phone: string | null;
+  email: string | null;
+  events_attended: number;
+  status: string;
+  row_error: string | null;
+  linked_user_id: string | null;
+  created_at: string;
+}
+
+export type PageViewRow = {
+  id: string;
+  user_id: string;
+  entity_type: string;
+  entity_id: string;
+  viewed_day: string;
   created_at: string;
 }
 
@@ -621,8 +693,14 @@ export type Database = {
       push_subscriptions: Table<PushSubscriptionRow, "user_id" | "endpoint" | "p256dh" | "auth">;
       boosts: Table<BoostRow, "event_id" | "organizer_id" | "slot" | "amount_paid_paise" | "starts_at" | "ends_at">;
       boost_slot_prices: Table<BoostSlotPriceRow, "slot" | "price_paise">;
-      clubs: Table<ClubRow, "owner_id" | "name" | "type" | "membership_type">;
-      club_members: Table<ClubMemberRow, "club_id" | "user_id" | "status">;
+      communities: Table<CommunityRow, "owner_id" | "name" | "type" | "membership_type">;
+      community_members: Table<CommunityMemberRow, "community_id" | "user_id" | "status">;
+      community_join_questions: Table<CommunityJoinQuestionRow, "community_id" | "question">;
+      community_join_answers: Table<CommunityJoinAnswerRow, "member_id" | "question" | "answer">;
+      community_follows: Table<CommunityFollowRow, "community_id" | "follower_id">;
+      community_member_imports: Table<CommunityMemberImportRow, "community_id" | "organizer_id" | "filename" | "requested_by">;
+      community_import_items: Table<CommunityImportItemRow, "import_id" | "full_name">;
+      page_views: Table<PageViewRow, "user_id" | "entity_type" | "entity_id">;
       refunds: Table<RefundRow, "event_id" | "user_id" | "amount_paise" | "platform_fee_paise" | "status" | "reason" | "initiated_at">;
       payment_intents: Table<PaymentIntentRow, "kind" | "ref_id" | "user_id" | "amount_paise" | "expires_at">;
       payment_disputes: Table<PaymentDisputeRow>;
@@ -903,10 +981,56 @@ export type Database = {
         Args: { p_entry_id: string };
         Returns: void;
       };
-      increment_club_member_count: {
-        Args: { p_club_id: string };
+      increment_community_member_count: {
+        Args: { p_community_id: string };
         Returns: void;
       };
+
+      join_community: {
+        Args: { p_user_id: string; p_community_id: string; p_answers?: unknown; p_invite_token?: string | null; p_ref_code?: string | null };
+        Returns: unknown;
+      };
+      set_community_membership: {
+        Args: { p_actor_id: string; p_member_id: string; p_status: string };
+        Returns: void;
+      };
+      create_guestlist_entry: {
+        Args: { p_actor_id: string; p_event_id: string; p_name: string; p_phone?: string | null; p_email?: string | null };
+        Returns: string;
+      };
+      request_member_import: {
+        Args: { p_actor_id: string; p_community_id: string; p_filename: string; p_items: unknown };
+        Returns: string;
+      };
+      review_member_import: {
+        Args: { p_admin_id: string; p_import_id: string; p_approve: boolean; p_note?: string | null };
+        Returns: void;
+      };
+      link_imported_members: {
+        Args: { p_user_id: string };
+        Returns: number;
+      };
+      log_page_view: {
+        Args: { p_entity_type: string; p_entity_id: string };
+        Returns: void;
+      };
+      community_analytics: {
+        Args: { p_community_id: string };
+        Returns: unknown;
+      };
+      community_non_joiners: {
+        Args: { p_community_id: string };
+        Returns: string[];
+      };
+      event_non_buyers: {
+        Args: { p_event_id: string };
+        Returns: string[];
+      };
+      send_outreach_blast: {
+        Args: { p_actor_id: string; p_entity_type: string; p_entity_id: string; p_message: string; p_user_ids: string[] };
+        Returns: number;
+      };
+
       cancel_event: {
         Args: {
           p_event_id: string;

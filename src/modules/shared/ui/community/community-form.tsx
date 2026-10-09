@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { AtSign, Plus, Upload } from "lucide-react";
 
-import { createClubAction, type CreateClubState } from "../../actions/clubs";
+import { createCommunityAction, type CreateCommunityState } from "../../actions/communities";
 import { Button } from "../ui/button";
 import { CITIES } from "../../lib/constants";
 import { uploadPublicFile } from "../../lib/upload";
@@ -13,12 +13,13 @@ const INPUT =
 
 const OPTION = "bg-white text-zinc-900";
 
-export function ClubForm() {
-  const [state, formAction, pending] = useActionState<CreateClubState, FormData>(
-    createClubAction,
+export function CommunityForm() {
+  const [state, formAction, pending] = useActionState<CreateCommunityState, FormData>(
+    createCommunityAction,
     { error: null },
   );
-  const [membershipType, setMembershipType] = useState("FREE");
+  const [membershipType, setMembershipType] = useState("OPEN");
+  const [questions, setQuestions] = useState<{ question: string; isMandatory: boolean }[]>([]);
   const [avatarUrl, setAvatarUrl] = useState("");
   const [coverUrl, setCoverUrl] = useState("");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -31,7 +32,7 @@ export function ClubForm() {
     else setUploadingCover(true);
     setUploadError(null);
     try {
-      const url = await uploadPublicFile(file, "club-media");
+      const url = await uploadPublicFile(file, "community-media");
       if (url) {
         if (kind === "avatar") setAvatarUrl(url);
         else setCoverUrl(url);
@@ -48,7 +49,7 @@ export function ClubForm() {
 
   return (
     <form action={formAction} className="glass space-y-4 rounded-3xl p-5">
-      <h2 className="text-base font-bold">Create a Club or Crew</h2>
+      <h2 className="text-base font-bold">Create a Community or Crew</h2>
 
       <label className="block space-y-1.5">
         <span className="text-xs font-semibold uppercase tracking-wide text-muted">Name *</span>
@@ -117,7 +118,7 @@ export function ClubForm() {
         <label className="block space-y-1.5">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted">Type</span>
           <select name="type" className={INPUT} defaultValue="CLUB">
-            <option value="CLUB" className={OPTION}>Club (open community)</option>
+            <option value="CLUB" className={OPTION}>Community (open community)</option>
             <option value="CREW" className={OPTION}>Crew (audition / invite)</option>
           </select>
         </label>
@@ -146,40 +147,74 @@ export function ClubForm() {
         <span className="text-xs text-muted">So people can check out your crew before joining.</span>
       </label>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="block space-y-1.5">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted">Membership type</span>
-          <select
-            name="membershipType"
-            className={INPUT}
-            value={membershipType}
-            onChange={(e) => setMembershipType(e.target.value)}
-          >
-            <option value="FREE" className={OPTION}>Free - anyone can join</option>
-            <option value="PAID" className={OPTION}>Paid - monthly fee via UPI</option>
-            <option value="AUDITION" className={OPTION}>Audition - review Instagram first</option>
-          </select>
-        </label>
-        <label className="block space-y-1.5">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted">Monthly fee (₹)</span>
-          <input name="membershipFee" type="number" inputMode="decimal" placeholder="0" min="0" className={INPUT} />
-        </label>
-      </div>
+      <label className="block space-y-1.5">
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted">Who can join?</span>
+        <select
+          name="membershipType"
+          className={INPUT}
+          value={membershipType}
+          onChange={(e) => setMembershipType(e.target.value)}
+        >
+          <option value="OPEN" className={OPTION}>Open - anyone can join</option>
+          <option value="PRIVATE" className={OPTION}>Private - members request &amp; you approve</option>
+          <option value="INVITE_ONLY" className={OPTION}>Invite only - only via your invite link</option>
+        </select>
+      </label>
 
-      {/* UPI ID field - only shown for paid membership */}
-      {membershipType === "PAID" ? (
-        <label className="block space-y-1.5">
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted">UPI ID *</span>
-          <input
-            name="upiId"
-            required
-            placeholder="yourclub@upi"
-            className={INPUT}
-          />
-          <span className="text-xs text-muted">
-            Members will see a QR code to pay the membership fee to this UPI ID.
-          </span>
-        </label>
+      {/* Join questions - private communities only */}
+      {membershipType === "PRIVATE" ? (
+        <div className="space-y-3 rounded-2xl border border-dashed border-zinc-300 p-4 dark:border-white/15">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+            Questions for new members (they answer before you approve)
+          </p>
+          {questions.map((q, i) => (
+            <div key={i} className="flex items-start gap-2">
+              <input
+                value={q.question}
+                onChange={(e) =>
+                  setQuestions((prev) => prev.map((x, j) => (j === i ? { ...x, question: e.target.value } : x)))
+                }
+                placeholder="e.g. Why do you want to join?"
+                className={INPUT}
+              />
+              <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
+                <input
+                  type="checkbox"
+                  checked={q.isMandatory}
+                  onChange={(e) =>
+                    setQuestions((prev) => prev.map((x, j) => (j === i ? { ...x, isMandatory: e.target.checked } : x)))
+                  }
+                />
+                Required
+              </label>
+              <button
+                type="button"
+                onClick={() => setQuestions((prev) => prev.filter((_, j) => j !== i))}
+                className="shrink-0 text-xs text-red-500 hover:underline"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+          {questions.length < 10 ? (
+            <button
+              type="button"
+              onClick={() => setQuestions((prev) => [...prev, { question: "", isMandatory: true }])}
+              className="text-xs font-semibold text-violet-neon hover:underline"
+            >
+              + Add a question
+            </button>
+          ) : null}
+          <input type="hidden" name="questions" value={JSON.stringify(questions.filter((q) => q.question.trim()))} />
+        </div>
+      ) : (
+        <input type="hidden" name="questions" value="[]" />
+      )}
+
+      {membershipType === "INVITE_ONLY" ? (
+        <p className="rounded-2xl bg-amber-500/10 px-4 py-3 text-xs text-amber-600 dark:text-amber-400">
+          After creation, you&apos;ll get a private invite link on the manage page - share it to let people in.
+        </p>
       ) : null}
 
       <label className="block space-y-1.5">
@@ -191,7 +226,7 @@ export function ClubForm() {
 
       <Button type="submit" size="lg" className="w-full" disabled={pending} loading={pending} loadingText="Creating…">
         <Plus className="h-4 w-4" />
-        Create Club
+        Create Community
       </Button>
     </form>
   );

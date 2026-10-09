@@ -15,6 +15,7 @@ const INPUT =
  */
 export function CheckoutForm({
   eventId,
+  inviteToken,
   tierId,
   quantity,
   defaultName,
@@ -23,6 +24,7 @@ export function CheckoutForm({
   defaultGender,
 }: {
   eventId: string;
+  inviteToken?: string | null;
   tierId: string;
   quantity: number;
   defaultName: string;
@@ -50,6 +52,7 @@ export function CheckoutForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <input type="hidden" name="eventId" value={eventId} />
+      {inviteToken ? <input type="hidden" name="inviteToken" value={inviteToken} /> : null}
       <input type="hidden" name="tierId" value={tierId} />
       <input type="hidden" name="quantity" value={quantity} />
       <input type="hidden" name="isFree" value="1" />

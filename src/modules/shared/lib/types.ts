@@ -154,6 +154,8 @@ export interface TicketTier {
   quantityReserved?: number;
   perks: string[];
   sortOrder: number;
+  /** Group ticket: one unit admits N people (1 = regular ticket). */
+  admits?: number;
   tierType?: TierType;
   phaseOrder?: number | null;
   phaseOpensAt?: string | null;
@@ -203,6 +205,9 @@ export interface EventDetail extends EventSummary {
   allowBookingDuringEvent: boolean;
   terms: string[];
   organizer: Organizer;
+  communityId?: string | null;
+  visibility?: "OPEN" | "MEMBERS_ONLY" | "INVITE_ONLY";
+  community?: { id: string; name: string; avatarUrl: string | null; membershipType: JoinMode } | null;
   tiers: TicketTier[];
   photoUrls: string[];
   contactEmail: string | null;
@@ -443,25 +448,27 @@ export interface BoostWithEvent extends Boost {
   organizerName: string;
 }
 
-// ── Clubs & Crews ──────────────────────────────────────────────────────
+// ── Communities & Crews ──────────────────────────────────────────────────────
 
-export type ClubType = "CLUB" | "CREW";
-export type MembershipType = "FREE" | "PAID" | "AUDITION";
+export type CommunityType = "CLUB" | "CREW";
+export type JoinMode = "OPEN" | "PRIVATE" | "INVITE_ONLY";
 export type MembershipStatus = "PENDING" | "ACCEPTED" | "REJECTED";
 
-export interface Club {
+export interface Community {
   id: string;
   ownerId: string;
   ownerName: string;
   name: string;
   bio: string | null;
-  type: ClubType;
+  type: CommunityType;
   city: City | null;
   avatarUrl: string | null;
   coverUrl: string | null;
+  galleryUrls: string[];
+  inviteToken: string | null;
   instagramHandle: string | null;
   upiId: string | null;
-  membershipType: MembershipType;
+  membershipType: JoinMode;
   membershipFeePaise: number;
   terms: string[];
   memberCount: number;
@@ -469,15 +476,31 @@ export interface Club {
   createdAt: string;
 }
 
-export interface ClubMember {
+export interface CommunityMember {
   id: string;
-  clubId: string;
+  communityId: string;
   userId: string;
   userName: string;
   status: MembershipStatus;
   instagramLink: string | null;
   utrReference: string | null;
+  inviteCode: string | null;
+  imported: boolean;
   createdAt: string;
+}
+
+export interface CommunityJoinQuestion {
+  id: string;
+  communityId: string;
+  question: string;
+  isMandatory: boolean;
+  sortOrder: number;
+}
+
+export interface CommunityJoinAnswer {
+  memberId: string;
+  question: string;
+  answer: string;
 }
 
 // ── Hero Boosts ───────────────────────────────────────────────────────

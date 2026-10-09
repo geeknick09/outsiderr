@@ -254,6 +254,11 @@ create table if not exists public.events (
   x_url               text,
   facebook_url        text,
   linkedin_url        text,
+  community_id        uuid         references public.communities(id),
+  visibility          text         not null default 'OPEN'
+                       check (visibility in ('OPEN','MEMBERS_ONLY','INVITE_ONLY')),
+  invite_token        text,
+  followers_notified_at timestamptz,
   created_at          timestamptz     not null default now()
 );
 create index if not exists events_city_starts_idx on public.events(city, starts_at);
@@ -268,6 +273,7 @@ create table if not exists public.ticket_tiers (
   quantity        integer     not null check (quantity >= 0),
   quantity_sold   integer     not null default 0 check (quantity_sold >= 0),
   perks           text[]      not null default '{}',
+  admits          integer     not null default 1 check (admits between 1 and 20),
   sort_order      integer     not null default 0,
   tier_type       text        not null default 'NAMED',
   phase_order     integer,
@@ -319,7 +325,7 @@ create table if not exists public.orders (
   reviewed_by         uuid         references public.profiles(id),
   reviewed_at         timestamptz,
   order_source        text         not null default 'ONLINE'
-                       check (order_source in ('ONLINE','WALKIN_PREEVENT','WALKIN_QR','WALKIN_INSTANT')),
+                       check (order_source in ('ONLINE','WALKIN_PREEVENT','WALKIN_QR','WALKIN_INSTANT','MANUAL_UPI','BOX_OFFICE','GUESTLIST')),
   is_box_office       boolean      not null default false,
   idempotency_key     text,                               -- client-generated UUID to prevent duplicate orders
   created_at          timestamptz  not null default now()
@@ -784,42 +790,116 @@ create index if not exists payout_status_idx    on public.payout_records(status)
 -- Invoice number sequence — format: OUT-YYYYMM-XXXXX
 create sequence if not exists invoice_number_seq start with 10001;
 
-create table if not exists public.clubs (
+create table if not exists public.communities (
   id                  uuid        primary key default gen_random_uuid(),
   owner_id            uuid        not null references public.organizers(id) on delete cascade,
   name                text        not null,
   bio                 text,
   type                text        not null default 'CLUB'
                       check (type in ('CLUB','CREW')),
-  city                text        check (city in ('KOLKATA','MUMBAI','DELHI','BENGALURU')),
+  city                text,
   avatar_url          text,
   cover_url           text,
+  gallery_urls        text[]      not null default '{}',
   instagram_handle    text,
   upi_id              text,
-  membership_type     text        not null default 'FREE'
-                      check (membership_type in ('FREE','PAID','AUDITION')),
+  membership_type     text        not null default 'OPEN'
+                      check (membership_type in ('OPEN','PRIVATE','INVITE_ONLY')),
   membership_fee_paise integer   not null default 0,
   terms               text[]      not null default '{}',
+  invite_token        text,
   member_count        integer     not null default 0,
   verified            boolean     not null default false,
   created_at          timestamptz not null default now()
 );
-create index if not exists clubs_owner_idx on public.clubs(owner_id);
-create index if not exists clubs_city_idx  on public.clubs(city);
+create index if not exists communities_owner_idx on public.communities(owner_id);
+create index if not exists communities_city_idx  on public.communities(city);
 
-create table if not exists public.club_members (
+create table if not exists public.community_members (
   id             uuid        primary key default gen_random_uuid(),
-  club_id        uuid        not null references public.clubs(id) on delete cascade,
+  community_id        uuid        not null references public.communities(id) on delete cascade,
   user_id        uuid        not null references public.profiles(id) on delete cascade,
   status         text        not null default 'PENDING'
-                 check (status in ('PENDING','ACCEPTED','REJECTED')),
+                 check (status in ('PENDING','ACCEPTED','REJECTED','REMOVED')),
   instagram_link text,
   utr_reference  text,
+  invite_code    text        unique,
+  referred_by_member_id uuid references public.community_members(id),
+  imported_from  uuid,
+  imported_events_attended integer not null default 0,
   created_at     timestamptz not null default now(),
-  unique(club_id, user_id)
+  unique(community_id, user_id)
 );
-create index if not exists club_members_club_idx on public.club_members(club_id);
-create index if not exists club_members_user_idx on public.club_members(user_id);
+create index if not exists community_members_community_idx on public.community_members(community_id);
+create index if not exists community_members_user_idx on public.community_members(user_id);
+
+create table if not exists public.community_join_questions (
+  id           uuid        primary key default gen_random_uuid(),
+  community_id uuid        not null references public.communities(id) on delete cascade,
+  question     text        not null,
+  required     boolean     not null default false,
+  sort_order   integer     not null default 0,
+  created_at   timestamptz not null default now()
+);
+
+create table if not exists public.community_join_answers (
+  id          uuid    primary key default gen_random_uuid(),
+  member_id   uuid    not null references public.community_members(id) on delete cascade,
+  question_id uuid    not null references public.community_join_questions(id) on delete cascade,
+  answer      text    not null,
+  created_at  timestamptz not null default now(),
+  unique (member_id, question_id)
+);
+
+create table if not exists public.community_follows (
+  id           uuid        primary key default gen_random_uuid(),
+  community_id uuid        not null references public.communities(id) on delete cascade,
+  follower_id  uuid        not null references public.profiles(id) on delete cascade,
+  created_at   timestamptz not null default now(),
+  unique (community_id, follower_id)
+);
+create index if not exists cf_follower_idx on public.community_follows(follower_id);
+
+create table if not exists public.community_member_imports (
+  id           uuid        primary key default gen_random_uuid(),
+  community_id uuid        not null references public.communities(id) on delete cascade,
+  organizer_id uuid        not null references public.organizers(id) on delete cascade,
+  status       text        not null default 'REQUESTED'
+               check (status in ('REQUESTED','APPROVED','REJECTED')),
+  filename     text        not null,
+  total_rows   integer     not null default 0,
+  valid_rows   integer     not null default 0,
+  invalid_rows integer     not null default 0,
+  requested_by uuid        not null references public.profiles(id),
+  reviewed_by  uuid        references public.profiles(id),
+  review_note  text,
+  created_at   timestamptz not null default now(),
+  reviewed_at  timestamptz
+);
+
+create table if not exists public.community_import_items (
+  id              uuid        primary key default gen_random_uuid(),
+  import_id       uuid        not null references public.community_member_imports(id) on delete cascade,
+  full_name       text        not null,
+  phone           text,
+  email           text,
+  events_attended integer     not null default 0,
+  status          text        not null default 'VALID'
+                  check (status in ('VALID','INVALID','LINKED')),
+  row_error       text,
+  linked_user_id  uuid        references public.profiles(id),
+  created_at      timestamptz not null default now()
+);
+
+create table if not exists public.page_views (
+  id          uuid        primary key default gen_random_uuid(),
+  user_id     uuid        not null references public.profiles(id) on delete cascade,
+  entity_type text        not null check (entity_type in ('COMMUNITY','EVENT')),
+  entity_id   uuid        not null,
+  viewed_day  date        not null default (now() at time zone 'Asia/Kolkata')::date,
+  created_at  timestamptz not null default now(),
+  unique (user_id, entity_type, entity_id, viewed_day)
+);
 
 -- ================================================================
 -- Event Reviews (checked-in attendees only)
@@ -926,8 +1006,8 @@ do $$ begin
     end if;
   end if;
 end $$;
-alter table public.clubs          add column if not exists upi_id       text;
-alter table public.clubs          add column if not exists instagram_handle text;
+alter table public.communities          add column if not exists upi_id       text;
+alter table public.communities          add column if not exists instagram_handle text;
 
 -- ---------------------------------------------------------------- helper functions
 
@@ -1842,15 +1922,15 @@ begin
 end;
 $$;
 
--- Increment club member count (called after free join accepted).
-create or replace function public.increment_club_member_count(p_club_id uuid)
+-- Increment community member count (called after free join accepted).
+create or replace function public.increment_community_member_count(p_community_id uuid)
 returns void
 language plpgsql
 security definer
 set search_path = public
 as $$
 begin
-  update public.clubs set member_count = member_count + 1 where id = p_club_id;
+  update public.communities set member_count = member_count + 1 where id = p_community_id;
 end;
 $$;
 
@@ -2507,8 +2587,8 @@ alter table public.waitlist          enable row level security;
 alter table public.push_subscriptions enable row level security;
 alter table public.boosts            enable row level security;
 alter table public.boost_slot_prices enable row level security;
-alter table public.clubs             enable row level security;
-alter table public.club_members      enable row level security;
+alter table public.communities             enable row level security;
+alter table public.community_members      enable row level security;
 -- Razorpay tables
 alter table public.webhook_events    enable row level security;
 alter table public.payment_ledger    enable row level security;
@@ -2673,56 +2753,56 @@ drop policy if exists "boost prices admin update" on public.boost_slot_prices;
 create policy "boost prices admin update" on public.boost_slot_prices
   for update using (public.is_current_user_admin());
 
--- clubs
-drop policy if exists "clubs are publicly readable" on public.clubs;
-create policy "clubs are publicly readable" on public.clubs
+-- communities
+drop policy if exists "communities are publicly readable" on public.communities;
+create policy "communities are publicly readable" on public.communities
   for select using (true);
 
-drop policy if exists "organizers can insert clubs" on public.clubs;
-create policy "organizers can insert clubs" on public.clubs
+drop policy if exists "organizers can insert communities" on public.communities;
+create policy "organizers can insert communities" on public.communities
   for insert with check (
     exists (
       select 1 from public.organizers o
-      where o.id = clubs.owner_id and o.owner_id = auth.uid()
+      where o.id = communities.owner_id and o.owner_id = auth.uid()
     )
   );
 
-drop policy if exists "organizers can update own clubs" on public.clubs;
-create policy "organizers can update own clubs" on public.clubs
+drop policy if exists "organizers can update own communities" on public.communities;
+create policy "organizers can update own communities" on public.communities
   for update using (
     exists (
       select 1 from public.organizers o
-      where o.id = clubs.owner_id and o.owner_id = auth.uid()
+      where o.id = communities.owner_id and o.owner_id = auth.uid()
     )
   );
 
--- club members
-drop policy if exists "members are visible to club owner and self" on public.club_members;
-create policy "members are visible to club owner and self" on public.club_members
+-- community members
+drop policy if exists "members are visible to community owner and self" on public.community_members;
+create policy "members are visible to community owner and self" on public.community_members
   for select using (
     user_id = auth.uid()
     or exists (
-      select 1 from public.clubs c
+      select 1 from public.communities c
       join public.organizers o on o.id = c.owner_id
-      where c.id = club_id and o.owner_id = auth.uid()
+      where c.id = community_id and o.owner_id = auth.uid()
     )
   );
 
-drop policy if exists "users can request to join" on public.club_members;
-create policy "users can request to join" on public.club_members
+drop policy if exists "users can request to join" on public.community_members;
+create policy "users can request to join" on public.community_members
   for insert with check (user_id = auth.uid());
 
-drop policy if exists "users can update own membership" on public.club_members;
-create policy "users can update own membership" on public.club_members
+drop policy if exists "users can update own membership" on public.community_members;
+create policy "users can update own membership" on public.community_members
   for update using (user_id = auth.uid());
 
-drop policy if exists "club owners can update membership status" on public.club_members;
-create policy "club owners can update membership status" on public.club_members
+drop policy if exists "community owners can update membership status" on public.community_members;
+create policy "community owners can update membership status" on public.community_members
   for update using (
     exists (
-      select 1 from public.clubs c
+      select 1 from public.communities c
       join public.organizers o on o.id = c.owner_id
-      where c.id = club_id and o.owner_id = auth.uid()
+      where c.id = community_id and o.owner_id = auth.uid()
     )
   );
 
@@ -3339,7 +3419,7 @@ exception when duplicate_object then null; end $$;
 -- ================================================================
 
 -- ---- 1. Missing columns (schema drift — code references them; never migrated)
-alter table public.clubs add column if not exists cover_url text;
+alter table public.communities add column if not exists cover_url text;
 alter table public.organizers add column if not exists rejection_count integer not null default 0;
 
 -- ---- 2. is_event_manager(): event owner OR admin OR ACCEPTED FULL collaborator.
@@ -3381,7 +3461,7 @@ revoke execute on function public.expire_reserved_orders() from public, anon, au
 revoke execute on function public.set_razorpay_order_id(uuid, text) from public, anon, authenticated;
 revoke execute on function public.requeue_waitlist_entry(uuid) from public, anon, authenticated;
 revoke execute on function public.offer_waitlist_next(uuid) from public, anon;
-revoke execute on function public.increment_club_member_count(uuid) from public, anon;
+revoke execute on function public.increment_community_member_count(uuid) from public, anon;
 
 grant execute on function public.confirm_razorpay_order(uuid, text, text, text) to service_role;
 grant execute on function public.fail_razorpay_order(uuid) to service_role;
@@ -3392,7 +3472,7 @@ grant execute on function public.expire_reserved_orders() to service_role;
 grant execute on function public.set_razorpay_order_id(uuid, text) to service_role;
 grant execute on function public.requeue_waitlist_entry(uuid) to service_role;
 grant execute on function public.offer_waitlist_next(uuid) to authenticated, service_role;
-grant execute on function public.increment_club_member_count(uuid) to authenticated, service_role;
+grant execute on function public.increment_community_member_count(uuid) to authenticated, service_role;
 
 -- ---- 4. event_staff self-claim hardening ---------------------------------------
 -- The claim path may only fill user_id on an unresolved row; identity columns

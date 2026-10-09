@@ -50,8 +50,8 @@ const BACKUP_TABLES = [
   "hero_boosts",
   "payment_ledger",
   "payout_records",
-  "clubs",
-  "club_members",
+  "communities",
+  "community_members",
   "door_staff_orders",
 ] as const;
 

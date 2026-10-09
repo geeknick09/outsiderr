@@ -16,6 +16,7 @@ export interface CreateFreeOrderInput {
   buyerPhone: string;
   buyerEmail: string | null;
   buyerGender: string | null;
+  inviteToken?: string | null;
 }
 
 /**
@@ -30,6 +31,7 @@ export interface CreateReservedOrderInput {
   buyerPhone: string;
   buyerEmail: string | null;
   buyerGender: string | null;
+  inviteToken?: string | null;
   /** Double-click/retry safety - replays return the same order. */
   idempotencyKey?: string | null;
 }
@@ -86,6 +88,7 @@ export async function createFreeOrder(
     p_buyer_phone: input.buyerPhone || null,
     p_buyer_email: input.buyerEmail || null,
     p_buyer_gender: input.buyerGender || null,
+    p_invite_token: input.inviteToken || null,
   });
   if (error) throw error;
 
@@ -553,6 +556,7 @@ export async function createReservedOrder(
     p_buyer_phone: input.buyerPhone || null,
     p_buyer_email: input.buyerEmail || null,
     p_buyer_gender: input.buyerGender || null,
+    p_invite_token: input.inviteToken || null,
   });
 
   if (error) throw new Error(error.message || "Failed to reserve tickets.");

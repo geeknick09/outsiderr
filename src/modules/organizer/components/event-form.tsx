@@ -24,6 +24,7 @@ const MapPicker = dynamic(
   { ssr: false },
 );
 
+const OPTION = "bg-white text-zinc-900";
 const INPUT =
   "w-full min-w-0 box-border rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon [color-scheme:light] dark:[color-scheme:dark] dark:border-white/10 dark:bg-white/5 dark:text-white";
 
@@ -37,6 +38,7 @@ interface TierRow {
   name: string;
   price: string;
   quantity: string;
+  admits: string;
   perks: string;
 }
 
@@ -55,6 +57,7 @@ function emptyTier(): TierRow {
     name: "",
     price: "",
     quantity: "",
+    admits: "1",
     perks: "",
   };
 }
@@ -119,6 +122,7 @@ export function EventForm({
   pastEvents = [],
   draftEvent,
   draftRetentionDays = 60,
+  communities = [],
 }: {
   organizerName?: string;
   termsVersion?: string;
@@ -127,11 +131,26 @@ export function EventForm({
   draftEvent?: EventDetail;
   /** Admin-configured purge window for drafts (shown in the save confirmation). */
   draftRetentionDays?: number;
+  /** Organizer's verified communities for the "community event" option. */
+  communities?: { id: string; name: string; communityId?: string }[];
 }) {
   const [state, formAction, pending] = useActionState<CreateEventState, FormData>(
     createEventAction,
     { error: null },
   );
+
+  // ── Stepper ──
+  const STEPS = ["Event type", "Details", "Media", "Extras & contact", "Tickets", "Review"] as const;
+  const [step, setStep] = useState(0);
+  const [eventKind, setEventKind] = useState<"EVENT" | "COMMUNITY">(draftEvent?.communityId ? "COMMUNITY" : "EVENT");
+  const [communityId, setCommunityId] = useState(draftEvent?.communityId ?? "");
+  const [visibility, setVisibility] = useState<"OPEN" | "MEMBERS_ONLY" | "INVITE_ONLY">(
+    (draftEvent?.visibility as "OPEN" | "MEMBERS_ONLY" | "INVITE_ONLY" | undefined) ?? "OPEN",
+  );
+
+  function stepCls(n: number) {
+    return step === n ? "contents" : "hidden";
+  }
 
   // Map a draft row into the same shape the form restores after a failed submit
   const initialValues = useMemo<CreateEventState["values"] | undefined>(() => {
@@ -162,6 +181,7 @@ export function EventForm({
         name: t.name,
         price: String(t.pricePaise / 100),
         quantity: String(t.quantity),
+        admits: String(t.admits ?? 1),
         perks: t.perks.join(","),
       })),
       feePayer: draftEvent.feePayer,
@@ -304,27 +324,47 @@ export function EventForm({
   }
 
   return (
-    <form ref={formRef} action={formAction} className="space-y-6">
+    <form
+      ref={formRef}
+      action={formAction}
+      className="space-y-6"
+      onInvalidCapture={(e) => {
+        const el = e.target as HTMLElement;
+        const section = el.closest("section[id], div[id^='create-']");
+        const map: Record<string, number> = {
+          "create-details": 1,
+          "create-schedule": 1,
+          "create-information": 1,
+          "create-media": 2,
+          "create-contact": 3,
+          "create-tickets": 4,
+        };
+        setStep(map[section?.id ?? ""] ?? 1);
+      }}
+    >
       {/* Hidden pricing mode */}
       <input type="hidden" name="pricingMode" value={pricingMode} />
       {draftEvent ? <input type="hidden" name="draftEventId" value={draftEvent.id} /> : null}
 
-      <nav aria-label="Event sections" className="sticky top-16 z-20 -mx-1 flex gap-2 overflow-x-auto bg-zinc-50/95 px-1 py-2 backdrop-blur-sm dark:bg-ink/95">
-        {[
-          ["create-details", "Details"],
-          ["create-schedule", "Schedule & venue"],
-          ["create-information", "Information"],
-          ["create-media", "Media"],
-          ["create-contact", "Contact"],
-          ["create-tickets", "Tickets"],
-        ].map(([id, label]) => (
-          <a
-            key={id}
-            href={`#${id}`}
-            className="shrink-0 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10"
+      <nav aria-label="Create event steps" className="sticky top-16 z-20 -mx-1 flex items-center gap-1.5 overflow-x-auto bg-zinc-50/95 px-1 py-2 backdrop-blur-sm dark:bg-ink/95">
+        {STEPS.map((label, i) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() => setStep(i)}
+            className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
+              i === step
+                ? "bg-neon-gradient text-white"
+                : i < step
+                ? "border border-violet-neon/40 text-violet-neon"
+                : "border border-zinc-200 text-muted dark:border-white/10"
+            }`}
           >
+            <span className={`flex h-4 w-4 items-center justify-center rounded-full text-[10px] ${i === step ? "bg-white/20" : "bg-zinc-200 dark:bg-white/10"}`}>
+              {i + 1}
+            </span>
             {label}
-          </a>
+          </button>
         ))}
       </nav>
 
@@ -335,7 +375,101 @@ export function EventForm({
         </div>
       ) : null}
 
-      <section id="create-details" className="glass scroll-mt-36 space-y-4 rounded-3xl p-5">
+
+      {/* ── Step 0: Event type ── */}
+      <section className={`glass scroll-mt-36 space-y-4 rounded-3xl p-5 ${step === 0 ? "" : "hidden"}`}>
+        <h2 className="text-base font-bold">What kind of event?</h2>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {([
+            ["EVENT", "Event", "A regular public event — anyone on Outsiderr can book."],
+            ["COMMUNITY", "Community event", "Linked to one of your communities — open, members-only, or invite-only."],
+          ] as const).map(([value, label, hint]) => (
+            <label
+              key={value}
+              className={`cursor-pointer rounded-2xl border-2 p-4 transition-all ${
+                eventKind === value
+                  ? "border-violet-neon bg-violet-neon/5"
+                  : "border-zinc-200 hover:border-violet-neon/40 dark:border-white/10"
+              } ${value === "COMMUNITY" && communities.length === 0 ? "pointer-events-none opacity-40" : ""}`}
+            >
+              <input
+                type="radio"
+                name="eventKind"
+                value={value}
+                checked={eventKind === value}
+                onChange={() => {
+                  setEventKind(value);
+                  if (value === "EVENT") setCommunityId("");
+                }}
+                className="sr-only"
+              />
+              <p className="font-bold">{label}</p>
+              <p className="mt-1 text-xs text-muted">{hint}</p>
+              {value === "COMMUNITY" && communities.length === 0 ? (
+                <p className="mt-1 text-[11px] text-amber-500">No communities yet — create one first.</p>
+              ) : null}
+            </label>
+          ))}
+        </div>
+
+        {eventKind === "COMMUNITY" ? (
+          <div className="space-y-4">
+            <label className="block space-y-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted">Community *</span>
+              <select
+                name="communityId"
+                className={INPUT}
+                value={communityId}
+                onChange={(e) => setCommunityId(e.target.value)}
+                required={eventKind === "COMMUNITY"}
+              >
+                <option value="" className={OPTION}>Pick a community…</option>
+                {communities.map((c) => (
+                  <option key={c.id} value={c.id} className={OPTION}>{c.name}</option>
+                ))}
+              </select>
+            </label>
+
+            <div className="space-y-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted">Who can see &amp; book?</span>
+              {([
+                ["OPEN", "Open", "Listed publicly — anyone can book."],
+                ["MEMBERS_ONLY", "Members only", "Everyone sees it, but only community members can book."],
+                ["INVITE_ONLY", "Invite only", "Hidden from listings — only people with your invite link can view & book."],
+              ] as const).map(([value, label, hint]) => (
+                <label
+                  key={value}
+                  className={`flex cursor-pointer items-start gap-3 rounded-2xl border-2 p-3 transition-all ${
+                    visibility === value
+                      ? "border-violet-neon bg-violet-neon/5"
+                      : "border-zinc-200 dark:border-white/10"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="visibility"
+                    value={value}
+                    checked={visibility === value}
+                    onChange={() => setVisibility(value)}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    <span className="block text-sm font-bold">{label}</span>
+                    <span className="text-xs text-muted">{hint}</span>
+                  </span>
+                </label>
+              ))}
+              <p className="text-[11px] text-muted">
+                Community events don&apos;t support collaborators yet.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <input type="hidden" name="communityId" value="" />
+        )}
+      </section>
+
+      <section id="create-details" className={`glass scroll-mt-36 space-y-4 rounded-3xl p-5 ${step === 1 ? "" : "hidden"}`}>
         <h2 className="text-base font-bold">Event details</h2>
 
         <Field label="Title">
@@ -602,7 +736,7 @@ export function EventForm({
       </section>
 
       {/* Poster & description guidelines */}
-      <div id="create-media" className="scroll-mt-36 space-y-4">
+      <div id="create-media" className={`scroll-mt-36 space-y-4 ${step === 2 ? "" : "hidden"}`}>
       <PosterGuidelines />
 
       <section className="glass grid gap-4 rounded-3xl p-5 sm:grid-cols-2">
@@ -640,7 +774,7 @@ export function EventForm({
       </div>
 
       {/* Waitlist toggle */}
-      <section className="glass rounded-3xl p-5">
+      <section className={`glass rounded-3xl p-5 ${step === 3 ? "" : "hidden"}`}>
         <div className="flex items-center justify-between gap-4">
           <div>
             <h3 className="text-sm font-bold">Enable Waitlist</h3>
@@ -681,7 +815,7 @@ export function EventForm({
       </section>
 
       {/* Gallery + Contact */}
-      <section id="create-contact" className="glass scroll-mt-36 space-y-4 rounded-3xl p-5">
+      <section id="create-contact" className={`glass scroll-mt-36 space-y-4 rounded-3xl p-5 ${step === 3 ? "" : "hidden"}`}>
         <div>
           <h3 className="text-sm font-bold">Event gallery</h3>
           <p className="text-xs text-muted">Add up to 8 photos of past events, venue, or promo shots.</p>
@@ -759,7 +893,7 @@ export function EventForm({
       </section>
 
       {/* ── Pricing mode + tickets ── */}
-      <section id="create-tickets" className="glass scroll-mt-36 space-y-4 rounded-3xl p-5">
+      <section id="create-tickets" className={`glass scroll-mt-36 space-y-4 rounded-3xl p-5 ${step === 4 ? "" : "hidden"}`}>
         <h2 className="text-base font-bold">Tickets</h2>
 
         {/* Pricing mode selector */}
@@ -890,7 +1024,7 @@ export function EventForm({
                   ) : null}
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-4">
                   <Field label="Name">
                     <input
                       name="tierName"
@@ -933,7 +1067,25 @@ export function EventForm({
                       className={INPUT}
                     />
                   </Field>
+                  <Field label="Group admits">
+                    <input
+                      name="tierAdmits"
+                      type="number"
+                      min={1}
+                      max={10}
+                      inputMode="numeric"
+                      value={tier.admits}
+                      onChange={(event) => updateTier(tier.key, { admits: event.target.value })}
+                      placeholder="1"
+                      className={INPUT}
+                    />
+                  </Field>
                 </div>
+                {Number(tier.admits) > 1 ? (
+                  <p className="mt-1.5 text-[11px] text-violet-neon">
+                    Group ticket — each purchase admits {tier.admits} people for {tier.price ? `₹${tier.price}` : "the flat price"}.
+                  </p>
+                ) : null}
 
                 <Field label="Perks (comma separated)">
                   <input
@@ -1135,7 +1287,7 @@ export function EventForm({
                   </button>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-4">
                   <Field label="Name">
                     <input
                       name="tierName"
@@ -1207,6 +1359,7 @@ export function EventForm({
         ) : null}
       </section>
 
+      <div className={step === 5 ? "space-y-6" : "hidden"}>
       {/* Platform fee & staffing section hidden from organizers -
           default feePayer is BUYER, set via hidden input below.
           Door staff is also disabled for this release. */}
@@ -1259,6 +1412,21 @@ export function EventForm({
         >
           Save as draft
         </Button>
+      </div>
+      </div>
+
+      {/* Sticky step nav — always mounted so it works at every step */}
+      <div className="sticky bottom-3 z-20 flex justify-between gap-3 rounded-2xl border border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur dark:border-white/10 dark:bg-ink/95">
+        <Button type="button" variant="secondary" disabled={step === 0 || pending} onClick={() => setStep((v) => Math.max(0, v - 1))}>
+          ← Back
+        </Button>
+        {step < STEPS.length - 1 ? (
+          <Button type="button" onClick={() => setStep((v) => Math.min(STEPS.length - 1, v + 1))}>
+            {step === 0 ? "Get started →" : "Continue →"}
+          </Button>
+        ) : (
+          <span className="self-center text-xs text-muted">Review &amp; publish above</span>
+        )}
       </div>
 
       {/* Draft-save confirmation - warns about the auto-delete window */}

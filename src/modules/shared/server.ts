@@ -20,7 +20,7 @@ export { withApiContext, extractBearerToken, getApiContextToken } from "./auth/a
 // ---- data access (all files carry `import "server-only"`) ----
 export * from "./data/boosts";
 export * from "./data/box-office-pins";
-export * from "./data/clubs";
+export * from "./data/communities";
 export * from "./data/door-staff";
 export * from "./data/engagement";
 export * from "./data/event-orders";

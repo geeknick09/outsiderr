@@ -68,7 +68,7 @@ export const PREDEFINED_EVENT_TAGS: string[] = [
   // Skate / Stunt / MTB
   "Skate", "Street Skate", "BMX", "MTB", "MTB Stunt", "Stunt Riding",
   // Fitness / Run
-  "Run Club", "5K", "10K", "Marathon", "Walkathon", "Trail Run",
+  "Run Community", "5K", "10K", "Marathon", "Walkathon", "Trail Run",
   // Gig / Jam
   "Live Music", "DJ Set", "Open Decks",
   // Hip Hop / R&B Party

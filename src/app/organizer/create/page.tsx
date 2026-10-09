@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { lazy, Suspense } from "react";
 
-import { getCurrentUser } from "@/modules/shared/server";
+import { getCurrentUser , listMyCommunities } from "@/modules/shared/server";
 import { getSettingInt } from "@/modules/shared/server";
 import { getOrganizerProfile } from "@/modules/shared/server";
 import { getOrganizerAccessState } from "@/modules/shared";
@@ -34,10 +34,11 @@ export default async function CreateEventPage() {
     redirect("/organizer");
   }
 
-  const [termsVersion, pastEventsForLinking, draftRetentionDays] = await Promise.all([
+  const [termsVersion, pastEventsForLinking, draftRetentionDays, myCommunities] = await Promise.all([
     getTermsVersion(),
     getOrganizerPastEventsForLinking(organizerProfile.id),
     getDraftRetentionDays(),
+    listMyCommunities(user),
   ]);
 
   return (
@@ -59,6 +60,7 @@ export default async function CreateEventPage() {
           termsVersion={termsVersion}
           pastEvents={pastEventsForLinking}
           draftRetentionDays={draftRetentionDays}
+          communities={myCommunities.filter((c) => c.verified).map((c) => ({ id: c.id, name: c.name }))}
         />
       </Suspense>
     </div>

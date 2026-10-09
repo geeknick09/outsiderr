@@ -4,6 +4,19 @@ One-sentence purpose: append-only knowledge so agents never re-derive a past fix
 Format: `Date · Area · What happened/decision → Fix/rule · Files`. Newest entries go on top.
 Last updated: 2026-10-08
 
+## Communities platform + event-create stepper (2026-10-09)
+
+- **Clubs → Communities full rename.** `clubs`/`club_members` tables renamed live in `fix_all.sql` (guarded by `to_regclass` so re-runs after the rename don't error); all app dirs moved `/clubs → /communities` with legacy `/clubs/*` pages redirecting. Join modes are `PUBLIC`/`PRIVATE`/`INVITE`; monthly paid membership is dormant (columns kept, no UI/checkout).
+- **Community event gating lives in the order RPCs.** `create_reserved_order` (9-arg, +`p_invite_token`) and `create_free_order` (8-arg, +`p_invite_token`) check `events.visibility` + `community_members` — MEMBERS_ONLY needs ACCEPTED membership, INVITE_ONLY needs the token or membership. The DB enforces it; the UI hides it (event page renders "Members only / join" instead of the ticket picker; INVITE_ONLY events 404 without a valid `?invite=`).
+- **`orders_order_source_check` regression trap.** Replacing the check constraint with a subset breaks live writes — the live DB had `MANUAL_UPI` AND `BOX_OFFICE` (counter Razorpay sales) rows. The constraint now lists: ONLINE, MANUAL_UPI, WALKIN_PREEVENT, WALKIN_QR, WALKIN_INSTANT, BOX_OFFICE, GUESTLIST.
+- **Group tickets = `ticket_tiers.admits`.** `quantity` counts tier units; tickets minted = `quantity × admits`; `registrations_count` counts people. Refund/cancel paths inherit it via the tickets row count.
+- **Guestlist** (`create_guestlist_entry`, cap 10/event): inserts a CONFIRMED order with `order_source='GUESTLIST'`, `user_id=null`, zero ledger rows, one VALID ticket per guest. Shareable link `/guest/[qr_hash]` — public page keyed by the same secret the scanner checks.
+- **Invite-only communities** accept joins only via organizer-issued `?invite=` links or direct `set_community_membership` (ACCEPTED/REMOVED). Referral `?ref=` attribution is recorded even for invite-only joins, but never bypasses the invite gate.
+- **Follows union:** `notify_event_followers` fans out to organizer followers ∪ community followers ∪ ACCEPTED members when a community event publishes (once, via `followers_notified_at`). Community followers count toward organizer totals via union in `getOrganizerFollowerCount`-adjacent queries — the two tables stay separate (`organizer_follows`, `community_follows`).
+- **Import flow:** `request_member_import` stages CSV rows → `REQUESTED`; admin approves via `review_member_import` (bumps `member_count` by valid_rows immediately — linked members don't double-count because linking sets item status LINKED, not a count bump). `link_imported_members` runs on profile insert/phone/email change — imported members become real `community_members` when their phone/email matches a profile.
+- **`pg_get_function_identity_arguments` / `pronargs` guards** replace brittle grant/revoke lines on signatures that later `drop` removes — mid-file grants wrapped in `do $$ begin if exists (...) then ...`.
+- **Files:** `fix_all.sql` (STEP 45 block), `schema.sql`, `shared/data/communities.ts`, `shared/actions/communities.ts`, `organizer/components/community/*`, `web/components/{join-community-form,community-follow-button,profile/following-section}`, `organizer/components/event-form.tsx` (stepper), `app/{communities,guest,members,admin/community-imports}`, `api/v1/communities/[id]/{join,follow}`.
+
 ## Box-office/door UX fixes (2026-10-09)
 
 - **Dark-mode `<select>` dropdowns looked blank** — options render on the OS light background, so `dark:text-white` was invisible until hover. One CSS rule fixes every select app-wide: `.dark select option { background:#18181b; color:#fafafa }` in globals.css.

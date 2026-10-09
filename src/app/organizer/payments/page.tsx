@@ -14,7 +14,7 @@ const TYPE_LABEL: Record<string, string> = {
   TICKET_SALE: "Ticket sale",
   BOOST_SALE: "Boost",
   DOOR_STAFF_SALE: "Door staff",
-  CLUB_FEE: "Club membership",
+  CLUB_FEE: "Community membership",
   REFUND: "Refund",
   ADJUSTMENT: "Adjustment",
   PAYOUT: "Payout",

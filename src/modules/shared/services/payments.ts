@@ -22,7 +22,7 @@ import { logger } from "../lib/logger";
 
 export interface StartPaymentInput {
   kind: PaymentKind;
-  /** Non-order payables: the boost/door-staff/club-member row id. */
+  /** Non-order payables: the boost/door-staff/community-member row id. */
   refId?: string;
   /** TICKET_ORDER inputs: */
   eventId?: string;
@@ -33,6 +33,7 @@ export interface StartPaymentInput {
   buyerEmail?: string | null;
   buyerGender?: string | null;
   idempotencyKey?: string | null;
+  inviteToken?: string | null;
   /** Extra display fields for the checkout modal. */
   itemTitle?: string | null;
 }
@@ -81,6 +82,7 @@ export async function startPayment(
         buyerEmail: input.buyerEmail?.trim() || null,
         buyerGender: input.buyerGender?.trim() || null,
         idempotencyKey: input.idempotencyKey ?? null,
+        inviteToken: input.inviteToken ?? null,
       });
       orderIdForFail = reserved.id;
       const found = await findIntentByTicketOrder(reserved.id);
@@ -363,7 +365,7 @@ export async function getPaymentStatus(
     const { data } = await supabase.from("door_staff_orders").select("payment_status").eq("id", intent.refId).maybeSingle();
     refStatus = data?.payment_status ?? null;
   } else if (intent.kind === "CLUB_MEMBERSHIP") {
-    const { data } = await supabase.from("club_members").select("status").eq("id", intent.refId).maybeSingle();
+    const { data } = await supabase.from("community_members").select("status").eq("id", intent.refId).maybeSingle();
     refStatus = data?.status ?? null;
   }
 

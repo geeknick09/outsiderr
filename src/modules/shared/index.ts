@@ -74,6 +74,9 @@ export * from "./ui/pwa/push-subscribe";
 export * from "./ui/pwa/register-sw";
 export * from "./ui/auth/login-panel";
 // ---- community UI (cross-domain: used by organizer dashboard + public web) ----
-export * from "./ui/community/club-form";
-export * from "./ui/community/club-members-panel";
+export * from "./ui/community/community-form";
+export * from "./ui/community/community-members-panel";
 export * from "./ui/payment/razorpay-checkout";
+
+export * from "./lib/badges";
+export type { CommunityMemberDetail } from "./data/communities";

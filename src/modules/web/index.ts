@@ -1,5 +1,5 @@
 // modules/web - client-safe public API (public web pages: discovery, events,
-// checkout, tickets, clubs, reviews, profile). Server data comes from
+// checkout, tickets, communities, reviews, profile). Server data comes from
 // @/modules/shared/server. Server actions: ./actions/{orders,waitlist}
 export * from "./components/checkout/checkout-form";
 export * from "./components/checkout/payment-status-poller";
@@ -29,7 +29,7 @@ export * from "./components/events/ticket-tiers";
 export * from "./components/events/update-me-button";
 export * from "./components/events/waitlist-button";
 export * from "./components/follow-button";
-export * from "./components/join-club-form";
+export * from "./components/join-community-form";
 export * from "./components/profile/edit-profile-form";
 export * from "./components/reviews/review-form";
 export * from "./components/reviews/reviews-section";
@@ -37,3 +37,7 @@ export * from "./components/tickets/postponement-refund-button";
 export * from "./components/tickets/refund-status-strip";
 export * from "./components/tickets/ticket-card";
 export * from "./components/tickets/tickets-realtime-wrapper";
+
+export { CommunityFollowButton } from "./components/community-follow-button";
+export { JoinCommunityForm } from "./components/join-community-form";
+export { FollowingSection } from "./components/profile/following-section";

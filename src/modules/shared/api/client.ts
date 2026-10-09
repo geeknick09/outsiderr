@@ -133,10 +133,10 @@ export function createOutsiderrClient(opts: ApiClientOptions) {
     markNotificationsRead: (body: { notificationId?: string; all?: boolean }) =>
       call<{ read: boolean }>(opts, "/notifications/read", { body }),
 
-    // ---- clubs / collab ----
-    createClub: (body: Record<string, unknown>) => call<{ clubId: string }>(opts, "/clubs", { body }),
-    joinClub: (clubId: string, body: { instagramLink?: string; utrReference?: string } = {}) =>
-      call<{ joined: boolean }>(opts, `/clubs/${clubId}/join`, { body }),
+    // ---- communities / collab ----
+    createCommunity: (body: Record<string, unknown>) => call<{ communityId: string }>(opts, "/communities", { body }),
+    joinCommunity: (communityId: string, body: { instagramLink?: string; utrReference?: string } = {}) =>
+      call<{ joined: boolean }>(opts, `/communities/${communityId}/join`, { body }),
     inviteCollaborator: (body: {
       eventId: string;
       organizerId: string;

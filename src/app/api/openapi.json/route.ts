@@ -389,7 +389,7 @@ const spec = {
       post: {
         tags: ["API v1"],
         summary: "Create payment intent + Razorpay order for a non-ticket payable",
-        description: "For boosts, door-staff orders and club memberships. Ticket orders use /api/v1/checkout.",
+        description: "For boosts, door-staff orders and community memberships. Ticket orders use /api/v1/checkout.",
         operationId: "v1PaymentIntent",
         security: [{ SupabaseAuth: [] }],
         requestBody: { required: true, content: { "application/json": { schema: {
@@ -590,20 +590,39 @@ const spec = {
         responses: { "200": { description: "Marked read", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiOk" } } } }, "400": { $ref: "#/components/responses/BadRequest" }, "401": { $ref: "#/components/responses/Unauthorized" } },
       },
     },
-    "/api/v1/clubs": {
+    "/api/v1/communities": {
       post: {
-        tags: ["API v1"], summary: "Create a club/crew", operationId: "v1CreateClub",
+        tags: ["API v1"], summary: "Create a community/crew", operationId: "v1CreateCommunity",
         security: [{ SupabaseAuth: [] }],
-        requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["name"], properties: { name: { type: "string" }, bio: { type: "string" }, type: { type: "string", enum: ["CLUB", "CREW"] }, city: { type: "string" }, membershipType: { type: "string", enum: ["FREE", "PAID"] }, membershipFeePaise: { type: "integer" } } } } } },
-        responses: { "200": { description: "Created - data.clubId", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiOk" } } } }, "400": { $ref: "#/components/responses/BadRequest" }, "401": { $ref: "#/components/responses/Unauthorized" } },
+        requestBody: { required: true, content: { "application/json": { schema: { type: "object", required: ["name"], properties: { name: { type: "string" }, bio: { type: "string" }, type: { type: "string", enum: ["CLUB", "CREW"] }, city: { type: "string" }, membershipType: { type: "string", enum: ["OPEN", "PRIVATE", "INVITE_ONLY"] } } } } } },
+        responses: { "200": { description: "Created - data.communityId", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiOk" } } } }, "400": { $ref: "#/components/responses/BadRequest" }, "401": { $ref: "#/components/responses/Unauthorized" } },
       },
     },
-    "/api/v1/clubs/{id}/join": {
+    "/api/v1/communities/{id}/join": {
       post: {
-        tags: ["API v1"], summary: "Join a club", operationId: "v1JoinClub",
+        tags: ["API v1"], summary: "Join a community", operationId: "v1JoinCommunity",
         security: [{ SupabaseAuth: [] }],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
-        responses: { "200": { description: "Joined", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiOk" } } } }, "400": { $ref: "#/components/responses/BadRequest" }, "401": { $ref: "#/components/responses/Unauthorized" } },
+        requestBody: { required: false, content: { "application/json": { schema: { type: "object", properties: {
+          answers: { type: "array", items: { type: "object", properties: { questionId: { type: "string" }, answer: { type: "string" } } } },
+          inviteToken: { type: "string" },
+          refCode: { type: "string" },
+        } } } } },
+        responses: { "200": { description: "Joined - data.memberId + data.status", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiOk" } } } }, "400": { $ref: "#/components/responses/BadRequest" }, "401": { $ref: "#/components/responses/Unauthorized" } },
+      },
+    },
+    "/api/v1/communities/{id}/follow": {
+      post: {
+        tags: ["API v1"], summary: "Follow a community (community-event notifications)", operationId: "v1FollowCommunity",
+        security: [{ SupabaseAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: { "200": { description: "Following", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiOk" } } } }, "400": { $ref: "#/components/responses/BadRequest" }, "401": { $ref: "#/components/responses/Unauthorized" } },
+      },
+      delete: {
+        tags: ["API v1"], summary: "Unfollow a community", operationId: "v1UnfollowCommunity",
+        security: [{ SupabaseAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: { "200": { description: "Unfollowed", content: { "application/json": { schema: { $ref: "#/components/schemas/ApiOk" } } } }, "401": { $ref: "#/components/responses/Unauthorized" } },
       },
     },
     "/api/v1/collab/invite": {

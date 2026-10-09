@@ -11,6 +11,7 @@ import {
 } from "@/modules/analytics/server";
 import { listOrganizerEvents, listCollaboratedEvents } from "@/modules/organizer/server";
 import { getOrganizerGateContext } from "@/modules/organizer/server";
+import { listMyCommunities, getCommunityAnalytics } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
 
@@ -33,14 +34,28 @@ export default async function OrganizerAnalyticsPage() {
     new Date(organizerProfile.premiumUntil).getTime() > Date.now();
   const windowDays = isPremium ? 180 : 90;
 
-  const [analyticsData, dailyRevenue, audience, premiumGate, premiumPlans] =
+  const [analyticsData, dailyRevenue, audience, premiumGate, premiumPlans, communities] =
     await Promise.all([
       Promise.all(allEvents.map((event) => getOrganizerEventAnalytics(user, event.id))),
       getOrganizerDailyRevenue(user, 30),
       getOrganizerAudienceAnalytics(user, windowDays),
       isPremiumGateEnabled(),
       getPremiumPlans(),
+      listMyCommunities(user),
     ]);
+  const communityStats = await Promise.all(
+    communities.map(async (c) => ({ community: c, stats: await getCommunityAnalytics(c.id) })),
+  );
+  const communityTotals = communityStats.reduce(
+    (acc, { stats }) => ({
+      members: acc.members + (stats?.total_members ?? 0),
+      pending: acc.pending + (stats?.pending_requests ?? 0),
+      followers: acc.followers + (stats?.followers ?? 0),
+      views: acc.views + (stats?.views ?? 0),
+      newThisWeek: acc.newThisWeek + (stats?.new_members_30d ?? 0),
+    }),
+    { members: 0, pending: 0, followers: 0, views: 0, newThisWeek: 0 },
+  );
 
   const analyticsMap: Record<string, NonNullable<(typeof analyticsData)[number]>> = {};
   for (const a of analyticsData) {
@@ -70,6 +85,33 @@ export default async function OrganizerAnalyticsPage() {
             dailyRevenue={dailyRevenue}
           />
         </div>
+
+        {communities.length ? (
+          <div>
+            <h2 className="mb-1 text-lg font-bold">Communities</h2>
+            <p className="mb-3 text-xs text-muted">
+              {communityTotals.members} members · {communityTotals.followers} followers ·{" "}
+              {communityTotals.newThisWeek} new this week · {communityTotals.pending} pending requests ·{" "}
+              {communityTotals.views} viewed-not-joined
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {communityStats.map(({ community: c, stats }) => (
+                <a
+                  key={c.id}
+                  href={`/organizer/communities/${c.id}?tab=analytics`}
+                  className="glass rounded-3xl p-4 transition-colors hover:border-violet-neon"
+                >
+                  <p className="text-sm font-bold">{c.name}</p>
+                  <p className="mt-1 text-xs text-muted">
+                    {stats?.total_members ?? 0} members · {stats?.followers ?? 0} followers ·{" "}
+                    {stats?.views ?? 0} views
+                    {stats && stats.views > 0 ? ` · ${Math.round((stats.total_members / stats.views) * 100)}% join rate` : ""}
+                  </p>
+                </a>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {audience ? (
           <div>

@@ -404,3 +404,32 @@ export function canManageOrders(perm: "OWNER" | CollaboratorPermission | null): 
 export function canManageCollaborators(perm: "OWNER" | CollaboratorPermission | null): boolean {
   return perm === "OWNER";
 }
+
+/** Organizers a user follows — for the profile page. */
+export async function listFollowedOrganizers(
+  user: CurrentUser,
+): Promise<{ id: string; name: string; avatarUrl: string | null }[]> {
+  const supabase = await createClient();
+  const { data: follows } = await supabase
+    .from("organizer_follows")
+    .select("organizer_id")
+    .eq("follower_id", user.id);
+  const ids = (follows ?? []).map((f) => f.organizer_id);
+  if (!ids.length) return [];
+  const { data: orgs } = await supabase
+    .from("organizers_public")
+    .select("id, name, avatar_url")
+    .in("id", ids);
+  return (orgs ?? []).map((o) => ({ id: o.id, name: o.name, avatarUrl: o.avatar_url }));
+}
+
+/** Total events a user has attended (tickets scanned USED at the door). */
+export async function getUserAttendanceCount(userId: string): Promise<number> {
+  const supabase = await createClient();
+  const { count } = await supabase
+    .from("tickets")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("status", "USED");
+  return count ?? 0;
+}

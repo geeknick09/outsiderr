@@ -23,7 +23,7 @@ export default async function OrganizerPage({
   // Legacy deep-links - tabs are real routes now.
   const { tab } = await searchParams;
   if (tab === "analytics") redirect("/organizer/analytics");
-  if (tab === "clubs") redirect("/organizer/clubs");
+  if (tab === "communities") redirect("/organizer/communities");
 
   const ctx = await getOrganizerGateContext();
   if ("gate" in ctx) return ctx.gate;

@@ -16,6 +16,8 @@ import { CollapseAllProvider, CollapsibleSection } from "@/modules/shared";
 import { getCurrentUser } from "@/modules/shared/server";
 import { getEvent, getOrganizerPastEventsForLinking } from "@/modules/shared/server";
 import { EventStaff } from "@/modules/scanner";
+import { GuestlistPanel } from "@/modules/organizer";
+import { listGuestlist } from "@/modules/shared/actions/communities";
 import { listEventCounterStaff } from "@/modules/scanner/server";
 import { getOrganizerEventAnalytics } from "@/modules/analytics/server";
 import { getEventCollaboratorsForOwner, getEventAccessLevel, canViewAnalytics, canViewMoney, canScanTickets, canEditEvent, canManageOrders } from "@/modules/shared/server";
@@ -56,7 +58,7 @@ export default async function ManageEventPage({
 
   // Load all page data in parallel. Log the real error server-side before letting
   // the route-level error.tsx handle the fallback UI for the user.
-  const [event, analytics, cancelChargePct, postponeChargePct, heroBoost, heroBoostPrice, heroBoostDuration, orders, tickets, waitlistEntries, collaborators, eventStaff] = await Promise.all([
+  const [event, analytics, cancelChargePct, postponeChargePct, heroBoost, heroBoostPrice, heroBoostDuration, orders, tickets, waitlistEntries, collaborators, eventStaff, guestlist] = await Promise.all([
     getEvent(id),
     getOrganizerEventAnalytics(user, id),
     getCancellationChargePercent(),
@@ -69,6 +71,7 @@ export default async function ManageEventPage({
     listEventWaitlist(id),
     getEventCollaboratorsForOwner(user, id),
     listEventCounterStaff(id),
+    listGuestlist(id),
   ]).catch((err: unknown) => {
     console.error("[ManageEventPage] Data load error for event", id, err);
     throw err; // Re-throw so the route error boundary (error.tsx) handles it
@@ -272,6 +275,12 @@ export default async function ManageEventPage({
               {!eventPast && collaborators !== null ? (
                 <CollapsibleSection title="Collaborators" description="Co-organizers, permissions and invites.">
                   <CollaborationPanel eventId={event.id} collaborators={collaborators} canManage={isOwner} />
+                </CollapsibleSection>
+              ) : null}
+
+              {!eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
+                <CollapsibleSection title="Guestlist" description="Free guest entries — up to 10. Each gets a shareable ticket link; no money involved.">
+                  <GuestlistPanel eventId={event.id} guests={guestlist} />
                 </CollapsibleSection>
               ) : null}
 

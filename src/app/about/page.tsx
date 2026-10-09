@@ -10,7 +10,7 @@ export default function AboutPage() {
         <p>
           Outsiderr is a platform for discovering and booking tickets to underground and
           extreme sport events - dance battles, cyphers, rap events, skateboard events,
-          MTB stunt events, run club marathons, walkathons, and more.
+          MTB stunt events, run community marathons, walkathons, and more.
         </p>
         <p>
           A lot of these events have limited promotion - Instagram reels, word of mouth,
@@ -21,7 +21,7 @@ export default function AboutPage() {
         <p>
           For organizers, Outsiderr provides tools to publish events, sell tickets,
           scan QR tickets at the entrance, boost event visibility, and build
-          a community through clubs and crews.
+          a community through communities and crews.
         </p>
         <p>
           For attendees, Outsiderr offers a clean, mobile-first experience to discover

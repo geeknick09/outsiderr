@@ -35,3 +35,5 @@ export * from "./components/premium-gate";
 export * from "./components/print-button";
 export * from "./components/verification-queue";
 export * from "./components/waitlist-panel";
+export { CommunityManageTabs } from "./components/community/community-manage-tabs";
+export { GuestlistPanel } from "./components/community/guestlist-panel";

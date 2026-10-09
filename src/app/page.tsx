@@ -103,13 +103,13 @@ export default async function DiscoveryPage({
             {cityLabel(city)}
           </p>
         </div>
-        {/* Clubs & Crews disabled for this release */}
+        {/* Communities & Crews disabled for this release */}
         {/*
         <Link
-          href="/clubs"
+          href="/communities"
           className="shrink-0 rounded-full bg-neon-gradient px-5 py-2.5 text-sm font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90"
         >
-          Join a Club / Crew
+          Join a Community / Crew
         </Link>
         */}
       </div>

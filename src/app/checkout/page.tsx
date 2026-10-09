@@ -17,9 +17,9 @@ export const metadata = { title: "Checkout - Outsiderr" };
 export default async function CheckoutPage({
   searchParams,
 }: {
-  searchParams: Promise<{ event?: string; tier?: string; qty?: string }>;
+  searchParams: Promise<{ event?: string; tier?: string; qty?: string; invite?: string }>;
 }) {
-  const { event: eventId, tier: tierId, qty } = await searchParams;
+  const { event: eventId, tier: tierId, qty, invite } = await searchParams;
   if (!eventId || !tierId) redirect("/");
 
   // Fetch user and event in parallel - saves one sequential DB round-trip
@@ -131,6 +131,7 @@ export default async function CheckoutPage({
               eventId={event.id}
               tierId={tier.id}
               quantity={allowedQuantity}
+              inviteToken={invite ?? null}
               defaultName={user?.name ?? ""}
               defaultPhone={user?.phone ?? ""}
               defaultEmail={user?.email ?? ""}
@@ -141,6 +142,7 @@ export default async function CheckoutPage({
               eventId={event.id}
               tierId={tier.id}
               quantity={allowedQuantity}
+              inviteToken={invite ?? null}
               defaultName={user?.name ?? ""}
               defaultPhone={user?.phone ?? ""}
               defaultEmail={user?.email ?? ""}
