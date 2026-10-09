@@ -5,8 +5,10 @@ import { getCurrentUser } from "@/modules/shared/server";
 import { getUserProfile } from "@/modules/shared/server";
 import { listFollowedOrganizers, getUserAttendanceCount } from "@/modules/shared/server";
 import { listFollowedCommunities } from "@/modules/shared/server";
-import { computeBadges, BADGE_TONES } from "@/modules/shared";
+import { getPromoterDashboard } from "@/modules/shared/server";
+import { computeBadges, BADGE_TONES, formatPaise } from "@/modules/shared";
 import { cn } from "@/modules/shared";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -16,11 +18,12 @@ export default async function ProfilePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=%2Fprofile");
 
-  const [profile, followedOrgs, followedComms, attended] = await Promise.all([
+  const [profile, followedOrgs, followedComms, attended, promoter] = await Promise.all([
     getUserProfile(user),
     listFollowedOrganizers(user),
     listFollowedCommunities(user),
     getUserAttendanceCount(user.id),
+    getPromoterDashboard(user),
   ]);
   const badges = computeBadges({ attendedTotal: attended });
 
@@ -43,6 +46,36 @@ export default async function ProfilePage() {
               </span>
             ))}
           </div>
+        </section>
+      ) : null}
+
+      {promoter.isPromoter ? (
+        <section className="glass rounded-3xl p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-base font-bold">Promoter</h2>
+            <Link href="/promoter" className="text-xs font-semibold text-violet-neon hover:underline">
+              Full dashboard →
+            </Link>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-2xl bg-zinc-100 p-3 text-center dark:bg-white/5">
+              <p className="text-xs text-muted">Earned</p>
+              <p className="text-sm font-black">{formatPaise(promoter.balances.earnedPaise)}</p>
+            </div>
+            <div className="rounded-2xl bg-zinc-100 p-3 text-center dark:bg-white/5">
+              <p className="text-xs text-muted">Payable</p>
+              <p className="text-sm font-black text-lime-500">{formatPaise(promoter.balances.payablePaise)}</p>
+            </div>
+            <div className="rounded-2xl bg-zinc-100 p-3 text-center dark:bg-white/5">
+              <p className="text-xs text-muted">Paid out</p>
+              <p className="text-sm font-black">{formatPaise(promoter.balances.paidPaise)}</p>
+            </div>
+          </div>
+          <p className="mt-3 text-xs text-muted">
+            {promoter.hasPayoutDetails
+              ? `Bank ${promoter.masked.account ?? ""} · IFSC ${promoter.masked.ifsc ?? ""} · PAN ${promoter.masked.pan ?? ""}`
+              : "No payout bank details yet — add them on the promoter dashboard before commissions can be paid."}
+          </p>
         </section>
       ) : null}
 
