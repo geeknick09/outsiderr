@@ -251,3 +251,12 @@ Last updated: 2026-10-08
   service_role + is_current_user_admin. App-level precheck in createEvent gives
   the friendly error early; draft publishing via RPC hits the trigger message.
 - Drafts stay open to everyone; publish is the gated boundary.
+
+## Creator Hub rename + organizer-gated communities (2026-10-09)
+- Community create requires an organizers row again (self-serve, not admin
+  approval) - non-organizers get a "Become a Creator" funnel instead.
+- KYC trimmed to identity: PAN only -> PENDING. Bank/UPI + GST steps are
+  optional/skippable; payouts just need a bank account added later via
+  Edit Profile / organizer_bank_accounts.
+- "Organizer Dashboard" user-menu label + /organizer titles renamed to
+  "Creator Hub" (routes unchanged - /organizer/* still works).

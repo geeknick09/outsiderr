@@ -138,7 +138,13 @@ export function BecomeOrganizerForm() {
     if (step === 0) return !!orgName.trim() && !uploading;
     if (step === 1) return !!panNumber && panValid && !!panName && !panDocError && !uploadingPan;
     if (step === 2) return true; // GST is optional
-    if (step === 3) return !!upiId && upiValid && !!bankAccountNumber && !!bankIfsc && ifscValid && !!bankAccountName && !bankDocError && !uploadingBank;
+    // Step 3 (bank/UPI) is optional - community creators skip it; it becomes
+    // required later when they want event payouts.
+    if (step === 3) {
+      const touched = !!(upiId || bankAccountNumber || bankIfsc || bankAccountName || bankDocumentUrl);
+      if (!touched) return true;
+      return !!bankAccountNumber && !!bankIfsc && ifscValid && !!bankAccountName && upiValid && !bankDocError && !uploadingBank;
+    }
     return agreed;
   }
 
@@ -473,7 +479,7 @@ export function BecomeOrganizerForm() {
               {/* ── Step 3: Bank + UPI ─────────────────────────── */}
               {step === 3 && (
                 <div className="space-y-4">
-                  <StepHeader title="Bank & UPI details" subtitle="Payouts will go to this account. Keep it accurate." />
+                  <StepHeader title="Bank & UPI details" subtitle="Optional for now - needed only when you start taking payouts. Keep it accurate if you fill it." />
 
                   <label className={LABEL}>
                     <span className={LABEL_TEXT}>UPI ID *</span>

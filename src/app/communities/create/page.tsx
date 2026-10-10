@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Sparkles } from "lucide-react";
 
-import { getCurrentUser, listDistinctSubcategories } from "@/modules/shared/server";
+import { getCurrentUser, listDistinctSubcategories, getOrganizerProfile } from "@/modules/shared/server";
 import { CommunityForm } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +14,10 @@ export default async function CreateClubPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=/communities/create");
 
-  const existingSubcategories = await listDistinctSubcategories();
+  const [organizer, existingSubcategories] = await Promise.all([
+    getOrganizerProfile(user),
+    listDistinctSubcategories(),
+  ]);
 
   return (
     <div className="mx-auto max-w-lg space-y-5 py-6">
@@ -35,7 +38,25 @@ export default async function CreateClubPage() {
         </p>
       </div>
 
-      <CommunityForm existingSubcategories={existingSubcategories} />
+      {organizer ? (
+        <CommunityForm existingSubcategories={existingSubcategories} />
+      ) : (
+        <div className="glass flex flex-col items-center gap-4 rounded-3xl p-10 text-center">
+          <Sparkles className="h-10 w-10 text-violet-neon" />
+          <div>
+            <h2 className="text-xl font-black">Set up your creator profile first</h2>
+            <p className="mt-2 text-sm text-muted">
+              Communities live inside the Creator Hub - a quick setup (name + PAN) takes a minute. Bank details are optional until you start taking payouts.
+            </p>
+          </div>
+          <Link
+            href="/organizer?next=/communities/create"
+            className="mt-2 rounded-full bg-neon-gradient px-6 py-2.5 text-sm font-bold text-white"
+          >
+            Become a Creator
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

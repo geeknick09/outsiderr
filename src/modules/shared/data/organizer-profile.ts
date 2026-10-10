@@ -124,8 +124,8 @@ export async function createOrganizerProfile(
       bank_account_name: input.bankAccountName || null,
       bank_account_type: input.bankAccountType || null,
       bank_document_url: input.bankDocumentUrl || null,
-      kyc_submitted: !!(input.panNumber && input.bankAccountNumber),
-      kyc_status: (input.panNumber && input.bankAccountNumber) ? "PENDING" : "NOT_SUBMITTED",
+      kyc_submitted: !!input.panNumber,
+      kyc_status: input.panNumber ? "PENDING" : "NOT_SUBMITTED",
       // Fresh application clears the previous response fields (rejection_count
       // is preserved - it feeds the block limit).
       kyc_response_note: null,
@@ -172,8 +172,8 @@ export async function createOrganizerProfile(
     bank_account_type: input.bankAccountType || null,
     bank_document_url: input.bankDocumentUrl || null,
     rejection_count: 0,
-    kyc_submitted: !!(input.panNumber && input.bankAccountNumber),
-    kyc_status: (input.panNumber && input.bankAccountNumber) ? "PENDING" : "NOT_SUBMITTED",
+    kyc_submitted: !!input.panNumber,
+    kyc_status: input.panNumber ? "PENDING" : "NOT_SUBMITTED",
   } satisfies Record<string, string | boolean | number | null>;
 
   const { data, error } = await supabase

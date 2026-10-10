@@ -92,7 +92,7 @@ export function UserMenu({
               href={isOrganizer ? "/organizer" : "/list-your-event"}
               onSelect={() => setOpen(false)}
             >
-              <Megaphone className="h-4 w-4" /> {isOrganizer ? "Organizer Dashboard" : "List Your Event"}
+              <Megaphone className="h-4 w-4" /> {isOrganizer ? "Creator Hub" : "List Your Event"}
             </MenuLink>
             <MenuLink href="/about" onSelect={() => setOpen(false)}>
               <Info className="h-4 w-4" /> About Us

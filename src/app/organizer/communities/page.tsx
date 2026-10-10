@@ -7,7 +7,7 @@ import { getOrganizerGateContext } from "@/modules/organizer/server";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Organizer Communities - Outsiderr" };
+export const metadata = { title: "Communities - Creator Hub | Outsiderr" };
 
 export default async function OrganizerCommunitiesPage() {
   const ctx = await getOrganizerGateContext();
