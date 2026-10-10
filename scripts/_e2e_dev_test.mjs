@@ -685,6 +685,41 @@ async function main() {
   const refundErr = refundReq.error ?? "";
   report("S1. postponement refund on free order → handled gracefully", refundReq.status < 500, `ok=${refundReq.ok} err=${refundErr}`);
 
+  // ── U: QA-batch surface — search, landing, staff attach, community link ──
+  {
+    // U1: /join-community landing renders the CTA
+    const landing = await fetch(`${BASE}/join-community`);
+    const landingHtml = await landing.text();
+    report("U1. join-community landing renders", landing.status === 200 && /Discover/i.test(landingHtml), `status=${landing.status}`);
+
+    // U2: homepage ?q= search finds the private community by name
+    const searchRes = await fetch(`${BASE}/?q=${encodeURIComponent("DEVTEST Private Community")}`);
+    const searchHtml = await searchRes.text();
+    report("U2. search finds community by name", searchRes.status === 200 && searchHtml.includes("DEVTEST Private Community"), `status=${searchRes.status}`);
+
+    // U3: organizer attaches door/box-office staff (same path the create form uses)
+    if (privId) {
+      const { data: sev } = await admin.from("events").insert({
+        organizer_id: paid.organizer_id, title: "DEVTEST Staff Event", description: "e2e",
+        things_to_know: [], category: "JAM_GIG", city: "KOLKATA", venue_name: "Test", latitude: 22.57, longitude: 88.36,
+        starts_at: new Date(Date.now() + 8 * 864e5).toISOString(), ends_at: new Date(Date.now() + 8.25 * 864e5).toISOString(),
+        status: "PUBLISHED", community_id: privId,
+      }).select("id").single();
+      const staffIns = await userClient(U.org.token).from("event_staff").insert({
+        event_id: sev.id, organizer_id: paid.organizer_id,
+        email: null, phone: "+919000009999", user_id: null, display_name: "Door Tester",
+      });
+      const staffRow = (await admin.from("event_staff").select("id,display_name").eq("event_id", sev.id).maybeSingle()).data;
+      report("U3. organizer attaches staff", !staffIns.error && staffRow?.display_name === "Door Tester", `err=${staffIns.error?.message?.slice(0,60) ?? ""}`);
+
+      // U4: community event shows on the community's public event list
+      const commEvents = await fetch(`${SB_URL}/rest/v1/events?select=id&community_id=eq.${privId}&status=eq.PUBLISHED`, {
+        headers: { apikey: ANON, authorization: `Bearer ${ANON}` },
+      }).then((r) => r.json());
+      report("U4. community_id persisted + listed", Array.isArray(commEvents) && commEvents.some((e) => e.id === sev.id), `rows=${commEvents?.length}`);
+    }
+  }
+
   // ── summary ───────────────────────────────────────────────────────
   const pass = results.filter((r) => r.ok).length;
   const fail = results.filter((r) => !r.ok);

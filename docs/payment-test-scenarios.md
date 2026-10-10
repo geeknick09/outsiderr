@@ -245,3 +245,30 @@ lock and per-section editing.
 | Counter sign-in error and phone retention | `e2e/box-office.spec.ts`, **fixme** (known server issue) |
 
 Not automated: a real swipe in the Razorpay modal (test keys verified for connectivity), SMS/WhatsApp delivery, and the airplane-mode device test (§14.9, §14.10).
+
+## §17 Communities / promoters / event-creation QA batch (2026-10-09)
+
+| # | Scenario | Expected |
+|---|---|---|
+| 17.1 | Community page → private join → owner approves | PENDING row on join; `set_community_membership` → ACCEPTED + `member_count` bumps |
+| 17.2 | Invite-only community without token | `join_community` rejected; with `community_invites` token → ACCEPTED |
+| 17.3 | `events`/`communities` `select *` as anon | `invite_token` column absent (side tables `event_invites`/`community_invites`, default-deny RLS) |
+| 17.4 | MEMBERS_ONLY event — non-member booking | `create_free_order`/`create_reserved_order` rejected at the RPC (not just hidden UI) |
+| 17.5 | Group tier `admits=3` × quantity 1 | 3 tickets minted per unit; `registrations_count` counts people |
+| 17.6 | Guestlist entry | VALID ticket, shareable `/guest/[qr_hash]` link, zero ledger rows, cap 10/event |
+| 17.7 | Promoter LINK: register → 2 users | Distinct `/p/<slug>` share links per promoter per event |
+| 17.8 | Promoter self-referral | Order not attributed to own promoter link |
+| 17.9 | LINK order at 20% commission | `promoter_commission_paise` = 20% of subtotal on the order |
+| 17.10 | Payment capture | `promoter_earnings` EARNING row created on order confirm |
+| 17.11 | Partial refund | Proportional REVERSAL row clawed back |
+| 17.12 | Wrong promo code | Order rejected "Invalid promo code" |
+| 17.13 | PROMO_CODE order | `discount_paise` to buyer + `promoter_commission_paise` to promoter on the order |
+| 17.14 | `/join-community` landing | Motivational page + "Discover communities" CTA renders |
+| 17.15 | Homepage `?q=` search | Community names match → community result + matching community events |
+| 17.16 | Create-form staff rows | `event_staff` rows attach after publish (door + box office) |
+| 17.17 | Community event via API/form | `events.community_id` persists; event appears in community event list |
+| 17.18 | Publish click with an empty required field in a hidden step | Server-side error message renders (form is `noValidate`; no silent block) |
+| 17.19 | Draft → publish of a community event | `community_id`, `visibility`, invite token, payout account, promoter fields preserved |
+| 17.20 | Media upload in progress | Continue/Publish disabled + "Uploading media" notice until done or failed |
+
+**Automated:** `scripts/_e2e_dev_test.mjs` covers 17.1–17.13, 17.14–17.17 (U + T + P sections, 93 checks). 17.18–17.20 are UI-level — verified via browser probe (`noValidate` fix + upload gating code path).
