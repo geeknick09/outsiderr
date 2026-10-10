@@ -57,7 +57,7 @@ export default async function OrganizerCommunityManagePage({
     <div className="mx-auto max-w-3xl space-y-6 py-6">
       <div className="overflow-hidden rounded-3xl">
         {community.coverUrl ? (
-          <div className="relative aspect-[4/3] max-h-[380px] min-h-[140px] w-full sm:aspect-[16/9] sm:min-h-[120px]">
+          <div className="relative -mx-4 aspect-[3/4] max-h-[70vh] w-[calc(100%+2rem)] overflow-hidden sm:aspect-video sm:max-h-[440px] sm:w-full sm:rounded-b-3xl">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={community.coverUrl} alt={`${community.name} cover`} className="h-full w-full object-cover" />
           </div>
