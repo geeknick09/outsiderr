@@ -1090,6 +1090,65 @@ npx next build
 - [ ] `PATCH /api/v1/organizer` with a partial body → only sent fields change (omitted fields not wiped to “” / null)
 - [ ] Razorpay webhook: `payment.captured` event with `x-razorpay-event-id` header → processes; unknown order id → falls back to hero-boost activation; replay → idempotent
 
+## 28\. Communities, Promoters & Event Creation (2026-10-09)
+
+### 28.1 Communities & Membership
+
+- [ ] Create a community as any signed-in user (no admin approval) → listed on `/communities` immediately
+- [ ] Public landing shows cover (16:9 cropper), avatar (1:1), gallery ≤12, member count, T&C, event calendar list
+- [ ] OPEN community: join → instantly ACCEPTED; rejoin → idempotent (one member row)
+- [ ] PRIVATE community: join → PENDING; owner approves in Manage → Requests → ACCEPTED + member_count bumps
+- [ ] INVITE_ONLY: join without link → rejected; with `?invite=` link → ACCEPTED
+- [ ] `select *` on `communities`/`events` as anon shows no `invite_token` (side tables, default-deny)
+- [ ] Owner viewing own community/event does NOT count a page view
+- [ ] Organizer manage page shows cover+avatar header, Members/Requests/Import/Analytics tabs
+- [ ] CSV member import → REQUESTED; admin approves at `/admin/community-imports` → rows link by phone/email
+- [ ] Member referral link (`?ref=`) attributes the join
+
+### 28.2 Community Events & Visibility
+
+- [ ] Create event → pick "Community event" → community select + 3 visibility modes render
+- [ ] OPEN community event: shows community first on the event page; anyone books
+- [ ] MEMBERS_ONLY: event page visible to all but booking rejected for non-members at the RPC; "Not a member? Join here" note shows; members book fine
+- [ ] INVITE_ONLY: hidden from listings/search; `?invite=` link opens page; booking enforces token server-side
+- [ ] Publish of a community event notifies organizer followers ∪ community followers ∪ members (once)
+- [ ] "Repeats weekly" (community events only) → next occurrence auto-creates +7d after this one ends
+- [ ] Draft → publish preserves `community_id`, `visibility`, invite token, payout account, promoter fields
+- [ ] `community_id` set at create shows in the community's event list + on the event page
+
+### 28.3 Event Creation UX
+
+- [ ] Publish with an empty required field in a hidden step → server error message renders (no silent dead-click)
+- [ ] Category chips control state; tag picker shows generic tags + selected-category tags only
+- [ ] Upload poster/video/gallery → Continue/Publish disabled with "Uploading media" notice until done/failed
+- [ ] Max tickets per person + waitlist live on the Tickets step; past-edition linking on Extras & contact
+- [ ] Staff & promoters step: add up to 5 door/box-office rows (name + phone or email) → `event_staff` rows on publish
+- [ ] Promoter program = LINK → only link-commission field; PROMO_CODE → buyer-discount + promoter-% fields
+- [ ] Group tier `admits=N` mints N tickets per unit; guestlist (≤10) mints free VALID tickets with `/guest/[hash]` links, zero ledger
+- [ ] Multiple bank accounts: event form picks payout account (first default); accounts managed in Edit Profile
+
+### 28.4 Promoters
+
+- [ ] `/promote` register for a LINK event → unique `/p/<slug>` share URL per promoter
+- [ ] Share link click → `oc_promo` cookie set (30d); purchase → `promoter_commission_paise` on order
+- [ ] Promoter's own purchase → not attributed (self-referral block)
+- [ ] Payment capture → `promoter_earnings` EARNING row; `/promoter` shows balance + per-event rows
+- [ ] Partial refund → proportional REVERSAL clawed back
+- [ ] PROMO_CODE event: promoter code → buyer `discount_paise` + promoter commission; wrong code rejected
+- [ ] Code beats cookie when both apply; code attribution wins
+- [ ] `/profile` shows Promoter section (earned/payable/paid, masked bank + PAN) only for users who promoted
+- [ ] No bank account + PAN → payout blocked; ≥₹1,000 + 7-day post-event hold gates payable
+- [ ] Organizer removes promoter; admin blocks promoter + marks payout paid
+
+### 28.5 Discovery & Analytics
+
+- [ ] Homepage "Join a community" CTA → `/join-community` landing (Discover/Join/Experience/Belong) → Discover communities
+- [ ] Homepage search `?q=` matches events (title/venue/desc/organizer name) AND community names → Communities result section
+- [ ] Community categories → `/communities?category=` filters
+- [ ] Organizer analytics → Payments & sales rhythm (gross, fees, refunded, net payout, sales-by-hour chart)
+- [ ] Organizer ledger at `/organizer/ledger`: sales+refunds+payouts+adjustments merged, paginated, sortable, event/date filters
+- [ ] Event analytics tab shows daily sales-trend chart
+
 ## Test Execution Checklist
 
 | Module | Scenarios | Status |
@@ -1121,6 +1180,7 @@ npx next build
 | Mobile & Navigation | 25.1–25.2 | ☐ |
 | Concurrency & Money | 26.1–26.6 | ☐ |
 | Security & Auth | 27.1–27.5 | ☐ |
+| Communities & Promoters | 28.1–28.5 | ☐ |
 
 ### 2.5 KYC Polish & Thread
 
