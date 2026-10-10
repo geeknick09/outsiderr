@@ -188,3 +188,57 @@ export async function getOrganizerAudienceAnalytics(
   };
 }
 
+
+/**
+ * Organizer-wide payment summary + hourly sales distribution.
+ * "Trend by time" = which hours of the day orders land (IST).
+ */
+export async function getOrganizerPaymentSummary(user: CurrentUser): Promise<{
+  grossPaise: number;
+  feesPaise: number;
+  netPayoutPaise: number;
+  refundedPaise: number;
+  orderCount: number;
+  hourly: { hour: number; orders: number; revenuePaise: number }[];
+} | null> {
+  const organizer = await getOrganizerProfile(user);
+  if (!organizer) return null;
+  const supabase = await createClient();
+
+  const { data: events } = await supabase.from("events").select("id").eq("organizer_id", organizer.id);
+  const ids = (events ?? []).map((e) => e.id);
+  if (ids.length === 0) return { grossPaise: 0, feesPaise: 0, netPayoutPaise: 0, refundedPaise: 0, orderCount: 0, hourly: [] };
+
+  const [{ data: orders }, { data: refunds }] = await Promise.all([
+    supabase
+      .from("orders")
+      .select("subtotal_paise, commission_paise, convenience_fee_paise, platform_fee_paise, organizer_payout_paise, created_at")
+      .in("event_id", ids)
+      .eq("status", "CONFIRMED"),
+    supabase
+      .from("refunds")
+      .select("amount_paise")
+      .in("event_id", ids)
+      .neq("status", "REJECTED"),
+  ]);
+
+  const ords = orders ?? [];
+  const hourlyMap = new Map<number, { orders: number; revenuePaise: number }>();
+  for (const o of ords) {
+    if (!o.created_at) continue;
+    const hour = new Date(o.created_at).getHours();
+    const h = hourlyMap.get(hour) ?? { orders: 0, revenuePaise: 0 };
+    h.orders += 1;
+    h.revenuePaise += o.subtotal_paise ?? 0;
+    hourlyMap.set(hour, h);
+  }
+
+  return {
+    grossPaise: ords.reduce((s, o) => s + (o.subtotal_paise ?? 0), 0),
+    feesPaise: ords.reduce((s, o) => s + (o.commission_paise ?? 0) + (o.convenience_fee_paise ?? 0) + (o.platform_fee_paise ?? 0), 0),
+    netPayoutPaise: ords.reduce((s, o) => s + (o.organizer_payout_paise ?? 0), 0),
+    refundedPaise: (refunds ?? []).reduce((s, r) => s + (r.amount_paise ?? 0), 0),
+    orderCount: ords.length,
+    hourly: Array.from({ length: 24 }, (_, h) => ({ hour: h, ...(hourlyMap.get(h) ?? { orders: 0, revenuePaise: 0 }) })),
+  };
+}

@@ -8,6 +8,14 @@ import { EventCard } from "./event-card";
 import { PastEventCard } from "./past-event-card";
 import type { EventSummary } from "@/modules/shared";
 
+type CommunityResult = {
+  id: string;
+  name: string;
+  bio: string | null;
+  avatarUrl: string | null;
+  memberCount: number;
+};
+
 type OrganizerResult = {
   id: string;
   name: string;
@@ -21,11 +29,13 @@ export function SearchResults({
   upcomingEvents,
   pastEvents,
   organizers,
+  communities = [],
 }: {
   query: string;
   upcomingEvents: EventSummary[];
   pastEvents: EventSummary[];
   organizers: OrganizerResult[];
+  communities?: CommunityResult[];
 }) {
   return (
     <div className="space-y-8">
@@ -87,6 +97,38 @@ export function SearchResults({
                 {organizer.verified ? <BadgeCheck className="h-4 w-4 shrink-0 text-violet-neon" /> : null}
               </p>
               {organizer.bio ? <p className="mt-0.5 line-clamp-2 text-xs text-muted">{organizer.bio}</p> : null}
+            </div>
+          </Link>
+        ))}
+      </SearchSection>
+
+      <SearchSection
+        title="Communities"
+        emptyMessage={`No communities found with “${query}”.`}
+        ariaLabel="Community search results"
+      >
+        {communities.map((community) => (
+          <Link
+            key={community.id}
+            href={`/communities/${community.id}`}
+            className="glass flex items-center gap-3 rounded-2xl p-4 transition-all hover:border-violet-neon/50"
+          >
+            {community.avatarUrl ? (
+              <Image
+                src={community.avatarUrl}
+                alt={community.name}
+                width={48}
+                height={48}
+                className="h-12 w-12 rounded-full object-cover"
+              />
+            ) : (
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-violet-neon/15 text-lg font-black text-violet-neon">
+                {community.name.slice(0, 1)}
+              </span>
+            )}
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold">{community.name}</p>
+              <p className="text-xs text-muted">{community.memberCount} members</p>
             </div>
           </Link>
         ))}

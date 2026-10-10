@@ -192,6 +192,16 @@ export async function listEvents(query: EventQuery = {}): Promise<EventSummary[]
       if (orgIds.length > 0) {
         filters.push(`organizer_id.in.(${orgIds.join(",")})`);
       }
+      // Community names live on a related table too.
+      const { data: commRows } = await supabase
+        .from("communities")
+        .select("id")
+        .ilike("name", `%${safe}%`)
+        .limit(50);
+      const commIds = (commRows ?? []).map((c) => c.id);
+      if (commIds.length > 0) {
+        filters.push(`community_id.in.(${commIds.join(",")})`);
+      }
       request = request.or(filters.join(","));
     }
   }

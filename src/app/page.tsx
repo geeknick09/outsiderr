@@ -3,7 +3,6 @@ import Link from "next/link";
 
 import { CategoryFilter } from "@/modules/web";
 import { EventSearch } from "@/modules/web";
-import { JoinCommunitySection } from "@/modules/web";
 import { EventSection } from "@/modules/web";
 import { FeaturedCarousel } from "@/modules/web";
 import { HeroCarousel } from "@/modules/web";
@@ -14,7 +13,7 @@ import {
   CITY_LABELS,
   DEFAULT_CITY,
 } from "@/modules/shared";
-import { listEvents, searchOrganizers } from "@/modules/shared/server";
+import { listEvents, searchOrganizers, searchCommunities } from "@/modules/shared/server";
 import { getHeroEvents } from "@/modules/shared/server";
 import { getMyEventsToday } from "@/modules/shared/server";
 import {
@@ -52,7 +51,7 @@ export default async function DiscoveryPage({
   // Parallelize all data fetching - events + settings + user at the same time.
   // No city filter on the fetch: the city-scoped sections derive from the full
   // set so "Events in your city" and "All Events" can coexist on one fetch.
-  const [allEvents, maxPopular, maxSponsored, heroEnabled, heroRotationInterval, heroMaxVisible, taglineHeader, taglineSubheader, currentUser, matchedOrganizers] = await Promise.all([
+  const [allEvents, maxPopular, maxSponsored, heroEnabled, heroRotationInterval, heroMaxVisible, taglineHeader, taglineSubheader, currentUser, matchedOrganizers, matchedCommunities] = await Promise.all([
     listEvents({ category, search }),
     getMaxPopularPerCity(),
     getMaxSponsoredPerCity(),
@@ -63,6 +62,7 @@ export default async function DiscoveryPage({
     getTaglineSubheader(),
     getCurrentUser(),
     search ? searchOrganizers(search) : Promise.resolve([]),
+    search ? searchCommunities(search) : Promise.resolve([]),
   ]);
 
   const { upcoming, past } = partitionSearchEvents(allEvents);
@@ -129,14 +129,32 @@ export default async function DiscoveryPage({
           upcomingEvents={upcoming}
           pastEvents={past}
           organizers={matchedOrganizers}
+          communities={matchedCommunities}
         />
       ) : (
         <>
       {/* Hero Boost carousel - only shown in "All" view (no category filter) */}
       {!category && heroEvents.length > 0 ? <HeroCarousel events={heroEvents} /> : null}
 
-      {/* Community discovery chips */}
-      {!category && !search ? <JoinCommunitySection /> : null}
+      {/* Discover communities CTA */}
+      {!category && !search ? (
+        <section className="mb-10">
+          <Link
+            href="/join-community"
+            className="group glass flex items-center justify-between gap-4 rounded-3xl p-5 transition-all hover:border-violet-neon/60 hover:shadow-[0_0_30px_rgba(139,92,246,0.2)]"
+          >
+            <div>
+              <h2 className="text-xl font-black tracking-tight">Join a community</h2>
+              <p className="mt-1 text-sm text-muted">
+                Crews, collectives and scenes — discover, join, earn badges &amp; rewards.
+              </p>
+            </div>
+            <span className="shrink-0 rounded-full bg-neon-gradient px-6 py-2.5 text-sm font-bold text-white shadow-glow-violet transition-transform group-hover:scale-105">
+              Discover communities
+            </span>
+          </Link>
+        </section>
+      ) : null}
 
       {/* Your Events Today - only for logged-in users with events today */}
       {myEventsToday.length > 0 ? (

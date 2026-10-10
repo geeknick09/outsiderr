@@ -84,6 +84,35 @@ export const PREDEFINED_EVENT_TAGS: string[] = [
   "Workshop", "Masterclass",
 ];
 
+/** Tags shown in the create-event picker per selected category (generic always shown). */
+export const GENERIC_EVENT_TAGS: string[] = [
+  "Free Entry", "Limited Seats", "18+", "All Ages",
+  "Outdoor", "Indoor", "Underground", "Street", "Collab",
+];
+
+export const CATEGORY_TAGS: Record<EventCategory, string[]> = {
+  CYPHER_BATTLE: ["Cypher", "Rap Cypher", "Rap Battle", "Rap Concert", "Dance Battle", "Graffiti Cypher", "Freestyle", "Open Mic", "Beatbox"],
+  SKATE_STUNT: ["Skate", "Street Skate", "BMX", "MTB", "MTB Stunt", "Stunt Riding"],
+  FITNESS: ["Run Community", "5K", "10K", "Marathon", "Walkathon", "Trail Run"],
+  JAM_GIG: ["Live Music", "DJ Set", "Open Decks", "Open Mic", "Jam Session"],
+  HIP_HOP_PARTY: ["Hip Hop Party", "Hip Hop", "Rap Party", "Trap Night", "Boom Bap Night", "R&B Night", "Afrobeats", "Cypher", "Freestyle"],
+  TECHNO_RAVE: ["Techno", "Rave", "Warehouse Rave", "Coffee Rave", "Sundowner", "Boiler Set", "Psytrance", "Acid", "Melodic Techno"],
+  CAR_BIKE_MEET: ["Car Meet", "Bike Meet", "Motorcycle Meet", "JDM Meet", "Superbike Meet", "Riders Meet", "Cars & Coffee"],
+  GAMING: ["Esports", "LAN Tournament", "FIFA Tournament", "BGMI", "Valorant", "Free Fire", "Call of Duty", "Fight Night", "Smash Bros", "Console Night", "Retro Gaming", "Arcade", "Speedrun"],
+  WORKSHOP: ["Workshop", "Masterclass"],
+  OTHER: [],
+};
+
+/** Tags the form offers: generic + the union of every selected category's tags. */
+export function tagsForCategories(categories: string[]): string[] {
+  const set = new Set(GENERIC_EVENT_TAGS);
+  for (const c of categories) {
+    for (const t of CATEGORY_TAGS[c as EventCategory] ?? []) set.add(t);
+    if (c === "OTHER") for (const t of PREDEFINED_EVENT_TAGS) set.add(t);
+  }
+  return [...set];
+}
+
 /** Community discovery categories — drives the home-page chips + community form select. */
 export const COMMUNITY_CATEGORIES = [
   { value: "FITNESS", label: "Fitness & Movements" },

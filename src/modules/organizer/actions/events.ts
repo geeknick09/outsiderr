@@ -441,8 +441,25 @@ export async function createEventAction(
         linkedPastEventIds: formData.getAll("linkedPastEventIds").map(String).filter(Boolean),
         pricingMode,
         maxTicketsPerUser: Math.min(10, Math.max(1, Number(formData.get("maxTicketsPerUser") ?? 5) || 5)),
+        communityId,
+        visibility,
+        payoutAccountId: String(formData.get("payoutAccountId") ?? "").trim() || null,
+        promoterMode: (["LINK", "PROMO_CODE"].includes(String(formData.get("promoterMode")))
+          ? String(formData.get("promoterMode")) : "NONE") as "NONE" | "LINK" | "PROMO_CODE",
+        promoterCommissionBps: Math.min(3000, Math.max(500, Math.round(Number(formData.get("promoterCommissionBps") ?? 10) * 100) || 1000)),
+        promoBuyerDiscountBps: Math.min(1500, Math.max(0, Math.round(Number(formData.get("promoBuyerDiscountBps") ?? 5) * 100) || 0)),
+        promoPromoterBps: Math.min(1500, Math.max(0, Math.round(Number(formData.get("promoPromoterBps") ?? 5) * 100) || 0)),
       });
       eventId = draftEventId;
+
+      // Invite token for invite-only community events - generated only when first
+      // needed; existing drafts keep their token on re-save.
+      if (inviteToken && !isDraft) {
+        const { createServiceClient } = await import("@/modules/shared/server");
+        await createServiceClient()
+          .from("event_invites")
+          .upsert({ event_id: draftEventId, token: inviteToken }, { onConflict: "event_id" });
+      }
 
       // Publishing a draft: run the status transition after the field update
       if (!isDraft) {
@@ -512,6 +529,24 @@ export async function createEventAction(
         await createDoorStaffOrder(user, eventId, doorStaffCount);
       } catch {
         // Best-effort - don't fail event creation if door staff order fails
+      }
+    }
+
+    // Staff rows collected in the create form (door scanner + box office share
+    // the event_staff table — phone or email identifies them at sign-in).
+    const staffNames = formData.getAll("staffName").map(String);
+    const staffPhones = formData.getAll("staffPhone").map(String);
+    const staffEmails = formData.getAll("staffEmail").map(String);
+    for (let i = 0; i < staffNames.length; i++) {
+      const name = staffNames[i]?.trim();
+      const phone = staffPhones[i]?.trim() || null;
+      const email = staffEmails[i]?.trim() || null;
+      if (!name || (!phone && !email)) continue;
+      try {
+        const { addEventStaff } = await import("../data/event-staff");
+        await addEventStaff(user, eventId, email, phone, name);
+      } catch {
+        // best-effort - staff can also be added from the event page
       }
     }
 

@@ -55,11 +55,31 @@ export default async function OrganizerCommunityManagePage({
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 py-6">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight">{community.name}</h1>
-        <p className="text-sm text-muted">
-          {community.memberCount} members · {community.membershipType.toLowerCase().replace("_", " ")} community
-        </p>
+      <div className="overflow-hidden rounded-3xl">
+        {community.coverUrl ? (
+          <div className="relative h-44 w-full">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={community.coverUrl} alt={`${community.name} cover`} className="h-full w-full object-cover" />
+          </div>
+        ) : (
+          <div className="h-28 w-full bg-gradient-to-r from-violet-neon/30 via-fuchsia-500/20 to-lime-neon/20" />
+        )}
+        <div className="glass -mt-10 flex items-end gap-4 rounded-t-3xl p-5">
+          {community.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={community.avatarUrl} alt={community.name} className="h-16 w-16 rounded-2xl border-2 border-white object-cover dark:border-zinc-900" />
+          ) : (
+            <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-neon/20 text-2xl font-black text-violet-neon">
+              {community.name.slice(0, 1)}
+            </span>
+          )}
+          <div>
+            <h1 className="text-2xl font-black tracking-tight">{community.name}</h1>
+            <p className="text-sm text-muted">
+              {community.memberCount} members · {community.membershipType.toLowerCase().replace("_", " ")} community
+            </p>
+          </div>
+        </div>
       </div>
       <CommunityManageTabs
         community={community}

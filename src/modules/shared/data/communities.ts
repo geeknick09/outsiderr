@@ -20,12 +20,35 @@ export interface CreateCommunityInput {
   terms: string[];
 }
 
+/** Communities matching a search term - powers the search-results strip. */
+export async function searchCommunities(term: string): Promise<Community[]> {
+  const { sanitizeSearchTerm } = await import("./organizers");
+  const safe = sanitizeSearchTerm(term);
+  if (!safe) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("communities")
+    .select("*")
+    .or(`name.ilike.%${safe}%,bio.ilike.%${safe}%`)
+    .neq("type", "INVITE_ONLY")
+    .limit(20);
+  return (data ?? []).map((row) => ({
+    id: row.id, ownerId: row.owner_id, name: row.name, bio: row.bio,
+    type: row.type as CommunityType, city: row.city as City | null,
+    avatarUrl: row.avatar_url, category: row.category ?? null,
+    coverUrl: row.cover_url ?? null, galleryUrls: row.gallery_urls ?? [],
+    instagramHandle: row.instagram_handle, upiId: null,
+    membershipType: row.membership_type as JoinMode, membershipFeePaise: row.membership_fee_paise,
+    terms: row.terms ?? [], memberCount: row.member_count ?? 0, verified: row.verified,
+    ownerName: "Organizer", createdAt: row.created_at,
+  }));
+}
+
 export async function listCommunities(city?: City): Promise<Community[]> {
   const supabase = await createClient();
   let query = supabase
     .from("communities")
     .select("*")
-    .eq("verified", true)
     .order("created_at", { ascending: false });
   if (city) query = query.eq("city", city);
 

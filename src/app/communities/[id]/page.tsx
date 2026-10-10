@@ -60,7 +60,6 @@ export default async function CommunityDetailPage({
     getCommunityFollowerCount(community.id),
   ]);
   const isOwner = user?.id === community.ownerId;
-  if (!community.verified && !isOwner) notFound();
 
   // Log the view (fire-and-forget; logged-in users only)
   if (user && !isOwner) void logPageViewAction("COMMUNITY", community.id);

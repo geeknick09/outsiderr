@@ -220,3 +220,23 @@ Last updated: 2026-10-08
 - **Analytics**: `salesTrend` daily series + `SalesTrendChart` (Recharts) on event analytics.
 - Event rows are icon buttons (analytics/attendees/manage) — row itself no longer navigates. "Back to dashboard" removed from organizer routes.
 - Gotchas hit: `fee_payer` column is an enum — RPC inserts need `::fee_payer` cast on text vars; `event_collaborators` has `organizer_id` (join organizers→owner_id), not `user_id`; selecting `t.*, p.*` into a row var of one table fails — select into separate records.
+
+## 2026-10-09 QA batch fixes
+- **Publish silently blocked**: browser constraint-validation can't focus `required`
+  inputs inside `display:none` stepper sections → submit no-ops ("An invalid form
+  control is not focusable"). Form is now `noValidate` — all validation is
+  server-side anyway and errors surface via `state.error`.
+- **Draft→publish lost fields**: `createEventAction`'s draft path didn't pass
+  communityId/visibility/inviteToken/payout/promoter fields to updateEvent →
+  community events created via draft lost linkage. Fixed.
+- Categories picker is controlled now; emits one hidden `categories` input per
+  selection (getAll-based parsing). Tag picker shows generic + selected-category
+  tags via `tagsForCategories`.
+- Form restructured to 7 steps: staff rows (staffName/staffPhone/staffEmail →
+  addEventStaff after create) + promoter section with mode-conditional fields;
+  maxTicketsPerUser + waitlist moved to Tickets; PastEditionsPicker to Extras.
+- Upload gating: `uploadsInFlight` counter via onUploadingChange props —
+  Continue/Publish disabled while media uploads.
+- Homepage search now also matches community names (events via community_id +
+  a Communities results section).
+- Communities are public-unverified now (verified filter + notFound removed).

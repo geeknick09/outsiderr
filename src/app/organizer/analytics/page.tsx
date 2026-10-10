@@ -1,4 +1,4 @@
-import { AggregatedAnalytics, AudienceAnalytics } from "@/modules/analytics";
+import { AggregatedAnalytics, AudienceAnalytics, OrganizerPaymentsPanel } from "@/modules/analytics";
 import { KycStatusBanner } from "@/modules/organizer";
 import { OrganizerKycRealtimeRefresher } from "@/modules/organizer";
 import { PremiumGate } from "@/modules/organizer";
@@ -8,6 +8,7 @@ import {
   getOrganizerEventAnalytics,
   getOrganizerDailyRevenue,
   getOrganizerAudienceAnalytics,
+  getOrganizerPaymentSummary,
 } from "@/modules/analytics/server";
 import { listOrganizerEvents, listCollaboratedEvents } from "@/modules/organizer/server";
 import { getOrganizerGateContext } from "@/modules/organizer/server";
@@ -34,10 +35,11 @@ export default async function OrganizerAnalyticsPage() {
     new Date(organizerProfile.premiumUntil).getTime() > Date.now();
   const windowDays = isPremium ? 180 : 90;
 
-  const [analyticsData, dailyRevenue, audience, premiumGate, premiumPlans, communities] =
+  const [analyticsData, dailyRevenue, paymentSummary, audience, premiumGate, premiumPlans, communities] =
     await Promise.all([
       Promise.all(allEvents.map((event) => getOrganizerEventAnalytics(user, event.id))),
       getOrganizerDailyRevenue(user, 30),
+      getOrganizerPaymentSummary(user),
       getOrganizerAudienceAnalytics(user, windowDays),
       isPremiumGateEnabled(),
       getPremiumPlans(),
@@ -85,6 +87,16 @@ export default async function OrganizerAnalyticsPage() {
             dailyRevenue={dailyRevenue}
           />
         </div>
+
+        {paymentSummary ? (
+          <div>
+            <h2 className="mb-1 text-lg font-bold">Payments &amp; sales rhythm</h2>
+            <p className="mb-3 text-xs text-muted">
+              Confirmed-order money totals across all events, plus the hours your tickets actually sell.
+            </p>
+            <OrganizerPaymentsPanel summary={paymentSummary} />
+          </div>
+        ) : null}
 
         {communities.length ? (
           <div>

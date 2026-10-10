@@ -12,14 +12,17 @@ export function GalleryUploader({
   initialUrls = [],
   organizerName,
   eventTitle,
+  onUploadingChange,
 }: {
   name: string;
   initialUrls?: string[];
   organizerName: string;
   eventTitle: string;
+  onUploadingChange?: (uploading: boolean) => void;
 }) {
   const [urls, setUrls] = useState<string[]>(initialUrls);
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploadingState] = useState(false);
+  const setUploading = (v: boolean) => { setUploadingState(v); onUploadingChange?.(v); };
   const [error, setError] = useState<string | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 

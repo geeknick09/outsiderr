@@ -10,7 +10,7 @@ import { PhoneInput } from "@/modules/shared";
 import { GalleryUploader } from "./gallery-uploader";
 import { PosterGuidelines } from "./poster-guidelines";
 import { PastEditionsPicker } from "./past-editions-picker";
-import { CATEGORIES, PREDEFINED_EVENT_TAGS, CityPicker } from "@/modules/shared";
+import { CATEGORIES, tagsForCategories, CityPicker } from "@/modules/shared";
 import { nowISTInput, utcToISTInput } from "@/modules/shared";
 import { uploadPublicFile, compressImage } from "@/modules/shared";
 import { ImageCropper } from "@/modules/shared";
@@ -73,8 +73,11 @@ function emptyPhase(): PhaseRow {
   };
 }
 
-export function TagPicker({ initialTags = [] }: { initialTags?: string[] }) {
+export function TagPicker({ initialTags = [], categories = [] }: { initialTags?: string[]; categories?: string[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set(initialTags));
+  const visible = tagsForCategories(categories);
+  // Keep already-selected tags visible even if the category changed.
+  const shown = [...new Set([...visible, ...selected])];
 
   function toggle(tag: string) {
     setSelected((prev) => {
@@ -90,8 +93,11 @@ export function TagPicker({ initialTags = [] }: { initialTags?: string[] }) {
       <span className="text-xs font-semibold uppercase tracking-wide text-muted">
         Tags * <span className="normal-case text-zinc-400">(tap to select, at least one)</span>
       </span>
+      {categories.length === 0 ? (
+        <p className="text-xs text-muted">Pick a category above to see matching tags.</p>
+      ) : null}
       <div className="flex flex-wrap gap-2">
-        {PREDEFINED_EVENT_TAGS.map((tag) => {
+        {shown.map((tag) => {
           const active = selected.has(tag);
           return (
             <button
@@ -143,9 +149,16 @@ export function EventForm({
   );
 
   // ── Stepper ──
-  const STEPS = ["Event type", "Details", "Media", "Extras & contact", "Tickets", "Review"] as const;
+  const STEPS = ["Event type", "Details", "Media", "Extras & contact", "Tickets", "Staff & promoters", "Review"] as const;
   const [step, setStep] = useState(0);
   const [eventKind, setEventKind] = useState<"EVENT" | "COMMUNITY">(draftEvent?.communityId ? "COMMUNITY" : "EVENT");
+  const [selCategories, setSelCategories] = useState<string[]>(
+    (draftEvent?.categories as string[] | undefined) ?? (draftEvent?.category ? [draftEvent.category] : []),
+  );
+  const [promoterMode, setPromoterMode] = useState<string>((draftEvent?.promoterMode as string | undefined) ?? "NONE");
+  const [staffRows, setStaffRows] = useState<{ name: string; phone: string; email: string }[]>([]);
+  const [uploadsInFlight, setUploadsInFlight] = useState(0);
+  const bumpUpload = (delta: number) => setUploadsInFlight((n) => Math.max(0, n + delta));
   const [communityId, setCommunityId] = useState(draftEvent?.communityId ?? "");
   const [visibility, setVisibility] = useState<"OPEN" | "MEMBERS_ONLY" | "INVITE_ONLY">(
     (draftEvent?.visibility as "OPEN" | "MEMBERS_ONLY" | "INVITE_ONLY" | undefined) ?? "OPEN",
@@ -329,19 +342,9 @@ export function EventForm({
       ref={formRef}
       action={formAction}
       className="space-y-6"
-      onInvalidCapture={(e) => {
-        const el = e.target as HTMLElement;
-        const section = el.closest("section[id], div[id^='create-']");
-        const map: Record<string, number> = {
-          "create-details": 1,
-          "create-schedule": 1,
-          "create-information": 1,
-          "create-media": 2,
-          "create-contact": 3,
-          "create-tickets": 4,
-        };
-        setStep(map[section?.id ?? ""] ?? 1);
-      }}
+      // Hidden-step required inputs can't be focused - browser blocks submit
+      // silently. All real validation is server-side; rely on it instead.
+      noValidate
     >
       {/* Hidden pricing mode */}
       <input type="hidden" name="pricingMode" value={pricingMode} />
@@ -497,8 +500,7 @@ export function EventForm({
           <Field label="Categories (select all that apply) *">
             <div className="flex flex-wrap gap-2 rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
               {CATEGORIES.filter((c) => c.value !== "ALL").map((cat) => {
-                const selectedCats = (sv?.categories as string[] | undefined) ?? (sv?.category ? [sv.category] : []);
-                const isSelected = selectedCats.includes(cat.value);
+                const isSelected = selCategories.includes(cat.value);
                 return (
                   <label
                     key={cat.value}
@@ -511,31 +513,24 @@ export function EventForm({
                   >
                     <input
                       type="checkbox"
-                      name="categories"
-                      value={cat.value}
-                      defaultChecked={isSelected}
+                      checked={isSelected}
                       className="hidden"
-                      onChange={(e) => {
-                        // Toggle visual state via parent label class
-                        const label = e.target.closest("label");
-                        if (label) {
-                          if (e.target.checked) {
-                            label.classList.add("border-violet-neon", "bg-violet-neon/15", "text-violet-neon");
-                            label.classList.remove("border-zinc-200", "text-zinc-600", "dark:border-white/10", "dark:text-zinc-300");
-                          } else {
-                            label.classList.remove("border-violet-neon", "bg-violet-neon/15", "text-violet-neon");
-                            label.classList.add("border-zinc-200", "text-zinc-600", "dark:border-white/10", "dark:text-zinc-300");
-                          }
-                        }
-                      }}
+                      onChange={() =>
+                        setSelCategories((prev) =>
+                          isSelected ? prev.filter((c) => c !== cat.value) : [...prev, cat.value],
+                        )
+                      }
                     />
                     {cat.label}
                   </label>
                 );
               })}
+              {selCategories.map((c) => (
+                <input key={c} type="hidden" name="categories" value={c} />
+              ))}
             </div>
             {/* Hidden single category field for backward compat - uses first selected */}
-            <input type="hidden" name="category" value={(sv?.categories as string[] | undefined)?.[0] ?? sv?.category ?? "OTHER"} readOnly />
+            <input type="hidden" name="category" value={selCategories[0] ?? "OTHER"} readOnly />
           </Field>
         </div>
 
@@ -731,7 +726,7 @@ export function EventForm({
         </Field>
 
         {/* Tag chip picker */}
-        <TagPicker initialTags={sv?.tags ? sv.tags.split(",").filter(Boolean) : []} />
+        <TagPicker initialTags={sv?.tags ? sv.tags.split(",").filter(Boolean) : []} categories={selCategories} />
 
         <Field label="Terms & conditions (one per line) *">
           <textarea
@@ -751,6 +746,7 @@ export function EventForm({
 
       <section className="glass grid gap-4 rounded-3xl p-5 sm:grid-cols-2">
         <PosterField
+          onUploadingChange={(u) => bumpUpload(u ? 1 : -1)}
           name="cardPosterUrl"
           label="Card poster (3:4)"
           organizerName={organizerName}
@@ -760,6 +756,7 @@ export function EventForm({
           aspect={3 / 4}
         />
         <PosterField
+          onUploadingChange={(u) => bumpUpload(u ? 1 : -1)}
           name="bannerPosterUrl"
           label="Banner poster (16:9)"
           organizerName={organizerName}
@@ -773,6 +770,7 @@ export function EventForm({
       {/* Optional teaser video - muted autoplay on the discovery card */}
       <section className="glass rounded-3xl p-5">
         <TeaserVideoField
+          onUploadingChange={(u) => bumpUpload(u ? 1 : -1)}
           name="teaserVideoUrl"
           label="Teaser video"
           organizerName={organizerName}
@@ -783,8 +781,8 @@ export function EventForm({
       </section>
       </div>
 
-      {/* Waitlist toggle */}
-      <section className={`glass rounded-3xl p-5 ${step === 3 ? "" : "hidden"}`}>
+      {/* Waitlist toggle - lives on the Tickets step */}
+      <section className={`glass rounded-3xl p-5 ${step === 4 ? "" : "hidden"}`}>
         <div className="flex items-center justify-between gap-4">
           <div>
             <h3 className="text-sm font-bold">Enable Waitlist</h3>
@@ -831,6 +829,7 @@ export function EventForm({
           <p className="text-xs text-muted">Add up to 8 photos of past events, venue, or promo shots.</p>
         </div>
         <GalleryUploader
+          onUploadingChange={(u) => bumpUpload(u ? 1 : -1)}
           name="photoUrls"
           initialUrls={sv?.photoUrls ?? []}
           organizerName={organizerName}
@@ -864,28 +863,6 @@ export function EventForm({
             </select>
           </Field>
         ) : null}
-
-        <Field label="Promoter program (optional)">
-          <select name="promoterMode" defaultValue={sv?.promoterMode ?? "NONE"} className={INPUT}>
-            <option value="NONE" className={OPTION}>None</option>
-            <option value="LINK" className={OPTION}>Share links — promoters earn a % of each sale</option>
-            <option value="PROMO_CODE" className={OPTION}>Promo codes — buyer discount + promoter commission</option>
-          </select>
-        </Field>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="Link commission %">
-            <input name="promoterCommissionBps" type="number" min={5} max={30} step={0.5}
-              defaultValue={String(Number(sv?.promoterCommissionBps ?? 1000) / 100)} className={INPUT} />
-          </Field>
-          <Field label="Buyer discount % (code mode)">
-            <input name="promoBuyerDiscountBps" type="number" min={0} max={15} step={0.5}
-              defaultValue={String(Number(sv?.promoBuyerDiscountBps ?? 500) / 100)} className={INPUT} />
-          </Field>
-          <Field label="Promoter % (code mode)">
-            <input name="promoPromoterBps" type="number" min={0} max={15} step={0.5}
-              defaultValue={String(Number(sv?.promoPromoterBps ?? 500) / 100)} className={INPUT} />
-          </Field>
-        </div>
 
         <Field label="Instagram URL (optional)">
           <input
@@ -934,6 +911,14 @@ export function EventForm({
             />
           </Field>
         </div>
+        {/* Link past events as previous editions */}
+        {pastEvents.length > 0 && (
+          <PastEditionsPicker
+            events={pastEvents}
+            eventTitle={eventTitle || String(sv?.title ?? "")}
+            defaultLinkedIds={(sv?.linkedPastEventIds as string[] | undefined) ?? []}
+          />
+        )}
       </section>
 
       {/* ── Pricing mode + tickets ── */}
@@ -1403,20 +1388,69 @@ export function EventForm({
         ) : null}
       </section>
 
-      <div className={step === 5 ? "space-y-6" : "hidden"}>
+            {/* ── Staff & promoters ── */}
+      <section className={`glass scroll-mt-36 space-y-4 rounded-3xl p-5 ${step === 5 ? "" : "hidden"}`}>
+        <div>
+          <h2 className="text-base font-bold">Door &amp; box office staff</h2>
+          <p className="text-xs text-muted">
+            Add people who scan tickets or sell at the box office. They sign in with the phone or
+            email below — up to 5 here, more from the event page later.
+          </p>
+        </div>
+        {staffRows.map((row, i) => (
+          <div key={i} className="grid gap-2 rounded-2xl border border-zinc-200 p-3 dark:border-white/10 sm:grid-cols-7">
+            <input name="staffName" placeholder="Name" value={row.name} className={`${INPUT} sm:col-span-2`}
+              onChange={(e) => setStaffRows((rs) => rs.map((r, j) => (j === i ? { ...r, name: e.target.value } : r)))} />
+            <input name="staffPhone" placeholder="Phone (+91…)" value={row.phone} className={`${INPUT} sm:col-span-2`}
+              onChange={(e) => setStaffRows((rs) => rs.map((r, j) => (j === i ? { ...r, phone: e.target.value } : r)))} />
+            <input name="staffEmail" placeholder="Email" value={row.email} className={`${INPUT} sm:col-span-2`}
+              onChange={(e) => setStaffRows((rs) => rs.map((r, j) => (j === i ? { ...r, email: e.target.value } : r)))} />
+            <button type="button" className="text-xs font-semibold text-red-500"
+              onClick={() => setStaffRows((rs) => rs.filter((_, j) => j !== i))}>
+              Remove
+            </button>
+          </div>
+        ))}
+        {staffRows.length < 5 ? (
+          <button type="button" className="text-xs font-semibold text-violet-neon"
+            onClick={() => setStaffRows((rs) => [...rs, { name: "", phone: "", email: "" }])}>
+            + Add staff member
+          </button>
+        ) : null}
+
+        <div className="border-t border-zinc-100 pt-4 dark:border-white/5">
+          <Field label="Promoter program (optional)">
+            <select name="promoterMode" value={promoterMode} onChange={(e) => setPromoterMode(e.target.value)} className={INPUT}>
+              <option value="NONE" className={OPTION}>None</option>
+              <option value="LINK" className={OPTION}>Share links — promoters earn a % of each sale</option>
+              <option value="PROMO_CODE" className={OPTION}>Promo codes — buyer discount + promoter commission</option>
+            </select>
+          </Field>
+          {promoterMode === "LINK" ? (
+            <Field label="Promoter commission %">
+              <input name="promoterCommissionBps" type="number" min={5} max={30} step={0.5}
+                defaultValue={String(Number(sv?.promoterCommissionBps ?? 1000) / 100)} className={INPUT} />
+            </Field>
+          ) : promoterMode === "PROMO_CODE" ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Buyer discount %">
+                <input name="promoBuyerDiscountBps" type="number" min={0} max={15} step={0.5}
+                  defaultValue={String(Number(sv?.promoBuyerDiscountBps ?? 500) / 100)} className={INPUT} />
+              </Field>
+              <Field label="Promoter commission %">
+                <input name="promoPromoterBps" type="number" min={0} max={15} step={0.5}
+                  defaultValue={String(Number(sv?.promoPromoterBps ?? 500) / 100)} className={INPUT} />
+              </Field>
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      <div className={step === 6 ? "space-y-6" : "hidden"}>
       {/* Platform fee & staffing section hidden from organizers -
           default feePayer is BUYER, set via hidden input below.
           Door staff is also disabled for this release. */}
       <input type="hidden" name="feePayer" value={sv?.feePayer ?? "BUYER"} />
-
-      {/* Link past events as previous editions */}
-      {pastEvents.length > 0 && (
-        <PastEditionsPicker
-          events={pastEvents}
-          eventTitle={eventTitle || String(sv?.title ?? "")}
-          defaultLinkedIds={(sv?.linkedPastEventIds as string[] | undefined) ?? []}
-        />
-      )}
 
       {/* General T&C for the whole form */}
       <label className="flex cursor-pointer items-start gap-2 rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
@@ -1442,7 +1476,7 @@ export function EventForm({
       <input type="hidden" name="saveMode" value="publish" />
 
       <div className="flex flex-wrap gap-3">
-        <Button type="submit" size="lg" disabled={pending || !!dateError || !!mapsError || !!phaseError} loading={pending} loadingText="Publishing…">
+        <Button type="submit" size="lg" disabled={pending || uploadsInFlight > 0 || !!dateError || !!mapsError || !!phaseError} loading={pending} loadingText="Publishing…">
           Publish event
         </Button>
         <Button
@@ -1465,9 +1499,14 @@ export function EventForm({
           ← Back
         </Button>
         {step < STEPS.length - 1 ? (
-          <Button type="button" onClick={() => setStep((v) => Math.min(STEPS.length - 1, v + 1))}>
-            {step === 0 ? "Get started →" : "Continue →"}
-          </Button>
+          <div className="flex items-center gap-3">
+            {uploadsInFlight > 0 ? (
+              <span className="text-xs font-semibold text-amber-600">Uploading media — wait for it to finish…</span>
+            ) : null}
+            <Button type="button" disabled={uploadsInFlight > 0} onClick={() => setStep((v) => Math.min(STEPS.length - 1, v + 1))}>
+              {step === 0 ? "Get started →" : "Continue →"}
+            </Button>
+          </div>
         ) : (
           <span className="self-center text-xs text-muted">Review &amp; publish above</span>
         )}
@@ -1573,6 +1612,7 @@ export function PosterField({
   subFolder,
   initialValue,
   aspect,
+  onUploadingChange,
 }: {
   name: string;
   label: string;
@@ -1582,9 +1622,11 @@ export function PosterField({
   initialValue?: string;
   /** Crop aspect ratio (e.g. 3/4 card, 16/9 banner). */
   aspect: number;
+  onUploadingChange?: (uploading: boolean) => void;
 }) {
   const [url, setUrl] = useState(initialValue ?? "");
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploadingState] = useState(false);
+  const setUploading = (v: boolean) => { setUploadingState(v); onUploadingChange?.(v); };
   const [uploadError, setUploadError] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
 
@@ -1665,6 +1707,7 @@ export function TeaserVideoField({
   eventTitle,
   subFolder,
   initialValue,
+  onUploadingChange,
 }: {
   name: string;
   label: string;
@@ -1672,9 +1715,11 @@ export function TeaserVideoField({
   eventTitle: string;
   subFolder: string;
   initialValue?: string;
+  onUploadingChange?: (uploading: boolean) => void;
 }) {
   const [url, setUrl] = useState(initialValue ?? "");
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploadingState] = useState(false);
+  const setUploading = (v: boolean) => { setUploadingState(v); onUploadingChange?.(v); };
   const [error, setError] = useState<string | null>(null);
 
   const safeOrg = organizerName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "organizer";
