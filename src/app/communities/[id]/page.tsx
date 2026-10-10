@@ -2,7 +2,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { AtSign, BadgeCheck, CalendarDays, Lock, MapPin, Users } from "lucide-react";
+import { BadgeCheck, CalendarDays, Lock, MapPin, Users } from "lucide-react";
+import { InstagramIcon } from "@/modules/shared";
 
 import { JoinCommunityForm, CommunityFollowButton } from "@/modules/web";
 import { Badge } from "@/modules/shared";
@@ -138,10 +139,10 @@ export default async function CommunityDetailPage({
                 href={`https://instagram.com/${community.instagramHandle.replace("@", "")}`}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-1 hover:text-violet-neon"
+                aria-label="Instagram"
+                className="text-muted hover:text-violet-neon"
               >
-                <AtSign className="h-3.5 w-3.5" />
-                {community.instagramHandle}
+                <InstagramIcon className="h-4 w-4" />
               </a>
             ) : null}
           </div>
