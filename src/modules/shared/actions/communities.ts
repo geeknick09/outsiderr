@@ -167,7 +167,7 @@ export async function rejectMemberAction(memberId: string, communityId: string):
   await setMemberStatusAction(memberId, communityId, "REJECTED");
 }
 
-// Legacy shim — kept for any stale callers; updateMemberStatus still enforces ownership.
+// Legacy shim - kept for any stale callers; updateMemberStatus still enforces ownership.
 export { updateMemberStatus };
 
 /** Fire-and-forget page view log for logged-in users. */
@@ -223,7 +223,7 @@ export async function sendOutreachBlastAction(
 
 // ── Guestlist ──────────────────────────────────────────────────────────
 
-/** Organizer adds a free guest — creates a VALID ticket + shareable /guest link. */
+/** Organizer adds a free guest - creates a VALID ticket + shareable /guest link. */
 export async function addGuestEntryAction(
   eventId: string,
   name: string,

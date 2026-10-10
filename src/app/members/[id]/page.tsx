@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Member - Outsiderr" };
 
 /**
- * Member profile — public view. Shows name, member-since, attended events,
+ * Member profile - public view. Shows name, member-since, attended events,
  * badges. Organizers see extra detail via the community manage page.
  */
 export default async function MemberProfilePage({

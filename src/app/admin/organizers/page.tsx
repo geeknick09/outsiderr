@@ -72,7 +72,7 @@ export default async function AdminOrganizersPage({
             <div className="min-w-0 flex-1">
               <p className="truncate font-semibold">{org.name}</p>
               <p className="text-xs text-muted">
-                {org.ownerName ?? "—"} · {org.eventCount} event{org.eventCount === 1 ? "" : "s"} · joined {formatDateTime(org.createdAt)}
+                {org.ownerName ?? "-"} · {org.eventCount} event{org.eventCount === 1 ? "" : "s"} · joined {formatDateTime(org.createdAt)}
               </p>
             </div>
             <div className="flex items-center gap-2">

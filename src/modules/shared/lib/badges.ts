@@ -1,5 +1,5 @@
 /**
- * Member badges — computed on read, no storage needed.
+ * Member badges - computed on read, no storage needed.
  * attended = tickets USED (scanned at the door), referrals = members who joined
  * via this member's invite code.
  */

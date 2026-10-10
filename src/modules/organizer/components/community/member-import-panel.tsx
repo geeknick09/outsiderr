@@ -110,7 +110,7 @@ export function MemberImportPanel({
 
       {rows ? (
         <div className="space-y-3">
-          <p className="text-sm font-semibold">{filename} — {rows.length} rows parsed</p>
+          <p className="text-sm font-semibold">{filename} - {rows.length} rows parsed</p>
           <div className="max-h-56 overflow-auto rounded-2xl border border-zinc-200 text-xs dark:border-white/10">
             <table className="w-full">
               <thead className="sticky top-0 bg-zinc-50 dark:bg-zinc-900">

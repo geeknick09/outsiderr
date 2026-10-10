@@ -47,7 +47,7 @@ export function GuestlistPanel({
   return (
     <div className="space-y-4">
       <p className="text-xs text-muted">
-        Free entries — up to 10 per event. Each guest gets a shareable ticket link; no revenue is recorded.
+        Free entries - up to 10 per event. Each guest gets a shareable ticket link; no revenue is recorded.
         {" "}<strong>{remaining} left.</strong>
       </p>
 

@@ -73,7 +73,7 @@ export function CommunityManageTabs({
           <Link
             href={`/communities/${community.id}?invite=${inviteToken}`}
             className="ml-auto rounded-full border border-dashed border-violet-neon px-4 py-2 text-xs font-bold text-violet-neon"
-            title="Your invite link — share it to admit members"
+            title="Your invite link - share it to admit members"
           >
             Invite link: /communities/{community.id.slice(0, 8)}…?invite={inviteToken}
           </Link>
@@ -164,8 +164,8 @@ function MembersTab({
             </div>
             {expanded === m.id ? (
               <div className="mt-3 space-y-2 border-t border-zinc-100 pt-3 text-xs dark:border-white/10">
-                <p className="flex items-center gap-1.5 text-muted"><Mail className="h-3 w-3" />{m.email ?? "—"}</p>
-                <p className="flex items-center gap-1.5 text-muted"><Phone className="h-3 w-3" />{m.phone ?? "—"}</p>
+                <p className="flex items-center gap-1.5 text-muted"><Mail className="h-3 w-3" />{m.email ?? "-"}</p>
+                <p className="flex items-center gap-1.5 text-muted"><Phone className="h-3 w-3" />{m.phone ?? "-"}</p>
                 <Link href={`/members/${m.userId}`} className="text-violet-neon hover:underline">View member profile →</Link>
                 {m.answers.length ? (
                   <div className="space-y-1">
@@ -193,7 +193,7 @@ function AnalyticsTab({
   analytics: Analytics | null;
   nonJoiners: string[];
 }) {
-  const [msg, setMsg] = useState(`Hey! ${community.name} on Outsiderr is building something for you — come join us.`);
+  const [msg, setMsg] = useState(`Hey! ${community.name} on Outsiderr is building something for you - come join us.`);
   const [sent, setSent] = useState<number | null>(null);
   const [pending, startTransition] = useTransition();
 

@@ -1,4 +1,4 @@
-/** Brand/social icons — lucide removed brand marks, so these are small inline SVGs. */
+/** Brand/social icons - lucide removed brand marks, so these are small inline SVGs. */
 export function YoutubeIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className ?? "h-4 w-4"} aria-hidden="true">

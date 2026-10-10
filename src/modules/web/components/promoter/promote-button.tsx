@@ -6,7 +6,7 @@ import { Check, Copy, Megaphone, Share2 } from "lucide-react";
 import { promoteEventAction } from "@/modules/web/actions/promoter";
 
 /**
- * Promote & earn — LINK mode gives the promoter a unique /p/<slug> share URL;
+ * Promote & earn - LINK mode gives the promoter a unique /p/<slug> share URL;
  * PROMO_CODE mode gives them a discount code for buyers.
  */
 export function PromoteButton({
@@ -55,7 +55,7 @@ export function PromoteButton({
           ? "Getting your link…"
           : mode === "LINK"
             ? `Promote this event & earn ${(linkRateBps / 100).toFixed(0)}% per sale`
-            : `Promote this event — buyers get ${(buyerDiscountBps / 100).toFixed(0)}% off via your code`}
+            : `Promote this event - buyers get ${(buyerDiscountBps / 100).toFixed(0)}% off via your code`}
       </button>
     );
   }
@@ -93,7 +93,7 @@ export function PromoteButton({
         </a>
       ) : (
         <p className="text-[11px] text-muted">
-          Buyers enter this code at checkout for {(buyerDiscountBps / 100).toFixed(0)}% off — you earn on every paid ticket.
+          Buyers enter this code at checkout for {(buyerDiscountBps / 100).toFixed(0)}% off - you earn on every paid ticket.
         </p>
       )}
       <p className="text-[10px] text-muted">

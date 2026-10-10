@@ -31,7 +31,7 @@ export async function togglePromoterBlockedAction(promoterId: string, blocked: b
   return { error: null };
 }
 
-/** Create a promoter payout — snapshots bank details, marks earnings PAID. */
+/** Create a promoter payout - snapshots bank details, marks earnings PAID. */
 export async function createPromoterPayoutAction(promoterId: string) {
   const user = await requireAdmin();
   if (!user) return { error: "Admin only." };

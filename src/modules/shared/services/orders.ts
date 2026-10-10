@@ -33,7 +33,7 @@ export interface CheckoutInput {
   inviteToken?: string | null;
   /** Promoter link slug (oc_promo cookie). */
   promoterSlug?: string | null;
-  /** Typed promo code — beats the link cookie. */
+  /** Typed promo code - beats the link cookie. */
   promoCode?: string | null;
 }
 

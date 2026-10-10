@@ -42,7 +42,7 @@ export function RazorpayCheckoutForm({
   defaultEmail: string;
   defaultGender: string;
   totalRupees: string;
-  /** Event opted into PROMO_CODE mode — show the code field. */
+  /** Event opted into PROMO_CODE mode - show the code field. */
   showPromoCode?: boolean;
 }) {
   const router = useRouter();

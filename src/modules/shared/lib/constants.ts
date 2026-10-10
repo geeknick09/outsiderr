@@ -113,7 +113,7 @@ export function tagsForCategories(categories: string[]): string[] {
   return [...set];
 }
 
-/** Community discovery categories — drives the home-page chips + community form select. */
+/** Community discovery categories - drives the home-page chips + community form select. */
 export const COMMUNITY_CATEGORIES = [
   { value: "FITNESS", label: "Fitness & Movements" },
   { value: "HIP_HOP", label: "Hip Hop & Street Culture" },

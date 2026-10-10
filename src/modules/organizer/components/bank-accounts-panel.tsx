@@ -18,7 +18,7 @@ function mask(acct: string) {
   return acct.length > 4 ? `••••${acct.slice(-4)}` : acct;
 }
 
-/** Manage payout bank accounts — add/remove/set-default. */
+/** Manage payout bank accounts - add/remove/set-default. */
 export function BankAccountsPanel({ accounts }: { accounts: BankAccount[] }) {
   const [state, formAction, pending] = useActionState(addBankAccountAction, { error: null });
   const [adding, setAdding] = useState(accounts.length === 0);

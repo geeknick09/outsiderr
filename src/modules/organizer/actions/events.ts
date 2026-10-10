@@ -533,7 +533,7 @@ export async function createEventAction(
     }
 
     // Staff rows collected in the create form (door scanner + box office share
-    // the event_staff table — phone or email identifies them at sign-in).
+    // the event_staff table - phone or email identifies them at sign-in).
     const staffNames = formData.getAll("staffName").map(String);
     const staffPhones = formData.getAll("staffPhone").map(String);
     const staffEmails = formData.getAll("staffEmail").map(String);

@@ -17,7 +17,7 @@ export type EventPromoterRow = {
   active: boolean;
 };
 
-/** Event-level promoter list — clicks/sales per promoter, with remove. */
+/** Event-level promoter list - clicks/sales per promoter, with remove. */
 export function PromotersPanel({
   eventId,
   promoters,
@@ -32,7 +32,7 @@ export function PromotersPanel({
   if (promoters.length === 0) {
     return (
       <p className="text-sm text-muted">
-        No promoters yet — share the event link; anyone who taps &quot;Promote this event&quot; shows up here.
+        No promoters yet - share the event link; anyone who taps &quot;Promote this event&quot; shows up here.
       </p>
     );
   }
@@ -40,7 +40,7 @@ export function PromotersPanel({
   return (
     <div className="space-y-2">
       <p className="flex items-center gap-2 text-xs text-muted">
-        <Megaphone className="h-3.5 w-3.5" /> Promoter commission comes out of your payout — never the buyer.
+        <Megaphone className="h-3.5 w-3.5" /> Promoter commission comes out of your payout - never the buyer.
       </p>
       {rows.map((p) => (
         <div key={`${p.via}-${p.handle}`} className="flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-200 px-4 py-3 dark:border-white/10">

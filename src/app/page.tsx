@@ -146,7 +146,7 @@ export default async function DiscoveryPage({
             <div>
               <h2 className="text-xl font-black tracking-tight">Join a community</h2>
               <p className="mt-1 text-sm text-muted">
-                Crews, collectives and scenes — discover, join, earn badges &amp; rewards.
+                Crews, collectives and scenes - discover, join, earn badges &amp; rewards.
               </p>
             </div>
             <span className="shrink-0 rounded-full bg-neon-gradient px-6 py-2.5 text-sm font-bold text-white shadow-glow-violet transition-transform group-hover:scale-105">

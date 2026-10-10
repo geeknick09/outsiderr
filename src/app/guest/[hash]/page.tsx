@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Guest Ticket - Outsiderr" };
 
 /**
- * Public shareable guest ticket — keyed by the ticket's qr_hash (the same
+ * Public shareable guest ticket - keyed by the ticket's qr_hash (the same
  * secret the door scanner validates). No login required.
  */
 export default async function GuestTicketPage({

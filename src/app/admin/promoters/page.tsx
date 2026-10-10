@@ -13,7 +13,7 @@ export default async function AdminPromotersPage() {
       <div>
         <h1 className="text-2xl font-black tracking-tight">Promoters</h1>
         <p className="text-sm text-muted">
-          Settled 7 days after each event — create a payout once bank details are in, then mark it complete with the UTR.
+          Settled 7 days after each event - create a payout once bank details are in, then mark it complete with the UTR.
         </p>
       </div>
 
@@ -73,7 +73,7 @@ export default async function AdminPromotersPage() {
               <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
                 <span className="text-muted">{formatDateTime(p.initiatedAt)}</span>
                 <span className="font-bold">{formatPaise(p.amountPaise)}</span>
-                <span className="text-xs text-muted">{p.bankReference ?? "—"}</span>
+                <span className="text-xs text-muted">{p.bankReference ?? "-"}</span>
                 <PromoterPayoutActions payoutId={p.id} status={p.status} />
               </div>
             ))}

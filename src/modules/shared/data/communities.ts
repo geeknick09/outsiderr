@@ -578,7 +578,7 @@ export async function listFollowedCommunities(user: CurrentUser): Promise<Commun
   }));
 }
 
-/** Community events for the landing calendar — public: only PUBLISHED, non-invite-only. */
+/** Community events for the landing calendar - public: only PUBLISHED, non-invite-only. */
 export interface CommunityEventItem {
   id: string;
   title: string;

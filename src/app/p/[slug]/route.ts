@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 const COOKIE = "oc_promo";
 
 /**
- * GET /p/<slug> — promoter share link.
+ * GET /p/<slug> - promoter share link.
  * Logs the click, drops a 30d httpOnly cookie (last click wins) and 302s to
  * the event page. Stale/dead slugs redirect with no cookie.
  */

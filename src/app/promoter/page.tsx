@@ -17,7 +17,7 @@ export default async function PromoterPage() {
       <div>
         <h1 className="text-2xl font-black tracking-tight">Promote &amp; earn</h1>
         <p className="text-sm text-muted">
-          Share your links or codes — you earn a cut of every paid ticket you drive.
+          Share your links or codes - you earn a cut of every paid ticket you drive.
           Commissions settle 7 days after each event and are paid to your bank.
         </p>
       </div>

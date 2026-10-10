@@ -44,7 +44,7 @@ export function PromoterDashboardView({ dashboard }: { dashboard: PromoterDashbo
       </div>
       {balances.clawedPaise > 0 ? (
         <p className="text-xs text-amber-600 dark:text-amber-400">
-          −{formatPaise(balances.clawedPaise)} clawed back from refunded orders — it nets against future earnings.
+          −{formatPaise(balances.clawedPaise)} clawed back from refunded orders - it nets against future earnings.
         </p>
       ) : null}
 
@@ -62,7 +62,7 @@ export function PromoterDashboardView({ dashboard }: { dashboard: PromoterDashbo
           <p className="text-xs text-muted">
             Bank {dashboard.masked.account} · IFSC {dashboard.masked.ifsc} · PAN {dashboard.masked.pan}
             {dashboard.masked.upi ? ` · UPI ${dashboard.masked.upi}` : ""}
-            {" "}— submitted on your last save; edit below to update.
+            {" "}- submitted on your last save; edit below to update.
           </p>
         ) : null}
         <form action={formAction} className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -85,7 +85,7 @@ export function PromoterDashboardView({ dashboard }: { dashboard: PromoterDashbo
         <h2 className="mb-3 text-sm font-bold">Your links &amp; codes</h2>
         {dashboard.programs.length === 0 ? (
           <p className="text-sm text-muted">
-            Nothing yet — open an event with a promoter program and hit &quot;Promote this event&quot;.
+            Nothing yet - open an event with a promoter program and hit &quot;Promote this event&quot;.
           </p>
         ) : (
           <div className="space-y-2">

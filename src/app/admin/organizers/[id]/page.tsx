@@ -112,7 +112,7 @@ export default async function AdminOrganizerDetailPage({
               {stats.premiumPurchases.map((p, i) => (
                 <Row
                   key={i}
-                  label={p.paidAt ? formatDateTime(p.paidAt) : "—"}
+                  label={p.paidAt ? formatDateTime(p.paidAt) : "-"}
                   value={`${p.months} months - ${formatPaise(p.amountPaise)}`}
                 />
               ))}

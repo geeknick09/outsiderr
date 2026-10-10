@@ -64,7 +64,7 @@ export default async function CommunitiesPage({
       {submitted === "1" ? (
         <div className="flex items-center gap-2.5 rounded-2xl bg-lime-400/15 px-4 py-3 text-sm text-lime-600 dark:text-lime-400">
           <Clock className="h-4 w-4 shrink-0" />
-          <span>Your community is live — share it with your people.</span>
+          <span>Your community is live - share it with your people.</span>
         </div>
       ) : null}
 

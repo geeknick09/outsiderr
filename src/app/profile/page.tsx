@@ -74,7 +74,7 @@ export default async function ProfilePage() {
           <p className="mt-3 text-xs text-muted">
             {promoter.hasPayoutDetails
               ? `Bank ${promoter.masked.account ?? ""} · IFSC ${promoter.masked.ifsc ?? ""} · PAN ${promoter.masked.pan ?? ""}`
-              : "No payout bank details yet — add them on the promoter dashboard before commissions can be paid."}
+              : "No payout bank details yet - add them on the promoter dashboard before commissions can be paid."}
           </p>
         </section>
       ) : null}

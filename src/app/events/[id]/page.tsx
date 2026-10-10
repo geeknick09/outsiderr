@@ -366,7 +366,7 @@ export default async function EventDetailsPage({
                   <p className="text-sm font-bold">{event.community.name}</p>
                   <p className="mt-0.5 text-xs text-muted">
                     {event.community.membershipType === "PRIVATE"
-                      ? "Private community — request to join"
+                      ? "Private community - request to join"
                       : event.community.membershipType === "INVITE_ONLY"
                       ? "Invite-only community"
                       : "Open community"}
@@ -380,7 +380,7 @@ export default async function EventDetailsPage({
                   <Link href={`/communities/${event.community.id}`} className="underline">
                     Join {event.community.name}
                   </Link>{" "}
-                  to unlock booking — before tickets run out.
+                  to unlock booking - before tickets run out.
                 </p>
               ) : null}
             </section>

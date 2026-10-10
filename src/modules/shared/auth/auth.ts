@@ -59,7 +59,7 @@ function writeBearerCache(token: string, identity: Omit<CachedIdentity, "expires
 
 /**
  * Lightweight variant of getCurrentUser for paths that only need the id
- * (follow/unfollow, etc.) — skips the profiles fetch entirely.
+ * (follow/unfollow, etc.) - skips the profiles fetch entirely.
  */
 export async function getAuthUserId(): Promise<string | null> {
   const supabase = await createClient();

@@ -4,7 +4,7 @@ import { ArrowRight, Users } from "lucide-react";
 import { COMMUNITY_CATEGORIES } from "@/modules/shared";
 
 /**
- * Home-page community discovery — 8 category chips that deep-link into the
+ * Home-page community discovery - 8 category chips that deep-link into the
  * communities index filtered to that scene.
  */
 export function JoinCommunitySection() {
@@ -13,7 +13,7 @@ export function JoinCommunitySection() {
       <div className="mb-4 flex items-end justify-between">
         <div>
           <h2 className="text-xl font-black tracking-tight">Join a Community</h2>
-          <p className="text-sm text-muted">Find your people — pick a scene to start.</p>
+          <p className="text-sm text-muted">Find your people - pick a scene to start.</p>
         </div>
         <Link
           href="/communities"

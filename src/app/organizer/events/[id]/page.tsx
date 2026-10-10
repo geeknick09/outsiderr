@@ -186,7 +186,7 @@ export default async function ManageEventPage({
     <div className="space-y-6 py-6">
       {/* Event banner image */}
       {(event.bannerPosterUrl || event.cardPosterUrl) ? (
-        <div className="relative -mx-4 h-[30vh] max-h-[260px] min-h-[160px] overflow-hidden sm:rounded-b-3xl">
+        <div className="relative -mx-4 aspect-[16/9] max-h-[380px] min-h-[160px] overflow-hidden sm:rounded-b-3xl">
           <Image
             src={event.bannerPosterUrl ?? event.cardPosterUrl!}
             alt={event.title}
@@ -299,13 +299,13 @@ export default async function ManageEventPage({
               ) : null}
 
               {!eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
-                <CollapsibleSection title="Guestlist" description="Free guest entries — up to 10. Each gets a shareable ticket link; no money involved.">
+                <CollapsibleSection title="Guestlist">
                   <GuestlistPanel eventId={event.id} guests={guestlist} />
                 </CollapsibleSection>
               ) : null}
 
               {event.promoterMode !== "NONE" ? (
-                <CollapsibleSection title="Promoters" description="People driving sales for this event — links/codes, clicks, earned commission.">
+                <CollapsibleSection title="Promoters" description="People driving sales for this event - links/codes, clicks, earned commission.">
                   <PromotersPanel eventId={event.id} promoters={promoters} />
                 </CollapsibleSection>
               ) : null}

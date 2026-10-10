@@ -17,7 +17,7 @@ export interface PromoterState {
   mode?: string;
 }
 
-/** Promote an event — returns the unique share link slug or promo code. */
+/** Promote an event - returns the unique share link slug or promo code. */
 export async function promoteEventAction(eventId: string): Promise<PromoterState> {
   const user = await getCurrentUser();
   if (!user) return { error: "Sign in to promote events." };
@@ -30,7 +30,7 @@ export async function promoteEventAction(eventId: string): Promise<PromoterState
   }
 }
 
-/** Save payout bank/PAN details — required before any payout can be created. */
+/** Save payout bank/PAN details - required before any payout can be created. */
 export async function savePayoutDetailsAction(
   _prev: PromoterState,
   formData: FormData,
@@ -55,7 +55,7 @@ export async function savePayoutDetailsAction(
     .select("id")
     .eq("user_id", user.id)
     .maybeSingle();
-  if (!promoter) return { error: "Promote an event first — your promoter account is created then." };
+  if (!promoter) return { error: "Promote an event first - your promoter account is created then." };
 
   const { error } = await supabase.from("promoters").update({
     payout_account_name: accountName,

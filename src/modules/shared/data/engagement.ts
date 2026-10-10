@@ -405,7 +405,7 @@ export function canManageCollaborators(perm: "OWNER" | CollaboratorPermission | 
   return perm === "OWNER";
 }
 
-/** Organizers a user follows — for the profile page. */
+/** Organizers a user follows - for the profile page. */
 export async function listFollowedOrganizers(
   user: CurrentUser,
 ): Promise<{ id: string; name: string; avatarUrl: string | null }[]> {

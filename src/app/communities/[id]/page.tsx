@@ -65,7 +65,7 @@ export default async function CommunityDetailPage({
   // Log the view (fire-and-forget; logged-in users only)
   if (user && !isOwner) void logPageViewAction("COMMUNITY", community.id);
 
-  // invite_token is column-revoked — validate via SECURITY DEFINER RPC.
+  // invite_token is column-revoked - validate via SECURITY DEFINER RPC.
   let validInvite = false;
   if (community.membershipType === "INVITE_ONLY" && invite) {
     const supabase = await createClient();
@@ -206,7 +206,7 @@ export default async function CommunityDetailPage({
           Events
         </h2>
         {events.length === 0 ? (
-          <p className="glass rounded-2xl p-4 text-sm text-muted">No events yet — follow to hear first.</p>
+          <p className="glass rounded-2xl p-4 text-sm text-muted">No events yet - follow to hear first.</p>
         ) : (
           <div className="space-y-2">
             {[...upcoming, ...past].map((e) => {
@@ -281,7 +281,7 @@ export default async function CommunityDetailPage({
               <>
                 <p className="text-lg font-bold text-amber-500">Request pending</p>
                 <p className="mt-1 text-sm text-muted">
-                  The organizer is reviewing your request — you&apos;ll be notified when they decide.
+                  The organizer is reviewing your request - you&apos;ll be notified when they decide.
                 </p>
               </>
             ) : (

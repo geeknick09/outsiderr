@@ -140,7 +140,7 @@ export function EventForm({
   draftRetentionDays?: number;
   /** Organizer's verified communities for the "community event" option. */
   communities?: { id: string; name: string; communityId?: string }[];
-  /** Payout bank accounts — event picks where its payout lands (default = first). */
+  /** Payout bank accounts - event picks where its payout lands (default = first). */
   bankAccounts?: { id: string; label: string | null; accountName: string; accountNumber: string; ifsc: string; isDefault: boolean }[];
 }) {
   const [state, formAction, pending] = useActionState<CreateEventState, FormData>(
@@ -385,8 +385,8 @@ export function EventForm({
         <h2 className="text-base font-bold">What kind of event?</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           {([
-            ["EVENT", "Event", "A regular public event — anyone on Outsiderr can book."],
-            ["COMMUNITY", "Community event", "Linked to one of your communities — open, members-only, or invite-only."],
+            ["EVENT", "Event", "A regular public event - anyone on Outsiderr can book."],
+            ["COMMUNITY", "Community event", "Linked to one of your communities - open, members-only, or invite-only."],
           ] as const).map(([value, label, hint]) => (
             <label
               key={value}
@@ -410,7 +410,7 @@ export function EventForm({
               <p className="font-bold">{label}</p>
               <p className="mt-1 text-xs text-muted">{hint}</p>
               {value === "COMMUNITY" && communities.length === 0 ? (
-                <p className="mt-1 text-[11px] text-amber-500">No communities yet — create one first.</p>
+                <p className="mt-1 text-[11px] text-amber-500">No communities yet - create one first.</p>
               ) : null}
             </label>
           ))}
@@ -437,9 +437,9 @@ export function EventForm({
             <div className="space-y-2">
               <span className="text-xs font-semibold uppercase tracking-wide text-muted">Who can see &amp; book?</span>
               {([
-                ["OPEN", "Open", "Listed publicly — anyone can book."],
+                ["OPEN", "Open", "Listed publicly - anyone can book."],
                 ["MEMBERS_ONLY", "Members only", "Everyone sees it, but only community members can book."],
-                ["INVITE_ONLY", "Invite only", "Hidden from listings — only people with your invite link can view & book."],
+                ["INVITE_ONLY", "Invite only", "Hidden from listings - only people with your invite link can view & book."],
               ] as const).map(([value, label, hint]) => (
                 <label
                   key={value}
@@ -468,7 +468,7 @@ export function EventForm({
                 <span>
                   <span className="block text-sm font-bold">Repeats weekly</span>
                   <span className="text-xs text-muted">
-                    Same time &amp; venue every week — the next occurrence is auto-created after this one ends.
+                    Same time &amp; venue every week - the next occurrence is auto-created after this one ends.
                   </span>
                 </span>
               </label>
@@ -1112,7 +1112,7 @@ export function EventForm({
                 </div>
                 {Number(tier.admits) > 1 ? (
                   <p className="mt-1.5 text-[11px] text-violet-neon">
-                    Group ticket — each purchase admits {tier.admits} people for {tier.price ? `₹${tier.price}` : "the flat price"}.
+                    Group ticket - each purchase admits {tier.admits} people for {tier.price ? `₹${tier.price}` : "the flat price"}.
                   </p>
                 ) : null}
 
@@ -1394,7 +1394,7 @@ export function EventForm({
           <h2 className="text-base font-bold">Door &amp; box office staff</h2>
           <p className="text-xs text-muted">
             Add people who scan tickets or sell at the box office. They sign in with the phone or
-            email below — up to 5 here, more from the event page later.
+            email below - up to 5 here, more from the event page later.
           </p>
         </div>
         {staffRows.map((row, i) => (
@@ -1422,8 +1422,8 @@ export function EventForm({
           <Field label="Promoter program (optional)">
             <select name="promoterMode" value={promoterMode} onChange={(e) => setPromoterMode(e.target.value)} className={INPUT}>
               <option value="NONE" className={OPTION}>None</option>
-              <option value="LINK" className={OPTION}>Share links — promoters earn a % of each sale</option>
-              <option value="PROMO_CODE" className={OPTION}>Promo codes — buyer discount + promoter commission</option>
+              <option value="LINK" className={OPTION}>Share links - promoters earn a % of each sale</option>
+              <option value="PROMO_CODE" className={OPTION}>Promo codes - buyer discount + promoter commission</option>
             </select>
           </Field>
           {promoterMode === "LINK" ? (
@@ -1493,7 +1493,7 @@ export function EventForm({
       </div>
       </div>
 
-      {/* Sticky step nav — always mounted so it works at every step */}
+      {/* Sticky step nav - always mounted so it works at every step */}
       <div className="sticky bottom-3 z-20 flex justify-between gap-3 rounded-2xl border border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur dark:border-white/10 dark:bg-ink/95">
         <Button type="button" variant="secondary" disabled={step === 0 || pending} onClick={() => setStep((v) => Math.max(0, v - 1))}>
           ← Back
@@ -1501,7 +1501,7 @@ export function EventForm({
         {step < STEPS.length - 1 ? (
           <div className="flex items-center gap-3">
             {uploadsInFlight > 0 ? (
-              <span className="text-xs font-semibold text-amber-600">Uploading media — wait for it to finish…</span>
+              <span className="text-xs font-semibold text-amber-600">Uploading media - wait for it to finish…</span>
             ) : null}
             <Button type="button" disabled={uploadsInFlight > 0} onClick={() => setStep((v) => Math.min(STEPS.length - 1, v + 1))}>
               {step === 0 ? "Get started →" : "Continue →"}

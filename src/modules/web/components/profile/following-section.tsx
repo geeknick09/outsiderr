@@ -27,7 +27,7 @@ export function FollowingSection({
     ...communities.map((c) => ({ id: c.id, name: c.name, kind: "community" as const, href: `/communities/${c.id}` })),
   ];
   const [items, setItems] = useState<Item[]>(initial);
-  // Session-level undo buffer — last unfollowed item can be re-followed until reload.
+  // Session-level undo buffer - last unfollowed item can be re-followed until reload.
   const [lastUnfollowed, setLastUnfollowed] = useState<Item | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -56,7 +56,7 @@ export function FollowingSection({
       </h2>
       {items.length === 0 ? (
         <p className="text-sm text-muted">
-          Nothing yet — follow organizers and communities to get notified about their events.
+          Nothing yet - follow organizers and communities to get notified about their events.
         </p>
       ) : (
         <div className="space-y-1.5">

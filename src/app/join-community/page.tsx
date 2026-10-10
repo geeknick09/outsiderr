@@ -6,14 +6,14 @@ import { listCommunities } from "@/modules/shared/server";
 export const dynamic = "force-dynamic";
 export const metadata = {
   title: "Join a Community - Outsiderr",
-  description: "Discover communities, earn badges and reputation — belong.",
+  description: "Discover communities, earn badges and reputation - belong.",
 };
 
 const STEPS = [
   {
     icon: Sparkles,
     title: "Discover",
-    body: "Communities for every scene — fitness crews, hip-hop collectives, nightlife circuits, sneakerheads, gamers, makers. Find the ones that feel like yours.",
+    body: "Communities for every scene - fitness crews, hip-hop collectives, nightlife circuits, sneakerheads, gamers, makers. Find the ones that feel like yours.",
   },
   {
     icon: Users,
@@ -28,7 +28,7 @@ const STEPS = [
   {
     icon: Award,
     title: "Belong & earn",
-    body: "Every event you attend builds your badges — from First Event to Community Champion. Hit the top tiers and Outsiderr rewards you with goodies, perks and early-access drops.",
+    body: "Every event you attend builds your badges - from First Event to Community Champion. Hit the top tiers and Outsiderr rewards you with goodies, perks and early-access drops.",
   },
 ];
 
@@ -46,7 +46,7 @@ export default async function JoinCommunityPage() {
           Your scene is already here.
         </h1>
         <p className="mx-auto max-w-xl text-base text-muted">
-          Communities are where the real culture lives — the crews hosting the
+          Communities are where the real culture lives - the crews hosting the
           events worth showing up to.{" "}
           {communities.length > 0
             ? `${communities.length} communities · ${totalMembers.toLocaleString("en-IN")} members already in.`
@@ -75,7 +75,7 @@ export default async function JoinCommunityPage() {
 
       <div className="glass rounded-3xl border-violet-neon/30 p-6">
         <p className="text-sm font-semibold">
-          Badges turn into rewards — reps, goodies, and perks straight from Outsiderr
+          Badges turn into rewards - reps, goodies, and perks straight from Outsiderr
           once you&apos;re deep enough in the scene.
         </p>
       </div>

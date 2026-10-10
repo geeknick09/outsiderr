@@ -21,7 +21,7 @@ export function SalesTrendChart({
   if (!data.length) {
     return (
       <div className="glass rounded-2xl p-5 text-sm text-muted">
-        No sales yet — the trend will appear once bookings start.
+        No sales yet - the trend will appear once bookings start.
       </div>
     );
   }

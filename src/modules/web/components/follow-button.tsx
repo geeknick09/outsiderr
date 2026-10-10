@@ -23,7 +23,7 @@ export function FollowOrganizerButton({
 
   function handleClick() {
     const next = !following;
-    setFollowing(next); // optimistic — instant toggle, revert if the server fails
+    setFollowing(next); // optimistic - instant toggle, revert if the server fails
     startTransition(async () => {
       const action = next ? followOrganizerAction : unfollowOrganizerAction;
       const result = await action(organizerId);

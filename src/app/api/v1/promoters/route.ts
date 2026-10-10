@@ -19,7 +19,7 @@ const payoutSchema = z.object({
 });
 
 /**
- * GET /api/v1/promoters — the caller's promoter dashboard bundle.
+ * GET /api/v1/promoters - the caller's promoter dashboard bundle.
  * Auth: Bearer <supabase-access-token>
  */
 export async function GET(request: Request) {
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
 }
 
 /**
- * POST /api/v1/promoters — register as a promoter for an event.
+ * POST /api/v1/promoters - register as a promoter for an event.
  * Body: { eventId } → { mode, slug | code }
  * Auth: Bearer <supabase-access-token>
  */
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
 }
 
 /**
- * PUT /api/v1/promoters — save payout bank + PAN details.
+ * PUT /api/v1/promoters - save payout bank + PAN details.
  * Auth: Bearer <supabase-access-token>
  */
 export async function PUT(request: Request) {
