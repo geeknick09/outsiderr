@@ -186,7 +186,7 @@ export default async function ManageEventPage({
     <div className="space-y-6 py-6">
       {/* Event banner image */}
       {(event.bannerPosterUrl || event.cardPosterUrl) ? (
-        <div className="relative -mx-4 aspect-[16/9] max-h-[380px] min-h-[160px] overflow-hidden sm:rounded-b-3xl">
+        <div className="relative -mx-4 aspect-[4/3] max-h-[380px] min-h-[160px] overflow-hidden sm:aspect-[16/9] sm:rounded-b-3xl">
           <Image
             src={event.bannerPosterUrl ?? event.cardPosterUrl!}
             alt={event.title}
