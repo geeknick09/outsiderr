@@ -57,9 +57,15 @@ export default async function OrganizerCommunityManagePage({
     <div className="mx-auto max-w-3xl space-y-6 py-6">
       <div className="overflow-hidden rounded-3xl">
         {community.coverUrl ? (
-          <div className="relative -mx-4 aspect-[3/4] max-h-[70vh] w-[calc(100%+2rem)] overflow-hidden sm:aspect-video sm:max-h-[440px] sm:w-full sm:rounded-b-3xl">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={community.coverUrl} alt={`${community.name} cover`} className="h-full w-full object-cover" />
+          <div className="relative -mx-4 overflow-hidden sm:rounded-b-3xl">
+            <div className="relative hidden aspect-video max-h-[440px] w-full sm:block">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={community.coverUrl} alt={`${community.name} cover`} className="h-full w-full object-cover" />
+            </div>
+            <div className="relative aspect-[3/4] max-h-[70vh] w-full sm:hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={community.mobileCoverUrl ?? community.coverUrl} alt={`${community.name} cover`} className="h-full w-full object-cover" />
+            </div>
           </div>
         ) : (
           <div className="h-28 w-full bg-gradient-to-r from-violet-neon/30 via-fuchsia-500/20 to-lime-neon/20" />

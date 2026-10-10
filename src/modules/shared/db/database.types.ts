@@ -344,6 +344,7 @@ export type CommunityRow = {
   city: string | null;
   avatar_url: string | null;
   cover_url: string | null;
+  mobile_cover_url: string | null;
   gallery_urls: string[];
   instagram_handle: string | null;
   youtube_url: string | null;

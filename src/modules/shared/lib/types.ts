@@ -481,6 +481,7 @@ export interface Community {
   city: City | null;
   avatarUrl: string | null;
   coverUrl: string | null;
+  mobileCoverUrl: string | null;
   galleryUrls: string[];
   instagramHandle: string | null;
   youtubeUrl: string | null;

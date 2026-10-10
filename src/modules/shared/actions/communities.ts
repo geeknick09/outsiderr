@@ -57,6 +57,7 @@ export async function createCommunityAction(
       : null,
     avatarUrl: String(formData.get("avatarUrl") ?? "").trim() || null,
     coverUrl: String(formData.get("coverUrl") ?? "").trim() || null,
+    mobileCoverUrl: String(formData.get("mobileCoverUrl") ?? "").trim() || null,
     instagramHandle: String(formData.get("instagramHandle") ?? "").trim() || null,
     youtubeUrl: String(formData.get("youtubeUrl") ?? "").trim() || null,
     xUrl: String(formData.get("xUrl") ?? "").trim() || null,

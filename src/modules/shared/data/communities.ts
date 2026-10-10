@@ -13,6 +13,7 @@ export interface CreateCommunityInput {
   city: City | null;
   avatarUrl: string | null;
   coverUrl: string | null;
+  mobileCoverUrl?: string | null;
   instagramHandle: string | null;
   youtubeUrl?: string | null;
   xUrl?: string | null;
@@ -41,7 +42,7 @@ export async function searchCommunities(term: string): Promise<Community[]> {
     id: row.id, ownerId: row.owner_id, name: row.name, bio: row.bio,
     type: row.type as CommunityType, city: row.city as City | null,
     avatarUrl: row.avatar_url, category: row.category ?? null,
-    coverUrl: row.cover_url ?? null, galleryUrls: row.gallery_urls ?? [],
+    coverUrl: row.cover_url ?? null, mobileCoverUrl: row.mobile_cover_url ?? null, galleryUrls: row.gallery_urls ?? [],
     instagramHandle: row.instagram_handle, youtubeUrl: row.youtube_url ?? null, xUrl: row.x_url ?? null, linkedinUrl: row.linkedin_url ?? null, facebookUrl: row.facebook_url ?? null, websiteUrl: row.website_url ?? null, upiId: null,
     membershipType: row.membership_type as JoinMode, membershipFeePaise: row.membership_fee_paise,
     terms: row.terms ?? [], memberCount: row.member_count ?? 0, verified: row.verified,
@@ -76,7 +77,7 @@ export async function listCommunities(city?: City): Promise<Community[]> {
     type: row.type as CommunityType,
     city: row.city as City | null,
     avatarUrl: row.avatar_url, category: row.category ?? null,
-    coverUrl: row.cover_url ?? null,
+    coverUrl: row.cover_url ?? null, mobileCoverUrl: row.mobile_cover_url ?? null,
     galleryUrls: row.gallery_urls ?? [],
     
     instagramHandle: row.instagram_handle, youtubeUrl: row.youtube_url ?? null, xUrl: row.x_url ?? null, linkedinUrl: row.linkedin_url ?? null, facebookUrl: row.facebook_url ?? null, websiteUrl: row.website_url ?? null,
@@ -110,7 +111,7 @@ export async function getCommunity(id: string): Promise<Community | null> {
     type: data.type as CommunityType,
     city: data.city as City | null,
     avatarUrl: data.avatar_url, category: data.category ?? null,
-    coverUrl: data.cover_url ?? null,
+    coverUrl: data.cover_url ?? null, mobileCoverUrl: data.mobile_cover_url ?? null,
     galleryUrls: data.gallery_urls ?? [],
     
     instagramHandle: data.instagram_handle, youtubeUrl: data.youtube_url ?? null, xUrl: data.x_url ?? null, linkedinUrl: data.linkedin_url ?? null, facebookUrl: data.facebook_url ?? null, websiteUrl: data.website_url ?? null,
@@ -146,7 +147,7 @@ export async function createCommunity(
         city: input.city,
         category: input.category ?? null,
         avatar_url: input.avatarUrl ?? null,
-        cover_url: input.coverUrl ?? null,
+        cover_url: input.coverUrl ?? null, mobile_cover_url: input.mobileCoverUrl ?? null,
         instagram_handle: input.instagramHandle, youtube_url: input.youtubeUrl ?? null, x_url: input.xUrl ?? null, linkedin_url: input.linkedinUrl ?? null, facebook_url: input.facebookUrl ?? null, website_url: input.websiteUrl ?? null,
         upi_id: input.upiId ?? null,
         membership_type: input.membershipType,
@@ -189,7 +190,7 @@ export async function createCommunity(
       type: input.type,
       city: input.city,
       avatar_url: input.avatarUrl ?? null,
-      cover_url: input.coverUrl ?? null,
+      cover_url: input.coverUrl ?? null, mobile_cover_url: input.mobileCoverUrl ?? null,
       instagram_handle: input.instagramHandle, youtube_url: input.youtubeUrl ?? null, x_url: input.xUrl ?? null, linkedin_url: input.linkedinUrl ?? null, facebook_url: input.facebookUrl ?? null, website_url: input.websiteUrl ?? null,
       upi_id: input.upiId ?? null,
       membership_type: input.membershipType,
@@ -319,7 +320,7 @@ export async function listMyCommunities(user: CurrentUser): Promise<Community[]>
     type: row.type as CommunityType,
     city: row.city as City | null,
     avatarUrl: row.avatar_url, category: row.category ?? null,
-    coverUrl: row.cover_url ?? null,
+    coverUrl: row.cover_url ?? null, mobileCoverUrl: row.mobile_cover_url ?? null,
     galleryUrls: row.gallery_urls ?? [],
     
     instagramHandle: row.instagram_handle, youtubeUrl: row.youtube_url ?? null, xUrl: row.x_url ?? null, linkedinUrl: row.linkedin_url ?? null, facebookUrl: row.facebook_url ?? null, websiteUrl: row.website_url ?? null,
@@ -359,7 +360,7 @@ export async function listPendingCommunities(): Promise<Community[]> {
     type: row.type as CommunityType,
     city: row.city as City | null,
     avatarUrl: row.avatar_url, category: row.category ?? null,
-    coverUrl: row.cover_url ?? null,
+    coverUrl: row.cover_url ?? null, mobileCoverUrl: row.mobile_cover_url ?? null,
     galleryUrls: row.gallery_urls ?? [],
     
     instagramHandle: row.instagram_handle, youtubeUrl: row.youtube_url ?? null, xUrl: row.x_url ?? null, linkedinUrl: row.linkedin_url ?? null, facebookUrl: row.facebook_url ?? null, websiteUrl: row.website_url ?? null,
@@ -569,7 +570,7 @@ export async function listFollowedCommunities(user: CurrentUser): Promise<Commun
   return (comms ?? []).map((row) => ({
     id: row.id, ownerId: row.owner_id, ownerName: "", name: row.name, bio: row.bio,
     type: row.type as CommunityType, city: row.city as City | null,
-    avatarUrl: row.avatar_url, category: row.category ?? null, coverUrl: row.cover_url ?? null,
+    avatarUrl: row.avatar_url, category: row.category ?? null, coverUrl: row.cover_url ?? null, mobileCoverUrl: row.mobile_cover_url ?? null,
     galleryUrls: row.gallery_urls ?? [], 
     instagramHandle: row.instagram_handle, youtubeUrl: row.youtube_url ?? null, xUrl: row.x_url ?? null, linkedinUrl: row.linkedin_url ?? null, facebookUrl: row.facebook_url ?? null, websiteUrl: row.website_url ?? null, upiId: row.upi_id ?? null,
     membershipType: row.membership_type as JoinMode, membershipFeePaise: row.membership_fee_paise,

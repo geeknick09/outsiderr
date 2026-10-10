@@ -22,21 +22,25 @@ export function CommunityForm() {
   const [membershipType, setMembershipType] = useState("OPEN");
   const [questions, setQuestions] = useState<{ question: string; isMandatory: boolean }[]>([]);
   const [avatarUrl, setAvatarUrl] = useState("");
-  const [coverUrl, setCoverUrl] = useState("");
+    const [coverUrl, setCoverUrl] = useState("");
+  const [mobileCoverUrl, setMobileCoverUrl] = useState("");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [uploadingMobileCover, setUploadingMobileCover] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  async function handleUpload(file: File | undefined, kind: "avatar" | "cover") {
+  async function handleUpload(file: File | undefined, kind: "avatar" | "cover" | "mobileCover") {
     if (!file) return;
     if (kind === "avatar") setUploadingAvatar(true);
-    else setUploadingCover(true);
+    else if (kind === "cover") setUploadingCover(true);
+    else setUploadingMobileCover(true);
     setUploadError(null);
     try {
       const url = await uploadPublicFile(file, "community-media");
       if (url) {
         if (kind === "avatar") setAvatarUrl(url);
-        else setCoverUrl(url);
+        else if (kind === "cover") setCoverUrl(url);
+        else setMobileCoverUrl(url);
       } else {
         setUploadError("Upload failed. Paste an image URL instead.");
       }
@@ -45,6 +49,7 @@ export function CommunityForm() {
     } finally {
       setUploadingAvatar(false);
       setUploadingCover(false);
+      setUploadingMobileCover(false);
     }
   }
 
@@ -87,6 +92,34 @@ export function CommunityForm() {
           />
         </div>
         <input type="hidden" name="coverUrl" value={coverUrl} />
+      </div>
+
+      {/* Mobile cover (3:4 - shown on phones like the event card poster) */}
+      <div className="space-y-1.5">
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted">Mobile cover (3:4, shown on phones)</span>
+        <div className="flex items-center gap-4">
+          {mobileCoverUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={mobileCoverUrl} alt="Mobile cover" className="h-24 w-[4.5rem] rounded-2xl border border-zinc-200 object-cover dark:border-white/10" />
+          ) : (
+            <div className="flex h-24 w-[4.5rem] items-center justify-center rounded-2xl border border-dashed border-zinc-300 text-center text-[10px] text-muted dark:border-white/15">
+              Optional
+            </div>
+          )}
+          <ImageUploadWithCrop
+            aspect={3 / 4}
+            onCropped={(f) => void handleUpload(f, "mobileCover")}
+            className="flex cursor-pointer items-center gap-2 rounded-2xl border border-dashed border-zinc-300 px-4 py-3 text-sm text-muted hover:border-violet-neon dark:border-white/15"
+            label={
+              <>
+                <Upload className="h-4 w-4" />
+                {uploadingMobileCover ? "Uploading…" : mobileCoverUrl ? "Change" : "Upload"}
+              </>
+            }
+          />
+        </div>
+        <p className="text-xs text-muted">Same image, cropped tall for phones - falls back to the cover if blank.</p>
+        <input type="hidden" name="mobileCoverUrl" value={mobileCoverUrl} />
       </div>
 
       {/* Profile photo (avatar / DP) */}

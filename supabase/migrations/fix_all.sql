@@ -9417,3 +9417,6 @@ alter table public.communities
   add column if not exists linkedin_url text,
   add column if not exists facebook_url text,
   add column if not exists website_url text;
+
+-- STEP 49: community mobile cover (3:4 - like event card posters)
+alter table public.communities add column if not exists mobile_cover_url text;
