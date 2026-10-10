@@ -2,12 +2,12 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { InstagramIcon } from "@/modules/shared";
 import type { Metadata } from "next";
-import { AtSign, Clock, MapPin, Users } from "lucide-react";
+import { Clock, MapPin, Users } from "lucide-react";
 
 import { Badge } from "@/modules/shared";
 import { getCurrentUser } from "@/modules/shared/server";
 import { listCommunities } from "@/modules/shared/server";
-import { CITIES, COMMUNITY_CATEGORIES, cityLabel } from "@/modules/shared";
+import { COMMUNITY_CATEGORIES, cityLabel } from "@/modules/shared";
 import { cn } from "@/modules/shared";
 import type { City, CommunityType, JoinMode } from "@/modules/shared";
 
@@ -81,18 +81,6 @@ export default async function CommunitiesPage({
         ))}
       </div>
 
-      {/* City filter */}
-      <div className="flex flex-wrap gap-2">
-        <CityChip href="/communities" active={!cityFilter} label="All cities" />
-        {CITIES.map((c) => (
-          <CityChip
-            key={c.value}
-            href={`/communities?city=${c.value}`}
-            active={cityFilter === c.value}
-            label={c.label}
-          />
-        ))}
-      </div>
 
       {/* Communities grid */}
       {communities.length === 0 ? (
@@ -128,8 +116,12 @@ export default async function CommunitiesPage({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={community.avatarUrl} alt="" className="h-12 w-12 rounded-2xl border-2 border-white object-cover shadow-md dark:border-zinc-900" />
                 ) : (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-neon-gradient text-lg font-black text-white shadow-md">
-                    {community.name.slice(0, 1)}
+                  <div
+                    className="flex h-12 w-12 items-center justify-center rounded-2xl text-sm font-black text-white shadow-md"
+                    style={{ background: communityAvatarBg(community.name) }}
+                    aria-hidden="true"
+                  >
+                    {communityInitials(community.name)}
                   </div>
                 )}
                 <Badge tone={community.type === "CREW" ? "violet" : "neutral"}>
@@ -160,7 +152,7 @@ export default async function CommunitiesPage({
                 ) : null}
               </div>
 
-              <div className="mt-4 flex items-center justify-between">
+              <div className="mt-4 flex items-center justify-between px-5">
                 <Badge tone={MEMBERSHIP_TONE[community.membershipType]}>
                   {MEMBERSHIP_LABEL[community.membershipType]}
                 </Badge>
@@ -196,4 +188,18 @@ function CityChip({
       {label}
     </Link>
   );
+}
+
+/** Deterministic accent gradient from the community name - no-photo fallback. */
+function communityAvatarBg(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  const h1 = hash % 360;
+  const h2 = (h1 + 40 + (hash % 3) * 30) % 360;
+  return `linear-gradient(135deg, hsl(${h1} 75% 45%), hsl(${h2} 70% 35%))`;
+}
+
+function communityInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return (parts.length > 1 ? parts[0][0] + parts[1][0] : name.slice(0, 2)).toUpperCase();
 }

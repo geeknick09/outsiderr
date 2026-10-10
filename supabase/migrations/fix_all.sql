@@ -9420,3 +9420,40 @@ alter table public.communities
 
 -- STEP 49: community mobile cover (3:4 - like event card posters)
 alter table public.communities add column if not exists mobile_cover_url text;
+
+-- =============================================================================
+-- STEP 50 — Publishing requires approved organizer KYC
+-- -----------------------------------------------------------------------------
+-- Community creation auto-provisions an organizers row (NOT_SUBMITTED) so
+-- communities are open to everyone - but publishing a money-taking public
+-- event must go through KYC. Enforced at the row level (not just the RPC)
+-- because the RLS insert/update policies allow organizers to write status
+-- directly. Skips service_role + admins so e2e/admin flows still work.
+-- =============================================================================
+
+create or replace function public.enforce_event_publish_kyc()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.status = 'PUBLISHED'::public.event_status
+     and auth.role() = 'authenticated'
+     and not public.is_current_user_admin()
+     and not exists (
+       select 1 from public.organizers o
+        where o.id = new.organizer_id and o.kyc_status = 'APPROVED'
+     ) then
+    raise exception 'Complete organizer KYC before publishing events.';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_events_publish_kyc on public.events;
+create trigger trg_events_publish_kyc
+  before insert or update of status on public.events
+  for each row
+  when (new.status = 'PUBLISHED'::public.event_status)
+  execute function public.enforce_event_publish_kyc();

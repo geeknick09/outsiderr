@@ -240,3 +240,14 @@ Last updated: 2026-10-08
 - Homepage search now also matches community names (events via community_id +
   a Communities results section).
 - Communities are public-unverified now (verified filter + notFound removed).
+
+## KYC gate on event publishing (2026-10-09)
+- `createCommunity` auto-provisions a NOT_SUBMITTED organizers row for any user
+  - that's how communities stay open to everyone, but it meant ANY user could
+  publish money-taking events with zero KYC (set_event_status + direct REST
+  inserts both allowed it).
+- Fixed with a DB trigger `trg_events_publish_kyc` (STEP 50): INSERT/UPDATE of
+  events.status -> PUBLISHED requires organizer.kyc_status='APPROVED', skips
+  service_role + is_current_user_admin. App-level precheck in createEvent gives
+  the friendly error early; draft publishing via RPC hits the trigger message.
+- Drafts stay open to everyone; publish is the gated boundary.

@@ -200,6 +200,12 @@ export async function createEvent(
     throw new Error("Create an organizer profile before publishing an event.");
   }
 
+  // Community auto-provisioning gives every user a NOT_SUBMITTED organizer row;
+  // publishing a money-taking public event still requires approved KYC.
+  if ((input.status ?? "PUBLISHED") !== "DRAFT" && organizer.kycStatus !== "APPROVED") {
+    throw new Error("Complete organizer KYC before publishing events.");
+  }
+
   const supabase = await createClient();
   const { data: event, error } = await supabase
     .from("events")
