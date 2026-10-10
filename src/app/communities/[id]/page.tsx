@@ -83,7 +83,7 @@ export default async function CommunityDetailPage({
     <div className="mx-auto max-w-3xl space-y-6 py-6">
       {/* Cover photo */}
       {community.coverUrl ? (
-        <div className="relative h-40 w-full overflow-hidden rounded-3xl sm:h-56">
+        <div className="relative aspect-[16/9] max-h-[380px] min-h-[140px] w-full overflow-hidden rounded-3xl">
           <Image
             src={community.coverUrl}
             alt={`${community.name} cover`}

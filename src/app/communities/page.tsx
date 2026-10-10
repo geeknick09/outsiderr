@@ -115,23 +115,34 @@ export default async function CommunitiesPage({
             <Link
               key={community.id}
               href={`/communities/${community.id}`}
-              className="glass group rounded-3xl p-5 transition-all hover:-translate-y-1 hover:border-violet-neon/50 hover:shadow-[0_0_28px_rgba(139,92,246,0.35)]"
+              className="glass group overflow-hidden rounded-3xl pb-5 transition-all hover:-translate-y-1 hover:border-violet-neon/50 hover:shadow-[0_0_28px_rgba(139,92,246,0.35)]"
             >
-              <div className="mb-3 flex items-center justify-between">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-neon-gradient text-lg font-black text-white">
-                  {community.name.slice(0, 1)}
+              {community.coverUrl ? (
+                <div className="relative aspect-[16/9] w-full overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={community.coverUrl} alt="" className="h-full w-full object-cover" />
                 </div>
+              ) : null}
+              <div className={`flex items-center justify-between px-5 ${community.coverUrl ? "-mt-5 mb-3" : "pt-5 mb-3"}`}>
+                {community.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={community.avatarUrl} alt="" className="h-12 w-12 rounded-2xl border-2 border-white object-cover shadow-md dark:border-zinc-900" />
+                ) : (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-neon-gradient text-lg font-black text-white shadow-md">
+                    {community.name.slice(0, 1)}
+                  </div>
+                )}
                 <Badge tone={community.type === "CREW" ? "violet" : "neutral"}>
                   {TYPE_LABEL[community.type]}
                 </Badge>
               </div>
 
-              <h3 className="text-base font-bold">{community.name}</h3>
+              <h3 className="px-5 text-base font-bold">{community.name}</h3>
               {community.bio ? (
-                <p className="mt-1 line-clamp-2 text-xs text-muted">{community.bio}</p>
+                <p className="mt-1 line-clamp-2 px-5 text-xs text-muted">{community.bio}</p>
               ) : null}
 
-              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted">
+              <div className="mt-3 flex flex-wrap items-center gap-2 px-5 text-xs text-muted">
                 {community.city ? (
                   <span className="flex items-center gap-1">
                     <MapPin className="h-3 w-3" />
