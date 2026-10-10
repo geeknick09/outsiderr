@@ -2,8 +2,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { BadgeCheck, CalendarDays, Lock, MapPin, Users } from "lucide-react";
-import { InstagramIcon } from "@/modules/shared";
+import { BadgeCheck, CalendarDays, Globe, Lock, MapPin, Users } from "lucide-react";
+import { FacebookIcon, InstagramIcon, LinkedinIcon, XIcon, YoutubeIcon } from "@/modules/shared";
 
 import { JoinCommunityForm, CommunityFollowButton } from "@/modules/web";
 import { Badge } from "@/modules/shared";
@@ -143,6 +143,31 @@ export default async function CommunityDetailPage({
                 className="text-muted hover:text-violet-neon"
               >
                 <InstagramIcon className="h-4 w-4" />
+              </a>
+            ) : null}
+            {community.youtubeUrl ? (
+              <a href={community.youtubeUrl} target="_blank" rel="noreferrer" aria-label="YouTube" className="text-muted hover:text-violet-neon">
+                <YoutubeIcon className="h-4 w-4" />
+              </a>
+            ) : null}
+            {community.xUrl ? (
+              <a href={community.xUrl} target="_blank" rel="noreferrer" aria-label="X" className="text-muted hover:text-violet-neon">
+                <XIcon className="h-4 w-4" />
+              </a>
+            ) : null}
+            {community.facebookUrl ? (
+              <a href={community.facebookUrl} target="_blank" rel="noreferrer" aria-label="Facebook" className="text-muted hover:text-violet-neon">
+                <FacebookIcon className="h-4 w-4" />
+              </a>
+            ) : null}
+            {community.linkedinUrl ? (
+              <a href={community.linkedinUrl} target="_blank" rel="noreferrer" aria-label="LinkedIn" className="text-muted hover:text-violet-neon">
+                <LinkedinIcon className="h-4 w-4" />
+              </a>
+            ) : null}
+            {community.websiteUrl ? (
+              <a href={community.websiteUrl} target="_blank" rel="noreferrer" aria-label="Website" className="text-muted hover:text-violet-neon">
+                <Globe className="h-4 w-4" />
               </a>
             ) : null}
           </div>

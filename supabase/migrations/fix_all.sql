@@ -9409,3 +9409,11 @@ end;
 $$;
 
 grant execute on function public.promoter_payable_paise(uuid) to authenticated, service_role;
+
+-- STEP 48: community social links (youtube/x/linkedin/facebook/website)
+alter table public.communities
+  add column if not exists youtube_url text,
+  add column if not exists x_url text,
+  add column if not exists linkedin_url text,
+  add column if not exists facebook_url text,
+  add column if not exists website_url text;

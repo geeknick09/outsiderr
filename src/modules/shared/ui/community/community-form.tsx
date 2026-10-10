@@ -153,6 +153,14 @@ export function CommunityForm() {
         <span className="text-xs text-muted">So people can check out your crew before joining.</span>
       </label>
 
+      <div className="grid gap-3 sm:grid-cols-2">
+        <input name="youtubeUrl" placeholder="YouTube URL" className={INPUT} />
+        <input name="xUrl" placeholder="X (Twitter) URL" className={INPUT} />
+        <input name="facebookUrl" placeholder="Facebook URL" className={INPUT} />
+        <input name="linkedinUrl" placeholder="LinkedIn URL" className={INPUT} />
+        <input name="websiteUrl" placeholder="Website URL" className={`${INPUT} sm:col-span-2`} />
+      </div>
+
       <label className="block space-y-1.5">
         <span className="text-xs font-semibold uppercase tracking-wide text-muted">Who can join?</span>
         <select

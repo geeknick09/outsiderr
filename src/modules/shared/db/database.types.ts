@@ -346,6 +346,11 @@ export type CommunityRow = {
   cover_url: string | null;
   gallery_urls: string[];
   instagram_handle: string | null;
+  youtube_url: string | null;
+  x_url: string | null;
+  linkedin_url: string | null;
+  facebook_url: string | null;
+  website_url: string | null;
   upi_id: string | null;
   membership_type: string;
   membership_fee_paise: number;

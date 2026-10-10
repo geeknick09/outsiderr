@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { InstagramIcon } from "@/modules/shared";
 import type { Metadata } from "next";
 import { AtSign, Clock, MapPin, Users } from "lucide-react";
 
@@ -142,9 +143,8 @@ export default async function CommunitiesPage({
                   {community.memberCount}
                 </span>
                 {community.instagramHandle ? (
-                  <span className="flex items-center gap-1">
-                    <AtSign className="h-3 w-3" />
-                    {community.instagramHandle}
+                  <span className="flex items-center gap-1 text-muted" aria-label={`Instagram ${community.instagramHandle}`}>
+                    <InstagramIcon className="h-3 w-3" />
                   </span>
                 ) : null}
               </div>

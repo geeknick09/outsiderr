@@ -483,6 +483,11 @@ export interface Community {
   coverUrl: string | null;
   galleryUrls: string[];
   instagramHandle: string | null;
+  youtubeUrl: string | null;
+  xUrl: string | null;
+  linkedinUrl: string | null;
+  facebookUrl: string | null;
+  websiteUrl: string | null;
   upiId: string | null;
   membershipType: JoinMode;
   membershipFeePaise: number;
