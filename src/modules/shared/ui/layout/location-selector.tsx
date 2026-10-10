@@ -39,19 +39,21 @@ export function LocationSelector() {
       window.localStorage.setItem(STORAGE_KEY, next);
       const params = new URLSearchParams(searchParams.toString());
       params.set("city", next);
-      router.push(`/?${params.toString()}`);
+      // Stay on the current page - city is a global filter; pages that
+      // support it (/, /communities) react, others just ignore the param.
+      router.push(`${pathname}?${params.toString()}`);
       setOpen(false);
     },
-    [router, searchParams],
+    [router, searchParams, pathname],
   );
 
-  // Restore the last manual choice when on the homepage and the URL
-  // does not pin a city yet. We only do this on "/" so that navigating
-  // to event detail pages (which don't have a city param) doesn't
-  // redirect the user back to the homepage.
+  // Pages that filter by city - the stored choice is restored here when
+  // the URL doesn't pin one. Other routes are left alone so navigating
+  // to an event detail doesn't bounce the user.
+  const CITY_PAGES = new Set(["/", "/communities"]);
   useEffect(() => {
     if (paramCity) return;
-    if (pathname !== "/") return;
+    if (!CITY_PAGES.has(pathname)) return;
     const stored = window.localStorage.getItem(STORAGE_KEY) as City | null;
     if (stored && stored !== DEFAULT_CITY && cityLabel(stored)) applyCity(stored);
   }, [applyCity, paramCity, pathname]);
