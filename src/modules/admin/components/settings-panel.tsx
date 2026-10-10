@@ -60,6 +60,8 @@ const SECTIONS: SectionDef[] = [
       { key: "tagline_header", label: "Header tagline", type: "text" },
       { key: "tagline_subheader", label: "Subheader tagline", type: "text" },
       { key: "tagline_footer", label: "Footer tagline", type: "text" },
+      { key: "communities_header", label: "Communities page header", type: "text" },
+      { key: "communities_subheader", label: "Communities page subheader", type: "text" },
     ],
   },
   {

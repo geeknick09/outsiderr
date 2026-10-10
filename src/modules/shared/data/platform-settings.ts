@@ -29,6 +29,8 @@ const FALLBACKS: Record<string, unknown> = {
   tagline_header: "Find what's happening outside the mainstream.",
   tagline_subheader: "Discover raw events happening today near you.",
   tagline_footer: "Cyphers, battles, stunts, skates, jams & real communities. Discover raw events happening today near you.",
+  communities_header: "Communities & Crews",
+  communities_subheader: "Join a community. Run together, skate together, rap together.",
   commission_tier1_max_paise: 50000,
   commission_tier2_max_paise: 300000,
   commission_tier1_bps: 1000,
@@ -213,6 +215,14 @@ export async function getTaglineSubheader(): Promise<string> {
 
 export async function getTaglineFooter(): Promise<string> {
   return getSettingString("tagline_footer");
+}
+
+export async function getCommunitiesHeader(): Promise<string> {
+  return getSettingString("communities_header");
+}
+
+export async function getCommunitiesSubheader(): Promise<string> {
+  return getSettingString("communities_subheader");
 }
 
 // ---------------------------------------------------------------- commission tiers

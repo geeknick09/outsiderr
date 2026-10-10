@@ -6,7 +6,7 @@ import { Clock, MapPin, Users } from "lucide-react";
 
 import { Badge } from "@/modules/shared";
 import { getCurrentUser } from "@/modules/shared/server";
-import { listCommunities } from "@/modules/shared/server";
+import { listCommunities, getCommunitiesHeader, getCommunitiesSubheader } from "@/modules/shared/server";
 import { COMMUNITY_CATEGORIES, cityLabel } from "@/modules/shared";
 import { cn } from "@/modules/shared";
 import type { City, CommunityType, JoinMode } from "@/modules/shared";
@@ -39,16 +39,14 @@ export default async function CommunitiesPage({
 }) {
   const { city, category, submitted } = await searchParams;
   const cityFilter = city && city !== "ALL" ? (city as City) : undefined;
-  const [communities, user] = await Promise.all([listCommunities(cityFilter), getCurrentUser()]);
+  const [communities, user, header, subheader] = await Promise.all([listCommunities(cityFilter), getCurrentUser(), getCommunitiesHeader(), getCommunitiesSubheader()]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 py-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black tracking-tight">Communities & Crews</h1>
-          <p className="text-sm text-muted">
-            Join a community. Run together, skate together, rap together.
-          </p>
+          <h1 className="text-3xl font-black tracking-tight">{header}</h1>
+          <p className="text-sm text-muted">{subheader}</p>
         </div>
         {user ? (
           <Link
