@@ -10,6 +10,7 @@ export interface CreateCommunityInput {
   bio: string;
   type: CommunityType;
   category?: string | null;
+  subcategory?: string | null;
   city: City | null;
   avatarUrl: string | null;
   coverUrl: string | null;
@@ -41,13 +42,31 @@ export async function searchCommunities(term: string): Promise<Community[]> {
   return (data ?? []).map((row) => ({
     id: row.id, ownerId: row.owner_id, name: row.name, bio: row.bio,
     type: row.type as CommunityType, city: row.city as City | null,
-    avatarUrl: row.avatar_url, category: row.category ?? null,
+    avatarUrl: row.avatar_url, category: row.category ?? null, subcategory: row.subcategory ?? null,
     coverUrl: row.cover_url ?? null, mobileCoverUrl: row.mobile_cover_url ?? null, galleryUrls: row.gallery_urls ?? [],
     instagramHandle: row.instagram_handle, youtubeUrl: row.youtube_url ?? null, xUrl: row.x_url ?? null, linkedinUrl: row.linkedin_url ?? null, facebookUrl: row.facebook_url ?? null, websiteUrl: row.website_url ?? null, upiId: null,
     membershipType: row.membership_type as JoinMode, membershipFeePaise: row.membership_fee_paise,
     terms: row.terms ?? [], memberCount: row.member_count ?? 0, verified: row.verified,
     ownerName: "Organizer", createdAt: row.created_at,
   }));
+}
+
+/** All subcategories already in use, keyed by category - feeds the create
+ * form's "pick an existing one or write your own" selector. */
+export async function listDistinctSubcategories(): Promise<Record<string, string[]>> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("communities")
+    .select("category, subcategory")
+    .not("subcategory", "is", null);
+  const map: Record<string, string[]> = {};
+  for (const row of data ?? []) {
+    const cat = row.category ?? "OTHER";
+    const sub = (row.subcategory ?? "").trim();
+    if (!sub) continue;
+    (map[cat] ??= []).includes(sub) || map[cat].push(sub);
+  }
+  return map;
 }
 
 export async function listCommunities(city?: City): Promise<Community[]> {
@@ -76,7 +95,7 @@ export async function listCommunities(city?: City): Promise<Community[]> {
     bio: row.bio,
     type: row.type as CommunityType,
     city: row.city as City | null,
-    avatarUrl: row.avatar_url, category: row.category ?? null,
+    avatarUrl: row.avatar_url, category: row.category ?? null, subcategory: row.subcategory ?? null,
     coverUrl: row.cover_url ?? null, mobileCoverUrl: row.mobile_cover_url ?? null,
     galleryUrls: row.gallery_urls ?? [],
     
@@ -110,7 +129,7 @@ export async function getCommunity(id: string): Promise<Community | null> {
     bio: data.bio,
     type: data.type as CommunityType,
     city: data.city as City | null,
-    avatarUrl: data.avatar_url, category: data.category ?? null,
+    avatarUrl: data.avatar_url, category: data.category ?? null, subcategory: data.subcategory ?? null,
     coverUrl: data.cover_url ?? null, mobileCoverUrl: data.mobile_cover_url ?? null,
     galleryUrls: data.gallery_urls ?? [],
     
@@ -145,7 +164,7 @@ export async function createCommunity(
         bio: input.bio || null,
         type: input.type,
         city: input.city,
-        category: input.category ?? null,
+        category: input.category ?? null, subcategory: input.subcategory ?? null,
         avatar_url: input.avatarUrl ?? null,
         cover_url: input.coverUrl ?? null, mobile_cover_url: input.mobileCoverUrl ?? null,
         instagram_handle: input.instagramHandle, youtube_url: input.youtubeUrl ?? null, x_url: input.xUrl ?? null, linkedin_url: input.linkedinUrl ?? null, facebook_url: input.facebookUrl ?? null, website_url: input.websiteUrl ?? null,
@@ -319,7 +338,7 @@ export async function listMyCommunities(user: CurrentUser): Promise<Community[]>
     bio: row.bio,
     type: row.type as CommunityType,
     city: row.city as City | null,
-    avatarUrl: row.avatar_url, category: row.category ?? null,
+    avatarUrl: row.avatar_url, category: row.category ?? null, subcategory: row.subcategory ?? null,
     coverUrl: row.cover_url ?? null, mobileCoverUrl: row.mobile_cover_url ?? null,
     galleryUrls: row.gallery_urls ?? [],
     
@@ -359,7 +378,7 @@ export async function listPendingCommunities(): Promise<Community[]> {
     bio: row.bio,
     type: row.type as CommunityType,
     city: row.city as City | null,
-    avatarUrl: row.avatar_url, category: row.category ?? null,
+    avatarUrl: row.avatar_url, category: row.category ?? null, subcategory: row.subcategory ?? null,
     coverUrl: row.cover_url ?? null, mobileCoverUrl: row.mobile_cover_url ?? null,
     galleryUrls: row.gallery_urls ?? [],
     
@@ -570,7 +589,7 @@ export async function listFollowedCommunities(user: CurrentUser): Promise<Commun
   return (comms ?? []).map((row) => ({
     id: row.id, ownerId: row.owner_id, ownerName: "", name: row.name, bio: row.bio,
     type: row.type as CommunityType, city: row.city as City | null,
-    avatarUrl: row.avatar_url, category: row.category ?? null, coverUrl: row.cover_url ?? null, mobileCoverUrl: row.mobile_cover_url ?? null,
+    avatarUrl: row.avatar_url, category: row.category ?? null, subcategory: row.subcategory ?? null, coverUrl: row.cover_url ?? null, mobileCoverUrl: row.mobile_cover_url ?? null,
     galleryUrls: row.gallery_urls ?? [], 
     instagramHandle: row.instagram_handle, youtubeUrl: row.youtube_url ?? null, xUrl: row.x_url ?? null, linkedinUrl: row.linkedin_url ?? null, facebookUrl: row.facebook_url ?? null, websiteUrl: row.website_url ?? null, upiId: row.upi_id ?? null,
     membershipType: row.membership_type as JoinMode, membershipFeePaise: row.membership_fee_paise,

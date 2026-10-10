@@ -341,6 +341,7 @@ export type CommunityRow = {
   bio: string | null;
   type: string;
   category: string | null;
+  subcategory: string | null;
   city: string | null;
   avatar_url: string | null;
   cover_url: string | null;

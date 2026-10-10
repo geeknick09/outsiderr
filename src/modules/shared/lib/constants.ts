@@ -125,3 +125,16 @@ export const COMMUNITY_CATEGORIES = [
   { value: "ART_DESIGN", label: "Art, Design & Creators" },
 ] as const;
 export type CommunityCategory = (typeof COMMUNITY_CATEGORIES)[number]["value"];
+
+/** Starter subcategory suggestions per community category - users can also type
+ * their own; created ones show up as suggestions for the next creator. */
+export const COMMUNITY_SUBCATEGORY_SUGGESTIONS: Record<CommunityCategory, string[]> = {
+  FITNESS: ["Run Club", "Walk Club", "Gym", "Yoga", "Cycling", "Calisthenics", "Martial Arts"],
+  HIP_HOP: ["Dance Club", "Rap Club", "DJ Club", "Graffiti Crew", "Beatbox", "Street Style"],
+  ELECTRONIC: ["Rave Collective", "DJ Collective", "Techno", "House", "Underground"],
+  EXTREME_SPORTS: ["Skate Crew", "BMX", "Parkour", "Surf", "Climbing", "Scooter"],
+  GAMING: ["Esports Team", "PC Gaming", "Console Gaming", "TCG & Card Games", "Board Games"],
+  FASHION: ["Sneakerheads", "Streetwear", "Thrift & Vintage", "Collectors"],
+  AUTOMOTIVE: ["Car Meets", "Bike Rides", "JDM", "Offroad", "EV Owners"],
+  ART_DESIGN: ["Design Collective", "Photography", "Film & Video", "Illustration", "Makers"],
+};

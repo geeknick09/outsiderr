@@ -478,6 +478,7 @@ export interface Community {
   bio: string | null;
   type: CommunityType;
   category: string | null;
+  subcategory: string | null;
   city: City | null;
   avatarUrl: string | null;
   coverUrl: string | null;

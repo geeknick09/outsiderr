@@ -51,6 +51,7 @@ export async function createCommunityAction(
     name,
     bio: String(formData.get("bio") ?? "").trim(),
     category: String(formData.get("category") ?? "").trim() || null,
+    subcategory: String(formData.get("subcategory") ?? "").trim() || null,
     type: String(formData.get("type") ?? "CLUB") as CommunityType,
     city: String(formData.get("city") ?? "").trim()
       ? normalizeCityKey(String(formData.get("city")))

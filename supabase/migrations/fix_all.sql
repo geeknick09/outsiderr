@@ -9457,3 +9457,6 @@ create trigger trg_events_publish_kyc
   for each row
   when (new.status = 'PUBLISHED'::public.event_status)
   execute function public.enforce_event_publish_kyc();
+
+-- STEP 51: community subcategory (e.g. "Run Club" inside Fitness & Movements)
+alter table public.communities add column if not exists subcategory text;

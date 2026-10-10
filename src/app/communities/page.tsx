@@ -123,7 +123,7 @@ export default async function CommunitiesPage({
                   </div>
                 )}
                 <Badge tone={community.type === "CREW" ? "violet" : "neutral"}>
-                  {TYPE_LABEL[community.type]}
+                  {community.subcategory ?? TYPE_LABEL[community.type]}
                 </Badge>
               </div>
 

@@ -5,7 +5,7 @@ import { AtSign, Plus, Upload } from "lucide-react";
 
 import { createCommunityAction, type CreateCommunityState } from "../../actions/communities";
 import { Button } from "../ui/button";
-import { CITIES, COMMUNITY_CATEGORIES } from "../../lib/constants";
+import { CITIES, COMMUNITY_CATEGORIES, COMMUNITY_SUBCATEGORY_SUGGESTIONS } from "../../lib/constants";
 import { uploadPublicFile } from "../../lib/upload";
 import { ImageUploadWithCrop } from "../ui/image-cropper";
 
@@ -14,12 +14,14 @@ const INPUT =
 
 const OPTION = "bg-white text-zinc-900";
 
-export function CommunityForm() {
+export function CommunityForm({ existingSubcategories = {} }: { existingSubcategories?: Record<string, string[]> }) {
   const [state, formAction, pending] = useActionState<CreateCommunityState, FormData>(
     createCommunityAction,
     { error: null },
   );
   const [membershipType, setMembershipType] = useState("OPEN");
+  const [category, setCategory] = useState("");
+  const [subcategory, setSubcategory] = useState("");
   const [questions, setQuestions] = useState<{ question: string; isMandatory: boolean }[]>([]);
   const [avatarUrl, setAvatarUrl] = useState("");
     const [coverUrl, setCoverUrl] = useState("");
@@ -154,7 +156,13 @@ export function CommunityForm() {
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block space-y-1.5">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted">Category *</span>
-          <select name="category" required className={INPUT} defaultValue="">
+          <select
+            name="category"
+            required
+            className={INPUT}
+            value={category}
+            onChange={(e) => { setCategory(e.target.value); setSubcategory(""); }}
+          >
             <option value="" disabled className={OPTION}>Pick what this community is about</option>
             {COMMUNITY_CATEGORIES.map((c) => (
               <option key={c.value} value={c.value} className={OPTION}>{c.label}</option>
@@ -176,6 +184,39 @@ export function CommunityForm() {
           ))}
         </datalist>
       </div>
+
+      {category ? (
+        <div className="space-y-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+            What kind? (subcategory - shows on your page)
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {[...new Set([...(COMMUNITY_SUBCATEGORY_SUGGESTIONS[category as keyof typeof COMMUNITY_SUBCATEGORY_SUGGESTIONS] ?? []), ...(existingSubcategories[category] ?? [])])].map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setSubcategory(subcategory === s ? "" : s)}
+                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-all ${
+                  subcategory === s
+                    ? "border-violet-neon bg-violet-neon/15 text-violet-600 dark:text-violet-300"
+                    : "border-zinc-300 text-muted hover:border-violet-neon/60 dark:border-white/15"
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+          <input
+            value={subcategory}
+            onChange={(e) => setSubcategory(e.target.value)}
+            placeholder="Or type your own (e.g. Sunday Morning Cyclers)"
+            className={INPUT}
+          />
+          <input type="hidden" name="subcategory" value={subcategory} />
+        </div>
+      ) : (
+        <input type="hidden" name="subcategory" value="" />
+      )}
 
       <label className="block space-y-1.5">
         <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">

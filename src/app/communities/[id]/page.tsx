@@ -131,6 +131,7 @@ export default async function CommunityDetailPage({
             <Badge tone={community.membershipType === "OPEN" ? "success" : community.membershipType === "PRIVATE" ? "warning" : "neutral"}>
               {MEMBERSHIP_LABEL[community.membershipType]}
             </Badge>
+            {community.subcategory ? <Badge tone="lime">{community.subcategory}</Badge> : null}
           </div>
           <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
             <BadgeCheck className="h-4 w-4 text-violet-neon" />
