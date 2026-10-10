@@ -202,6 +202,7 @@ export default async function EventDetailsPage({
             <div className="h-full w-full bg-neon-gradient" />
           )}
           {/* Blend the poster into the page background. */}
+          <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/55 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-t from-zinc-50 via-zinc-50/30 to-transparent dark:from-ink dark:via-ink/40" />
         </div>
         <div className="relative aspect-[3/4] max-h-[70vh] w-full sm:hidden">
@@ -217,6 +218,7 @@ export default async function EventDetailsPage({
           ) : (
             <div className="h-full w-full bg-neon-gradient" />
           )}
+          <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/55 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-t from-zinc-50 via-zinc-50/30 to-transparent dark:from-ink dark:via-ink/40" />
         </div>
       </div>

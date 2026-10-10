@@ -92,6 +92,7 @@ export default async function CommunityDetailPage({
               sizes="(max-width: 768px) 100vw, 768px"
               className="object-cover"
             />
+            <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/55 to-transparent" />
           </div>
           <div className="relative aspect-[3/4] max-h-[70vh] w-full sm:hidden">
             <Image
@@ -101,6 +102,7 @@ export default async function CommunityDetailPage({
               sizes="100vw"
               className="object-cover"
             />
+            <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/55 to-transparent" />
           </div>
         </div>
       ) : null}

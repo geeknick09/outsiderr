@@ -195,6 +195,7 @@ export default async function ManageEventPage({
             priority
             className="object-cover"
           />
+          <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/55 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-t from-zinc-50 via-zinc-50/20 to-transparent dark:from-ink dark:via-ink/30" />
         </div>
       ) : null}

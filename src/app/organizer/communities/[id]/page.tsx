@@ -61,10 +61,12 @@ export default async function OrganizerCommunityManagePage({
             <div className="relative hidden aspect-video max-h-[440px] w-full sm:block">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={community.coverUrl} alt={`${community.name} cover`} className="h-full w-full object-cover" />
+              <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/55 to-transparent" />
             </div>
             <div className="relative aspect-[3/4] max-h-[70vh] w-full sm:hidden">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={community.mobileCoverUrl ?? community.coverUrl} alt={`${community.name} cover`} className="h-full w-full object-cover" />
+              <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/55 to-transparent" />
             </div>
           </div>
         ) : (
