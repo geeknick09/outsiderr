@@ -10,7 +10,6 @@ import { PastEventSection } from "@/modules/web";
 import { SearchResults } from "@/modules/web";
 import {
   CATEGORY_LABELS,
-  CITY_LABELS,
   DEFAULT_CITY,
 } from "@/modules/shared";
 import { listEvents, searchOrganizers, searchCommunities } from "@/modules/shared/server";

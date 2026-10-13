@@ -1,6 +1,3 @@
-import { redirect } from "next/navigation";
-
-import { getCurrentUser } from "@/modules/shared/server";
 import {
   listBoostSlotPrices,
   listOccupiedSlots,

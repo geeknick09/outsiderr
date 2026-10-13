@@ -1184,6 +1184,39 @@ npx next build
 - [ ] Unapproved organizer calls the publish path via API/direct REST -> blocked by the `trg_events_publish_kyc` trigger
 - [ ] Nav user menu reads "Creator Hub" for organizers; `/organizer/*` page titles use Creator Hub branding
 
+## 30. Campaigns, Virality & Dashboard Polish (2026-10-10)
+
+### 30.1 Campaigns Tab
+
+- [ ] `/organizer/campaigns` reachable from the Creator Dashboard nav; `/organizer/boost` redirects there
+- [ ] Feature card explains top-carousel placement; Slot card explains numbered sponsored slots
+- [ ] Feature purchase: pick event + placement (Home / Communities / Both) -> Razorpay checkout -> success banner on return
+- [ ] Slot purchase: event -> slot grid respects admin `slot_boost_count` (taken slots disabled) -> placement picker -> duration -> Razorpay -> activates
+- [ ] Event manage page "Run a campaign" deep-links to `/organizer/campaigns?event=<id>` with the event preselected
+- [ ] Ad campaigns tab shows the coming-soon card (Meta/WhatsApp/Instagram)
+
+### 30.2 Sponsored Strip & Layout
+
+- [ ] Homepage shows "Sponsored" auto-scrolling strip only when HOME/BOTH slot boosts are active; pauses on hover; hidden when empty
+- [ ] `/communities` shows the same strip only for COMMUNITIES/BOTH boosts
+- [ ] All homepage event sections scroll horizontally - the page stays short; footer doesn't sink
+- [ ] Hero feature carousel respects `hero_max_visible_events` (default 4, admin editable)
+
+### 30.3 Virality Analytics
+
+- [ ] Admin analytics: "Virality coefficient" card + two donut pies (order sources, community joins)
+- [ ] Organizer analytics: Virality section with K headline, both pies, per-event/per-community table sorted by K
+- [ ] Promoter-attributed order moves the event's K up on the next load
+- [ ] Event manage -> Analytics tab shows "Virality (K)" stat with promoter vs organic counts
+
+### 30.4 KYC Gate & Creator Dashboard
+
+- [ ] NOT_SUBMITTED organizer: direct event insert with status=PUBLISHED fails; DRAFT insert works; set_event_status PUBLISHED fails
+- [ ] APPROVED organizer publishes normally
+- [ ] Organizer onboarding: bank step marked optional + advances empty; PAN-only submits as PENDING
+- [ ] Community create for non-organizer shows "Set up your creator profile" funnel
+- [ ] Menu + titles read "Creator Dashboard"
+
 ## Test Execution Checklist
 
 | Module | Scenarios | Status |
@@ -1217,6 +1250,7 @@ npx next build
 | Security & Auth | 27.1–27.5 | ☐ |
 | Communities & Promoters | 28.1–28.5 | ☐ |
 | Communities Polish & Gates | 29.1–29.4 | ☐ |
+| Campaigns, Virality & Gates | 30.1–30.4 | ☐ |
 
 ### 2.5 KYC Polish & Thread
 

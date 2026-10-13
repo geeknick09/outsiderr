@@ -11,6 +11,7 @@ import type { City } from "../../lib/types";
 import { cn } from "../../lib/utils";
 
 const STORAGE_KEY = "outsiderr-city";
+const CITY_PAGES = new Set(["/", "/communities"]);
 
 function nearestCity(latitude: number, longitude: number): City {
   return nearestIndianCity(latitude, longitude)?.value ?? DEFAULT_CITY;
@@ -50,7 +51,6 @@ export function LocationSelector() {
   // Pages that filter by city - the stored choice is restored here when
   // the URL doesn't pin one. Other routes are left alone so navigating
   // to an event detail doesn't bounce the user.
-  const CITY_PAGES = new Set(["/", "/communities"]);
   useEffect(() => {
     if (paramCity) return;
     if (!CITY_PAGES.has(pathname)) return;

@@ -720,6 +720,60 @@ async function main() {
     }
   }
 
+  // ── V. KYC publish gate + community subcategory ───────────────────
+  {
+    // Give u1 a NOT_SUBMITTED organizer row, then prove the publish trigger
+    // blocks direct REST publishes and the RPC path, while drafts work.
+    await admin.from("organizers").delete().eq("owner_id", U.u1.uid);
+    const { error: orgInsErr } = await admin.from("organizers").insert({
+      owner_id: U.u1.uid, name: "DEVTEST Unverified Org", kyc_status: "NOT_SUBMITTED",
+    });
+    const u1Org = (await admin.from("organizers").select("id").eq("owner_id", U.u1.uid).maybeSingle()).data;
+    report("V1. fixture: NOT_SUBMITTED organizer for u1", !orgInsErr && !!u1Org, orgInsErr?.message ?? "");
+
+    if (u1Org) {
+      const uc = userClient(U.u1.token);
+      const blocked = await uc.from("events").insert({
+        organizer_id: u1Org.id, title: `DEVTEST KYC Block ${Date.now()}`,
+        description: "x", category: "JAM_GIG", categories: ["JAM_GIG"], city: "KOLKATA",
+        venue_name: "TBA", starts_at: new Date(Date.now() + 864e5).toISOString(),
+        ends_at: new Date(Date.now() + 87e6).toISOString(), status: "PUBLISHED",
+      }).select("id").maybeSingle();
+      report("V2. PUBLISHED insert blocked (no KYC)", !!blocked.error, blocked.error ? "" : "insert succeeded?!");
+
+      const draft = await uc.from("events").insert({
+        organizer_id: u1Org.id, title: `DEVTEST KYC Draft ${Date.now()}`,
+        description: "x", category: "JAM_GIG", categories: ["JAM_GIG"], city: "KOLKATA",
+        venue_name: "TBA", starts_at: new Date(Date.now() + 864e5).toISOString(),
+        ends_at: new Date(Date.now() + 87e6).toISOString(), status: "DRAFT",
+      }).select("id").maybeSingle();
+      report("V3. DRAFT insert allowed", !draft.error && !!draft.data?.id, draft.error?.message ?? "");
+
+      if (draft.data?.id) {
+        const rpc = await uc.rpc("set_event_status", { p_event_id: draft.data.id, p_status: "PUBLISHED" });
+        report("V4. set_event_status publish blocked (no KYC)", !!rpc.error, rpc.error ? "" : "rpc succeeded?!");
+        await admin.from("events").delete().eq("id", draft.data.id);
+      }
+
+      // approved org still publishes via RPC
+      const approvedDraft = await admin.from("events").insert({
+        organizer_id: paid.organizer_id, title: `DEVTEST KYC OK ${Date.now()}`,
+        description: "x", category: "JAM_GIG", categories: ["JAM_GIG"], city: "KOLKATA",
+        venue_name: "TBA", starts_at: new Date(Date.now() + 864e5).toISOString(),
+        ends_at: new Date(Date.now() + 87e6).toISOString(), status: "DRAFT",
+      }).select("id").single();
+      const orgClient = userClient(U.org.token);
+      const pubRpc = await orgClient.rpc("set_event_status", { p_event_id: approvedDraft.data.id, p_status: "PUBLISHED" });
+      const pubRow = (await admin.from("events").select("status").eq("id", approvedDraft.data.id).single()).data;
+      report("V5. APPROVED organizer publishes via RPC", !pubRpc.error && pubRow?.status === "PUBLISHED", pubRpc.error?.message ?? "");
+      await admin.from("events").delete().eq("id", approvedDraft.data.id);
+    }
+
+    // V6: subcategory persists through the community row
+    const subRow = (await admin.from("communities").select("subcategory").eq("id", privId).maybeSingle()).data;
+    report("V6. communities.subcategory column readable", subRow !== null && "subcategory" in (subRow ?? {}), "");
+  }
+
   // ── summary ───────────────────────────────────────────────────────
   const pass = results.filter((r) => r.ok).length;
   const fail = results.filter((r) => !r.ok);

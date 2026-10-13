@@ -14,7 +14,6 @@ import {
   listJoinQuestions,
   listCommunityEvents,
   isFollowingCommunity,
-  getCommunityFollowerCount,
 } from "@/modules/shared/server";
 import { logPageViewAction } from "@/modules/shared/actions/communities";
 import { cityLabel } from "@/modules/shared";
@@ -53,12 +52,11 @@ export default async function CommunityDetailPage({
   const [community, user] = await Promise.all([getCommunity(id), getCurrentUser()]);
   if (!community) notFound();
 
-  const [myMembership, questions, events, isFollowing, followerCount] = await Promise.all([
+  const [myMembership, questions, events, isFollowing] = await Promise.all([
     user ? getMyMembership(user, community.id) : null,
     community.membershipType === "PRIVATE" ? listJoinQuestions(community.id) : [],
     listCommunityEvents(community.id),
     user ? isFollowingCommunity(user, community.id) : false,
-    getCommunityFollowerCount(community.id),
   ]);
   const isOwner = user?.id === community.ownerId;
 

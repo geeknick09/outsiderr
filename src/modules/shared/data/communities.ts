@@ -64,7 +64,8 @@ export async function listDistinctSubcategories(): Promise<Record<string, string
     const cat = row.category ?? "OTHER";
     const sub = (row.subcategory ?? "").trim();
     if (!sub) continue;
-    (map[cat] ??= []).includes(sub) || map[cat].push(sub);
+    const list = (map[cat] ??= []);
+    if (!list.includes(sub)) list.push(sub);
   }
   return map;
 }
