@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { InstagramIcon } from "@/modules/shared";
+import { SlotBoostStrip } from "@/modules/web";
 import type { Metadata } from "next";
 import { Clock, MapPin, Users } from "lucide-react";
 
 import { Badge } from "@/modules/shared";
 import { getCurrentUser } from "@/modules/shared/server";
-import { listCommunities, getCommunitiesHeader, getCommunitiesSubheader } from "@/modules/shared/server";
+import { listCommunities, getCommunitiesHeader, getCommunitiesSubheader, listSlotBoostEvents } from "@/modules/shared/server";
 import { COMMUNITY_CATEGORIES, cityLabel } from "@/modules/shared";
 import { cn } from "@/modules/shared";
 import type { City, CommunityType, JoinMode } from "@/modules/shared";
@@ -39,7 +40,7 @@ export default async function CommunitiesPage({
 }) {
   const { city, category, submitted } = await searchParams;
   const cityFilter = city && city !== "ALL" ? (city as City) : undefined;
-  const [communities, user, header, subheader] = await Promise.all([listCommunities(cityFilter), getCurrentUser(), getCommunitiesHeader(), getCommunitiesSubheader()]);
+  const [communities, user, header, subheader, slotBoostEvents] = await Promise.all([listCommunities(cityFilter), getCurrentUser(), getCommunitiesHeader(), getCommunitiesSubheader(), listSlotBoostEvents("COMMUNITIES")]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 py-6">
@@ -79,6 +80,9 @@ export default async function CommunitiesPage({
         ))}
       </div>
 
+
+      {/* Sponsored slot strip - hidden when no boosts */}
+      <SlotBoostStrip events={slotBoostEvents} />
 
       {/* Communities grid */}
       {communities.length === 0 ? (

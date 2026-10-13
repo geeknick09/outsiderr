@@ -69,6 +69,7 @@ export async function createHeroBoost(
   user: CurrentUser,
   eventId: string,
   amountPaise: number,
+  placement: "HOME" | "COMMUNITIES" | "BOTH" = "HOME",
 ): Promise<HeroBoost> {
   // Check for existing active/pending boost
   const supabase = await createClient();
@@ -108,6 +109,7 @@ export async function createHeroBoost(
       status: "PENDING",
       amount_paise: amountPaise,
       currency: "INR",
+      placement,
     })
     .select("*")
     .single();

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { CategoryFilter } from "@/modules/web";
 import { EventSearch } from "@/modules/web";
 import { EventSection } from "@/modules/web";
-import { FeaturedCarousel } from "@/modules/web";
+import { FeaturedCarousel, SlotBoostStrip } from "@/modules/web";
 import { HeroCarousel } from "@/modules/web";
 import { PastEventSection } from "@/modules/web";
 import { SearchResults } from "@/modules/web";
@@ -14,7 +14,7 @@ import {
   DEFAULT_CITY,
 } from "@/modules/shared";
 import { listEvents, searchOrganizers, searchCommunities } from "@/modules/shared/server";
-import { getHeroEvents } from "@/modules/shared/server";
+import { getHeroEvents, listSlotBoostEvents } from "@/modules/shared/server";
 import { getMyEventsToday } from "@/modules/shared/server";
 import {
   getHeroBoostEnabled,
@@ -87,6 +87,9 @@ export default async function DiscoveryPage({
     ? await getHeroEvents(heroRotationInterval, heroMaxVisible)
     : [];
 
+  // Sponsored slot boosts (placement HOME or BOTH) - hidden when none active
+  const slotBoostEvents = await listSlotBoostEvents("HOME");
+
   // "Your Events Today" - only for logged-in users
   const myEventsToday = currentUser ? await getMyEventsToday(currentUser) : [];
 
@@ -135,6 +138,9 @@ export default async function DiscoveryPage({
         <>
       {/* Hero Boost carousel - only shown in "All" view (no category filter) */}
       {!category && heroEvents.length > 0 ? <HeroCarousel events={heroEvents} /> : null}
+
+      {/* Sponsored slot strip - auto-scrolls, hidden when no boosts */}
+      {!category ? <SlotBoostStrip events={slotBoostEvents} /> : null}
 
       {/* Discover communities CTA */}
       {!category && !search ? (

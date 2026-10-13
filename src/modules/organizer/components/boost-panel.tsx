@@ -19,21 +19,31 @@ const DURATIONS = [
   { label: "30 days", days: 30 },
 ];
 
+const PLACEMENTS = [
+  { value: "HOME", label: "Home screen" },
+  { value: "COMMUNITIES", label: "Communities" },
+  { value: "BOTH", label: "Both" },
+] as const;
+
 export function BoostPanel({
   events,
   slotPrices,
   occupiedSlots,
   preselectedEventId,
+  maxSlots = 10,
 }: {
   events: EventSummary[];
   slotPrices: BoostSlotPrice[];
   occupiedSlots: number[];
   platformUpiId?: string; // unused post-Razorpay - kept for caller compat
   preselectedEventId?: string;
+  /** Admin-configurable - how many slots are actually sellable (default 10). */
+  maxSlots?: number;
 }) {
   const [eventId, setEventId] = useState(preselectedEventId ?? events[0]?.id ?? "");
   const [slot, setSlot] = useState<number | null>(null);
   const [days, setDays] = useState(7);
+  const [placement, setPlacement] = useState<"HOME" | "COMMUNITIES" | "BOTH">("HOME");
   const [session, setSession] = useState<CheckoutSession | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -52,7 +62,7 @@ export function BoostPanel({
     setSubmitting(true);
     setError(null);
     try {
-      const result = await startBoostCheckoutAction({ eventId, slot, days });
+      const result = await startBoostCheckoutAction({ eventId, slot, days, placement });
       if (result.error || !result.session) {
         setError(result.error ?? "Could not start payment.");
         return;
@@ -118,7 +128,7 @@ export function BoostPanel({
       <section className="glass space-y-3 rounded-3xl p-5">
         <h3 className="text-sm font-bold">2. Choose a featured slot (1 = top)</h3>
         <div className="grid grid-cols-5 gap-2">
-          {slotPrices.map((sp) => {
+          {slotPrices.filter((sp) => sp.slot <= maxSlots).map((sp) => {
             const taken = occupiedSlots.includes(sp.slot);
             const selected = slot === sp.slot;
             return (
@@ -145,9 +155,31 @@ export function BoostPanel({
         </div>
       </section>
 
-      {/* Step 3 - duration */}
+      {/* Step 3 - where it appears */}
       <section className="glass space-y-3 rounded-3xl p-5">
-        <h3 className="text-sm font-bold">3. Boost duration</h3>
+        <h3 className="text-sm font-bold">3. Where should it show?</h3>
+        <div className="flex gap-2">
+          {PLACEMENTS.map((p) => (
+            <button
+              key={p.value}
+              type="button"
+              onClick={() => setPlacement(p.value)}
+              className={cn(
+                "rounded-full border px-4 py-2 text-sm font-semibold transition-all",
+                placement === p.value
+                  ? "border-violet-neon bg-violet-neon/10 text-violet-neon"
+                  : "border-zinc-200 text-muted hover:border-violet-neon/50 dark:border-white/10",
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Step 4 - duration */}
+      <section className="glass space-y-3 rounded-3xl p-5">
+        <h3 className="text-sm font-bold">4. Boost duration</h3>
         <div className="flex gap-2">
           {DURATIONS.map((d) => (
             <button
@@ -172,10 +204,10 @@ export function BoostPanel({
         ) : null}
       </section>
 
-      {/* Step 4 - pay online */}
+      {/* Step 5 - pay online */}
       {slot && totalPaise ? (
         <section className="glass space-y-4 rounded-3xl p-5">
-          <h3 className="text-sm font-bold">4. Pay & activate</h3>
+          <h3 className="text-sm font-bold">5. Pay & activate</h3>
           {error ? <p className="text-sm text-red-500">{error}</p> : null}
           <button
             type="button"
@@ -193,7 +225,7 @@ export function BoostPanel({
       ) : null}
 
       <p className="px-2 text-center text-xs text-muted">
-        Slots 1-10 appear in the featured carousel. Slot 1 is the top position. Your boost goes live
+        Slots 1-{maxSlots} appear in the sponsored slots strip. Slot 1 is the top position. Your boost goes live
         the moment payment clears.
       </p>
     </div>

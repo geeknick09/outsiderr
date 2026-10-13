@@ -13,7 +13,7 @@ import { getOrganizerFollowerCount } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Creator Hub - Outsiderr" };
+export const metadata = { title: "Creator Dashboard - Outsiderr" };
 
 export default async function OrganizerPage({
   searchParams,

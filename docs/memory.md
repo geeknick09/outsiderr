@@ -260,3 +260,15 @@ Last updated: 2026-10-08
   Edit Profile / organizer_bank_accounts.
 - "Organizer Dashboard" user-menu label + /organizer titles renamed to
   "Creator Hub" (routes unchanged - /organizer/* still works).
+
+## Campaigns surface + slot/feature boosts (2026-10-09)
+- "Creator Dashboard" naming finalized (was Creator Hub); boost entry points
+  consolidated into /organizer/campaigns (old /organizer/boost redirects).
+- boosts.placement + hero_boosts.placement (HOME|COMMUNITIES|BOTH) - STEP 52;
+  organizer picks the surface per campaign.
+- SlotBoostStrip = auto-scrolling marquee (animate-marquee, pauses on hover),
+  hidden when no active boosts for that placement; rendered on / and /communities.
+- Settings: slot_boost_count (5-10 sellable slots), hero_max_visible_events
+  default now 4. All homepage event sections are horizontal-scroll rows now.
+- Payment: slot boost + feature reuse existing intent pipelines (HERO_BOOST +
+  boost SLOT flows); placement carried on the row for rendering filters.

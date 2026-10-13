@@ -23,7 +23,8 @@ const FALLBACKS: Record<string, unknown> = {
   hero_boost_price: 99900,
   hero_boost_duration_days: 7,
   hero_rotation_interval_minutes: 30,
-  hero_max_visible_events: 5,
+  hero_max_visible_events: 4,
+  slot_boost_count: 5,
   max_popular_per_city: 4,
   max_sponsored_per_city: 4,
   tagline_header: "Find what's happening outside the mainstream.",
@@ -203,6 +204,12 @@ export async function getMaxSponsoredPerCity(): Promise<number> {
 export async function getDraftRetentionDays(): Promise<number> {
   const val = await getSettingInt("draft_retention_days");
   return val >= 1 ? val : 60;
+}
+
+/** How many slot-boost positions are sellable (5-10). */
+export async function getSlotBoostCount(): Promise<number> {
+  const val = await getSettingInt("slot_boost_count");
+  return Math.min(10, Math.max(1, val || 5));
 }
 
 export async function getTaglineHeader(): Promise<string> {

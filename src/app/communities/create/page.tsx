@@ -46,7 +46,7 @@ export default async function CreateClubPage() {
           <div>
             <h2 className="text-xl font-black">Set up your creator profile first</h2>
             <p className="mt-2 text-sm text-muted">
-              Communities live inside the Creator Hub - a quick setup (name + PAN) takes a minute. Bank details are optional until you start taking payouts.
+              Communities live inside the Creator Dashboard - a quick setup (name + PAN) takes a minute. Bank details are optional until you start taking payouts.
             </p>
           </div>
           <Link

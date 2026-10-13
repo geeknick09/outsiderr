@@ -16,7 +16,7 @@ import { listMyCommunities, getCommunityAnalytics } from "@/modules/shared/serve
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Analytics - Creator Hub | Outsiderr" };
+export const metadata = { title: "Analytics - Creator Dashboard | Outsiderr" };
 
 export default async function OrganizerAnalyticsPage() {
   const ctx = await getOrganizerGateContext();

@@ -8,14 +8,14 @@ import type { Boost, BoostSlotPrice, BoostStatus, BoostWithEvent } from "../lib/
 function toBoost(row: {
   id: string; event_id: string; organizer_id: string; slot: number;
   amount_paid_paise: number; status: string; starts_at: string;
-  ends_at: string; utr_reference: string | null; created_at: string;
+  ends_at: string; utr_reference: string | null; placement?: string | null; created_at: string;
 }): Boost {
   return {
     id: row.id, eventId: row.event_id, organizerId: row.organizer_id,
     slot: row.slot, amountPaidPaise: row.amount_paid_paise,
     status: row.status as BoostStatus,
     startsAt: row.starts_at, endsAt: row.ends_at,
-    utrReference: row.utr_reference, createdAt: row.created_at,
+    placement: (row.placement as Boost['placement']) ?? 'HOME', utrReference: row.utr_reference, createdAt: row.created_at,
   };
 }
 
@@ -36,17 +36,50 @@ export async function updateSlotPrice(slot: number, pricePaise: number): Promise
     .eq("slot", slot);
 }
 
-export async function listActiveBoosts(): Promise<Boost[]> {
+export async function listActiveBoosts(placement?: "HOME" | "COMMUNITIES"): Promise<Boost[]> {
   const supabase = await createClient();
   const now = new Date().toISOString();
-  const { data } = await supabase
+  let q = supabase
     .from("boosts")
     .select("*")
     .eq("status", "ACTIVE")
     .lte("starts_at", now)
     .gte("ends_at", now)
     .order("slot", { ascending: true });
+  if (placement) q = q.in("placement", [placement, "BOTH"]);
+  const { data } = await q;
   return (data ?? []).map(toBoost);
+}
+
+export interface SlotBoostEvent {
+  id: string;
+  title: string;
+  startsAt: string;
+  cardPosterUrl: string | null;
+}
+
+/** Events behind the currently-active slot boosts for a surface - used to
+ * render the sponsored strip on the homepage/community page. */
+export async function listSlotBoostEvents(
+  placement: "HOME" | "COMMUNITIES",
+): Promise<SlotBoostEvent[]> {
+  const boosts = await listActiveBoosts(placement);
+  if (boosts.length === 0) return [];
+  const ids = [...new Set(boosts.map((b) => b.eventId))];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("events")
+    .select("id, title, starts_at, card_poster_url")
+    .in("id", ids)
+    .in("status", ["PUBLISHED", "POSTPONED"]);
+  const byId = new Map(
+    (data ?? []).map((r) => [
+      r.id,
+      { id: r.id, title: r.title, startsAt: r.starts_at, cardPosterUrl: r.card_poster_url ?? null },
+    ]),
+  );
+  // Preserve slot order (slot 1 first).
+  return boosts.map((b) => byId.get(b.eventId)).filter(Boolean) as SlotBoostEvent[];
 }
 
 export async function listOccupiedSlots(): Promise<number[]> {
@@ -68,6 +101,7 @@ export interface RequestBoostInput {
   startsAt: string;
   endsAt: string;
   utrReference?: string | null;
+  placement?: "HOME" | "COMMUNITIES" | "BOTH";
 }
 
 export async function requestBoost(
@@ -101,6 +135,7 @@ export async function requestBoost(
       slot: input.slot, amount_paid_paise: input.amountPaidPaise,
       starts_at: input.startsAt, ends_at: input.endsAt,
       utr_reference: input.utrReference ?? null,
+      placement: input.placement ?? 'HOME',
       status: "PENDING",
     })
     .select("*")

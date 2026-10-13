@@ -8,7 +8,7 @@ import { getOrganizerProfile } from "@/modules/shared/server";
 import { createServiceClient } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Ledger - Creator Hub | Outsiderr" };
+export const metadata = { title: "Ledger - Creator Dashboard | Outsiderr" };
 
 const PAGE_SIZE = 25;
 

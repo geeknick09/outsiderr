@@ -4,6 +4,7 @@ export * from "./components/attendees-table";
 export * from "./components/become-organizer-form";
 export * from "./components/boost-panel";
 export * from "./components/box-office-pin-manager";
+export * from "./components/campaign-panel";
 export * from "./components/cancel-postpone-buttons";
 export * from "./components/collaboration-invites";
 export * from "./components/collaboration-panel";

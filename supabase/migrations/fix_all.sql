@@ -9460,3 +9460,20 @@ create trigger trg_events_publish_kyc
 
 -- STEP 51: community subcategory (e.g. "Run Club" inside Fitness & Movements)
 alter table public.communities add column if not exists subcategory text;
+
+-- =============================================================================
+-- STEP 52 — Campaign placement + slot/feature configurability
+-- -----------------------------------------------------------------------------
+-- boosts: where the slot boost appears (home only, communities only, both)
+-- hero_boosts: same, so organizers pick a surface per campaign
+-- =============================================================================
+
+alter table public.boosts add column if not exists placement text not null default 'HOME';
+alter table public.boosts drop constraint if exists boosts_placement_check;
+alter table public.boosts add constraint boosts_placement_check
+  check (placement in ('HOME','COMMUNITIES','BOTH'));
+
+alter table public.hero_boosts add column if not exists placement text not null default 'HOME';
+alter table public.hero_boosts drop constraint if exists hero_boosts_placement_check;
+alter table public.hero_boosts add constraint hero_boosts_placement_check
+  check (placement in ('HOME','COMMUNITIES','BOTH'));

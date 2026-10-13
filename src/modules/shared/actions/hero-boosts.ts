@@ -155,6 +155,7 @@ export async function onEventCancelled(eventId: string): Promise<void> {
  */
 export async function createHeroBoostCheckoutAction(
   eventId: string,
+  placement?: "HOME" | "COMMUNITIES" | "BOTH",
 ): Promise<{ session?: CheckoutSession; error?: string }> {
   const user = await getCurrentUser();
   if (!user) return { error: "Sign in to boost your event." };
@@ -162,7 +163,7 @@ export async function createHeroBoostCheckoutAction(
   const price = await getHeroBoostPrice();
   let boost;
   try {
-    boost = await createHeroBoost(user, eventId, price);
+    boost = await createHeroBoost(user, eventId, price, placement ?? "HOME");
   } catch (err) {
     const message =
       err instanceof Error ? err.message :

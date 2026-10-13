@@ -55,6 +55,7 @@ export async function startBoostCheckoutAction(input: {
   eventId: string;
   slot: number;
   days: number;
+  placement?: "HOME" | "COMMUNITIES" | "BOTH";
 }): Promise<{ session?: import("@/modules/shared").CheckoutSession; error?: string }> {
   const user = await getCurrentUser();
   if (!user) return { error: "Please sign in to continue." };
@@ -77,6 +78,7 @@ export async function startBoostCheckoutAction(input: {
     if (!dailyPaise) return { error: "That slot isn't priced. Try another." };
 
     const boost = await requestBoost(user, {
+      placement: input.placement ?? "HOME",
       eventId: input.eventId,
       organizerId: organizer.id,
       slot: input.slot,

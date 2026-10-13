@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Pencil, Plus, Rocket, Users } from "lucide-react";
+import { Megaphone, Pencil, Plus, Users } from "lucide-react";
 import Link from "next/link";
 
 import { EditOrganizerProfile } from "./edit-organizer-profile";
@@ -163,10 +163,10 @@ export function OrganizerHeader({ organizer, followerCount }: { organizer: Organ
             Create
           </Button>
         </Link>
-        <Link href="/organizer/boost">
+        <Link href="/organizer/campaigns">
           <Button variant="secondary" size="sm">
-            <Rocket className="h-4 w-4" />
-            Boost
+            <Megaphone className="h-4 w-4" />
+            Campaigns
           </Button>
         </Link>
       </div>

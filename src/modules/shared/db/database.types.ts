@@ -235,6 +235,7 @@ export type BoostRow = {
   slot: number;
   amount_paid_paise: number;
   status: string;
+  placement: string;
   starts_at: string;
   ends_at: string;
   utr_reference: string | null;
@@ -425,6 +426,7 @@ export type HeroBoostRow = {
   status: string;
   amount_paise: number;
   currency: string;
+  placement: string;
   utr_reference: string | null;
   razorpay_order_id: string | null;
   razorpay_payment_id: string | null;

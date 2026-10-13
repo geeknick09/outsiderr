@@ -62,6 +62,8 @@ const SECTIONS: SectionDef[] = [
       { key: "tagline_footer", label: "Footer tagline", type: "text" },
       { key: "communities_header", label: "Communities page header", type: "text" },
       { key: "communities_subheader", label: "Communities page subheader", type: "text" },
+      { key: "hero_max_visible_events", label: "Feature slots on homepage (max 10)", type: "number", min: 1 },
+      { key: "slot_boost_count", label: "Boost slots sellable (5-10)", type: "number", min: 1 },
     ],
   },
   {

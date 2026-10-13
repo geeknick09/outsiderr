@@ -8,6 +8,7 @@ const ITEMS: { href: string; label: string; exact?: boolean }[] = [
   { href: "/organizer/analytics", label: "Analytics" },
   { href: "/organizer/communities", label: "Communities" },
   { href: "/organizer/ledger", label: "Ledger" },
+  { href: "/organizer/campaigns", label: "Campaigns" },
 ];
 
 /**

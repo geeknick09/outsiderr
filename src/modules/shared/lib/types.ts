@@ -331,6 +331,8 @@ export interface OrganizerRating {
   distribution: number[];
 }
 
+export type CampaignPlacement = "HOME" | "COMMUNITIES" | "BOTH";
+
 export interface Boost {
   id: string;
   eventId: string;
@@ -338,6 +340,7 @@ export interface Boost {
   slot: number;
   amountPaidPaise: number;
   status: BoostStatus;
+  placement: CampaignPlacement;
   startsAt: string;
   endsAt: string;
   utrReference: string | null;

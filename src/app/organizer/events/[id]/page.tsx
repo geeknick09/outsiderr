@@ -268,16 +268,16 @@ export default async function ManageEventPage({
                     />
                     <div className="flex items-center justify-between gap-4 rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
                       <div>
-                        <h3 className="text-sm font-bold">Slot Boost</h3>
+                        <h3 className="text-sm font-bold">Promote this event</h3>
                         <p className="mt-1 text-xs text-muted">
-                          Get your event featured in the homepage carousel slots.
+                          Feature it or grab a sponsored slot - campaigns live in one place now.
                         </p>
                       </div>
                       <Link
-                        href={`/organizer/boost?event=${event.id}`}
+                        href={`/organizer/campaigns?event=${event.id}`}
                         className="shrink-0 rounded-full bg-neon-gradient px-5 py-2.5 text-sm font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90"
                       >
-                        Boost Event
+                        Run a campaign
                       </Link>
                     </div>
                   </div>
