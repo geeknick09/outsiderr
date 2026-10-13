@@ -1,4 +1,5 @@
-import { AggregatedAnalytics, AudienceAnalytics, OrganizerPaymentsPanel } from "@/modules/analytics";
+import { AggregatedAnalytics, AudienceAnalytics, OrganizerPaymentsPanel, ViralityPanel } from "@/modules/analytics";
+import { getOrganizerVirality } from "@/modules/analytics/server";
 import { KycStatusBanner } from "@/modules/organizer";
 import { OrganizerKycRealtimeRefresher } from "@/modules/organizer";
 import { PremiumGate } from "@/modules/organizer";
@@ -35,7 +36,7 @@ export default async function OrganizerAnalyticsPage() {
     new Date(organizerProfile.premiumUntil).getTime() > Date.now();
   const windowDays = isPremium ? 180 : 90;
 
-  const [analyticsData, dailyRevenue, paymentSummary, audience, premiumGate, premiumPlans, communities] =
+  const [analyticsData, dailyRevenue, paymentSummary, audience, premiumGate, premiumPlans, communities, virality] =
     await Promise.all([
       Promise.all(allEvents.map((event) => getOrganizerEventAnalytics(user, event.id))),
       getOrganizerDailyRevenue(user, 30),
@@ -44,6 +45,7 @@ export default async function OrganizerAnalyticsPage() {
       isPremiumGateEnabled(),
       getPremiumPlans(),
       listMyCommunities(user),
+      getOrganizerVirality(organizerProfile.id),
     ]);
   const communityStats = await Promise.all(
     communities.map(async (c) => ({ community: c, stats: await getCommunityAnalytics(c.id) })),
@@ -95,6 +97,32 @@ export default async function OrganizerAnalyticsPage() {
               Confirmed-order money totals across all events, plus the hours your tickets actually sell.
             </p>
             <OrganizerPaymentsPanel summary={paymentSummary} />
+          </div>
+        ) : null}
+
+        {virality && (virality.overall.referred + virality.overall.organic) > 0 ? (
+          <div>
+            <h2 className="mb-1 text-lg font-bold">Virality</h2>
+            <p className="mb-3 text-xs text-muted">
+              How much of your growth comes from promoters and member referrals vs organic.
+            </p>
+            <ViralityPanel
+              coefficient={virality.overall.k}
+              pies={[{
+                title: "Order sources",
+                referredLabel: "Via promoters",
+                organicLabel: "Organic",
+                referred: virality.entities.filter((e) => e.kind === "EVENT").reduce((s, e) => s + e.referred, 0),
+                organic: virality.entities.filter((e) => e.kind === "EVENT").reduce((s, e) => s + e.organic, 0),
+              }, {
+                title: "Community joins",
+                referredLabel: "Referred",
+                organicLabel: "Direct",
+                referred: virality.entities.filter((e) => e.kind === "COMMUNITY").reduce((s, e) => s + e.referred, 0),
+                organic: virality.entities.filter((e) => e.kind === "COMMUNITY").reduce((s, e) => s + e.organic, 0),
+              }]}
+              entities={virality.entities}
+            />
           </div>
         ) : null}
 

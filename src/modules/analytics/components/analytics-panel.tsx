@@ -10,6 +10,7 @@ export function AnalyticsPanel({
   ticketsSold,
   eventId,
   showMoney = true,
+  virality,
 }: {
   analytics: EventAnalytics;
   capacity?: number;
@@ -17,12 +18,20 @@ export function AnalyticsPanel({
   eventId?: string;
   /** LIMITED collaborators get analytics without money figures. */
   showMoney?: boolean;
+  virality?: { referred: number; organic: number; k: number };
 }) {
   const sold = ticketsSold ?? analytics.confirmedOrders;
   const cap = capacity ?? 0;
   const pct = cap > 0 ? Math.min(100, Math.round((sold / cap) * 100)) : 0;
 
   const stats: { label: string; value: string; sub?: string; href?: string }[] = [
+    ...(virality
+      ? [{
+          label: "Virality (K)",
+          value: virality.k.toFixed(2),
+          sub: `${virality.referred} via promoters · ${virality.organic} organic`,
+        }]
+      : []),
     { label: "Total orders", value: String(analytics.totalOrders), href: eventId ? `/organizer/events/${eventId}/orders` : undefined },
     {
       label: "Confirmed",

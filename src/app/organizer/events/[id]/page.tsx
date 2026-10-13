@@ -21,7 +21,7 @@ import { listGuestlist } from "@/modules/shared/actions/communities";
 import { listEventCounterStaff } from "@/modules/scanner/server";
 import { getEventPromoters } from "@/modules/shared/server";
 import { PromotersPanel } from "@/modules/organizer";
-import { getOrganizerEventAnalytics } from "@/modules/analytics/server";
+import { getOrganizerEventAnalytics, getEventVirality } from "@/modules/analytics/server";
 import { getEventCollaboratorsForOwner, getEventAccessLevel, canViewAnalytics, canViewMoney, canScanTickets, canEditEvent, canManageOrders } from "@/modules/shared/server";
 import { listEventOrders, listEventTickets } from "@/modules/shared/server";
 import { expireWaitlistOffers, listEventWaitlist } from "@/modules/shared/server";
@@ -63,7 +63,7 @@ export default async function ManageEventPage({
 
   // Load all page data in parallel. Log the real error server-side before letting
   // the route-level error.tsx handle the fallback UI for the user.
-  const [event, analytics, cancelChargePct, postponeChargePct, heroBoost, heroBoostPrice, heroBoostDuration, orders, tickets, waitlistEntries, collaborators, eventStaff, guestlist] = await Promise.all([
+  const [event, analytics, cancelChargePct, postponeChargePct, heroBoost, heroBoostPrice, heroBoostDuration, orders, tickets, waitlistEntries, collaborators, eventStaff, guestlist, eventVirality] = await Promise.all([
     getEvent(id),
     getOrganizerEventAnalytics(user, id),
     getCancellationChargePercent(),
@@ -77,6 +77,7 @@ export default async function ManageEventPage({
     getEventCollaboratorsForOwner(user, id),
     listEventCounterStaff(id),
     listGuestlist(id),
+    getEventVirality(id),
   ]).catch((err: unknown) => {
     console.error("[ManageEventPage] Data load error for event", id, err);
     throw err; // Re-throw so the route error boundary (error.tsx) handles it
@@ -352,7 +353,7 @@ export default async function ManageEventPage({
                         <Printer className="h-3.5 w-3.5" /> Print report
                       </Link>
                     </div>
-                    <AnalyticsPanel analytics={analytics} eventId={event.id} showMoney={canViewMoney(accessLevel)} />
+                    <AnalyticsPanel analytics={analytics} eventId={event.id} showMoney={canViewMoney(accessLevel)} virality={eventVirality ?? undefined} />
                     {analytics.waitlistCount > 0 ? (
                       <WaitlistPanel waitlistCount={analytics.waitlistCount} entries={waitlistEntries} />
                     ) : null}

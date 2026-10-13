@@ -8,3 +8,4 @@ export * from "./components/aggregated-analytics";
 export * from "./components/audience-analytics";
 export * from "./components/sales-trend-chart";
 export * from "./components/organizer-payments-panel";
+export * from "./components/virality-panel";
