@@ -44,3 +44,4 @@ export { FollowingSection } from "./components/profile/following-section";
 export * from "./components/community/join-community-section";
 export * from "./components/promoter/promote-button";
 export * from "./components/promoter/promoter-dashboard";
+export * from "./components/community/community-timeline";

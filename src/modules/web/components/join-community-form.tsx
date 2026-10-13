@@ -93,7 +93,7 @@ export function JoinCommunityForm({
 
       {error ? <p className="text-sm font-semibold text-red-500">{error}</p> : null}
 
-      <Button onClick={submit} disabled={pending} className="w-full">
+      <Button onClick={submit} disabled={pending} className="flex w-full justify-center sm:mx-auto sm:w-auto sm:min-w-56 sm:px-10">
         {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
         {community.membershipType === "PRIVATE" ? "Request to join" : "Join"}
       </Button>

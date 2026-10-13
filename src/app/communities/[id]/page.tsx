@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import { BadgeCheck, CalendarDays, Globe, Lock, MapPin, Users } from "lucide-react";
 import { FacebookIcon, InstagramIcon, LinkedinIcon, XIcon, YoutubeIcon } from "@/modules/shared";
 
-import { JoinCommunityForm, CommunityFollowButton } from "@/modules/web";
+import { JoinCommunityForm, CommunityFollowButton, CommunityTimeline } from "@/modules/web";
 import { Badge } from "@/modules/shared";
 import { getCurrentUser, createClient } from "@/modules/shared/server";
 import {
@@ -213,7 +213,7 @@ export default async function CommunityDetailPage({
         </section>
       ) : null}
 
-      {/* Event calendar */}
+      {/* Event timeline - past grayed at top, scroll down for upcoming */}
       <section className="space-y-2">
         <h2 className="flex items-center gap-2 text-base font-bold">
           <CalendarDays className="h-4 w-4 text-violet-neon" />
@@ -222,32 +222,8 @@ export default async function CommunityDetailPage({
         {events.length === 0 ? (
           <p className="glass rounded-2xl p-4 text-sm text-muted">No events yet - follow to hear first.</p>
         ) : (
-          <div className="space-y-2">
-            {[...upcoming, ...past].map((e) => {
-              const d = new Date(e.startsAt);
-              return (
-                <Link
-                  key={e.id}
-                  href={`/events/${e.id}`}
-                  className="glass flex items-center gap-3 rounded-2xl p-3 transition-all hover:border-violet-neon"
-                >
-                  <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-violet-neon/10 text-violet-neon">
-                    <span className="text-[10px] font-bold uppercase">{d.toLocaleString("en-IN", { month: "short" })}</span>
-                    <span className="text-lg font-black leading-none">{d.getDate()}</span>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold">{e.title}</p>
-                    <p className="truncate text-xs text-muted">
-                      {d.toLocaleString("en-IN", { weekday: "short", hour: "numeric", minute: "2-digit" })}
-                      {" · "}{e.venueName}{" · "}{cityLabel(e.city)}
-                    </p>
-                  </div>
-                  {e.visibility === "MEMBERS_ONLY" ? (
-                    <Badge tone="violet">Members</Badge>
-                  ) : null}
-                </Link>
-              );
-            })}
+          <div className="glass rounded-2xl p-3">
+            <CommunityTimeline events={[...upcoming, ...past].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())} />
           </div>
         )}
       </section>
