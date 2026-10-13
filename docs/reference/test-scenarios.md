@@ -1149,6 +1149,41 @@ npx next build
 - [ ] Organizer ledger at `/organizer/ledger`: sales+refunds+payouts+adjustments merged, paginated, sortable, event/date filters
 - [ ] Event analytics tab shows daily sales-trend chart
 
+## 29\. Communities Polish, Banners & Access Gates (2026-10-09)
+
+### 29.1 Banners & Covers
+
+- [ ] Event public page: desktop 16:9 banner ≤440px with top black fade into navbar + bottom fade into page
+- [ ] Same page on mobile: 3:4 card poster ≤70vh, same top/bottom fades
+- [ ] Organizer event manage page: same banner spec (3:4 mobile / 16:9 desktop), no half-image crop
+- [ ] Community landing cover: 16:9 desktop, 3:4 mobile; mobile uses the dedicated mobile cover when uploaded, falls back to the 16:9 cover
+- [ ] Organizer community manage page: same cover spec + avatar overlap
+- [ ] Community listing cards: cover 16:9 + overlapping avatar; no-photo communities show a name-hashed gradient + initials (distinct per community, stable across reloads)
+
+### 29.2 Social Links & Subcategories
+
+- [ ] Community landing shows icon-only links: Instagram, YouTube, X (real X glyph), Facebook, LinkedIn, website (globe) - no raw @handle or URLs
+- [ ] Community listing card shows the instagram icon (not the handle text)
+- [ ] Create form has inputs for all 6 socials under the instagram field
+- [ ] Create form: picking a category shows subcategory chips (built-in suggestions + ones other creators already used); custom text works; chosen value shows on the card + landing as a badge
+
+### 29.3 Communities Listing & Filters
+
+- [ ] `/communities` shows only category chips (no ~90-city wall); header + subheader editable at Admin -> Settings -> Taglines (`communities_header` / `communities_subheader`)
+- [ ] Nav city chip changed on `/communities` stays on `/communities` and filters the list; stored city auto-applies when arriving from elsewhere
+- [ ] Membership badges (Open / Request to join / Invite only) render inside card bounds - no overflow
+- [ ] Guestlist section on event manage shows one description line (no duplicate copy)
+
+### 29.4 Creation & Access Gates
+
+- [ ] Non-organizer opens `/communities/create` -> "Set up your creator profile first" + Become a Creator CTA (no form)
+- [ ] Organizer onboarding: PAN step required; GST step optional; Bank & UPI step marked optional and advances empty
+- [ ] PAN-only submission -> `kyc_status` = PENDING (bank no longer required for review)
+- [ ] NOT_SUBMITTED / pending organizer tries to publish an event -> "Complete organizer KYC" error; drafts still save
+- [ ] APPROVED organizer publishes normally (event page + manage + ledger all work)
+- [ ] Unapproved organizer calls the publish path via API/direct REST -> blocked by the `trg_events_publish_kyc` trigger
+- [ ] Nav user menu reads "Creator Hub" for organizers; `/organizer/*` page titles use Creator Hub branding
+
 ## Test Execution Checklist
 
 | Module | Scenarios | Status |
@@ -1181,6 +1216,7 @@ npx next build
 | Concurrency & Money | 26.1–26.6 | ☐ |
 | Security & Auth | 27.1–27.5 | ☐ |
 | Communities & Promoters | 28.1–28.5 | ☐ |
+| Communities Polish & Gates | 29.1–29.4 | ☐ |
 
 ### 2.5 KYC Polish & Thread
 
