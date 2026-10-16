@@ -136,7 +136,7 @@ export function BecomeOrganizerForm() {
   function canAdvance(): boolean {
     if (uploadError) return false;
     if (step === 0) return !!orgName.trim() && !uploading;
-    if (step === 1) return !!panNumber && panValid && !!panName && !panDocError && !uploadingPan;
+    if (step === 1) return panValid && !panDocError && !uploadingPan; // PAN optional - like bank & GST
     if (step === 2) return true; // GST is optional
     // Step 3 (bank/UPI) is optional - community creators skip it; it becomes
     // required later when they want event payouts.
@@ -395,10 +395,10 @@ export function BecomeOrganizerForm() {
               {/* ── Step 1: PAN ────────────────────────────────── */}
               {step === 1 && (
                 <div className="space-y-4">
-                  <StepHeader title="PAN card details" subtitle="Required for payouts and compliance. Kept private." />
+                  <StepHeader title="PAN card details" subtitle="Optional - helps verify you faster for payouts. Add anytime from your dashboard." />
 
                   <label className={LABEL}>
-                    <span className={LABEL_TEXT}>PAN Number *</span>
+                    <span className={LABEL_TEXT}>PAN Number <span className="normal-case text-zinc-400">(optional)</span></span>
                     <input
                       value={panNumber}
                       onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
@@ -413,7 +413,7 @@ export function BecomeOrganizerForm() {
                   </label>
 
                   <label className={LABEL}>
-                    <span className={LABEL_TEXT}>Name as per PAN *</span>
+                    <span className={LABEL_TEXT}>Name as per PAN <span className="normal-case text-zinc-400">(optional)</span></span>
                     <input
                       value={panName}
                       onChange={(e) => setPanName(e.target.value.toUpperCase())}

@@ -251,8 +251,8 @@ export default async function ListYourEventPage() {
             />
             <Step
               step="2"
-              title="Quick KYC"
-              description="PAN gets you reviewed. Bank & GST can wait till you sell."
+              title="One review"
+              description="Submit and you're reviewed - PAN, bank & GST all optional, add later."
             />
             <Step
               step="3"
@@ -273,6 +273,28 @@ export default async function ListYourEventPage() {
         </div>
       </section>
 
+      {/* Power tools */}
+      <section className="px-4 py-16">
+        <div className="mx-auto max-w-5xl">
+          <h2 className="text-center text-3xl font-black tracking-tight">
+            Power tools - all included
+          </h2>
+          <p className="mt-3 text-center text-sm text-muted">
+            Things you&apos;d normally buy separately. Just part of being a creator here.
+          </p>
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <Feature icon={ScanLine} title="Offline door scan" description="Scanner works with zero internet - scans queue and sync when you're back online." />
+            <Feature icon={Users} title="Guestlist links" description="Free shareable ticket links for guests & crew - no money, just a scannable entry pass." />
+            <Feature icon={Ticket} title="Waitlist auto-backfill" description="Sold-out tiers keep a waitlist; cancellations auto-offer the next in line." />
+            <Feature icon={Zap} title="'Update me' alerts" description="Fans subscribe to your event - announce the venue or date later and they get notified instantly." />
+            <Feature icon={UsersRound} title="Team & roles" description="Co-organizers, collaborators, door staff and box-office PINs - your whole crew under one roof." />
+            <Feature icon={CalendarDays} title="Recurring events" description="Weekly jams and meetups auto-repeat for community events - set once, run forever." />
+            <Feature icon={BarChart3} title="CSV exports" description="Orders, attendees, ledger - export any list for your own books." />
+            <Feature icon={Shield} title="Drafts & safety" description="Unfinished events autosave as drafts; legal pages and default terms ship ready-made." />
+          </div>
+        </div>
+      </section>
+
       {/* Fee explainer */}
       <section className="px-4 py-16">
         <div className="mx-auto max-w-3xl">
@@ -289,46 +311,6 @@ export default async function ListYourEventPage() {
             <p className="mt-4 text-sm font-semibold text-violet-neon">
               No listing fees. No subscriptions to start. Pay only when money moves.
             </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Who is it for */}
-      <section className="px-4 py-16">
-        <div className="mx-auto max-w-4xl">
-          <h2 className="text-center text-3xl font-black tracking-tight">
-            Built for rawness
-          </h2>
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            {[
-              "Rap cyphers & battles",
-              "Skateboard comps",
-              "MTB & stunt events",
-              "BMX jams",
-              "Run communities & marathons",
-              "Walkathons",
-              "Underground gigs & jams",
-              "DJ sets & open decks",
-              "Hip hop parties",
-              "Trap nights",
-              "Boom bap nights",
-              "Car & bike meetups",
-              "JDM meets",
-              "Superbike meets",
-              "Riders meets",
-              "Graffiti cyphers",
-              "Beatbox battles",
-              "Dance battles",
-              "Workshops & masterclasses",
-              "Block parties",
-            ].map((tag) => (
-              <span
-                key={tag}
-                className="rounded-full border border-zinc-200 px-4 py-2 text-sm font-medium text-muted dark:border-white/10"
-              >
-                {tag}
-              </span>
-            ))}
           </div>
         </div>
       </section>

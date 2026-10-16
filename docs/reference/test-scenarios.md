@@ -41,8 +41,8 @@
 - [x] Click “Become a Creator” in profile menu → lands on `/list-your-event` (hero: “Create on Outsiderr”)
 - [ ] Hero covers events + communities + crews + discovery; CTA reads “Start Creating - It’s Free” (organizers see “Go to Creator Dashboard”)
 - [x] Click “Get Started” → redirects to `/organizer`
-- [x] Fill become-organizer form (name, bio, photo, cover photo, UPI ID)
-- [x] Verify UPI ID validation (accepts `name@upi`, rejects invalid formats)
+- [x] Fill become-organizer form (name, bio, photo, cover photo)
+- [ ] PAN, bank/UPI and GST steps are all optional - wizard submits with them blank; formats validate only when filled
 - [x] Verify QR code generates from UPI ID
 - [x] Submit → verify organizer profile created
 - [x] Verify dashboard shows cover banner + avatar + name + bio
@@ -123,7 +123,8 @@
 - [ ] Money section mentions Razorpay, automatic splits, refunds, ledger, box office & door scanner, payouts
 - [ ] Promotion section covers Feature/Slot campaigns, promoters/referral links, analytics + virality
 - [ ] How-it-works = 5 steps (profile -> KYC -> create -> promote & scan -> get paid)
-- [ ] Fee explainer + tag wall + footer render on mobile and desktop
+- [ ] Fee explainer + "Power tools" grid (offline scan, guestlist, waitlist, update-me, team roles, recurring, exports, drafts) render on mobile and desktop
+- [ ] Step 2 reads "One review" and states PAN/bank/GST are all optional
 
 ## 3\. Event Creation
 

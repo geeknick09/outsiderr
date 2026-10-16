@@ -47,31 +47,20 @@ export async function createOrganizerAction(
   const agreedToTerms = formData.get("agreedToTerms") === "true";
 
   if (!name) return { error: "Enter your organizer name." };
-  if (!upiId) return { error: "Enter a UPI ID so attendees can pay you." };
-  if (!panNumber) return { error: "Enter your PAN number." };
-  if (!panName) return { error: "Enter the name as on your PAN card." };
-  if (!bankAccountNumber) return { error: "Enter your bank account number." };
-  if (!bankIfsc) return { error: "Enter your bank IFSC code." };
-  if (!bankAccountName) return { error: "Enter the account holder name." };
   if (!agreedToTerms) return { error: "You must agree to the organizer terms." };
 
-  // Basic PAN format: 5 letters, 4 digits, 1 letter (e.g. ABCDE1234F)
-  if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(panNumber)) {
+  // All financial fields are optional at onboarding - creators add PAN/bank/GST
+  // later from the dashboard before payouts. Validate format only when provided.
+  if (panNumber && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(panNumber)) {
     return { error: "PAN number format is invalid. Expected: ABCDE1234F" };
   }
-
-  // Basic IFSC: 4 letters, 0, 6 alphanumeric
-  if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(bankIfsc)) {
+  if (bankIfsc && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(bankIfsc)) {
     return { error: "IFSC code format is invalid. Expected: ABCD0123456" };
   }
-
-  // GST number (GSTIN) when provided - 2-digit state code + PAN + entity + Z + check char
   if (gstNumber && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gstNumber)) {
     return { error: "GST number format is invalid. Expected a 15-character GSTIN like 27ABCDE1234F1Z5." };
   }
-
-  // Bank account number - digits only, 9-18 chars
-  if (!/^[0-9]{9,18}$/.test(bankAccountNumber)) {
+  if (bankAccountNumber && !/^[0-9]{9,18}$/.test(bankAccountNumber)) {
     return { error: "Bank account number should be 9-18 digits." };
   }
 
