@@ -99,7 +99,8 @@ export default async function TicketsPage({
         initialRefunds={refunds}
       />
 
-      <section className="mx-auto max-w-3xl px-4 pt-4">
+      <section className="mx-auto max-w-4xl px-4 pb-10">
+        <h2 className="mb-3 flex items-center gap-2 text-lg font-bold">
         <div className="glass rounded-3xl p-5">
           <h2 className="mb-3 flex items-center gap-2 text-base font-bold">
             <Award className="h-4 w-4 text-violet-neon" />
@@ -135,8 +136,8 @@ export default async function TicketsPage({
                 </div>
               ));
             })}
+            </div>
           </div>
-        </div>
       </section>
     </div>
   );
