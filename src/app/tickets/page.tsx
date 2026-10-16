@@ -1,12 +1,15 @@
 import { redirect } from "next/navigation";
 
+import { BADGE_TONES, cn, formatDateTime } from "@/modules/shared";
+import { Award } from "lucide-react";
+
 import { TicketsRealtimeWrapper } from "@/modules/web";
 import { ReviewForm } from "@/modules/web";
 import { getCurrentUser } from "@/modules/shared/server";
 import { listMyOrders, listMyTickets } from "@/modules/shared/server";
 import { listMyRefunds } from "@/modules/shared/server";
 import { getOrganizerWhatsappNumber } from "@/modules/shared/server";
-import { getReviewableEvents } from "@/modules/shared/server";
+import { getReviewableEvents, getUserBadgeDetails } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
 
@@ -21,12 +24,13 @@ export default async function TicketsPage({
   if (!user) redirect("/login?next=%2Ftickets");
 
   const { submitted, review, success } = await searchParams;
-  const [orders, tickets, refunds, whatsappNumber, reviewableEvents] = await Promise.all([
+  const [orders, tickets, refunds, whatsappNumber, reviewableEvents, badges] = await Promise.all([
     listMyOrders(user),
     listMyTickets(user),
     listMyRefunds(user),
     getOrganizerWhatsappNumber(),
     getReviewableEvents(user.id),
+    getUserBadgeDetails(user.id),
   ]);
 
   // If review=eventId is in the URL, show the review form for that event
@@ -94,6 +98,35 @@ export default async function TicketsPage({
         initialTickets={tickets}
         initialRefunds={refunds}
       />
+
+      {badges.length > 0 && (
+        <section className="mx-auto max-w-3xl px-4 pt-4">
+          <div className="glass rounded-3xl p-5">
+            <h2 className="mb-3 flex items-center gap-2 text-base font-bold">
+              <Award className="h-4 w-4 text-violet-neon" />
+              Your badges
+            </h2>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {badges.map((b) => (
+                <div key={b.key} className="rounded-2xl border border-white/10 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-bold", BADGE_TONES[b.key])}>
+                      {b.label}
+                    </span>
+                    {b.earnedAt && (
+                      <span className="text-[10px] text-muted">{formatDateTime(b.earnedAt)}</span>
+                    )}
+                  </div>
+                  <p className="mt-1.5 text-xs text-muted">{b.hint}</p>
+                  {b.communityName && (
+                    <p className="mt-1 text-[10px] font-semibold text-violet-neon">{b.communityName}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

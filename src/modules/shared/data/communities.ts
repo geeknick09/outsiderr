@@ -667,7 +667,7 @@ export async function listMyCommunityMemberships(
     .from("community_members")
     .select("community_id")
     .eq("user_id", user.id)
-    .eq("status", "APPROVED");
+    .eq("status", "ACCEPTED");
   const ids = (data ?? []).map((m) => m.community_id);
   if (!ids.length) return [];
   const { data: comms } = await supabase
