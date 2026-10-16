@@ -80,10 +80,6 @@ export default async function ProfilePage() {
         </section>
       ) : null}
 
-      <FollowingSection
-        organizers={followedOrgs}
-        communities={followedComms}
-      />
 
       <EditProfileForm
         initialName={profile?.fullName ?? user.name}
@@ -124,6 +120,11 @@ export default async function ProfilePage() {
           </div>
         )}
       </section>
+
+      <FollowingSection
+        organizers={followedOrgs}
+        communities={followedComms}
+      />
     </div>
   );
 }
