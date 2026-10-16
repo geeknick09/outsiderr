@@ -84,6 +84,12 @@ export default async function ListYourEventPage() {
             >
               Explore Communities
             </Link>
+            <Link
+              href="/"
+              className="w-full rounded-2xl border border-zinc-200 px-8 py-4 text-center text-base font-semibold text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10 sm:w-auto"
+            >
+              Explore Events
+            </Link>
           </div>
           <p className="mt-4 text-xs text-muted">
             Free to create. We only take a small share when you actually sell.
