@@ -5,8 +5,6 @@ import { getCurrentUser } from "@/modules/shared/server";
 import { getUserProfile } from "@/modules/shared/server";
 import { listFollowedOrganizers, listMyCommunityMemberships } from "@/modules/shared/server";
 import { listFollowedCommunities } from "@/modules/shared/server";
-import { BADGE_LEVELS, BADGE_TONES } from "@/modules/shared";
-import { cn } from "@/modules/shared";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
