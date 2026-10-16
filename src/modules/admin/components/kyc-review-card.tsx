@@ -116,8 +116,8 @@ export function KycReviewCard({ submission }: { submission: KycSubmission }) {
           <p className="text-sm text-muted">{submission.aboutText || "No about section provided."}</p>
         </div>
         <div>
-          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Organizer intent</p>
-          <p className="text-sm text-muted">{submission.organizerIntent || "No organizer intent provided."}</p>
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Intent</p>
+          <p className="text-sm text-muted">{submission.organizerIntent || "No intent provided."}</p>
         </div>
       </div>
 

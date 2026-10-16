@@ -53,7 +53,7 @@ const CHANGE_FIELD_LABELS: Record<string, string> = {
   bank_account_name: "Account holder name",
   bank_account_type: "Account type",
   bank_document_url: "Bank proof document",
-  organizer_intent: "Organizer intent",
+  organizer_intent: "Intent",
   upi_id: "UPI ID",
 };
 
@@ -291,8 +291,8 @@ export function KycReviewTable({ submissions, adminEmail }: { submissions: KycSu
                 <p className="text-sm text-muted">{selected.aboutText || "No about section provided."}</p>
               </div>
               <div>
-                <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Organizer intent</p>
-                <p className="text-sm text-muted">{selected.organizerIntent || "No organizer intent provided."}</p>
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Intent</p>
+                <p className="text-sm text-muted">{selected.organizerIntent || "No intent provided."}</p>
               </div>
             </div>
 

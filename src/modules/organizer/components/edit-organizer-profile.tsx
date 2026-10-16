@@ -278,7 +278,7 @@ export function EditOrganizerProfile({
               effect - your verified details stay active meanwhile.
             </p>
             <label className="block space-y-1">
-              <span className="text-xs text-muted">Organizer intent <span className="normal-case">(what kind of events you&apos;ll host)</span></span>
+              <span className="text-xs text-muted">Intent <span className="normal-case">(what kind of events you&apos;ll host)</span></span>
               <textarea
                 name="organizerIntent"
                 rows={2}

@@ -339,7 +339,7 @@ export function BecomeOrganizerForm() {
                   </label>
 
                   <label className={LABEL}>
-                    <span className={LABEL_TEXT}>Organizer intent <span className="normal-case text-zinc-400">(what events or vision you want to build)</span></span>
+                    <span className={LABEL_TEXT}>Intent <span className="normal-case text-zinc-400">(what events or vision you want to build)</span></span>
                     <textarea
                       rows={3}
                       maxLength={500}
