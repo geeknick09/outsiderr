@@ -44,6 +44,31 @@ export function BecomeOrganizerForm() {
   }, [state.success, router]);
 
   const formRef = useRef<HTMLFormElement>(null);
+  // Track session uploads so abandoned media gets cleaned from the bucket.
+  const uploadedUrlsRef = useRef<Set<string>>(new Set());
+  const submittedRef = useRef(false);
+
+  useEffect(() => {
+    if (state.success) submittedRef.current = true;
+  }, [state.success]);
+
+  // If the user leaves mid-wizard (back, close tab, navigate away) without
+  // submitting, fire-and-forget a cleanup of everything they uploaded.
+  useEffect(() => {
+    const flush = () => {
+      if (submittedRef.current || uploadedUrlsRef.current.size === 0) return;
+      navigator.sendBeacon(
+        "/api/v1/organizer/cleanup-uploads",
+        new Blob([JSON.stringify({ urls: [...uploadedUrlsRef.current] })], { type: "application/json" }),
+      );
+      uploadedUrlsRef.current.clear();
+    };
+    window.addEventListener("pagehide", flush);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      flush(); // covers in-app navigation away (component unmount)
+    };
+  }, []);
   const [step, setStep] = useState<StepIndex>(0);
 
   // Step 1 - Profile
@@ -100,7 +125,7 @@ export function BecomeOrganizerForm() {
     try {
       const compressed = await compressImage(file);
       const url = await uploadPublicFile(compressed, `${safeOrg}/profile`);
-      if (url) setAvatarUrl(url);
+      if (url) { setAvatarUrl(url); uploadedUrlsRef.current.add(url); }
       else setUploadError("Upload failed. Paste an image URL instead.");
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed.");
@@ -122,7 +147,10 @@ export function BecomeOrganizerForm() {
     setter(true);
     try {
       const url = await uploadPublicFile(file, `organizer-kyc/${kind}`);
-      if (url) (kind === "pan" ? setPanDocumentUrl : setBankDocumentUrl)(url);
+      if (url) {
+        (kind === "pan" ? setPanDocumentUrl : setBankDocumentUrl)(url);
+        uploadedUrlsRef.current.add(url);
+      }
       else setErr("Upload failed - try again.");
     } catch (err) {
       setErr(err instanceof Error ? err.message : "Upload failed.");
