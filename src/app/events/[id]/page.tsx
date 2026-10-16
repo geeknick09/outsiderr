@@ -315,10 +315,19 @@ export default async function EventDetailsPage({
           </div>
 
           <section className="glass rounded-3xl p-5">
-            <h2 className="mb-2 text-base font-bold">About Event</h2>
-            <p className="whitespace-pre-line text-sm leading-relaxed text-muted">
-              {event.description}
-            </p>
+            <h2 className="mb-3 text-base font-bold">About Event</h2>
+            <ul className="space-y-2 text-sm text-muted">
+              {event.description
+                .split("\n")
+                .map((l) => l.trim())
+                .filter(Boolean)
+                .map((line) => (
+                  <li key={line} className="flex gap-2 leading-relaxed">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-neon" />
+                    {line}
+                  </li>
+                ))}
+            </ul>
           </section>
 
           <PhotoGallery photos={event.photoUrls} title={event.title} />

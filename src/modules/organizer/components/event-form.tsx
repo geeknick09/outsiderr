@@ -10,7 +10,7 @@ import { PhoneInput } from "@/modules/shared";
 import { GalleryUploader } from "./gallery-uploader";
 import { PosterGuidelines } from "./poster-guidelines";
 import { PastEditionsPicker } from "./past-editions-picker";
-import { CATEGORIES, tagsForCategories, CityPicker } from "@/modules/shared";
+import { CATEGORIES, tagsForCategories, CityPicker, DEFAULT_EVENT_TERMS } from "@/modules/shared";
 import { nowISTInput, utcToISTInput } from "@/modules/shared";
 import { uploadPublicFile, compressImage } from "@/modules/shared";
 import { ImageCropper } from "@/modules/shared";
@@ -705,37 +705,44 @@ export function EventForm({
         </>
       )}
 
-        <Field label="About the event *">
+        <Field label="About the event - one point per line *">
           <textarea
             name="description"
             rows={4}
             required
             defaultValue={sv?.description ?? ""}
+            placeholder={"A rooftop sundowner set by local artists\nLimited seats - early entry recommended\nFree parking available at the venue"}
             className={INPUT}
           />
+          <p className="mt-1 text-[11px] text-muted">Each line shows as a bullet point on the event page.</p>
         </Field>
         <div id="create-information" className="scroll-mt-36 space-y-4">
-        <Field label="Things to know (one per line) *">
+        <Field label="Things to know - one point per line *">
           <textarea
             name="thingsToKnow"
             rows={3}
             required
             defaultValue={sv?.thingsToKnow ?? ""}
+            placeholder={"Doors open 30 minutes before the show\nOutside food and drinks are not allowed\nSeating is first-come, first-served"}
             className={INPUT}
           />
+          <p className="mt-1 text-[11px] text-muted">Each line shows as a bullet point on the event page.</p>
         </Field>
 
         {/* Tag chip picker */}
         <TagPicker initialTags={sv?.tags ? sv.tags.split(",").filter(Boolean) : []} categories={selCategories} />
 
-        <Field label="Terms & conditions (one per line) *">
+        <Field label="Terms & conditions - one point per line *">
           <textarea
             name="terms"
-            rows={3}
+            rows={6}
             required
-            defaultValue={sv?.terms ?? ""}
+            defaultValue={sv?.terms ?? DEFAULT_EVENT_TERMS.join("\n")}
             className={INPUT}
           />
+          <p className="mt-1 text-[11px] text-muted">
+            Prefilled with Outsiderr&apos;s default terms - edit or add your own lines as needed.
+          </p>
         </Field>
         </div>
       </section>

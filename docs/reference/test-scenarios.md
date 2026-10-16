@@ -113,6 +113,11 @@
 - [x] Save as draft → verify event appears in “Drafts” tab
 - [x] Publish event → verify event appears in “Published” tab
 
+- [ ] Create form: Terms & conditions is prefilled with Outsiderr's default terms; the note says it can be edited
+- [ ] About / Things to know / Terms fields show "one point per line" + example placeholder lines
+- [ ] Public event page renders About as a bullet list (one bullet per non-empty line)
+- [ ] Custom terms replace the defaults - saved lines show in the terms accordion
+
 ### 3.2 Pricing Modes
 
 - [x] Create FREE event → verify no price fields
