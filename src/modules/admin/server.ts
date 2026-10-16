@@ -7,3 +7,4 @@ export * from "./data/kyc";
 export * from "./data/legal-pages";
 export * from "./data/compliance";
 export * from "./data/campaigns";
+export * from "./data/overview";

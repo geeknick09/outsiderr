@@ -1248,6 +1248,15 @@ npx next build
 - [ ] Traffic donut pie renders once data exists (views/shares > 0)
 - [ ] Sharing an event/community via the share icon increments Shares on next load
 
+### 31.5 Overview Filters & Drill-down
+
+- [ ] `/admin` shows Creators, Communities, Users, New users, Viewed-never-booked, Admins cards
+- [ ] City dropdown + From/To dates -> Apply filters event-scoped stats (events/orders/revenue/boosts/communities)
+- [ ] Click a card -> modal lists the underlying rows (up to 500) + Export CSV downloads a file that opens in Excel
+- [ ] "Viewed, never booked" card -> modal lists signed-in viewers with no confirmed order
+- [ ] "Admins" card -> lists every is_admin account
+- [ ] Clear link resets to unfiltered global numbers
+
 ### 31.4 Organizer Tracking
 
 - [ ] `/admin/organizers/<id>` shows Owner contact (name/phone/email), KYC status, Bank/Payout section
@@ -1288,7 +1297,7 @@ npx next build
 | Communities & Promoters | 28.1–28.5 | ☐ |
 | Communities Polish & Gates | 29.1–29.4 | ☐ |
 | Campaigns, Virality & Gates | 30.1–30.4 | ☐ |
-| Admin Tracking Tabs | 31.1–31.4 | ☐ |
+| Admin Tracking Tabs | 31.1–31.5 | ☐ |
 
 ### 2.5 KYC Polish & Thread
 
