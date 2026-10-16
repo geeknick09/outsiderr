@@ -10,3 +10,4 @@ export * from "./components/sales-trend-chart";
 export * from "./components/organizer-payments-panel";
 export * from "./components/virality-panel";
 export * from "./components/growth-panel";
+export * from "./components/warm-audience-panel";

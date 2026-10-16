@@ -40,7 +40,7 @@ const NODES = [
   {
     icon: TrendingUp,
     title: "Member growth & virality",
-    description: "Track member counts, referred joins vs direct joins, and your community's virality coefficient in analytics.",
+    description: "Member counts, referred vs direct joins, virality coefficient - plus your warm audience: signed-in users who viewed your page but haven't joined or bought yet. And more lands every release.",
   },
   {
     icon: Award,

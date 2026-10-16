@@ -160,3 +160,75 @@ export async function getOrganizerVirality(organizerId: string): Promise<{
   entities.sort((a, b) => b.k - a.k || b.referred - a.referred);
   return { overall: { referred: tRef, organic: tOrg, k: k(tRef, tOrg) }, entities };
 }
+
+export interface WarmLead {
+  userName: string;
+  entityType: "EVENT" | "COMMUNITY";
+  entityName: string;
+  lastViewedAt: string;
+}
+
+/** Organizer's "warm audience": signed-in users who viewed their events or
+ * communities but never bought a ticket / joined. Retargeting list. */
+export async function getWarmAudience(organizerId: string, limit = 50): Promise<WarmLead[]> {
+  const service = createServiceClient();
+  const [{ data: evs }, { data: comms }] = await Promise.all([
+    service.from("events").select("id, title").eq("organizer_id", organizerId),
+    service.from("communities").select("id, name").eq("owner_id", organizerId),
+  ]);
+  const evMap = new Map((evs ?? []).map((e) => [e.id, e.title]));
+  const commMap = new Map((comms ?? []).map((c) => [c.id, c.name]));
+  const allIds = [...evMap.keys(), ...commMap.keys()];
+  if (!allIds.length) return [];
+
+  const { data: views } = await service
+    .from("page_views")
+    .select("user_id, entity_type, entity_id, created_at")
+    .in("entity_id", allIds)
+    .order("created_at", { ascending: false })
+    .limit(5000);
+  if (!views?.length) return [];
+
+  // Latest view per user per entity.
+  const lastView = new Map<string, { entityType: string; entityId: string; at: string }>();
+  for (const v of views) {
+    const k = `${v.user_id}:${v.entity_id}`;
+    if (!lastView.has(k)) {
+      lastView.set(k, { entityType: v.entity_type, entityId: v.entity_id, at: v.created_at });
+    }
+  }
+  const viewerIds = [...new Set([...lastView.keys()].map((k) => k.split(":")[0]))];
+
+  const [{ data: buyers }, { data: members }] = await Promise.all([
+    service.from("orders").select("user_id, event_id").in("event_id", [...evMap.keys()]).eq("status", "CONFIRMED"),
+    commMap.size
+      ? service.from("community_members").select("user_id, community_id").in("community_id", [...commMap.keys()])
+      : Promise.resolve({ data: [] }),
+  ]);
+  const bought = new Set((buyers ?? []).map((o) => `${o.user_id}:${o.event_id}`));
+  const joined = new Set((members ?? []).map((m) => `${m.user_id}:${m.community_id}`));
+
+  const leads: { userId: string; entityType: "EVENT" | "COMMUNITY"; entityId: string; at: string }[] = [];
+  for (const [k, v] of lastView) {
+    const userId = k.split(":")[0];
+    if (v.entityType === "EVENT" && evMap.has(v.entityId) && !bought.has(k)) {
+      leads.push({ userId, entityType: "EVENT", entityId: v.entityId, at: v.at });
+    }
+    if (v.entityType === "COMMUNITY" && commMap.has(v.entityId) && !joined.has(k)) {
+      leads.push({ userId, entityType: "COMMUNITY", entityId: v.entityId, at: v.at });
+    }
+  }
+  leads.sort((a, b) => b.at.localeCompare(a.at));
+
+  const { data: profs } = viewerIds.length
+    ? await service.from("profiles").select("id, full_name").in("id", viewerIds.slice(0, 1000))
+    : { data: [] };
+  const nameMap = new Map((profs ?? []).map((p) => [p.id, p.full_name]));
+
+  return leads.slice(0, limit).map((l) => ({
+    userName: nameMap.get(l.userId) ?? "Someone",
+    entityType: l.entityType,
+    entityName: l.entityType === "EVENT" ? (evMap.get(l.entityId) ?? "-") : (commMap.get(l.entityId) ?? "-"),
+    lastViewedAt: l.at,
+  }));
+}

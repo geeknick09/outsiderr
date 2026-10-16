@@ -1,5 +1,5 @@
-import { AggregatedAnalytics, AudienceAnalytics, OrganizerPaymentsPanel, ViralityPanel } from "@/modules/analytics";
-import { getOrganizerVirality } from "@/modules/analytics/server";
+import { AggregatedAnalytics, AudienceAnalytics, OrganizerPaymentsPanel, ViralityPanel, WarmAudiencePanel } from "@/modules/analytics";
+import { getOrganizerVirality, getWarmAudience } from "@/modules/analytics/server";
 import { KycStatusBanner } from "@/modules/organizer";
 import { OrganizerKycRealtimeRefresher } from "@/modules/organizer";
 import { PremiumGate } from "@/modules/organizer";
@@ -36,7 +36,7 @@ export default async function OrganizerAnalyticsPage() {
     new Date(organizerProfile.premiumUntil).getTime() > Date.now();
   const windowDays = isPremium ? 180 : 90;
 
-  const [analyticsData, dailyRevenue, paymentSummary, audience, premiumGate, premiumPlans, communities, virality] =
+  const [analyticsData, dailyRevenue, paymentSummary, audience, premiumGate, premiumPlans, communities, virality, warmAudience] =
     await Promise.all([
       Promise.all(allEvents.map((event) => getOrganizerEventAnalytics(user, event.id))),
       getOrganizerDailyRevenue(user, 30),
@@ -46,6 +46,7 @@ export default async function OrganizerAnalyticsPage() {
       getPremiumPlans(),
       listMyCommunities(user),
       getOrganizerVirality(organizerProfile.id),
+      getWarmAudience(organizerProfile.id),
     ]);
   const communityStats = await Promise.all(
     communities.map(async (c) => ({ community: c, stats: await getCommunityAnalytics(c.id) })),
@@ -125,6 +126,8 @@ export default async function OrganizerAnalyticsPage() {
             />
           </div>
         ) : null}
+
+        <WarmAudiencePanel leads={warmAudience} />
 
         {communities.length ? (
           <div>

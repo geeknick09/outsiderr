@@ -302,3 +302,9 @@ Last updated: 2026-10-08
   features, Razorpay money stack, campaigns/promoters, 5-step how-it-works.
 - community_max_per_organizer (default 10, admin Settings -> Other)
   enforced in createCommunity for organizer-owned communities.
+
+
+## Warm audience (2026-10-11)
+- getWarmAudience(organizerId): signed-in page_viewers of the org's
+  events/communities minus buyers/members - "Interested, not converted
+  yet" table on /organizer/analytics.
