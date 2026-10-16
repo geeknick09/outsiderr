@@ -65,10 +65,10 @@ export function FeatureOrbit() {
         <div className="absolute inset-[21%] rounded-full border border-white/5" />
 
         {/* center hub - shows the selected node's detail */}
-        <div className="glass absolute left-1/2 top-1/2 flex h-52 w-52 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border-violet-neon/30 p-6 text-center">
-          <Node.icon className="h-7 w-7 text-violet-neon" />
-          <p className="mt-2 text-sm font-bold leading-tight">{Node.title}</p>
-          <p className="mt-1.5 text-[11px] leading-snug text-muted">{Node.description}</p>
+        <div className="glass absolute left-1/2 top-1/2 flex h-64 w-64 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border-violet-neon/30 p-7 text-center lg:h-72 lg:w-72">
+          <Node.icon className="h-9 w-9 text-violet-neon" />
+          <p className="mt-2.5 text-base font-bold leading-tight">{Node.title}</p>
+          <p className="mt-2 text-xs leading-snug text-muted">{Node.description}</p>
         </div>
 
         {/* orbiting nodes */}
