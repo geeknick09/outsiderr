@@ -52,9 +52,10 @@
 - [x] Step 1: Profile details
 - [x] Step 2: PAN number (validate format `ABCDE1234F`) + optional PAN card photo (JPG/PNG under 1 MB — oversized file shows error, doesn’t upload)
 - [x] Step 3: GST (optional — skip should work)
-- [x] Step 4: Bank account + IFSC (validate format `ABCD0123456`) + optional bank proof (cancelled cheque/passbook, under 1 MB)
+- [x] Step 4: Bank + UPI (**optional** - marked "optional for now", advances empty; if touched, IFSC format `ABCD0123456` + all fields required)
 - [x] Step 5: Agreement acceptance
 - [x] Verify all KYC fields saved to organizer profile (incl. `pan_document_url` / `bank_document_url`)
+- [x] PAN-only submission (bank skipped) -> `kyc_status` = PENDING for admin review
 
 ### 2.3 KYC Review States
 
@@ -69,8 +70,8 @@
 
 ### 2.3b Rejection Limit & Menu States
 
-- [x] REJECTED (any count) → navbar + footer show “List Your Event”, NOT “Organizer Dashboard”
-- [x] Only APPROVED organizers see “Organizer Dashboard” in user menu
+- [x] REJECTED (any count) → navbar + footer show “List Your Event”, NOT “Creator Dashboard”
+- [x] Only eligible organizers see “Creator Dashboard” in user menu
 - [x] Rejected below limit → `/list-your-event` shows “Get Started” → `/organizer` renders the **fresh 5-step KYC wizard** (no notice card, no resubmit panel)
 - [x] Resubmitting the wizard **overwrites** the existing organizer row (all fields + docs), flips `kyc_status` → PENDING, preserves `rejection_count`, notifies admins + logs thread
 - [x] Rejection count reaches `organizer_rejection_limit` (platform\_settings, default 5) → `/list-your-event` shows “application rejected N times — contact support” instead of CTAs
@@ -566,19 +567,19 @@
 - [ ] Verify revenue by event (top 5)
 - [ ] Verify draft events excluded from aggregate metrics
 
-## 13\. Boosting & Promotions
+## 13\. Boosting & Promotions (superseded by §30 Campaigns tab)
 
 ### 13.1 Slot Boost
 
-- [ ] As Organizer A, navigate to `/organizer/boost?event=[id]`
-- [ ] Pick event + slot + duration → verify total = per-day price × days
+- [ ] As Organizer A, navigate to `/organizer/campaigns?event=[id]` (old `/organizer/boost` redirects)
+- [ ] Pick event + slot + placement (Home/Communities/Both) + duration → verify total = per-day price × days
 - [ ] “Pay” → Razorpay Checkout opens with the same amount → pay with test card
-- [ ] Verify boost activates instantly and the event appears in the featured carousel
+- [ ] Verify boost activates instantly and the event appears in the Sponsored strip on the chosen surface
 - [ ] Try to boost a slot that just got taken → payment succeeds but auto-refund lands (boost REJECTED, PENDING refund in admin queue)
 
 ### 13.2 Hero Boost
 
-- [ ] As Organizer A, purchase Hero Boost from event management page
+- [ ] As Organizer A, purchase Feature from `/organizer/campaigns` (Feature tab) or the event manage page
 - [ ] Razorpay Checkout opens with the price from platform settings (₹999 default) → pay with test card
 - [ ] Verify boost activates instantly after capture (`expires_at` = min(duration, event start))
 - [ ] As admin, verify boost in `/admin/hero-boosts`
@@ -589,9 +590,10 @@
 
 ## 14\. Clubs & Crews
 
-### 14.1 Create Club
+### 14.1 Create Club (community - organizer profile required)
 
-- [ ] Navigate to club creation form
+- [ ] Non-organizer sees "Set up your creator profile first" + Become a Creator CTA on `/communities/create`
+- [ ] As organizer, navigate to club creation form
 - [ ] Fill club name, description, display picture, cover photo
 - [ ] Set UPI ID for paid membership
 - [ ] Verify QR code generates
