@@ -23,7 +23,7 @@
 - [x] Verify redirect to home page after registration
 - [x] Log out, log back in
 - [x] Verify “My Profile” link appears in navbar user menu
-- [x] Verify “List Your Event” label shows for non-organizers
+- [x] Verify “Become a Creator” label shows for non-organizers
 - [x] Verify “Manage Your Events” label shows for organizers
 
 ### 1.2 User Profile
@@ -38,7 +38,8 @@
 
 ### 2.1 Become an Organizer
 
-- [x] Click “List Your Event” in profile menu → lands on `/list-your-event`
+- [x] Click “Become a Creator” in profile menu → lands on `/list-your-event` (hero: “Create on Outsiderr”)
+- [ ] Hero covers events + communities + crews + discovery; CTA reads “Start Creating - It’s Free” (organizers see “Go to Creator Dashboard”)
 - [x] Click “Get Started” → redirects to `/organizer`
 - [x] Fill become-organizer form (name, bio, photo, cover photo, UPI ID)
 - [x] Verify UPI ID validation (accepts `name@upi`, rejects invalid formats)
@@ -70,9 +71,9 @@
 
 ### 2.3b Rejection Limit & Menu States
 
-- [x] REJECTED (any count) → navbar + footer show “List Your Event”, NOT “Creator Dashboard”
+- [x] REJECTED (any count) → navbar + footer show “Become a Creator”, NOT “Creator Dashboard”
 - [x] Only eligible organizers see “Creator Dashboard” in user menu
-- [x] Rejected below limit → `/list-your-event` shows “Get Started” → `/organizer` renders the **fresh 5-step KYC wizard** (no notice card, no resubmit panel)
+- [x] Rejected below limit → `/list-your-event` shows “Start Creating” → `/organizer` renders the **fresh 5-step KYC wizard** (no notice card, no resubmit panel)
 - [x] Resubmitting the wizard **overwrites** the existing organizer row (all fields + docs), flips `kyc_status` → PENDING, preserves `rejection_count`, notifies admins + logs thread
 - [x] Rejection count reaches `organizer_rejection_limit` (platform\_settings, default 5) → `/list-your-event` shows “application rejected N times — contact support” instead of CTAs
 - [x] Blocked user visiting `/organizer` directly → “Organizer access blocked” panel (no wizard, no dashboard)
