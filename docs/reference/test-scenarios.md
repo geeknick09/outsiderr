@@ -1162,6 +1162,11 @@ npx next build
 - [ ] Organizer community manage page: same cover spec + avatar overlap
 - [ ] Community listing cards: cover 16:9 + overlapping avatar; no-photo communities show a name-hashed gradient + initials (distinct per community, stable across reloads)
 
+### 29.1b Community Landing Timeline & Join
+
+- [ ] Events section is a scrollable timeline: past events grayed + "Past" tag above a glowing "Now" divider, upcoming below; scroll down reveals future events
+- [ ] Join/Request-to-join button centered (not stretched full-width) on desktop; still full-width on mobile
+
 ### 29.2 Social Links & Subcategories
 
 - [ ] Community landing shows icon-only links: Instagram, YouTube, X (real X glyph), Facebook, LinkedIn, website (globe) - no raw @handle or URLs
