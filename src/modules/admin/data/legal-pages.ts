@@ -97,16 +97,22 @@ export interface LegalPageVersion {
   content: string;
   isPublished: boolean;
   createdAt: string;
+  savedByEmail: string | null;
 }
 
 export async function listLegalPageVersions(slug: string): Promise<LegalPageVersion[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("legal_page_versions")
-    .select("id, version, title, content, is_published, created_at")
+    .select("id, version, title, content, is_published, created_at, saved_by")
     .eq("slug", slug)
     .order("version", { ascending: false })
     .limit(10);
+  const saverIds = [...new Set((data ?? []).map((r) => r.saved_by).filter(Boolean))] as string[];
+  const { data: savers } = saverIds.length
+    ? await supabase.from("profiles").select("id, email").in("id", saverIds)
+    : { data: [] };
+  const emailMap = new Map((savers ?? []).map((p) => [p.id, p.email]));
   return (data ?? []).map((r) => ({
     id: r.id,
     version: r.version,
@@ -114,6 +120,7 @@ export async function listLegalPageVersions(slug: string): Promise<LegalPageVers
     content: r.content,
     isPublished: r.is_published,
     createdAt: r.created_at,
+    savedByEmail: emailMap.get(r.saved_by ?? "") ?? null,
   }));
 }
 

@@ -253,7 +253,7 @@ function VersionHistory({
   onClose: () => void;
 }) {
   const [versions, setVersions] = useState<
-    { id: string; version: number; title: string; content: string; isPublished: boolean; createdAt: string }[]
+    { id: string; version: number; title: string; content: string; isPublished: boolean; createdAt: string; savedByEmail: string | null }[]
   >([]);
   const [loading, setLoading] = useState(true);
   const [viewing, setViewing] = useState<string | null>(null);
@@ -287,7 +287,7 @@ function VersionHistory({
         <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
           <div>
             <h3 className="text-lg font-black">Version history</h3>
-            <p className="text-xs text-muted">/legal/{slug} · live v{currentVersion}</p>
+            <p className="text-xs text-muted">{slug} · live v{currentVersion}</p>
           </div>
           <button onClick={onClose} className="text-muted hover:text-foreground">
             <X className="h-5 w-5" />
@@ -318,7 +318,10 @@ function VersionHistory({
                         DRAFT
                       </span>
                     ) : null}
-                    <span className="text-xs text-muted">{formatDateTime(v.createdAt)}</span>
+                    <span className="text-xs text-muted">
+                      {formatDateTime(v.createdAt)}
+                      {v.savedByEmail ? ` · by ${v.savedByEmail}` : ""}
+                    </span>
                     <div className="ml-auto flex gap-2">
                       <button
                         type="button"

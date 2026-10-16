@@ -58,7 +58,7 @@ export async function deleteLegalPageAction(slug: string): Promise<{ error: stri
 }
 
 export async function listLegalPageVersionsAction(slug: string): Promise<{
-  versions: { id: string; version: number; title: string; content: string; isPublished: boolean; createdAt: string }[];
+  versions: { id: string; version: number; title: string; content: string; isPublished: boolean; createdAt: string; savedByEmail: string | null }[];
   error?: string;
 }> {
   try {

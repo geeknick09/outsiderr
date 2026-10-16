@@ -9543,3 +9543,7 @@ create policy "admins read legal versions" on public.legal_page_versions
 drop policy if exists "admins insert legal versions" on public.legal_page_versions;
 create policy "admins insert legal versions" on public.legal_page_versions
   for insert to authenticated with check (public.is_current_user_admin());
+
+-- Unique (slug,version) so upserts/conflict handling work + no dup history rows.
+create unique index if not exists legal_page_versions_slug_version_key
+  on public.legal_page_versions(slug, version);
