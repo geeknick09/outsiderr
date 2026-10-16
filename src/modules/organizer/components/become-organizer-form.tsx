@@ -192,7 +192,7 @@ export function BecomeOrganizerForm() {
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-8 text-center">
-        <h1 className="text-3xl font-black tracking-tight">Become an Organizer</h1>
+        <h1 className="text-3xl font-black tracking-tight">Become a Creator</h1>
         <p className="mt-2 text-sm text-muted">
           Set up your profile to publish events, sell tickets, and grow your community.
         </p>
@@ -271,7 +271,7 @@ export function BecomeOrganizerForm() {
               {/* ── Step 0: Profile ────────────────────────────── */}
               {step === 0 && (
                 <div className="space-y-4">
-                  <StepHeader title="Create your organizer profile" subtitle="This is your public identity on Outsiderr." />
+                  <StepHeader title="Create your creator profile" subtitle="This is your public identity on Outsiderr." />
 
                   <label className={LABEL}>
                     <span className={LABEL_TEXT}>Organizer / Brand name *</span>
@@ -647,7 +647,7 @@ export function BecomeOrganizerForm() {
                     loadingText="Creating profile…"
                     className="px-8"
                   >
-                    Submit & Become an Organizer
+                    Submit & Become a Creator
                   </Button>
                 )}
               </div>
