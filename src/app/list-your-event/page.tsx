@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
+  Award,
   BarChart3,
   CalendarDays,
   CreditCard,
@@ -73,16 +74,16 @@ export default async function ListYourEventPage() {
           ) : null}
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
-              href="/organizer"
-              className="w-full rounded-2xl bg-neon-gradient px-8 py-4 text-center text-base font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90 sm:w-auto"
-            >
-              {isApproved ? "Go to Creator Dashboard" : "Start Creating - It's Free"}
-            </Link>
-            <Link
               href="/communities"
               className="w-full rounded-2xl border border-zinc-200 px-8 py-4 text-center text-base font-semibold text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10 sm:w-auto"
             >
               Explore Communities
+            </Link>
+            <Link
+              href="/organizer"
+              className="w-full rounded-2xl bg-neon-gradient px-8 py-4 text-center text-base font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90 sm:w-auto"
+            >
+              {isApproved ? "Go to Creator Dashboard" : "Start Creating - It's Free"}
             </Link>
             <Link
               href="/"
@@ -162,6 +163,11 @@ export default async function ListYourEventPage() {
               icon={TrendingUp}
               title="Member growth & virality"
               description="Track member counts, referred joins vs direct joins, and your community's virality coefficient in analytics."
+            />
+            <Feature
+              icon={Award}
+              title="Members earn badges"
+              description="Consistency pays - Outsiderr rewards your regulars automatically: attendance badges from First Event to Community Champion, plus Founding Member and Connector badges for early joins and referrals."
             />
           </div>
         </div>
