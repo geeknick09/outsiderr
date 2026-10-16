@@ -34,6 +34,22 @@ export default async function ProfilePage() {
         </p>
       </div>
 
+
+      <EditProfileForm
+        initialName={profile?.fullName ?? user.name}
+        initialPhone={profile?.phone ?? user.phone ?? ""}
+        initialEmail={user.email ?? ""}
+        initialBirthDate={profile?.birthDate ?? ""}
+        initialGender={profile?.gender ?? ""}
+        initialAvatarUrl={profile?.avatarUrl ?? ""}
+        initialInstagramUrl={profile?.instagramUrl ?? ""}
+        initialYoutubeUrl={profile?.youtubeUrl ?? ""}
+        initialXUrl={profile?.xUrl ?? ""}
+        initialFacebookUrl={profile?.facebookUrl ?? ""}
+        initialLinkedinUrl={profile?.linkedinUrl ?? ""}
+        initialTags={profile?.interestedTags ?? []}
+      />
+
       <section className="glass rounded-3xl p-5">
         <h2 className="mb-3 text-base font-bold">Your badges</h2>
         <div className="grid gap-2 sm:grid-cols-2">
@@ -68,22 +84,6 @@ export default async function ProfilePage() {
           })}
         </div>
       </section>
-
-
-      <EditProfileForm
-        initialName={profile?.fullName ?? user.name}
-        initialPhone={profile?.phone ?? user.phone ?? ""}
-        initialEmail={user.email ?? ""}
-        initialBirthDate={profile?.birthDate ?? ""}
-        initialGender={profile?.gender ?? ""}
-        initialAvatarUrl={profile?.avatarUrl ?? ""}
-        initialInstagramUrl={profile?.instagramUrl ?? ""}
-        initialYoutubeUrl={profile?.youtubeUrl ?? ""}
-        initialXUrl={profile?.xUrl ?? ""}
-        initialFacebookUrl={profile?.facebookUrl ?? ""}
-        initialLinkedinUrl={profile?.linkedinUrl ?? ""}
-        initialTags={profile?.interestedTags ?? []}
-      />
 
       <section className="glass rounded-3xl p-5">
         <h2 className="mb-3 text-base font-bold">Communities</h2>
