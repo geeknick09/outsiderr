@@ -1,16 +1,17 @@
-import { getUserAnalytics, getPaymentAnalytics, getOrganizerAnalytics, getPlatformVirality } from "@/modules/analytics/server";
-import { AnalyticsChartsLazy, ViralityPanel } from "@/modules/analytics";
+import { getUserAnalytics, getPaymentAnalytics, getOrganizerAnalytics, getPlatformVirality, getGrowthMetrics } from "@/modules/analytics/server";
+import { AnalyticsChartsLazy, ViralityPanel, GrowthPanel } from "@/modules/analytics";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Admin: Analytics - Outsiderr" };
 
 export default async function AdminAnalyticsPage() {
-  const [userAnalytics, paymentAnalytics, organizerAnalytics, virality] = await Promise.all([
+  const [userAnalytics, paymentAnalytics, organizerAnalytics, virality, growth] = await Promise.all([
     getUserAnalytics(),
     getPaymentAnalytics(),
     getOrganizerAnalytics(),
     getPlatformVirality(),
+    getGrowthMetrics(),
   ]);
 
   return (
@@ -22,6 +23,14 @@ export default async function AdminAnalyticsPage() {
         </p>
       </div>
 
+      <div>
+        <h2 className="mb-2 text-lg font-bold">Growth (last 30 days)</h2>
+        <GrowthPanel metrics={growth} />
+      </div>
+
+      <div>
+        <h2 className="mb-2 text-lg font-bold">Virality</h2>
+      </div>
       <ViralityPanel
         coefficient={virality.k}
         pies={[

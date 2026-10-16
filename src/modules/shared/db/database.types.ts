@@ -538,6 +538,27 @@ export type PageViewRow = {
   created_at: string;
 }
 
+export type ComplianceTaskRow = {
+  id: string;
+  title: string;
+  kind: "REGISTRATION" | "FILING" | "POLICY_REVIEW" | "TASK";
+  due_date: string | null;
+  status: "OPEN" | "DONE";
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  done_at: string | null;
+}
+
+export type ShareEventRow = {
+  id: string;
+  entity_type: "EVENT" | "COMMUNITY" | "ORGANIZER";
+  entity_id: string;
+  user_id: string | null;
+  channel: string;
+  created_at: string;
+}
+
 export type EventReviewRow = {
   id: string;
   event_id: string;
@@ -844,6 +865,8 @@ export type Database = {
       box_office_pins: Table<BoxOfficePinRow, "event_id" | "organizer_id" | "pin_hash" | "role">;
       legal_pages: Table<LegalPageRow, "slug" | "title" | "content">;
       hero_boosts: Table<HeroBoostRow, "event_id" | "organizer_id" | "amount_paise">;
+      compliance_tasks: Table<ComplianceTaskRow, "title">;
+      share_events: Table<ShareEventRow, "entity_type" | "entity_id">;
       admin_change_log: Table<AdminChangeLogRow, "admin_id" | "table_name" | "field_name">;
       webhook_events: Table<WebhookEventRow, "razorpay_event_id" | "event_type" | "created_at">;
       payment_ledger: Table<PaymentLedgerRow, "type" | "created_at" | "organizer_id" | "event_id" | "order_id">;

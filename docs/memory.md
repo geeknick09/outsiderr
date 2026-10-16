@@ -272,3 +272,18 @@ Last updated: 2026-10-08
   default now 4. All homepage event sections are horizontal-scroll rows now.
 - Payment: slot boost + feature reuse existing intent pipelines (HERO_BOOST +
   boost SLOT flows); placement carried on the row for rendering filters.
+
+
+## Admin tracking tabs (2026-10-11)
+- /admin/compliance: manual task tracker (compliance_tasks, STEP 53) +
+  auto signals (pending KYC, unresolved refunds, open payouts, published
+  events without terms acceptance, approved organizers missing PAN).
+- Campaign results on /admin/boosts = page_views + share_events inside
+  each boost's window; /admin/boosts/[id]/invoice?type=slot|hero = receipt page.
+- share_events + logShareAction: ShareEventButton now takes entityType/entityId
+  and logs fire-and-forget on share (event + community pages).
+- Admin analytics Growth section: signed-in page_views visitors, event/community
+  views, shares, promoter clicks, signups, orders, conversion (orders/views).
+- Organizer detail: payablePaise (net ledger - open payouts) + terms accepted count.
+- box-office.db.test.ts needs 2 live paid events from different organizers -
+  _seed_dev_test.mjs now creates "DEVTEST Org Two Jam" under org2 for this.

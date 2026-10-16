@@ -5,3 +5,5 @@ export * from "./data/admin";
 export * from "./data/admin-organizers";
 export * from "./data/kyc";
 export * from "./data/legal-pages";
+export * from "./data/compliance";
+export * from "./data/campaigns";

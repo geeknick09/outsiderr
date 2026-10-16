@@ -4,7 +4,7 @@
 import {
   BarChart2, BellRing, CalendarDays, Users, Zap, Settings, FileText,
   TrendingUp, CreditCard, Wallet, LineChart, KeyRound, Store, BadgeCheck,
-  RotateCcw, Crown, Megaphone } from "lucide-react";
+  RotateCcw, Crown, Megaphone, ClipboardCheck } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export interface AdminNavItem {
@@ -32,6 +32,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
   { href: "/admin/box-office", label: "Box Office", icon: Store },
   { href: "/admin/box-office-staff", label: "Box Office Staff", icon: Users },
   { href: "/admin/box-office-pins", label: "Box Office PINs", icon: Store },
+  { href: "/admin/compliance", label: "Compliance", icon: ClipboardCheck },
   { href: "/admin/settings", label: "Settings", icon: Settings },
   { href: "/admin/legal", label: "Legal Pages", icon: FileText },
 ];

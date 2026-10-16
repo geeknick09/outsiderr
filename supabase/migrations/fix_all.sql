@@ -9477,3 +9477,43 @@ alter table public.hero_boosts add column if not exists placement text not null 
 alter table public.hero_boosts drop constraint if exists hero_boosts_placement_check;
 alter table public.hero_boosts add constraint hero_boosts_placement_check
   check (placement in ('HOME','COMMUNITIES','BOTH'));
+
+-- =============================================================================
+-- STEP 53. ADMIN COMPLIANCE + SHARE TRACKING (2026-10-11)
+-- compliance_tasks = manual tracker (registrations, filings, policy reviews,
+-- tasks). share_events = share/copy clicks for growth analytics.
+-- =============================================================================
+
+create table if not exists public.compliance_tasks (
+  id          uuid        primary key default gen_random_uuid(),
+  title       text        not null,
+  kind        text        not null default 'TASK'
+              check (kind in ('REGISTRATION','FILING','POLICY_REVIEW','TASK')),
+  due_date    date,
+  status      text        not null default 'OPEN' check (status in ('OPEN','DONE')),
+  notes       text,
+  created_by  uuid        references public.profiles(id),
+  created_at  timestamptz not null default now(),
+  done_at     timestamptz
+);
+alter table public.compliance_tasks enable row level security;
+drop policy if exists "admins manage compliance tasks" on public.compliance_tasks;
+create policy "admins manage compliance tasks" on public.compliance_tasks
+  for all to authenticated
+  using (public.is_current_user_admin())
+  with check (public.is_current_user_admin());
+
+create table if not exists public.share_events (
+  id          uuid        primary key default gen_random_uuid(),
+  entity_type text        not null check (entity_type in ('EVENT','COMMUNITY','ORGANIZER')),
+  entity_id   uuid        not null,
+  user_id     uuid        references public.profiles(id) on delete set null,
+  channel     text        not null default 'COPY',
+  created_at  timestamptz not null default now()
+);
+create index if not exists share_events_entity_idx on public.share_events(entity_type, entity_id, created_at);
+alter table public.share_events enable row level security;
+-- Anyone (incl. signed-out sharers) can log a share; reads are admin/service only.
+drop policy if exists "anyone logs share" on public.share_events;
+create policy "anyone logs share" on public.share_events
+  for insert with check (true);

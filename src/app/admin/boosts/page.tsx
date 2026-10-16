@@ -2,6 +2,7 @@ import { BoostSettingsEditor } from "@/modules/admin";
 import { HeroBoostAdminActions } from "@/modules/admin";
 import { SlotPriceEditor } from "@/modules/admin";
 import { Badge } from "@/modules/shared";
+import { getBoostResults } from "@/modules/admin/server";
 import { listBoostSlotPrices, listOccupiedSlots, listActiveBoosts } from "@/modules/shared/server";
 import { listAllHeroBoosts } from "@/modules/shared/server";
 import {
@@ -33,6 +34,16 @@ export default async function AdminBoostsPage() {
     getHeroRotationIntervalMinutes(),
     getHeroMaxVisibleEvents(),
   ]);
+
+  // Campaign results - views + shares during each boost's active window
+  const [heroResults, slotResults] = await Promise.all([
+    Promise.all(heroBoosts.map((b) =>
+      getBoostResults(b.eventId, b.startedAt ?? b.createdAt, b.expiresAt ?? null).then((r) => [b.id, r] as const))),
+    Promise.all(activeBoosts.map((b) =>
+      getBoostResults(b.eventId, b.startsAt, b.endsAt).then((r) => [b.id, r] as const))),
+  ]);
+  const heroResultsMap = new Map(heroResults);
+  const slotResultsMap = new Map(slotResults);
 
   const heroActive = heroBoosts.filter((b) => b.status === "ACTIVE");
   const heroPending = heroBoosts.filter((b) => b.status === "PENDING");
@@ -120,6 +131,19 @@ export default async function AdminBoostsPage() {
                   </div>
                 </div>
 
+                {(() => {
+                  const r = heroResultsMap.get(boost.id);
+                  return (
+                    <div className="flex flex-wrap items-center gap-4 text-xs text-muted">
+                      <span><span className="font-bold text-foreground">{r?.views ?? 0}</span> views</span>
+                      <span><span className="font-bold text-foreground">{r?.shares ?? 0}</span> shares</span>
+                      <a href={`/admin/boosts/${boost.id}/invoice?type=hero`} className="font-semibold text-violet-neon hover:underline">
+                        View invoice
+                      </a>
+                    </div>
+                  );
+                })()}
+
                 {boost.razorpayPaymentId ? (
                   <p className="text-xs text-muted">
                     Razorpay: <span className="font-mono font-bold">{boost.razorpayPaymentId.slice(0, 24)}</span>
@@ -183,10 +207,19 @@ export default async function AdminBoostsPage() {
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold">Slot {boost.slot}</p>
                   <p className="text-xs text-muted">
-                    {formatPaise(boost.amountPaidPaise)} paid
+                    {formatPaise(boost.amountPaidPaise)} paid · {boost.placement ?? "HOME"}
                   </p>
                   <p className="text-xs text-muted">
                     {formatDateTime(boost.startsAt)} → {formatDateTime(boost.endsAt)}
+                  </p>
+                  <p className="text-xs text-muted">
+                    <span className="font-bold text-foreground">{slotResultsMap.get(boost.id)?.views ?? 0}</span> views
+                    {" · "}
+                    <span className="font-bold text-foreground">{slotResultsMap.get(boost.id)?.shares ?? 0}</span> shares
+                    {" · "}
+                    <a href={`/admin/boosts/${boost.id}/invoice?type=slot`} className="font-semibold text-violet-neon hover:underline">
+                      Invoice
+                    </a>
                   </p>
                 </div>
                 <Badge tone="lime">Active</Badge>

@@ -133,6 +133,11 @@ async function main() {
   const freeTier = await ensureTier(freeEvent, "Entry", 0, 50);     // free × 50
   const tinyTier = await ensureTier(tinyEvent, "GA", 10000, 2);     // ₹100 × 2 (capacity test)
 
+  // A second organizer's live paid event - the box-office db tests need two
+  // live events from different organizers.
+  const org2Event = await ensureEvent(org2Id, "DEVTEST Org Two Jam", { pricingMode: "PAID" });
+  await ensureTier(org2Event, "GA", 25000, 40);
+
   await ensurePin("scanner_pins", paidEvent, orgId, "123456", "Dev Scanner");
   await ensurePin("box_office_pins", paidEvent, orgId, "654321", "Dev BoxOffice", "ORGANIZER");
 

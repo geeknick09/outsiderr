@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import { BadgeCheck, CalendarDays, Globe, Lock, MapPin, Users } from "lucide-react";
 import { FacebookIcon, InstagramIcon, LinkedinIcon, XIcon, YoutubeIcon } from "@/modules/shared";
 
-import { JoinCommunityForm, CommunityFollowButton, CommunityTimeline } from "@/modules/web";
+import { JoinCommunityForm, CommunityFollowButton, CommunityTimeline, ShareEventButton } from "@/modules/web";
 import { Badge } from "@/modules/shared";
 import { getCurrentUser, createClient } from "@/modules/shared/server";
 import {
@@ -184,9 +184,17 @@ export default async function CommunityDetailPage({
             ) : null}
           </div>
         </div>
-        {user && !isOwner ? (
-          <CommunityFollowButton communityId={community.id} isFollowing={isFollowing} />
-        ) : null}
+        <div className="flex items-center gap-2">
+          {user && !isOwner ? (
+            <CommunityFollowButton communityId={community.id} isFollowing={isFollowing} />
+          ) : null}
+          <ShareEventButton
+            title={community.name}
+            url={`/communities/${community.id}`}
+            entityType="COMMUNITY"
+            entityId={community.id}
+          />
+        </div>
       </div>
 
       {/* Bio */}

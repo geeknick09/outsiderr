@@ -180,6 +180,22 @@ export async function logPageViewAction(entityType: "COMMUNITY" | "EVENT", entit
   await supabase.rpc("log_page_view", { p_entity_type: entityType, p_entity_id: entityId });
 }
 
+/** Fire-and-forget share log - anyone (even signed-out) can share. */
+export async function logShareAction(
+  entityType: "EVENT" | "COMMUNITY" | "ORGANIZER",
+  entityId: string,
+  channel = "COPY",
+): Promise<void> {
+  const userId = await getAuthUserId();
+  const supabase = await createClient();
+  await supabase.from("share_events").insert({
+    entity_type: entityType,
+    entity_id: entityId,
+    user_id: userId,
+    channel,
+  });
+}
+
 /** Organizer stages a CSV/Excel member import for admin approval. */
 export async function requestMemberImportAction(
   communityId: string,

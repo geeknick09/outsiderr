@@ -396,3 +396,49 @@ export async function getRevenueAnalytics(): Promise<RevenueAnalytics> {
     perEvent,
   };
 }
+
+export interface GrowthMetrics {
+  trackedVisitors30d: number;  // distinct signed-in users who viewed any page
+  eventViews30d: number;
+  communityViews30d: number;
+  shares30d: number;
+  promoterClicks30d: number;
+  signups30d: number;
+  orders30d: number;
+  conversionPct: number;       // confirmed orders / event views
+  totalUsers: number;
+}
+
+/** Growth funnel - visitors -> views -> shares -> signups -> conversion. */
+export async function getGrowthMetrics(): Promise<GrowthMetrics> {
+  await requireAdminUser();
+  const service = createServiceClient();
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const [views, shares, clicks, signups, orders, users] = await Promise.all([
+    service.from("page_views").select("entity_type, user_id").gte("created_at", since),
+    service.from("share_events").select("id", { count: "exact", head: true }).gte("created_at", since),
+    service.from("promoter_clicks").select("id", { count: "exact", head: true }).gte("created_at", since),
+    service.from("profiles").select("id", { count: "exact", head: true }).gte("created_at", since),
+    service.from("orders").select("id", { count: "exact", head: true }).eq("status", "CONFIRMED").gte("created_at", since),
+    service.from("profiles").select("id", { count: "exact", head: true }),
+  ]);
+
+  const rows = views.data ?? [];
+  const visitors = new Set(rows.map((r) => r.user_id)).size;
+  const eventViews = rows.filter((r) => r.entity_type === "EVENT").length;
+  const communityViews = rows.filter((r) => r.entity_type === "COMMUNITY").length;
+  const ordersCount = orders.count ?? 0;
+
+  return {
+    trackedVisitors30d: visitors,
+    eventViews30d: eventViews,
+    communityViews30d: communityViews,
+    shares30d: shares.count ?? 0,
+    promoterClicks30d: clicks.count ?? 0,
+    signups30d: signups.count ?? 0,
+    orders30d: ordersCount,
+    conversionPct: eventViews > 0 ? Math.round((ordersCount / eventViews) * 1000) / 10 : 0,
+    totalUsers: users.count ?? 0,
+  };
+}

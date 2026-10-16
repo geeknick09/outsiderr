@@ -126,6 +126,8 @@ export interface AdminOrganizerDetail {
     publishedEvents: number;
     grossRevenuePaise: number;
     ticketsSold: number;
+    payablePaise: number;            // net ledger balance owed to the organizer
+    termsAcceptedEvents: number;     // events where the organizer accepted terms
     premiumPurchases: { months: number; amountPaise: number; paidAt: string | null }[];
     premiumAudit: {
       adminEmail: string | null;
@@ -156,7 +158,8 @@ export async function getAdminOrganizerDetail(organizerId: string): Promise<Admi
     .order("starts_at", { ascending: false });
   const eventIds = (events ?? []).map((e) => e.id);
 
-  const [{ data: owner }, { data: ledger }, { data: tiers }, { data: purchases }, { data: audit }, { data: comms }] =
+  const [{ data: owner }, { data: ledger }, { data: tiers }, { data: purchases }, { data: audit }, { data: comms },
+    { data: netLedger }, { data: openPayouts }, { data: termsRows }] =
     await Promise.all([
       supabase.from("profiles").select("id, full_name, phone, email").eq("id", org.owner_id).maybeSingle(),
       supabase.from("payment_ledger").select("gross_amount_paise").eq("organizer_id", organizerId).in("type", ["TICKET_SALE", "BOOST_SALE", "PREMIUM_SALE"]),
@@ -166,6 +169,11 @@ export async function getAdminOrganizerDetail(organizerId: string): Promise<Admi
       supabase.from("organizer_premium_purchases").select("months, amount_paise, paid_at").eq("organizer_id", organizerId).eq("status", "PAID").order("paid_at", { ascending: false }),
       supabase.from("admin_change_log").select("admin_id, old_value, new_value, reason, created_at").eq("table_name", "organizers").eq("entity_id", organizerId).eq("field_name", "premium_until").order("created_at", { ascending: false }).limit(50),
       supabase.from("communities").select("id, name, city, member_count, membership_type").eq("owner_id", organizerId).order("created_at", { ascending: false }),
+      supabase.from("payment_ledger").select("net_organizer_paise").eq("organizer_id", organizerId),
+      supabase.from("payout_records").select("amount_paise").eq("organizer_id", organizerId).in("status", ["PENDING", "PROCESSING"]),
+      eventIds.length
+        ? supabase.from("event_terms_acceptances").select("event_id").in("event_id", eventIds)
+        : Promise.resolve({ data: [] as { event_id: string }[] }),
     ]);
 
   // Resolve admin emails for audit rows (service client bypasses RLS).
@@ -177,6 +185,10 @@ export async function getAdminOrganizerDetail(organizerId: string): Promise<Admi
 
   const gross = (ledger ?? []).reduce((s, l) => s + (l.gross_amount_paise ?? 0), 0);
   const tickets = (tiers ?? []).reduce((s, t) => s + (t.quantity_sold ?? 0), 0);
+  const payable = Math.max(0,
+    (netLedger ?? []).reduce((s, l) => s + (l.net_organizer_paise ?? 0), 0)
+    - (openPayouts ?? []).reduce((s, p) => s + (p.amount_paise ?? 0), 0));
+  const termsAccepted = new Set((termsRows ?? []).map((t) => t.event_id)).size;
   const evts = events ?? [];
 
   return {
@@ -227,6 +239,8 @@ export async function getAdminOrganizerDetail(organizerId: string): Promise<Admi
       publishedEvents: evts.filter((e) => e.status === "PUBLISHED").length,
       grossRevenuePaise: gross,
       ticketsSold: tickets,
+      payablePaise: payable,
+      termsAcceptedEvents: termsAccepted,
       premiumPurchases: (purchases ?? []).map((p) => ({
         months: p.months,
         amountPaise: p.amount_paise,

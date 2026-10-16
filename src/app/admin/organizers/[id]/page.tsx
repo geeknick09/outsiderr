@@ -90,6 +90,17 @@ export default async function AdminOrganizerDetailPage({
             <Row label="Account" value={o.bankAccountNumber ? `****${o.bankAccountNumber.slice(-4)} (${o.bankAccountName ?? "-"})` : null} />
             <Row label="IFSC" value={o.bankIfsc} />
             <Row label="Type" value={o.bankAccountType} />
+            <Row
+              label="Payable now"
+              value={stats.payablePaise > 0 ? formatPaise(stats.payablePaise) : "Settled"}
+            />
+          </Section>
+
+          <Section title="Agreement">
+            <Row
+              label="Event terms"
+              value={`${stats.termsAcceptedEvents} / ${stats.totalEvents} events accepted`}
+            />
           </Section>
 
           <PremiumAdminPanel

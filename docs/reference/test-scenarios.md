@@ -1224,6 +1224,36 @@ npx next build
 - [ ] Community create for non-organizer shows "Set up your creator profile" funnel
 - [ ] Menu + titles read "Creator Dashboard"
 
+## 31. Admin Tracking Tabs (2026-10-11)
+
+### 31.1 Compliance
+
+- [ ] `/admin/compliance` renders signals row: pending KYC, unresolved refunds, payouts in flight, events missing terms, organizers missing PAN
+- [ ] Add a task (Registration/Filing/Policy review/Task + optional due date + notes) -> appears in list
+- [ ] Past-due OPEN task shows red overdue border + warning icon
+- [ ] Check a task -> moves to Completed (collapsed group); uncheck reopens
+- [ ] Delete removes the task
+- [ ] Signal card click-through goes to the right admin page
+
+### 31.2 Campaign Results & Invoices
+
+- [ ] `/admin/boosts`: each Front Row boost shows views + shares during its window + "View invoice" link
+- [ ] Each active slot boost shows views + shares + "Invoice" link + placement tag
+- [ ] Invoice page renders: invoice no, billed-to organizer + email, item (slot #/feature + event), window, amount, status, Razorpay ref
+- [ ] Share an event via the share button -> `share_events` row logged; boost shares count ticks up
+
+### 31.3 Growth Analytics
+
+- [ ] `/admin/analytics` shows "Growth (last 30 days)": visitors, views (event+community), shares, link clicks, sign-ups, orders, conversion %
+- [ ] Traffic donut pie renders once data exists (views/shares > 0)
+- [ ] Sharing an event/community via the share icon increments Shares on next load
+
+### 31.4 Organizer Tracking
+
+- [ ] `/admin/organizers/<id>` shows Owner contact (name/phone/email), KYC status, Bank/Payout section
+- [ ] "Payable now" shows the net ledger due (or "Settled")
+- [ ] "Agreement" section shows terms accepted count / total events
+
 ## Test Execution Checklist
 
 | Module | Scenarios | Status |
@@ -1258,6 +1288,7 @@ npx next build
 | Communities & Promoters | 28.1–28.5 | ☐ |
 | Communities Polish & Gates | 29.1–29.4 | ☐ |
 | Campaigns, Virality & Gates | 30.1–30.4 | ☐ |
+| Admin Tracking Tabs | 31.1–31.4 | ☐ |
 
 ### 2.5 KYC Polish & Thread
 

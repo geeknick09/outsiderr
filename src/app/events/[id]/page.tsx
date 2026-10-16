@@ -240,7 +240,7 @@ export default async function EventDetailsPage({
               <h1 className="break-words text-3xl font-black leading-tight tracking-tight sm:text-4xl">
                 {event.title}
               </h1>
-              <ShareEventButton title={event.title} url={eventUrl} />
+              <ShareEventButton title={event.title} url={eventUrl} entityType="EVENT" entityId={event.id} />
             </div>
 
             <p className="text-sm text-muted">

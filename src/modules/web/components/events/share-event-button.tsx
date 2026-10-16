@@ -3,16 +3,23 @@
 import { useState } from "react";
 import { Check, Share2 } from "lucide-react";
 
+import { logShareAction } from "@/modules/shared/actions/communities";
+
 export function ShareEventButton({
   title,
   url,
+  entityType = "EVENT",
+  entityId,
 }: {
   title: string;
   url: string;
+  entityType?: "EVENT" | "COMMUNITY" | "ORGANIZER";
+  entityId?: string;
 }) {
   const [copied, setCopied] = useState(false);
 
   async function handleShare() {
+    if (entityId) void logShareAction(entityType, entityId, "NATIVE").catch(() => {});
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
         await navigator.share({ title, url });

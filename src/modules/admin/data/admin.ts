@@ -5,7 +5,7 @@ import { createServiceClient } from "../../shared/auth/service";
 import { getCurrentUser } from "../../shared/auth/auth";
 import type { AdminEvent, AdminStats, AdminUser, EventCategory, EventStatus, Order, City, PricingMode } from "../../shared";
 
-async function requireAdminUser(): Promise<void> {
+export async function requireAdminUser(): Promise<void> {
   const user = await getCurrentUser();
   if (!user) throw new Error("Authentication required.");
   const supabase = await createClient();
