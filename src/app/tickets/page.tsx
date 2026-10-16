@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { BADGE_TONES, cn, formatDateTime } from "@/modules/shared";
+import { BADGE_LEVELS, BADGE_TONES, cn, formatDateTime } from "@/modules/shared";
 import { Award } from "lucide-react";
 
 import { TicketsRealtimeWrapper } from "@/modules/web";
@@ -99,16 +99,27 @@ export default async function TicketsPage({
         initialRefunds={refunds}
       />
 
-      {badges.length > 0 && (
-        <section className="mx-auto max-w-3xl px-4 pt-4">
-          <div className="glass rounded-3xl p-5">
-            <h2 className="mb-3 flex items-center gap-2 text-base font-bold">
-              <Award className="h-4 w-4 text-violet-neon" />
-              Your badges
-            </h2>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {badges.map((b) => (
-                <div key={b.key} className="rounded-2xl border border-white/10 p-3">
+      <section className="mx-auto max-w-3xl px-4 pt-4">
+        <div className="glass rounded-3xl p-5">
+          <h2 className="mb-3 flex items-center gap-2 text-base font-bold">
+            <Award className="h-4 w-4 text-violet-neon" />
+            Your badges
+          </h2>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {BADGE_LEVELS.map((def) => {
+              const earned = badges.filter((b) => b.key === def.key);
+              if (!earned.length) {
+                return (
+                  <div key={def.key} className="rounded-2xl border border-dashed border-zinc-200 p-3 opacity-50 dark:border-white/10">
+                    <span className="rounded-full bg-zinc-500/15 px-2.5 py-0.5 text-[10px] font-bold text-zinc-500">
+                      {def.label}
+                    </span>
+                    <p className="mt-1.5 text-xs text-muted">{def.hint}</p>
+                  </div>
+                );
+              }
+              return earned.map((b, i) => (
+                <div key={`${b.key}-${i}`} className="rounded-2xl border border-violet-neon/30 p-3">
                   <div className="flex items-center justify-between gap-2">
                     <span className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-bold", BADGE_TONES[b.key])}>
                       {b.label}
@@ -122,11 +133,11 @@ export default async function TicketsPage({
                     <p className="mt-1 text-[10px] font-semibold text-violet-neon">{b.communityName}</p>
                   )}
                 </div>
-              ))}
-            </div>
+              ));
+            })}
           </div>
-        </section>
-      )}
+        </div>
+      </section>
     </div>
   );
 }
