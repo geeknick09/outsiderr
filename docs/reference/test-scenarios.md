@@ -87,11 +87,43 @@
 - [ ] Organizer submits hero-boost UTR → “Boost Request” notification to admins
 - [ ] Organizer submits door-staff payment UTR → “Door Staff Payment” notification to admins
 
-### 2.3 Organizer Profile Edit
+### 2.5 KYC Polish & Thread
+
+- [ ] Doc uploads (PAN/bank) use a plain file picker — no cropper, accepts image + PDF
+- [ ] File >1 MB → inline red error under the upload button (“keep it under 1 MB”), nothing uploads
+- [ ] Page reload lands at the top of the page (no scroll-restore jump)
+- [ ] PENDING state → status banner + withdraw only (no response form until admin acts)
+- [ ] REJECTED/CLARIFICATION → “Update & resubmit” form visible, button reads “Resubmit application”
+- [ ] Admin KYC page: filter tabs show counts — Pending (n), Clarification Needed (n), Approved (n), Rejected (n), All (n)
+- [ ] Admin card shows PAN document + bank proof links, organizer’s response note, and full communication thread with admin emails
+- [ ] Clarification message tells the organizer to respond in the dashboard (no “team member will contact you”)
+- [ ] Admin clicks Review → modal previews submission; approve/reject/clarify each show a confirm-preview with acting admin email + exact notification text before sending
+- [ ] APPROVED/REJECTED rows: Review is read-only (no action buttons)
+- [ ] Admin A clarifies → Admin B rejects next round → thread shows both with their respective emails
+- [ ] Search by organizer name → that organizer’s events appear
+- [ ] Search with `%),(` or stray commas/quotes → returns results (no filter error)
+
+### 2.6 Organizer Profile Edit
 
 - [x] Edit name, bio, photo, cover photo, UPI ID
 - [x] Verify QR preview updates when UPI ID changes
 - [x] Save and verify changes persist
+
+### 2.7 Community Cap
+
+- [ ] Creator can create communities up to `community_max_per_organizer` (platform_settings, default 10)
+- [ ] Community #cap+1 is rejected with a "You can own up to N communities" error
+- [ ] Admin Settings -> Other -> "Max communities per creator" raises/lowers the cap live
+
+### 2.8 Creator Landing Page (redesign)
+
+- [ ] `/list-your-event` hero reads "Become a Creator on Outsiderr"; CTA "Start Creating - It's Free" / "Go to Creator Dashboard"
+- [ ] "Three things you can build" cards: Public events, Community events, Communities (up to N - number matches the admin setting)
+- [ ] Community landing-page section covers covers/join modes/timeline/events/socials/virality
+- [ ] Money section mentions Razorpay, automatic splits, refunds, ledger, box office & door scanner, payouts
+- [ ] Promotion section covers Feature/Slot campaigns, promoters/referral links, analytics + virality
+- [ ] How-it-works = 5 steps (profile -> KYC -> create -> promote & scan -> get paid)
+- [ ] Fee explainer + tag wall + footer render on mobile and desktop
 
 ## 3\. Event Creation
 
@@ -1286,7 +1318,7 @@ npx next build
 | Module | Scenarios | Status |
 | --- | --- | --- |
 | Auth & Profile | 1.1–1.2 | ☐ |
-| Organizer Onboarding | 2.1–2.6 | ☐ |
+| Organizer Onboarding | 2.1–2.8 | ☐ |
 | Event Creation | 3.1–3.8 | ☐ |
 | Event Discovery | 4.1–4.4 | ☐ |
 | Booking & Tickets | 5.1–5.6 | ☐ |
@@ -1315,20 +1347,4 @@ npx next build
 | Communities & Promoters | 28.1–28.5 | ☐ |
 | Communities Polish & Gates | 29.1–29.4 | ☐ |
 | Campaigns, Virality & Gates | 30.1–30.4 | ☐ |
-| Admin Tracking Tabs | 31.1–31.5 | ☐ |
-
-### 2.5 KYC Polish & Thread
-
-- [ ] Doc uploads (PAN/bank) use a plain file picker — no cropper, accepts image + PDF
-- [ ] File >1 MB → inline red error under the upload button (“keep it under 1 MB”), nothing uploads
-- [ ] Page reload lands at the top of the page (no scroll-restore jump)
-- [ ] PENDING state → status banner + withdraw only (no response form until admin acts)
-- [ ] REJECTED/CLARIFICATION → “Update & resubmit” form visible, button reads “Resubmit application”
-- [ ] Admin KYC page: filter tabs show counts — Pending (n), Clarification Needed (n), Approved (n), Rejected (n), All (n)
-- [ ] Admin card shows PAN document + bank proof links, organizer’s response note, and full communication thread with admin emails
-- [ ] Clarification message tells the organizer to respond in the dashboard (no “team member will contact you”)
-- [ ] Admin clicks Review → modal previews submission; approve/reject/clarify each show a confirm-preview with acting admin email + exact notification text before sending
-- [ ] APPROVED/REJECTED rows: Review is read-only (no action buttons)
-- [ ] Admin A clarifies → Admin B rejects next round → thread shows both with their respective emails
-- [ ] Search by organizer name → that organizer’s events appear
-- [ ] Search with `%),(` or stray commas/quotes → returns results (no filter error)
+| Admin Tracking Tabs | 31.1–31.6 | ☐ |
