@@ -58,10 +58,25 @@ export async function upsertLegalPage(
   const supabase = await createClient();
   const { data: current } = await supabase
     .from("legal_pages")
-    .select("version")
+    .select("version, title, content, is_published, updated_by")
     .eq("slug", slug)
     .maybeSingle();
   const nextVersion = (current?.version ?? 0) + 1;
+  // Backfill: snapshot the outgoing row if its version has no history entry,
+  // so a missed/failed snapshot never leaves a hole in the chain.
+  if (current) {
+    await supabase.from("legal_page_versions").upsert(
+      {
+        slug,
+        version: current.version,
+        title: current.title,
+        content: current.content,
+        is_published: current.is_published,
+        saved_by: current.updated_by,
+      },
+      { onConflict: "slug,version", ignoreDuplicates: true },
+    );
+  }
   const { error } = await supabase
     .from("legal_pages")
     .upsert({

@@ -287,7 +287,7 @@ function VersionHistory({
         <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
           <div>
             <h3 className="text-lg font-black">Version history</h3>
-            <p className="text-xs text-muted">{slug} · live v{currentVersion}</p>
+            <p className="text-xs text-muted">live v{currentVersion} · last 10 saves kept</p>
           </div>
           <button onClick={onClose} className="text-muted hover:text-foreground">
             <X className="h-5 w-5" />
