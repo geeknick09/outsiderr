@@ -657,3 +657,23 @@ export async function getCommunityAnalytics(communityId: string): Promise<Commun
   const { data } = await supabase.rpc("community_analytics", { p_community_id: communityId });
   return (data as CommunityAnalytics | null) ?? null;
 }
+
+/** Communities the user is an APPROVED member of - for the profile page. */
+export async function listMyCommunityMemberships(
+  user: CurrentUser,
+): Promise<{ id: string; name: string; avatarUrl: string | null }[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("community_members")
+    .select("community_id")
+    .eq("user_id", user.id)
+    .eq("status", "APPROVED");
+  const ids = (data ?? []).map((m) => m.community_id);
+  if (!ids.length) return [];
+  const { data: comms } = await supabase
+    .from("communities")
+    .select("id, name, avatar_url")
+    .in("id", ids)
+    .order("name");
+  return (comms ?? []).map((c) => ({ id: c.id, name: c.name, avatarUrl: c.avatar_url }));
+}

@@ -7,7 +7,7 @@ import { updateProfileAction } from "@/modules/shared/actions/profile";
 import { Button } from "@/modules/shared";
 import { ImageUploadWithCrop } from "@/modules/shared";
 import { PhoneInput } from "@/modules/shared";
-import { CATEGORIES, PREDEFINED_EVENT_TAGS } from "@/modules/shared";
+import { CATEGORIES, PREDEFINED_EVENT_TAGS, tagsForCategories } from "@/modules/shared";
 import { uploadPublicFile, compressImage } from "@/modules/shared";
 import { cn } from "@/modules/shared";
 
@@ -326,11 +326,19 @@ export function EditProfileForm({
           </div>
         </div>
 
-        {/* Tag chips */}
+        {/* Tag chips - only the ones matching the picked categories */}
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Tags</p>
+          {[...selectedTags].filter((t) => t.startsWith("cat:")).length === 0 &&
+          [...selectedTags].filter((t) => !t.startsWith("cat:")).length === 0 ? (
+            <p className="text-xs text-muted">Pick categories above and the matching tags appear here.</p>
+          ) : (
           <div className="flex flex-wrap gap-2">
-            {PREDEFINED_EVENT_TAGS.map((tag) => {
+            {[...new Set([
+              ...tagsForCategories([...selectedTags].filter((t) => t.startsWith("cat:")).map((t) => t.slice(4))),
+              // keep previously-saved tags visible even if the category changed
+              ...[...selectedTags].filter((t) => !t.startsWith("cat:")),
+            ])].map((tag) => {
               const active = selectedTags.has(tag);
               return (
                 <button
@@ -349,6 +357,7 @@ export function EditProfileForm({
               );
             })}
           </div>
+          )}
         </div>
 
         {/* Hidden inputs for selected tags (includes cat: prefixed category tags) */}

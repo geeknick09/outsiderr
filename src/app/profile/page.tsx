@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { EditProfileForm, FollowingSection } from "@/modules/web";
 import { getCurrentUser } from "@/modules/shared/server";
 import { getUserProfile } from "@/modules/shared/server";
-import { listFollowedOrganizers, getUserAttendanceCount } from "@/modules/shared/server";
+import { listFollowedOrganizers, getUserAttendanceCount, listMyCommunityMemberships } from "@/modules/shared/server";
 import { listFollowedCommunities } from "@/modules/shared/server";
 import { getPromoterDashboard } from "@/modules/shared/server";
 import { computeBadges, BADGE_TONES, formatPaise } from "@/modules/shared";
@@ -18,12 +18,13 @@ export default async function ProfilePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=%2Fprofile");
 
-  const [profile, followedOrgs, followedComms, attended, promoter] = await Promise.all([
+  const [profile, followedOrgs, followedComms, attended, promoter, memberships] = await Promise.all([
     getUserProfile(user),
     listFollowedOrganizers(user),
     listFollowedCommunities(user),
     getUserAttendanceCount(user.id),
     getPromoterDashboard(user),
+    listMyCommunityMemberships(user),
   ]);
   const badges = computeBadges({ attendedTotal: attended });
 
@@ -78,6 +79,31 @@ export default async function ProfilePage() {
           </p>
         </section>
       ) : null}
+
+      <section className="glass rounded-3xl p-5">
+        <h2 className="mb-3 text-base font-bold">Communities</h2>
+        {memberships.length === 0 ? (
+          <p className="text-sm text-muted">
+            Not a member of any community yet -{" "}
+            <Link href="/communities" className="font-semibold text-violet-neon hover:underline">
+              explore communities
+            </Link>{" "}
+            and join the ones that fit your scene.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {memberships.map((c) => (
+              <Link
+                key={c.id}
+                href={`/communities/${c.id}`}
+                className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-semibold transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10"
+              >
+                {c.name}
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
 
       <FollowingSection
         organizers={followedOrgs}
