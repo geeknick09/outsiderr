@@ -164,11 +164,13 @@ export default async function ListYourEventPage() {
               title="Member growth & virality"
               description="Track member counts, referred joins vs direct joins, and your community's virality coefficient in analytics."
             />
-            <Feature
-              icon={Award}
-              title="Members earn badges"
-              description="Consistency pays - Outsiderr rewards your regulars automatically: attendance badges from First Event to Community Champion, plus Founding Member and Connector badges for early joins and referrals."
-            />
+            <div className="sm:col-span-2 sm:mx-auto sm:w-full sm:max-w-md lg:col-span-1 lg:col-start-2 lg:max-w-none">
+              <Feature
+                icon={Award}
+                title="Members earn badges"
+                description="Consistency pays - Outsiderr rewards your regulars automatically: attendance badges from First Event to Community Champion, plus Founding Member and Connector badges for early joins and referrals."
+              />
+            </div>
           </div>
         </div>
       </section>
