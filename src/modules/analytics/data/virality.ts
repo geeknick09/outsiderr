@@ -30,21 +30,42 @@ function k(referred: number, organic: number): number {
   return Math.round((referred / organic) * 100) / 100;
 }
 
-/** Platform-wide virality - admin analytics. */
-export async function getPlatformVirality(): Promise<{
+/** Platform-wide virality - admin analytics. Optional date range + event city. */
+export async function getPlatformVirality(filter?: {
+  city?: string; from?: string; to?: string;
+}): Promise<{
   orders: ViralitySlice;
   joins: ViralitySlice;
   k: number;
 }> {
   const service = createServiceClient();
-  const [promo, totalOrders, referred, totalJoins] = await Promise.all([
-    service.from("orders").select("id", { count: "exact", head: true }).not("promoter_id", "is", null).in("status", ["CONFIRMED"]),
-    service.from("orders").select("id", { count: "exact", head: true }).in("status", ["CONFIRMED"]),
-    service.from("community_members").select("id", { count: "exact", head: true }).not("referred_by_member_id", "is", null),
-    service.from("community_members").select("id", { count: "exact", head: true }),
-  ]);
-  const ro = promo.count ?? 0;
-  const to = totalOrders.count ?? 0;
+  const f = filter ?? {};
+  let promoQ = service.from("orders").select("id, event_id").not("promoter_id", "is", null).eq("status", "CONFIRMED");
+  let totalQ = service.from("orders").select("id, event_id").eq("status", "CONFIRMED");
+  let refQ = service.from("community_members").select("id", { count: "exact", head: true }).not("referred_by_member_id", "is", null);
+  let joinQ = service.from("community_members").select("id", { count: "exact", head: true });
+  if (f.from) {
+    promoQ = promoQ.gte("created_at", `${f.from}T00:00:00Z`);
+    totalQ = totalQ.gte("created_at", `${f.from}T00:00:00Z`);
+    refQ = refQ.gte("created_at", `${f.from}T00:00:00Z`);
+    joinQ = joinQ.gte("created_at", `${f.from}T00:00:00Z`);
+  }
+  if (f.to) {
+    promoQ = promoQ.lte("created_at", `${f.to}T23:59:59Z`);
+    totalQ = totalQ.lte("created_at", `${f.to}T23:59:59Z`);
+    refQ = refQ.lte("created_at", `${f.to}T23:59:59Z`);
+    joinQ = joinQ.lte("created_at", `${f.to}T23:59:59Z`);
+  }
+  let cityEvents: Set<string> | null = null;
+  if (f.city) {
+    const { data: evs } = await service.from("events").select("id").eq("city", f.city);
+    cityEvents = new Set((evs ?? []).map((e) => e.id));
+  }
+  const [promo, totalOrders, referred, totalJoins] = await Promise.all([promoQ, totalQ, refQ, joinQ]);
+  const promoRows = (promo.data ?? []).filter((o) => !cityEvents || cityEvents.has(o.event_id));
+  const totalRows = (totalOrders.data ?? []).filter((o) => !cityEvents || cityEvents.has(o.event_id));
+  const ro = promoRows.length;
+  const to = totalRows.length;
   const rj = referred.count ?? 0;
   const tj = totalJoins.count ?? 0;
   return {

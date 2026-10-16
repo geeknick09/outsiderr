@@ -1,17 +1,29 @@
 import { getUserAnalytics, getPaymentAnalytics, getOrganizerAnalytics, getPlatformVirality, getGrowthMetrics } from "@/modules/analytics/server";
 import { AnalyticsChartsLazy, ViralityPanel, GrowthPanel } from "@/modules/analytics";
+import { AnalyticsFilterBar } from "@/modules/admin";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Admin: Analytics - Outsiderr" };
 
-export default async function AdminAnalyticsPage() {
+export default async function AdminAnalyticsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ city?: string; from?: string; to?: string }>;
+}) {
+  const params = await searchParams;
+  const filter = {
+    city: params.city || undefined,
+    from: params.from || undefined,
+    to: params.to || undefined,
+  };
+
   const [userAnalytics, paymentAnalytics, organizerAnalytics, virality, growth] = await Promise.all([
-    getUserAnalytics(),
-    getPaymentAnalytics(),
-    getOrganizerAnalytics(),
-    getPlatformVirality(),
-    getGrowthMetrics(),
+    getUserAnalytics(filter),
+    getPaymentAnalytics(filter),
+    getOrganizerAnalytics(filter),
+    getPlatformVirality(filter),
+    getGrowthMetrics(filter),
   ]);
 
   return (
@@ -23,14 +35,13 @@ export default async function AdminAnalyticsPage() {
         </p>
       </div>
 
+      <AnalyticsFilterBar basePath="/admin/analytics" filter={filter} />
+
       <div>
-        <h2 className="mb-2 text-lg font-bold">Growth (last 30 days)</h2>
+        <h2 className="mb-2 text-lg font-bold">Growth{filter.from || filter.to ? "" : " (last 30 days)"}</h2>
         <GrowthPanel metrics={growth} />
       </div>
 
-      <div>
-        <h2 className="mb-2 text-lg font-bold">Virality</h2>
-      </div>
       <ViralityPanel
         coefficient={virality.k}
         pies={[

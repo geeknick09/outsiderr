@@ -3,8 +3,8 @@ import Link from "next/link";
 import { getAdminStats } from "@/modules/admin/server";
 import { getOverviewStats } from "@/modules/admin/server";
 import { listPendingHeroBoosts } from "@/modules/shared/server";
-import { formatPaise, CITIES, cityLabel } from "@/modules/shared";
-import { OverviewStats, type OverviewCard } from "@/modules/admin";
+import { formatPaise } from "@/modules/shared";
+import { OverviewStats, AnalyticsFilterBar, type OverviewCard } from "@/modules/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -50,46 +50,7 @@ export default async function AdminPage({
         <p className="text-sm text-muted">Platform health at a glance. Click a card for details + export.</p>
       </div>
 
-      {/* Filters */}
-      <form method="get" className="glass flex flex-wrap items-end gap-3 rounded-3xl p-4">
-        <div>
-          <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">City</label>
-          <select
-            name="city"
-            defaultValue={filter.city ?? ""}
-            className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5"
-          >
-            <option value="">All cities</option>
-            {CITIES.map((c) => (
-              <option key={c.value} value={c.value}>{c.label}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">From</label>
-          <input type="date" name="from" defaultValue={filter.from ?? ""}
-            className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5" />
-        </div>
-        <div>
-          <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted">To</label>
-          <input type="date" name="to" defaultValue={filter.to ?? ""}
-            className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-white/5" />
-        </div>
-        <button type="submit" className="rounded-full bg-neon-gradient px-5 py-2 text-sm font-bold text-white shadow-glow-violet">
-          Apply
-        </button>
-        {(filter.city || filter.from || filter.to) ? (
-          <Link href="/admin" className="px-2 py-2 text-xs text-muted underline">
-            Clear
-          </Link>
-        ) : null}
-        {filter.city ? (
-          <p className="py-2 text-xs text-muted">
-            Filtering to <span className="font-bold text-foreground">{cityLabel(filter.city as never)}</span> —
-            event-scoped stats only; user counts stay global.
-          </p>
-        ) : null}
-      </form>
+      <AnalyticsFilterBar basePath="/admin" filter={filter} />
 
       <OverviewStats cards={cards} filter={filter} />
 

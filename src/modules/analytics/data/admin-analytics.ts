@@ -63,6 +63,19 @@ async function requireAdminUser(): Promise<void> {
 }
 
 /** Last n days of rollups, padded with zeros for missing days. */
+export interface AnalyticsRange {
+  from?: string; // YYYY-MM-DD
+  to?: string;   // YYYY-MM-DD
+}
+
+function rangeDays(range?: AnalyticsRange): number {
+  const end = range?.to ? new Date(`${range.to}T00:00:00`) : new Date();
+  const start = range?.from
+    ? new Date(`${range.from}T00:00:00`)
+    : new Date(end.getTime() - 29 * 864e5);
+  return Math.max(1, Math.min(370, Math.round((end.getTime() - start.getTime()) / 864e5) + 1));
+}
+
 function padDaily(
   rows: DailyMetricRow[],
   days: number,
@@ -102,10 +115,14 @@ export interface UserAnalytics {
   dailyActive: { date: string; count: number }[];
 }
 
-export async function getUserAnalytics(): Promise<UserAnalytics> {
+export async function getUserAnalytics(range?: AnalyticsRange): Promise<UserAnalytics> {
   await requireAdminUser();
   const supabase = await createClient();
   const service = createServiceClient();
+
+  const days = rangeDays(range);
+  const rangeStart = range?.from ?? new Date(Date.now() - (days - 1) * 864e5).toISOString().slice(0, 10);
+  const rangeEnd = range?.to;
 
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
@@ -126,13 +143,17 @@ export async function getUserAnalytics(): Promise<UserAnalytics> {
     supabase.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", monthStart),
     supabase.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", todayStart),
     service.from("analytics_totals_v").select("*").eq("id", 1).maybeSingle(),
-    service.from("analytics_daily_metrics_v").select("*").gte("day", thirtyDaysAgo),
+    (() => {
+      let q = service.from("analytics_daily_metrics_v").select("*").gte("day", rangeStart);
+      if (rangeEnd) q = q.lte("day", rangeEnd);
+      return q;
+    })(),
     // Live partial for today (rollup refreshes hourly)
     supabase.from("orders").select("user_id").gte("created_at", todayStart),
   ]);
 
   const totals = (totalsRow ?? {}) as Partial<TotalsRow>;
-  const daily = padDaily((dailyRows ?? []) as DailyMetricRow[], 30);
+  const daily = padDaily((dailyRows ?? []) as DailyMetricRow[], days);
 
   // DAU: merge the live today-bucket with the rollup (whichever is fresher).
   const liveDau = new Set((todayOrders ?? []).map((o) => o.user_id)).size;
@@ -165,18 +186,24 @@ export interface PaymentAnalytics {
   paymentMethods: { method: string; count: number; volumePaise: number }[];
 }
 
-export async function getPaymentAnalytics(): Promise<PaymentAnalytics> {
+export async function getPaymentAnalytics(range?: AnalyticsRange): Promise<PaymentAnalytics> {
   await requireAdminUser();
   const service = createServiceClient();
 
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const days = rangeDays(range);
+  const rangeStart = range?.from ?? new Date(Date.now() - (days - 1) * 864e5).toISOString().slice(0, 10);
+  const rangeEnd = range?.to;
   const [{ data: totalsRow }, { data: dailyRows }] = await Promise.all([
     service.from("analytics_totals_v").select("*").eq("id", 1).maybeSingle(),
-    service.from("analytics_daily_metrics_v").select("*").gte("day", thirtyDaysAgo),
+    (() => {
+      let q = service.from("analytics_daily_metrics_v").select("*").gte("day", rangeStart);
+      if (rangeEnd) q = q.lte("day", rangeEnd);
+      return q;
+    })(),
   ]);
 
   const totals = (totalsRow ?? {}) as Partial<TotalsRow>;
-  const daily = padDaily((dailyRows ?? []) as DailyMetricRow[], 30);
+  const daily = padDaily((dailyRows ?? []) as DailyMetricRow[], days);
 
   return {
     totalPayments: totals.total_payments ?? 0,
@@ -207,11 +234,14 @@ export interface OrganizerAnalytics {
   topOrganizers: { organizerId: string; name: string; eventCount: number; revenuePaise: number }[];
 }
 
-export async function getOrganizerAnalytics(): Promise<OrganizerAnalytics> {
+export async function getOrganizerAnalytics(range?: AnalyticsRange): Promise<OrganizerAnalytics> {
   await requireAdminUser();
   const supabase = await createClient();
   const service = createServiceClient();
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  const days = rangeDays(range);
+  const rangeStart = range?.from ?? new Date(Date.now() - (days - 1) * 864e5).toISOString().slice(0, 10);
+  const rangeEnd = range?.to;
 
   const [
     { count: totalOrganizers },
@@ -223,11 +253,15 @@ export async function getOrganizerAnalytics(): Promise<OrganizerAnalytics> {
     supabase.from("organizers").select("*", { count: "exact", head: true }),
     supabase.from("organizers").select("*", { count: "exact", head: true }).eq("verified", true),
     supabase.from("events").select("*", { count: "exact", head: true }),
-    service.from("analytics_daily_metrics_v").select("*").gte("day", thirtyDaysAgo),
+    (() => {
+      let q = service.from("analytics_daily_metrics_v").select("*").gte("day", rangeStart);
+      if (rangeEnd) q = q.lte("day", rangeEnd);
+      return q;
+    })(),
     service.from("analytics_organizer_rollup_v").select("*").order("confirmed_revenue_paise", { ascending: false }).limit(10),
   ]);
 
-  const daily = padDaily((dailyRows ?? []) as DailyMetricRow[], 30);
+  const daily = padDaily((dailyRows ?? []) as DailyMetricRow[], days);
   const dailyNewOrganizers = daily.map((d) => ({ date: d.day, count: d.new_organizers }));
 
   const rollups = (rollup ?? []) as OrganizerRollupRow[];
@@ -410,21 +444,37 @@ export interface GrowthMetrics {
 }
 
 /** Growth funnel - visitors -> views -> shares -> signups -> conversion. */
-export async function getGrowthMetrics(): Promise<GrowthMetrics> {
+export async function getGrowthMetrics(filter?: {
+  city?: string; from?: string; to?: string;
+}): Promise<GrowthMetrics> {
   await requireAdminUser();
   const service = createServiceClient();
-  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const f = filter ?? {};
+  const since = f.from ? `${f.from}T00:00:00Z` : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const until = f.to ? `${f.to}T23:59:59Z` : null;
 
   const [views, shares, clicks, signups, orders, users] = await Promise.all([
-    service.from("page_views").select("entity_type, user_id").gte("created_at", since),
-    service.from("share_events").select("id", { count: "exact", head: true }).gte("created_at", since),
-    service.from("promoter_clicks").select("id", { count: "exact", head: true }).gte("created_at", since),
-    service.from("profiles").select("id", { count: "exact", head: true }).gte("created_at", since),
-    service.from("orders").select("id", { count: "exact", head: true }).eq("status", "CONFIRMED").gte("created_at", since),
+    (() => {
+      let q = service.from("page_views").select("entity_type, entity_id, user_id").gte("created_at", since);
+      if (until) q = q.lte("created_at", until);
+      return q;
+    })(),
+    (() => { let q = service.from("share_events").select("id", { count: "exact", head: true }).gte("created_at", since); if (until) q = q.lte("created_at", until); return q; })(),
+    (() => { let q = service.from("promoter_clicks").select("id", { count: "exact", head: true }).gte("created_at", since); if (until) q = q.lte("created_at", until); return q; })(),
+    (() => { let q = service.from("profiles").select("id", { count: "exact", head: true }).gte("created_at", since); if (until) q = q.lte("created_at", until); return q; })(),
+    (() => { let q = service.from("orders").select("id", { count: "exact", head: true }).eq("status", "CONFIRMED").gte("created_at", since); if (until) q = q.lte("created_at", until); return q; })(),
     service.from("profiles").select("id", { count: "exact", head: true }),
   ]);
 
-  const rows = views.data ?? [];
+  let cityEvents: Set<string> | null = null;
+  if (f.city) {
+    const { data: evs } = await service.from("events").select("id").eq("city", f.city);
+    cityEvents = new Set((evs ?? []).map((e) => e.id));
+  }
+
+  const rows = (views.data ?? []).filter(
+    (r) => !cityEvents || r.entity_type !== "EVENT" || cityEvents.has(r.entity_id),
+  );
   const visitors = new Set(rows.map((r) => r.user_id)).size;
   const eventViews = rows.filter((r) => r.entity_type === "EVENT").length;
   const communityViews = rows.filter((r) => r.entity_type === "COMMUNITY").length;

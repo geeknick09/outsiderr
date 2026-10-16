@@ -18,3 +18,4 @@ export * from "./components/slot-price-editor";
 export * from "./nav";
 export * from "./components/compliance-panel";
 export * from "./components/overview-stats";
+export * from "./components/analytics-filter-bar";
