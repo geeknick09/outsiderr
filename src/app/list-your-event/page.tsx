@@ -6,7 +6,7 @@ import { ThemeLogo } from "@/modules/shared";
 import { getCurrentUser, getOrganizerProfile, getSettingInt } from "@/modules/shared/server";
 import { getOrganizerAccessState } from "@/modules/shared";
 
-export const metadata = { title: "List Your Event - Outsiderr" };
+export const metadata = { title: "Become a Creator - Outsiderr" };
 
 export default async function ListYourEventPage() {
   const user = await getCurrentUser();
@@ -42,12 +42,13 @@ export default async function ListYourEventPage() {
             <ThemeLogo width={180} height={42} />
           </div>
           <h1 className="text-4xl font-black tracking-tight sm:text-5xl md:text-6xl">
-            List Your Event on{" "}
+            Create on{" "}
             <span className="bg-neon-gradient bg-clip-text text-transparent">Outsiderr</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-base text-muted sm:text-lg">
-            Cyphers, battles, skate comps, run communities, jams, workshops - if it&apos;s happening
-            outside the mainstream, it belongs here. Reach the communities that matter.
+            Events, communities, crews, cyphers, battles, skate comps, jams, workshops - if it&apos;s
+            happening outside the mainstream, it belongs here. Host events, build your community,
+            get discovered by the people who care.
           </p>
           {blocked ? (
             <p className="mt-8 text-sm font-semibold text-red-500">
@@ -59,7 +60,7 @@ export default async function ListYourEventPage() {
               href="/organizer"
               className="w-full rounded-2xl bg-neon-gradient px-8 py-4 text-center text-base font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90 sm:w-auto"
             >
-              {isApproved ? "Go to Organizer Dashboard" : "Get Started - It's Free"}
+              {isApproved ? "Go to Creator Dashboard" : "Start Creating - It's Free"}
             </Link>
             <Link
               href="/"
@@ -103,8 +104,8 @@ export default async function ListYourEventPage() {
             <Step
               icon={CalendarDays}
               step="2"
-              title="List your event"
-              description="Add event details, venue, ticket tiers (free or paid), and tags. Publish instantly - no approval needed."
+              title="Create events &amp; communities"
+              description="List an event with ticket tiers (free or paid), or start a community around your crew. Publish instantly - no approval needed."
             />
             <Step
               icon={ScanLine}
