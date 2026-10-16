@@ -101,11 +101,10 @@ export default async function TicketsPage({
 
       <section className="mx-auto max-w-4xl px-4 pb-10">
         <h2 className="mb-3 flex items-center gap-2 text-lg font-bold">
+          <Award className="h-5 w-5 text-violet-neon" />
+          Your badges
+        </h2>
         <div className="glass rounded-3xl p-5">
-          <h2 className="mb-3 flex items-center gap-2 text-base font-bold">
-            <Award className="h-4 w-4 text-violet-neon" />
-            Your badges
-          </h2>
           <div className="grid gap-2 sm:grid-cols-2">
             {BADGE_LEVELS.map((def) => {
               const earned = badges.filter((b) => b.key === def.key);
