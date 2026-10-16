@@ -9547,3 +9547,65 @@ create policy "admins insert legal versions" on public.legal_page_versions
 -- Unique (slug,version) so upserts/conflict handling work + no dup history rows.
 create unique index if not exists legal_page_versions_slug_version_key
   on public.legal_page_versions(slug, version);
+
+-- =============================================================================
+-- STEP 55. submit_kyc requires complete KYC (2026-10-11)
+-- PAN + bank (acct/ifsc/name) + GST must all be present before an application
+-- can enter the PENDING review queue.
+-- =============================================================================
+
+create or replace function public.submit_kyc(p_organizer_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_rejections int;
+  v_limit int;
+begin
+  if not exists (
+    select 1 from public.organizers
+    where id = p_organizer_id and owner_id = auth.uid()
+  ) and not public.is_current_user_admin() then
+    raise exception 'Not authorised to submit KYC for this organizer';
+  end if;
+
+  if auth.role() = 'authenticated' and not public.is_current_user_admin() then
+    select coalesce(rejection_count, 0)
+      into v_rejections
+      from public.organizers
+     where id = p_organizer_id;
+
+    select coalesce((value #>> '{}')::int, 5)
+      into v_limit
+      from public.platform_settings
+     where key = 'organizer_rejection_limit';
+    v_limit := coalesce(v_limit, 5);
+
+    if v_limit > 0 and v_rejections >= v_limit then
+      raise exception 'Organizer application rejected the maximum number of times';
+    end if;
+  end if;
+
+  -- Complete-KYC gate: nothing enters the review queue without PAN + bank + GST.
+  if not exists (
+    select 1 from public.organizers
+     where id = p_organizer_id
+       and pan_number is not null and length(trim(pan_number)) > 0
+       and bank_account_number is not null and length(trim(bank_account_number)) > 0
+       and bank_ifsc is not null and length(trim(bank_ifsc)) > 0
+       and bank_account_name is not null and length(trim(bank_account_name)) > 0
+       and gst_number is not null and length(trim(gst_number)) > 0
+  ) then
+    raise exception 'KYC incomplete - PAN, bank details and GST are all required to submit for review';
+  end if;
+
+  update public.organizers
+     set kyc_submitted = true,
+         kyc_status = 'PENDING',
+         kyc_reviewed_at = null,
+         kyc_review_note = null
+   where id = p_organizer_id;
+end;
+$$;

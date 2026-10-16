@@ -91,12 +91,23 @@ export async function createOrganizerAction(
     };
   }
 
-  // Alert admins - new KYC submission needs review
-  await notifyAdmins({
-    type: "KYC_SUBMITTED",
-    message: `New organizer application: ${name}. KYC pending review.`,
-  });
-  await addKycMessage(organizerId, "organizer", user.email ?? null, "Application submitted for review.");
+  // Only complete applications enter the review queue - PAN + bank + GST all
+  // present. Skipped details keep the profile at NOT_SUBMITTED until the
+  // creator adds them from the dashboard.
+  const reviewReady = !!(
+    panNumber &&
+    bankAccountNumber &&
+    bankIfsc &&
+    bankAccountName &&
+    gstNumber
+  );
+  if (reviewReady) {
+    await notifyAdmins({
+      type: "KYC_SUBMITTED",
+      message: `New organizer application: ${name}. KYC pending review.`,
+    });
+    await addKycMessage(organizerId, "organizer", user.email ?? null, "Application submitted for review.");
+  }
 
   // Revalidate the organizer page so the route refreshes and shows the
   // verification banner instead of leaving the user on the submission form.

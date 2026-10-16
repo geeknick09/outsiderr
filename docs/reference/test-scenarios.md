@@ -42,7 +42,11 @@
 - [ ] Hero covers events + communities + crews + discovery; CTA reads “Start Creating - It’s Free” (organizers see “Go to Creator Dashboard”)
 - [x] Click “Get Started” → redirects to `/organizer`
 - [x] Fill become-organizer form (name, bio, photo, cover photo)
+- [ ] Steps 2/3/4 show a "Skip - Add Later" button that advances without input
 - [ ] PAN, bank/UPI and GST steps are all optional - wizard submits with them blank; formats validate only when filled
+- [ ] Skipped details -> profile saves with kyc_status NOT_SUBMITTED, no admin notification
+- [ ] Adding PAN + bank (acct+IFSC+name) + GST later via Edit Profile -> flips to PENDING + notifies admins
+- [ ] Partial details (e.g. PAN only, no GST) -> still NOT_SUBMITTED; direct submit_kyc RPC also rejects incomplete KYC
 - [x] Verify QR code generates from UPI ID
 - [x] Submit → verify organizer profile created
 - [x] Verify dashboard shows cover banner + avatar + name + bio

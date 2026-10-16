@@ -629,15 +629,26 @@ export function BecomeOrganizerForm() {
                 ) : null}
 
                 {step < 4 ? (
-                  <button
-                    type="button"
-                    onClick={next}
-                    disabled={!canAdvance()}
-                    className="flex items-center gap-2 rounded-2xl bg-neon-gradient px-6 py-3 text-sm font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90 disabled:opacity-40"
-                  >
-                    Continue
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
+                  <div className="flex items-center gap-3">
+                    {step >= 1 ? (
+                      <button
+                        type="button"
+                        onClick={next}
+                        className="rounded-2xl border border-zinc-300 px-5 py-3 text-sm font-semibold text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10"
+                      >
+                        Skip - Add Later
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={next}
+                      disabled={!canAdvance()}
+                      className="flex items-center gap-2 rounded-2xl bg-neon-gradient px-6 py-3 text-sm font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90 disabled:opacity-40"
+                    >
+                      Continue
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
                 ) : (
                   <Button
                     type="submit"

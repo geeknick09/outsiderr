@@ -75,6 +75,21 @@ export async function getOrganizerProfile(
   };
 }
 
+/** Review-ready = PAN + bank (account+IFSC+name) + GST all present.
+ *  Anything short stays NOT_SUBMITTED and never hits the admin queue. */
+function reviewReady(input: {
+  panNumber?: string; bankAccountNumber?: string; bankIfsc?: string;
+  bankAccountName?: string; gstNumber?: string;
+}): boolean {
+  return !!(
+    input.panNumber &&
+    input.bankAccountNumber &&
+    input.bankIfsc &&
+    input.bankAccountName &&
+    input.gstNumber
+  );
+}
+
 export async function createOrganizerProfile(
   user: CurrentUser,
   input: CreateOrganizerInput,
@@ -124,8 +139,8 @@ export async function createOrganizerProfile(
       bank_account_name: input.bankAccountName || null,
       bank_account_type: input.bankAccountType || null,
       bank_document_url: input.bankDocumentUrl || null,
-      kyc_submitted: !!input.panNumber,
-      kyc_status: input.panNumber ? "PENDING" : "NOT_SUBMITTED",
+      kyc_submitted: reviewReady(input),
+      kyc_status: reviewReady(input) ? "PENDING" : "NOT_SUBMITTED",
       // Fresh application clears the previous response fields (rejection_count
       // is preserved - it feeds the block limit).
       kyc_response_note: null,
@@ -172,8 +187,8 @@ export async function createOrganizerProfile(
     bank_account_type: input.bankAccountType || null,
     bank_document_url: input.bankDocumentUrl || null,
     rejection_count: 0,
-    kyc_submitted: !!input.panNumber,
-    kyc_status: input.panNumber ? "PENDING" : "NOT_SUBMITTED",
+    kyc_submitted: reviewReady(input),
+    kyc_status: reviewReady(input) ? "PENDING" : "NOT_SUBMITTED",
   } satisfies Record<string, string | boolean | number | null>;
 
   const { data, error } = await supabase
@@ -335,7 +350,7 @@ export async function updateOrganizerProfile(
   // If KYC data was provided, transition status via the RPC - kyc_status is
   // a privileged column that only flips to PENDING through submit_kyc.
   // Approved organizers stage changes instead of re-entering the queue.
-  if (!approved && input.panNumber && input.bankAccountNumber) {
+  if (!approved && reviewReady(input)) {
     // A blocked (max-rejected) organizer must not re-enter the review queue.
     // The RPC enforces this at DB level too - this guard gives a clean error.
     if (organizer.kycStatus === "REJECTED") {

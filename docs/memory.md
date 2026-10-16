@@ -308,3 +308,11 @@ Last updated: 2026-10-08
 - getWarmAudience(organizerId): signed-in page_viewers of the org's
   events/communities minus buyers/members - "Interested, not converted
   yet" table on /organizer/analytics.
+
+
+## KYC skip-until-complete (2026-10-11)
+- reviewReady = PAN + bank (acct+ifsc+name) + GST all present.
+  NOT_SUBMITTED below that - never enters the admin queue; admins are
+  only notified on a complete submission.
+- Wizard steps 2/3/4 have "Skip - Add Later" buttons.
+- updateOrganizerProfile + submit_kyc RPC (STEP 55) enforce the same gate.
