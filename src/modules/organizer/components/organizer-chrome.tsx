@@ -31,7 +31,8 @@ export function OrganizerChrome({
     pathname === "/organizer/staff";
 
   if (!showChrome) return null;
-  if (!organizer) return <OrganizerNav />;
+  // No profile yet = they're on the become-a-creator wizard - no tabs.
+  if (!organizer) return null;
 
   return (
     <div className="space-y-2 pt-4">
