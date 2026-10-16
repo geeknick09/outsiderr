@@ -8,7 +8,7 @@ import { CommunityForm } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { title: "Create a Community or Crew - Outsiderr" };
+export const metadata: Metadata = { title: "Create a Community - Outsiderr" };
 
 export default async function CreateClubPage() {
   const user = await getCurrentUser();
@@ -32,9 +32,9 @@ export default async function CreateClubPage() {
       </div>
 
       <div>
-        <h1 className="text-2xl font-black">Start a Community or Crew</h1>
+        <h1 className="text-2xl font-black">Start a Community</h1>
         <p className="mt-1 text-sm text-muted">
-          Create your crew and it goes live instantly - share it with your people.
+          Create your community and it goes live instantly - share it with your people.
         </p>
       </div>
 
@@ -46,7 +46,7 @@ export default async function CreateClubPage() {
           <div>
             <h2 className="text-xl font-black">Set up your creator profile first</h2>
             <p className="mt-2 text-sm text-muted">
-              Communities live inside the Creator Dashboard - a quick setup (name + PAN) takes a minute. Bank details are optional until you start taking payouts.
+              Communities live inside the Creator Dashboard - a quick profile setup takes a minute. PAN, bank and GST are all optional - add them anytime before payouts.
             </p>
           </div>
           <Link

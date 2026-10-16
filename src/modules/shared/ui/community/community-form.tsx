@@ -224,7 +224,7 @@ export function CommunityForm({ existingSubcategories = {} }: { existingSubcateg
           Instagram handle (optional)
         </span>
         <input name="instagramHandle" placeholder="@yourclub or https://instagram.com/yourclub" className={INPUT} />
-        <span className="text-xs text-muted">So people can check out your crew before joining.</span>
+        <span className="text-xs text-muted">So people can check out your community before joining.</span>
       </label>
 
       <div className="grid gap-3 sm:grid-cols-2">

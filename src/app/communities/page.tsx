@@ -14,7 +14,7 @@ import type { City, CommunityType, JoinMode } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { title: "Communities & Crews - Outsiderr" };
+export const metadata: Metadata = { title: "Communities - Outsiderr" };
 
 const TYPE_LABEL: Record<CommunityType, string> = {
   CLUB: "Community",
@@ -87,7 +87,7 @@ export default async function CommunitiesPage({
       {/* Communities grid */}
       {communities.length === 0 ? (
         <div className="glass rounded-3xl p-8 text-center">
-          <p className="text-sm text-muted">No communities or crews here yet.</p>
+          <p className="text-sm text-muted">No communities here yet.</p>
           {user ? (
             <Link
               href="/communities/create"
