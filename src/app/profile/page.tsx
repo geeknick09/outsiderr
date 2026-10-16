@@ -3,9 +3,9 @@ import { redirect } from "next/navigation";
 import { EditProfileForm, FollowingSection } from "@/modules/web";
 import { getCurrentUser } from "@/modules/shared/server";
 import { getUserProfile } from "@/modules/shared/server";
-import { listFollowedOrganizers, getUserAttendanceCount, listMyCommunityMemberships } from "@/modules/shared/server";
+import { listFollowedOrganizers, listMyCommunityMemberships, getUserBadgeDetails } from "@/modules/shared/server";
 import { listFollowedCommunities } from "@/modules/shared/server";
-import { computeBadges, BADGE_TONES, formatPaise } from "@/modules/shared";
+import { BADGE_LEVELS, BADGE_TONES, formatDateTime } from "@/modules/shared";
 import { cn } from "@/modules/shared";
 import Link from "next/link";
 
@@ -17,14 +17,13 @@ export default async function ProfilePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=%2Fprofile");
 
-  const [profile, followedOrgs, followedComms, attended, memberships] = await Promise.all([
+  const [profile, followedOrgs, followedComms, badges, memberships] = await Promise.all([
     getUserProfile(user),
     listFollowedOrganizers(user),
     listFollowedCommunities(user),
-    getUserAttendanceCount(user.id),
+    getUserBadgeDetails(user.id),
     listMyCommunityMemberships(user),
   ]);
-  const badges = computeBadges({ attendedTotal: attended });
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-6">
@@ -35,18 +34,40 @@ export default async function ProfilePage() {
         </p>
       </div>
 
-      {badges.length ? (
-        <section className="glass rounded-3xl p-5">
-          <h2 className="mb-3 text-base font-bold">Your badges</h2>
-          <div className="flex flex-wrap gap-2">
-            {badges.map((b) => (
-              <span key={b.key} title={b.hint} className={cn("rounded-full px-3 py-1 text-xs font-bold", BADGE_TONES[b.key])}>
-                {b.label}
-              </span>
-            ))}
-          </div>
-        </section>
-      ) : null}
+      <section className="glass rounded-3xl p-5">
+        <h2 className="mb-3 text-base font-bold">Your badges</h2>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {BADGE_LEVELS.map((def) => {
+            const earned = badges.filter((b) => b.key === def.key);
+            if (!earned.length) {
+              return (
+                <div key={def.key} className="rounded-2xl border border-dashed border-zinc-200 p-3 opacity-50 dark:border-white/10">
+                  <span className="rounded-full bg-zinc-500/15 px-2.5 py-0.5 text-[10px] font-bold text-zinc-500">
+                    {def.label}
+                  </span>
+                  <p className="mt-1.5 text-xs text-muted">{def.hint}</p>
+                </div>
+              );
+            }
+            return earned.map((b, i) => (
+              <div key={`${b.key}-${i}`} className="rounded-2xl border border-violet-neon/30 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-bold", BADGE_TONES[b.key])}>
+                    {b.label}
+                  </span>
+                  {b.earnedAt && (
+                    <span className="text-[10px] text-muted">{formatDateTime(b.earnedAt)}</span>
+                  )}
+                </div>
+                <p className="mt-1.5 text-xs text-muted">{b.hint}</p>
+                {b.communityName && (
+                  <p className="mt-1 text-[10px] font-semibold text-violet-neon">{b.communityName}</p>
+                )}
+              </div>
+            ));
+          })}
+        </div>
+      </section>
 
 
       <EditProfileForm

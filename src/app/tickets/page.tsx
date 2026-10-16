@@ -1,7 +1,5 @@
 import { redirect } from "next/navigation";
 
-import { BADGE_LEVELS, BADGE_TONES, cn, formatDateTime } from "@/modules/shared";
-import { Award } from "lucide-react";
 
 import { TicketsRealtimeWrapper } from "@/modules/web";
 import { ReviewForm } from "@/modules/web";
@@ -9,7 +7,7 @@ import { getCurrentUser } from "@/modules/shared/server";
 import { listMyOrders, listMyTickets } from "@/modules/shared/server";
 import { listMyRefunds } from "@/modules/shared/server";
 import { getOrganizerWhatsappNumber } from "@/modules/shared/server";
-import { getReviewableEvents, getUserBadgeDetails } from "@/modules/shared/server";
+import { getReviewableEvents } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
 
@@ -24,13 +22,12 @@ export default async function TicketsPage({
   if (!user) redirect("/login?next=%2Ftickets");
 
   const { submitted, review, success } = await searchParams;
-  const [orders, tickets, refunds, whatsappNumber, reviewableEvents, badges] = await Promise.all([
+  const [orders, tickets, refunds, whatsappNumber, reviewableEvents] = await Promise.all([
     listMyOrders(user),
     listMyTickets(user),
     listMyRefunds(user),
     getOrganizerWhatsappNumber(),
     getReviewableEvents(user.id),
-    getUserBadgeDetails(user.id),
   ]);
 
   // If review=eventId is in the URL, show the review form for that event
@@ -99,45 +96,7 @@ export default async function TicketsPage({
         initialRefunds={refunds}
       />
 
-      <section className="mx-auto max-w-4xl px-4 pb-10">
-        <h2 className="mb-3 flex items-center gap-2 text-lg font-bold">
-          <Award className="h-5 w-5 text-violet-neon" />
-          Your badges
-        </h2>
-        <div className="glass rounded-3xl p-5">
-          <div className="grid gap-2 sm:grid-cols-2">
-            {BADGE_LEVELS.map((def) => {
-              const earned = badges.filter((b) => b.key === def.key);
-              if (!earned.length) {
-                return (
-                  <div key={def.key} className="rounded-2xl border border-dashed border-zinc-200 p-3 opacity-50 dark:border-white/10">
-                    <span className="rounded-full bg-zinc-500/15 px-2.5 py-0.5 text-[10px] font-bold text-zinc-500">
-                      {def.label}
-                    </span>
-                    <p className="mt-1.5 text-xs text-muted">{def.hint}</p>
-                  </div>
-                );
-              }
-              return earned.map((b, i) => (
-                <div key={`${b.key}-${i}`} className="rounded-2xl border border-violet-neon/30 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-bold", BADGE_TONES[b.key])}>
-                      {b.label}
-                    </span>
-                    {b.earnedAt && (
-                      <span className="text-[10px] text-muted">{formatDateTime(b.earnedAt)}</span>
-                    )}
-                  </div>
-                  <p className="mt-1.5 text-xs text-muted">{b.hint}</p>
-                  {b.communityName && (
-                    <p className="mt-1 text-[10px] font-semibold text-violet-neon">{b.communityName}</p>
-                  )}
-                </div>
-              ));
-            })}
-            </div>
-          </div>
-      </section>
+
     </div>
   );
 }
