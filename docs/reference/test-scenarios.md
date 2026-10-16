@@ -1254,6 +1254,12 @@ npx next build
 - [ ] Traffic donut pie renders once data exists (views/shares > 0)
 - [ ] Sharing an event/community via the share icon increments Shares on next load
 
+### 31.4 Organizer Tracking
+
+- [ ] `/admin/organizers/<id>` shows Owner contact (name/phone/email), KYC status, Bank/Payout section
+- [ ] "Payable now" shows the net ledger due (or "Settled")
+- [ ] "Agreement" section shows terms accepted count / total events
+
 ### 31.5 Overview Filters & Drill-down
 
 - [ ] `/admin` shows Creators, Communities, Users, New users, Viewed-never-booked, Admins cards
@@ -1262,6 +1268,8 @@ npx next build
 - [ ] "Viewed, never booked" card -> modal lists signed-in viewers with no confirmed order
 - [ ] "Admins" card -> lists every is_admin account
 - [ ] Clear link resets to unfiltered global numbers
+- [ ] Same filter bar on `/admin/analytics` - From/To rescopes every chart series; city scopes event-attributed stats
+- [ ] Default (no params) shows last-30-days behaviour unchanged
 
 ### 31.6 Legal Page Versions
 
@@ -1269,12 +1277,9 @@ npx next build
 - [ ] Saving a page bumps its version number; a snapshot lands in history
 - [ ] Click the `vN` chip -> version history modal lists saved versions (latest 10 kept) with date + LIVE/DRAFT badges
 - [ ] "View" expands the old content; "Restore" saves it as a new live version (vN+1), history intact
-
-### 31.4 Organizer Tracking
-
-- [ ] `/admin/organizers/<id>` shows Owner contact (name/phone/email), KYC status, Bank/Payout section
-- [ ] "Payable now" shows the net ledger due (or "Settled")
-- [ ] "Agreement" section shows terms accepted count / total events
+- [ ] Modal subtitle shows only "live vN · last 10 saves kept" - no slug/path anywhere
+- [ ] Each version row shows save datetime + "by <email>"
+- [ ] Even if a snapshot is skipped, the NEXT save backfills the outgoing version - no holes in the chain
 
 ## Test Execution Checklist
 
