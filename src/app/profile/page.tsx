@@ -80,6 +80,26 @@ export default async function ProfilePage() {
         </section>
       ) : null}
 
+      <FollowingSection
+        organizers={followedOrgs}
+        communities={followedComms}
+      />
+
+      <EditProfileForm
+        initialName={profile?.fullName ?? user.name}
+        initialPhone={profile?.phone ?? user.phone ?? ""}
+        initialEmail={user.email ?? ""}
+        initialBirthDate={profile?.birthDate ?? ""}
+        initialGender={profile?.gender ?? ""}
+        initialAvatarUrl={profile?.avatarUrl ?? ""}
+        initialInstagramUrl={profile?.instagramUrl ?? ""}
+        initialYoutubeUrl={profile?.youtubeUrl ?? ""}
+        initialXUrl={profile?.xUrl ?? ""}
+        initialFacebookUrl={profile?.facebookUrl ?? ""}
+        initialLinkedinUrl={profile?.linkedinUrl ?? ""}
+        initialTags={profile?.interestedTags ?? []}
+      />
+
       <section className="glass rounded-3xl p-5">
         <h2 className="mb-3 text-base font-bold">Communities</h2>
         {memberships.length === 0 ? (
@@ -104,26 +124,6 @@ export default async function ProfilePage() {
           </div>
         )}
       </section>
-
-      <FollowingSection
-        organizers={followedOrgs}
-        communities={followedComms}
-      />
-
-      <EditProfileForm
-        initialName={profile?.fullName ?? user.name}
-        initialPhone={profile?.phone ?? user.phone ?? ""}
-        initialEmail={user.email ?? ""}
-        initialBirthDate={profile?.birthDate ?? ""}
-        initialGender={profile?.gender ?? ""}
-        initialAvatarUrl={profile?.avatarUrl ?? ""}
-        initialInstagramUrl={profile?.instagramUrl ?? ""}
-        initialYoutubeUrl={profile?.youtubeUrl ?? ""}
-        initialXUrl={profile?.xUrl ?? ""}
-        initialFacebookUrl={profile?.facebookUrl ?? ""}
-        initialLinkedinUrl={profile?.linkedinUrl ?? ""}
-        initialTags={profile?.interestedTags ?? []}
-      />
     </div>
   );
 }
