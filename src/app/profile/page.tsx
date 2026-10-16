@@ -50,7 +50,7 @@ export default async function ProfilePage() {
         initialTags={profile?.interestedTags ?? []}
       />
 
-      <section className="glass rounded-3xl p-5">
+      <section id="badges" className="glass scroll-mt-24 rounded-3xl p-5">
         <h2 className="mb-3 text-base font-bold">Your badges</h2>
         <div className="grid gap-2 sm:grid-cols-2">
           {BADGE_LEVELS.map((def) => {

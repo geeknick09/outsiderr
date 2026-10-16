@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { LogOut, Info, Mail, Megaphone, ScanLine, ShieldCheck, Ticket, User , BadgePercent } from "lucide-react";
+import { Award, LogOut, Info, Mail, Megaphone, ScanLine, ShieldCheck, Ticket, User , BadgePercent } from "lucide-react";
 
 import { signOutAction } from "@/modules/shared/actions/auth";
 import { Button } from "../ui/button";
@@ -79,6 +79,9 @@ export function UserMenu({
             </MenuLink>
             <MenuLink href="/tickets" onSelect={() => setOpen(false)}>
               <Ticket className="h-4 w-4" /> My Tickets
+            </MenuLink>
+            <MenuLink href="/profile#badges" onSelect={() => setOpen(false)}>
+              <Award className="h-4 w-4" /> Your Badges
             </MenuLink>
             <MenuLink href="/promoter" onSelect={() => setOpen(false)}>
               <BadgePercent className="h-4 w-4" /> Promote &amp; earn
