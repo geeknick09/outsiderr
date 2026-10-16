@@ -20,17 +20,27 @@ export function WarmAudiencePanel({ leads }: { leads: WarmLead[] }) {
           <thead>
             <tr className="border-b border-zinc-200 text-[10px] uppercase tracking-wide text-muted dark:border-white/10">
               <th className="px-2 py-2">User</th>
+              <th className="hidden px-2 py-2 sm:table-cell">Contact</th>
               <th className="px-2 py-2">Viewed</th>
-              <th className="hidden px-2 py-2 sm:table-cell">Kind</th>
+              <th className="hidden px-2 py-2 md:table-cell">Kind</th>
               <th className="px-2 py-2">Last seen</th>
             </tr>
           </thead>
           <tbody>
             {leads.map((l, i) => (
               <tr key={i} className="border-b border-zinc-100 last:border-0 dark:border-white/5">
-                <td className="px-2 py-2.5 font-medium">{l.userName}</td>
+                <td className="px-2 py-2.5 font-medium">
+                  {l.userName}
+                  <span className="block text-[10px] font-normal text-muted sm:hidden">
+                    {l.email ?? l.phone ?? ""}
+                  </span>
+                </td>
+                <td className="hidden max-w-[180px] truncate px-2 py-2.5 text-xs text-muted sm:table-cell">
+                  {l.email ?? ""}
+                  {l.phone ? <span className="block">{l.phone}</span> : null}
+                </td>
                 <td className="max-w-[200px] truncate px-2 py-2.5">{l.entityName}</td>
-                <td className="hidden px-2 py-2.5 sm:table-cell">
+                <td className="hidden px-2 py-2.5 md:table-cell">
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                     l.entityType === "EVENT"
                       ? "bg-violet-neon/15 text-violet-neon"

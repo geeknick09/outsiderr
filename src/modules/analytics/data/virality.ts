@@ -163,6 +163,8 @@ export async function getOrganizerVirality(organizerId: string): Promise<{
 
 export interface WarmLead {
   userName: string;
+  email: string | null;
+  phone: string | null;
   entityType: "EVENT" | "COMMUNITY";
   entityName: string;
   lastViewedAt: string;
@@ -221,12 +223,14 @@ export async function getWarmAudience(organizerId: string, limit = 50): Promise<
   leads.sort((a, b) => b.at.localeCompare(a.at));
 
   const { data: profs } = viewerIds.length
-    ? await service.from("profiles").select("id, full_name").in("id", viewerIds.slice(0, 1000))
+    ? await service.from("profiles").select("id, full_name, email, phone").in("id", viewerIds.slice(0, 1000))
     : { data: [] };
-  const nameMap = new Map((profs ?? []).map((p) => [p.id, p.full_name]));
+  const profMap = new Map((profs ?? []).map((p) => [p.id, p]));
 
   return leads.slice(0, limit).map((l) => ({
-    userName: nameMap.get(l.userId) ?? "Someone",
+    userName: profMap.get(l.userId)?.full_name ?? "Someone",
+    email: profMap.get(l.userId)?.email ?? null,
+    phone: profMap.get(l.userId)?.phone ?? null,
     entityType: l.entityType,
     entityName: l.entityType === "EVENT" ? (evMap.get(l.entityId) ?? "-") : (commMap.get(l.entityId) ?? "-"),
     lastViewedAt: l.at,
