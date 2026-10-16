@@ -74,8 +74,8 @@ export function FeatureOrbit() {
         {/* orbiting nodes */}
         {NODES.map((n, i) => {
           const angle = (-90 + i * (360 / NODES.length)) * (Math.PI / 180);
-          const x = 50 + 42 * Math.cos(angle);
-          const y = 50 + 42 * Math.sin(angle);
+          const x = 50 + 45 * Math.cos(angle);
+          const y = 50 + 45 * Math.sin(angle);
           const isActive = i === active;
           return (
             <button
@@ -84,15 +84,15 @@ export function FeatureOrbit() {
               onMouseEnter={() => setActive(i)}
               onClick={() => setActive(i)}
               style={{ left: `${x}%`, top: `${y}%` }}
-              className={`absolute flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-1 rounded-full border p-2 text-center transition-all duration-300 lg:h-24 lg:w-24 ${
+              className={`absolute flex h-28 w-28 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-1.5 rounded-full border p-3 text-center transition-all duration-300 lg:h-32 lg:w-32 ${
                 isActive
                   ? "scale-110 border-violet-neon bg-violet-neon/15 shadow-glow-violet"
                   : "glass hover:border-violet-neon/50"
               }`}
               aria-label={n.title}
             >
-              <n.icon className={`h-5 w-5 shrink-0 ${isActive ? "text-violet-neon" : "text-muted"}`} />
-              <span className={`text-[9px] font-semibold leading-tight lg:text-[10px] ${isActive ? "text-foreground" : "text-muted"}`}>
+              <n.icon className={`h-6 w-6 shrink-0 lg:h-7 lg:w-7 ${isActive ? "text-violet-neon" : "text-muted"}`} />
+              <span className={`text-[11px] font-semibold leading-tight lg:text-xs ${isActive ? "text-foreground" : "text-muted"}`}>
                 {n.title}
               </span>
             </button>
