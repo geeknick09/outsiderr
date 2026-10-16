@@ -1262,6 +1262,13 @@ npx next build
 - [ ] "Admins" card -> lists every is_admin account
 - [ ] Clear link resets to unfiltered global numbers
 
+### 31.6 Legal Page Versions
+
+- [ ] `/admin/legal` page cards show only a `vN` chip (no /legal/... path text)
+- [ ] Saving a page bumps its version number; a snapshot lands in history
+- [ ] Click the `vN` chip -> version history modal lists saved versions (latest 10 kept) with date + LIVE/DRAFT badges
+- [ ] "View" expands the old content; "Restore" saves it as a new live version (vN+1), history intact
+
 ### 31.4 Organizer Tracking
 
 - [ ] `/admin/organizers/<id>` shows Owner contact (name/phone/email), KYC status, Bank/Payout section

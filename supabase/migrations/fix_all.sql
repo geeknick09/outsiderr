@@ -9517,3 +9517,29 @@ alter table public.share_events enable row level security;
 drop policy if exists "anyone logs share" on public.share_events;
 create policy "anyone logs share" on public.share_events
   for insert with check (true);
+
+-- =============================================================================
+-- STEP 54. LEGAL PAGE VERSION HISTORY (2026-10-11)
+-- Snapshots each legal_pages save; admins can view + restore past versions.
+-- =============================================================================
+
+create table if not exists public.legal_page_versions (
+  id           uuid        primary key default gen_random_uuid(),
+  slug         text        not null references public.legal_pages(slug) on delete cascade,
+  version      integer     not null,
+  title        text        not null,
+  content      text        not null,
+  is_published boolean     not null default true,
+  saved_by     uuid        references public.profiles(id),
+  created_at   timestamptz not null default now()
+);
+create index if not exists legal_page_versions_slug_idx
+  on public.legal_page_versions(slug, version desc);
+
+alter table public.legal_page_versions enable row level security;
+drop policy if exists "admins read legal versions" on public.legal_page_versions;
+create policy "admins read legal versions" on public.legal_page_versions
+  for select to authenticated using (public.is_current_user_admin());
+drop policy if exists "admins insert legal versions" on public.legal_page_versions;
+create policy "admins insert legal versions" on public.legal_page_versions
+  for insert to authenticated with check (public.is_current_user_admin());

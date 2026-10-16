@@ -287,3 +287,10 @@ Last updated: 2026-10-08
 - Organizer detail: payablePaise (net ledger - open payouts) + terms accepted count.
 - box-office.db.test.ts needs 2 live paid events from different organizers -
   _seed_dev_test.mjs now creates "DEVTEST Org Two Jam" under org2 for this.
+
+
+## Legal page versioning (2026-10-11)
+- legal_page_versions (STEP 54): snapshot on every upsertLegalPage;
+  version number now actually increments (was hardcoded v1).
+- Admin panel hides the /legal/ path; vN chip opens a history modal
+  (view + restore, keeps last 10 per slug).

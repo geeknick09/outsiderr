@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { getCurrentUser } from "@/modules/shared/server";
 import { createClient } from "@/modules/shared/server";
-import { deleteLegalPage, upsertLegalPage } from "../data/legal-pages";
+import { deleteLegalPage, listLegalPageVersions, restoreLegalPageVersion, upsertLegalPage } from "../data/legal-pages";
 
 async function requireAdmin() {
   const user = await getCurrentUser();
@@ -54,5 +54,32 @@ export async function deleteLegalPageAction(slug: string): Promise<{ error: stri
     return { error: null };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to delete page." };
+  }
+}
+
+export async function listLegalPageVersionsAction(slug: string): Promise<{
+  versions: { id: string; version: number; title: string; content: string; isPublished: boolean; createdAt: string }[];
+  error?: string;
+}> {
+  try {
+    await requireAdmin();
+    return { versions: await listLegalPageVersions(slug) };
+  } catch (e) {
+    return { versions: [], error: e instanceof Error ? e.message : "Failed." };
+  }
+}
+
+export async function restoreLegalPageVersionAction(
+  slug: string,
+  version: number,
+): Promise<{ error?: string }> {
+  try {
+    const user = await requireAdmin();
+    const r = await restoreLegalPageVersion(user.id, slug, version);
+    revalidatePath("/admin/legal");
+    revalidatePath(`/legal/${slug}`);
+    return r;
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Failed." };
   }
 }

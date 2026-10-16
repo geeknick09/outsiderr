@@ -373,6 +373,17 @@ export type LegalPageRow = {
   updated_by: string | null;
 }
 
+export type LegalPageVersionRow = {
+  id: string;
+  slug: string;
+  version: number;
+  title: string;
+  content: string;
+  is_published: boolean;
+  saved_by: string | null;
+  created_at: string;
+}
+
 export type StaffMemberRow = {
   id: string;
   owner_type: "ADMIN" | "ORGANIZER";
@@ -864,6 +875,7 @@ export type Database = {
       scanner_pins: Table<ScannerPinRow, "event_id" | "organizer_id" | "pin_hash">;
       box_office_pins: Table<BoxOfficePinRow, "event_id" | "organizer_id" | "pin_hash" | "role">;
       legal_pages: Table<LegalPageRow, "slug" | "title" | "content">;
+      legal_page_versions: Table<LegalPageVersionRow, "slug" | "version" | "title" | "content">;
       hero_boosts: Table<HeroBoostRow, "event_id" | "organizer_id" | "amount_paise">;
       compliance_tasks: Table<ComplianceTaskRow, "title">;
       share_events: Table<ShareEventRow, "entity_type" | "entity_id">;

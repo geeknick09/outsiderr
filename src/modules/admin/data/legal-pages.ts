@@ -46,6 +46,8 @@ export async function getLegalPage(slug: string): Promise<LegalPage | null> {
   };
 }
 
+const VERSIONS_KEPT = 10;
+
 export async function upsertLegalPage(
   userId: string,
   slug: string,
@@ -54,17 +56,83 @@ export async function upsertLegalPage(
   isPublished: boolean,
 ): Promise<void> {
   const supabase = await createClient();
+  const { data: current } = await supabase
+    .from("legal_pages")
+    .select("version")
+    .eq("slug", slug)
+    .maybeSingle();
+  const nextVersion = (current?.version ?? 0) + 1;
   const { error } = await supabase
     .from("legal_pages")
     .upsert({
       slug,
       title,
       content,
+      version: nextVersion,
       is_published: isPublished,
       updated_at: new Date().toISOString(),
       updated_by: userId,
     });
   if (error) throw error;
+  // Snapshot for the version history (fire-and-forget safe: ignore dup-version conflicts).
+  await supabase.from("legal_page_versions").upsert(
+    { slug, version: nextVersion, title, content, is_published: isPublished, saved_by: userId },
+    { onConflict: "slug,version", ignoreDuplicates: true },
+  );
+  // Prune history beyond the last N versions per slug.
+  const { data: old } = await supabase
+    .from("legal_page_versions")
+    .select("id")
+    .eq("slug", slug)
+    .order("version", { ascending: false })
+    .range(VERSIONS_KEPT, 100);
+  const ids = (old ?? []).map((r) => r.id);
+  if (ids.length) await supabase.from("legal_page_versions").delete().in("id", ids);
+}
+
+export interface LegalPageVersion {
+  id: string;
+  version: number;
+  title: string;
+  content: string;
+  isPublished: boolean;
+  createdAt: string;
+}
+
+export async function listLegalPageVersions(slug: string): Promise<LegalPageVersion[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("legal_page_versions")
+    .select("id, version, title, content, is_published, created_at")
+    .eq("slug", slug)
+    .order("version", { ascending: false })
+    .limit(10);
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    version: r.version,
+    title: r.title,
+    content: r.content,
+    isPublished: r.is_published,
+    createdAt: r.created_at,
+  }));
+}
+
+/** Restore a past version - saves it as a NEW current version (history stays intact). */
+export async function restoreLegalPageVersion(
+  userId: string,
+  slug: string,
+  version: number,
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: v } = await supabase
+    .from("legal_page_versions")
+    .select("title, content, is_published")
+    .eq("slug", slug)
+    .eq("version", version)
+    .maybeSingle();
+  if (!v) return { error: "Version not found." };
+  await upsertLegalPage(userId, slug, v.title, v.content, v.is_published);
+  return {};
 }
 
 export async function deleteLegalPage(slug: string): Promise<void> {
