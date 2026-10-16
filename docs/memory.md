@@ -294,3 +294,11 @@ Last updated: 2026-10-08
   version number now actually increments (was hardcoded v1).
 - Admin panel hides the /legal/ path; vN chip opens a history modal
   (view + restore, keeps last 10 per slug).
+
+
+## Creator page rewrite + community cap (2026-10-11)
+- /list-your-event rewritten as "Become a Creator" marketing page:
+  public events / community events / communities, community landing
+  features, Razorpay money stack, campaigns/promoters, 5-step how-it-works.
+- community_max_per_organizer (default 10, admin Settings -> Other)
+  enforced in createCommunity for organizer-owned communities.

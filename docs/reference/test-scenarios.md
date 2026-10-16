@@ -1286,7 +1286,7 @@ npx next build
 | Module | Scenarios | Status |
 | --- | --- | --- |
 | Auth & Profile | 1.1–1.2 | ☐ |
-| Organizer Onboarding | 2.1–2.4 | ☐ |
+| Organizer Onboarding | 2.1–2.6 | ☐ |
 | Event Creation | 3.1–3.8 | ☐ |
 | Event Discovery | 4.1–4.4 | ☐ |
 | Booking & Tickets | 5.1–5.6 | ☐ |

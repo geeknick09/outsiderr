@@ -1,6 +1,22 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BarChart3, CalendarDays, MapPin, QrCode, Rocket, ScanLine, Shield, TrendingUp, Users, Zap } from "lucide-react";
+import {
+  BarChart3,
+  CalendarDays,
+  CreditCard,
+  Globe,
+  Layers,
+  MapPin,
+  Megaphone,
+  Rocket,
+  ScanLine,
+  Shield,
+  Ticket,
+  TrendingUp,
+  Users,
+  UsersRound,
+  Zap,
+} from "lucide-react";
 
 import { ThemeLogo } from "@/modules/shared";
 import { getCurrentUser, getOrganizerProfile, getSettingInt } from "@/modules/shared/server";
@@ -31,6 +47,7 @@ export default async function ListYourEventPage() {
   }
   const blocked = accessState?.blocked === true;
   const isApproved = accessState?.eligible === true;
+  const communityCap = (await getSettingInt("community_max_per_organizer")) || 10;
 
   return (
     <div className="min-h-screen">
@@ -42,17 +59,16 @@ export default async function ListYourEventPage() {
             <ThemeLogo width={180} height={42} />
           </div>
           <h1 className="text-4xl font-black tracking-tight sm:text-5xl md:text-6xl">
-            Create on{" "}
+            Become a Creator on{" "}
             <span className="bg-neon-gradient bg-clip-text text-transparent">Outsiderr</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-base text-muted sm:text-lg">
-            Events, communities, crews, cyphers, battles, skate comps, jams, workshops - if it&apos;s
-            happening outside the mainstream, it belongs here. Host events, build your community,
-            get discovered by the people who care.
+            One dashboard for everything you run - public events, community events, and your own
+            communities. Host, promote, sell, scan, and get paid - all in one place.
           </p>
           {blocked ? (
             <p className="mt-8 text-sm font-semibold text-red-500">
-              Your organizer application reached the rejection limit - get started to see your options.
+              Your creator application reached the rejection limit - get started to see your options.
             </p>
           ) : null}
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -63,25 +79,152 @@ export default async function ListYourEventPage() {
               {isApproved ? "Go to Creator Dashboard" : "Start Creating - It's Free"}
             </Link>
             <Link
-              href="/"
+              href="/communities"
               className="w-full rounded-2xl border border-zinc-200 px-8 py-4 text-center text-base font-semibold text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10 sm:w-auto"
             >
-              Explore Events
+              Explore Communities
             </Link>
           </div>
           <p className="mt-4 text-xs text-muted">
-            Free listing. We only charge a negligible fraction - and only when you actually sell.
+            Free to create. We only take a small share when you actually sell.
           </p>
         </div>
       </section>
 
-      {/* Stats bar */}
-      <section className="border-y border-zinc-200 px-4 py-8 dark:border-white/10">
-        <div className="mx-auto grid max-w-4xl grid-cols-2 gap-6 text-center sm:grid-cols-4">
-          <Stat value="₹0" label="Listing fees" />
-          <Stat value="100%" label="Free events = zero cost" />
-          <Stat value="Instant" label="QR ticket generation" />
-          <Stat value="UPI" label="Direct to your account" />
+      {/* What you can build */}
+      <section className="px-4 py-16">
+        <div className="mx-auto max-w-5xl">
+          <h2 className="text-center text-3xl font-black tracking-tight">
+            One creator hub. Three things you can build.
+          </h2>
+          <div className="mt-10 grid gap-6 md:grid-cols-3">
+            <BuildCard
+              icon={Ticket}
+              title="Public events"
+              description="Gigs, cyphers, comps, workshops - ticketed or free, city-tagged, discoverable on the homepage and in search."
+            />
+            <BuildCard
+              icon={UsersRound}
+              title="Community events"
+              description="Run events inside your community - weekly jams, meetups, members-only drops. Attach any event to one of your communities."
+            />
+            <BuildCard
+              icon={Layers}
+              title={`Communities (up to ${communityCap})`}
+              description="Clubs and crews with their own landing pages, members, timelines and event feeds. You can run several under one creator account."
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Community landing pages */}
+      <section className="border-y border-zinc-200 px-4 py-16 dark:border-white/10">
+        <div className="mx-auto max-w-5xl">
+          <h2 className="text-center text-3xl font-black tracking-tight">
+            Your community gets a real landing page
+          </h2>
+          <p className="mt-3 text-center text-sm text-muted">
+            Not a bare link - a full public page that does the talking for you.
+          </p>
+          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <Feature
+              icon={Globe}
+              title="Branded covers"
+              description="16:9 desktop cover + a separate 3:4 mobile cover so your page looks sharp on every device - with a proper cropper built in."
+            />
+            <Feature
+              icon={Users}
+              title="Join modes your way"
+              description="Open to everyone, request-to-join with custom questions, or invite-only links. Approve members, set subcategories, follow your niche."
+            />
+            <Feature
+              icon={CalendarDays}
+              title="A living timeline"
+              description="Your community page shows a scrollable event timeline - past editions grayed out, upcoming events below a glowing 'Now' marker."
+            />
+            <Feature
+              icon={Ticket}
+              title="Events wired in"
+              description="Every event you attach feeds the community timeline and page. Members discover your drops without leaving your space."
+            />
+            <Feature
+              icon={Megaphone}
+              title="All your socials, one page"
+              description="Instagram, YouTube, X, Facebook, LinkedIn, website - linked right from your page header so followers find you everywhere."
+            />
+            <Feature
+              icon={TrendingUp}
+              title="Member growth & virality"
+              description="Track member counts, referred joins vs direct joins, and your community's virality coefficient in analytics."
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Money */}
+      <section className="px-4 py-16">
+        <div className="mx-auto max-w-5xl">
+          <h2 className="text-center text-3xl font-black tracking-tight">
+            Money, handled properly
+          </h2>
+          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <Feature
+              icon={CreditCard}
+              title="Razorpay payments"
+              description="UPI, cards, netbanking, wallets - real gateway payments at checkout. Buyers pay, confirmations are instant and automatic."
+            />
+            <Feature
+              icon={Zap}
+              title="Automatic splits"
+              description="Commission, convenience fee and your share are calculated and recorded per order - no reconciliation spreadsheets."
+            />
+            <Feature
+              icon={Shield}
+              title="Refunds & cancellations"
+              description="Postpone or cancel with automatic notifications, tracked refunds, and cancellation charges applied exactly to your policy."
+            />
+            <Feature
+              icon={BarChart3}
+              title="Your ledger, always current"
+              description="Every sale, fee and payout shows up in your ledger with razor-sharp math. Export what you need for your books."
+            />
+            <Feature
+              icon={ScanLine}
+              title="Box office & door scanner"
+              description="Sell at the counter, comp the guestlist, and check in attendees with the built-in QR scanner - all free."
+            />
+            <Feature
+              icon={Rocket}
+              title="Payouts on schedule"
+              description="Your earnings accumulate and pay out to your bank account. Track every payout's status from your dashboard."
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Promotion */}
+      <section className="border-y border-zinc-200 px-4 py-16 dark:border-white/10">
+        <div className="mx-auto max-w-5xl">
+          <h2 className="text-center text-3xl font-black tracking-tight">
+            Promotion that actually reaches people
+          </h2>
+          <div className="mt-10 grid gap-6 sm:grid-cols-3">
+            <Feature
+              icon={Rocket}
+              title="Campaigns: Feature &amp; Slot"
+              description="Feature puts your event on the homepage Front Row. Slot buys a numbered spot in the sponsored strip - on the homepage, communities, or both."
+            />
+            <Feature
+              icon={Megaphone}
+              title="Promoters &amp; referral links"
+              description="Give street-team promoters tracked links and promo codes. Commissions attribute automatically - you see exactly who drives sales."
+            />
+            <Feature
+              icon={TrendingUp}
+              title="Analytics + virality"
+              description="Sales curves, channel split, city breakdown, virality coefficient per event and community - know what moves the needle."
+            />
+          </div>
         </div>
       </section>
 
@@ -92,106 +235,53 @@ export default async function ListYourEventPage() {
             How it works
           </h2>
           <p className="mt-2 text-center text-sm text-muted">
-            From idea to live event in under 5 minutes.
+            From signup to paid-out in five steps.
           </p>
-          <div className="mt-10 grid gap-6 sm:grid-cols-3">
+          <div className="mt-10 grid gap-6 sm:grid-cols-3 lg:grid-cols-5">
             <Step
-              icon={Users}
               step="1"
-              title="Create your organizer profile"
-              description="Set up your organizer page with your name, UPI ID, and bio. One-time setup, takes 2 minutes."
+              title="Creator profile"
+              description="Name, photo, bio. One-time setup, two minutes."
             />
             <Step
-              icon={CalendarDays}
               step="2"
-              title="Create events &amp; communities"
-              description="List an event with ticket tiers (free or paid), or start a community around your crew. Publish instantly - no approval needed."
+              title="Quick KYC"
+              description="PAN gets you reviewed. Bank & GST can wait till you sell."
             />
             <Step
-              icon={ScanLine}
               step="3"
-              title="Scan tickets at the door"
-              description="Built-in QR scanner per event. Check attendees in, track attendance in real-time, no third-party app needed."
+              title="Create"
+              description="An event, a community, or both. Publish instantly."
+            />
+            <Step
+              step="4"
+              title="Promote & scan"
+              description="Campaigns, promoters, box office and QR door checks."
+            />
+            <Step
+              step="5"
+              title="Get paid"
+              description="Razorpay settlements to your bank. Ledger keeps it honest."
             />
           </div>
         </div>
       </section>
 
-      {/* Features - what you get */}
-      <section className="px-4 py-16">
-        <div className="mx-auto max-w-4xl">
-          <h2 className="text-center text-3xl font-black tracking-tight">
-            Everything you get - built in
-          </h2>
-          <p className="mt-2 text-center text-sm text-muted">
-            Tools that would cost you thousands elsewhere. All included.
-          </p>
-          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <Feature
-              icon={QrCode}
-              title="QR ticket system"
-              description="Every ticket gets a unique QR code. Built-in scanner per event validates check-ins. No third-party scanner app needed."
-            />
-            <Feature
-              icon={BarChart3}
-              title="Full analytics & insights"
-              description="See exactly how your event is doing - bookings, revenue, waitlists, attendance. Know who came, who didn't, and what's trending."
-            />
-            <Feature
-              icon={TrendingUp}
-              title="Trends & insights"
-              description="Understand what's working in your city. Track registrations over time, spot patterns, and plan better events."
-            />
-            <Feature
-              icon={Users}
-              title="Attendee management"
-              description="See who booked, how many showed up, who didn't. Full attendee lists with contact details and check-in status."
-            />
-            <Feature
-              icon={Zap}
-              title="Manual UPI payments"
-              description="Attendees pay directly to your UPI ID via QR. They submit the UTR, you verify - no payment gateway, no middleman."
-            />
-            <Feature
-              icon={ScanLine}
-              title="Per-event door scanner"
-              description="Each event has its own scanner. Tickets are validated against the specific event - no cross-event mix-ups."
-            />
-            <Feature
-              icon={Rocket}
-              title="Front Row boost"
-              description="Feature your event on the homepage hero carousel. Get maximum visibility for a flat fee."
-            />
-            <Feature
-              icon={Shield}
-              title="Cancel & postpone support"
-              description="Life happens. Cancel or postpone with automatic notifications to ticket holders and refund tracking."
-            />
-            <Feature
-              icon={CalendarDays}
-              title="Phased ticketing"
-              description="Early bird, regular, last-minute - set up multiple phases with automatic carry-forward of unsold tickets."
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Why the small fee is worth it */}
+      {/* Fee explainer */}
       <section className="px-4 py-16">
         <div className="mx-auto max-w-3xl">
           <div className="glass rounded-3xl p-8 text-center">
             <h2 className="text-2xl font-black tracking-tight">
-              Free to list. Negligible fee only when you sell.
+              Free to create. Small fee only when you sell.
             </h2>
             <p className="mt-4 text-sm text-muted">
-              You read that right. Listing is completely free. For paid events, a small fraction
-              is deducted from your payout - and that fraction stands for nothing compared to what
-              you&apos;re getting: QR tickets, door scanner, full analytics, attendee insights,
-              trend tracking, phased ticketing, boost options, and more. Tools that would cost
-              you thousands on other platforms. All included. All working only when you actually sell.
+              Creating events and communities costs nothing. For paid tickets, a small commission is
+              deducted at checkout - and it buys you a full stack: Razorpay checkout, QR tickets,
+              door scanner, box office, analytics, campaigns, promoters and payouts. Free events?
+              Zero cost. Zero commission. Forever.
             </p>
             <p className="mt-4 text-sm font-semibold text-violet-neon">
-              Free events? Zero cost. Zero commission. Zero fees. Forever.
+              No listing fees. No subscriptions to start. Pay only when money moves.
             </p>
           </div>
         </div>
@@ -241,16 +331,16 @@ export default async function ListYourEventPage() {
       <section className="px-4 py-20">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
-            Ready to list your event?
+            Ready to create?
           </h2>
           <p className="mt-4 text-base text-muted">
-            Join the community of organizers bringing underground culture to the surface. It&apos;s free to get started.
+            Join the creators bringing underground culture to the surface. It&apos;s free to start.
           </p>
           <Link
             href="/organizer"
             className="mt-8 inline-block rounded-2xl bg-neon-gradient px-10 py-4 text-base font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90"
           >
-            {isApproved ? "Go to Organizer Dashboard" : "Get Started"}
+            {isApproved ? "Go to Creator Dashboard" : "Start Creating"}
           </Link>
         </div>
       </section>
@@ -274,36 +364,42 @@ export default async function ListYourEventPage() {
   );
 }
 
-function Stat({ value, label }: { value: string; label: string }) {
+function BuildCard({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+}) {
   return (
-    <div>
-      <p className="text-2xl font-black text-violet-neon sm:text-3xl">{value}</p>
-      <p className="mt-1 text-xs text-muted">{label}</p>
+    <div className="glass rounded-3xl border border-white/10 p-6">
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-neon/15">
+        <Icon className="h-6 w-6 text-violet-neon" />
+      </div>
+      <h3 className="mt-4 text-lg font-bold">{title}</h3>
+      <p className="mt-2 text-sm text-muted">{description}</p>
     </div>
   );
 }
 
 function Step({
-  icon: Icon,
   step,
   title,
   description,
 }: {
-  icon: React.ElementType;
   step: string;
   title: string;
   description: string;
 }) {
   return (
-    <div className="glass rounded-3xl p-6">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-neon-gradient text-sm font-black text-white">
-          {step}
-        </div>
-        <Icon className="h-5 w-5 text-violet-neon" />
+    <div className="glass rounded-3xl p-5 text-center">
+      <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-2xl bg-neon-gradient text-sm font-black text-white">
+        {step}
       </div>
-      <h3 className="mt-4 text-base font-bold">{title}</h3>
-      <p className="mt-2 text-sm text-muted">{description}</p>
+      <h3 className="mt-3 text-sm font-bold">{title}</h3>
+      <p className="mt-1.5 text-xs leading-relaxed text-muted">{description}</p>
     </div>
   );
 }

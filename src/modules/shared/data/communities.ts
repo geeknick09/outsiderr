@@ -156,6 +156,16 @@ export async function createCommunity(
   const supabase = await createClient();
 
   if (organizer) {
+    // Per-creator community cap (admin-configurable platform setting).
+    const { getSettingInt } = await import("./platform-settings");
+    const cap = (await getSettingInt("community_max_per_organizer")) || 10;
+    const { count } = await supabase
+      .from("communities")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", organizer.id);
+    if ((count ?? 0) >= cap) {
+      throw new Error(`You can own up to ${cap} communities. Ask an admin to raise the limit if you need more.`);
+    }
     // Organizer user - link to their organizer profile
     const { data, error } = await supabase
       .from("communities")

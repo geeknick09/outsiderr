@@ -25,6 +25,7 @@ const FALLBACKS: Record<string, unknown> = {
   hero_rotation_interval_minutes: 30,
   hero_max_visible_events: 4,
   slot_boost_count: 5,
+  community_max_per_organizer: 10,
   max_popular_per_city: 4,
   max_sponsored_per_city: 4,
   tagline_header: "Find what's happening outside the mainstream.",
