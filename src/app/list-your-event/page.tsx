@@ -1,11 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
-  Award,
   BarChart3,
   CalendarDays,
   CreditCard,
-  Globe,
   Layers,
   MapPin,
   Megaphone,
@@ -22,6 +20,7 @@ import {
 import { ThemeLogo } from "@/modules/shared";
 import { getCurrentUser, getOrganizerProfile, getSettingInt } from "@/modules/shared/server";
 import { getOrganizerAccessState } from "@/modules/shared";
+import { FeatureOrbit } from "@/modules/web";
 
 export const metadata = { title: "Become a Creator - Outsiderr" };
 
@@ -133,44 +132,8 @@ export default async function ListYourEventPage() {
           <p className="mt-3 text-center text-sm text-muted">
             Not a bare link - a full public page that does the talking for you.
           </p>
-          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <Feature
-              icon={Globe}
-              title="Branded covers"
-              description="16:9 desktop cover + a separate 3:4 mobile cover so your page looks sharp on every device - with a proper cropper built in."
-            />
-            <Feature
-              icon={Users}
-              title="Join modes your way"
-              description="Open to everyone, request-to-join with custom questions, or invite-only links. Approve members, set subcategories, follow your niche."
-            />
-            <Feature
-              icon={CalendarDays}
-              title="A living timeline"
-              description="Your community page shows a scrollable event timeline - past editions grayed out, upcoming events below a glowing 'Now' marker."
-            />
-            <Feature
-              icon={Ticket}
-              title="Events wired in"
-              description="Every event you attach feeds the community timeline and page. Members discover your drops without leaving your space."
-            />
-            <Feature
-              icon={Megaphone}
-              title="All your socials, one page"
-              description="Instagram, YouTube, X, Facebook, LinkedIn, website - linked right from your page header so followers find you everywhere."
-            />
-            <Feature
-              icon={TrendingUp}
-              title="Member growth & virality"
-              description="Track member counts, referred joins vs direct joins, and your community's virality coefficient in analytics."
-            />
-            <div className="sm:col-span-2 sm:mx-auto sm:w-full sm:max-w-md lg:col-span-1 lg:col-start-2 lg:max-w-none">
-              <Feature
-                icon={Award}
-                title="Members earn badges"
-                description="Consistency pays - Outsiderr rewards your regulars automatically: attendance badges from First Event to Community Champion, plus Founding Member and Connector badges for early joins and referrals."
-              />
-            </div>
+          <div className="mt-10">
+            <FeatureOrbit />
           </div>
         </div>
       </section>
