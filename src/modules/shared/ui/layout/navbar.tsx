@@ -9,13 +9,11 @@ import { ThemeToggle } from "../theme/theme-toggle";
 import { getCurrentUser } from "../../auth/auth";
 import { getOrganizerProfile } from "../../data/organizer-profile";
 import {
-  getSettingInt,
 } from "../../data/platform-settings";
 import {
   getUnreadNotificationCount,
   listUserNotifications,
 } from "../../data/notifications";
-import { getOrganizerAccessState } from "../../lib/organizer-eligibility";
 import { createClient } from "../../auth/server";
 
 export async function Navbar({ mobileNav }: { mobileNav?: React.ReactNode } = {}) {
@@ -30,22 +28,15 @@ export async function Navbar({ mobileNav }: { mobileNav?: React.ReactNode } = {}
     const supabase = await createClient();
     const { data: profile } = await supabase
       .from("profiles")
-      .select("is_admin, is_organizer")
+      .select("is_admin")
       .eq("id", user.id)
       .maybeSingle();
     isAdmin = profile?.is_admin === true;
-    // Organizer status is driven by the KYC access state - not the
-    // profiles.is_organizer flag (stays true while PENDING/REJECTED, which
-    // would incorrectly show "Organizer Dashboard" to rejected users).
+    // Having a profile = being a creator (KYC is optional until payouts now),
+    // so the menu shows "Creator Dashboard" for any status - even PENDING or
+    // max-REJECTED (the dashboard surfaces the right state itself).
     const organizer = await getOrganizerProfile(user);
-    if (organizer) {
-      const accessState = getOrganizerAccessState({
-        kycStatus: organizer.kycStatus,
-        rejectionCount: organizer.rejectionCount,
-        rejectionLimit: await getSettingInt("organizer_rejection_limit"),
-      });
-      isOrganizer = accessState.eligible;
-    }
+    isOrganizer = !!organizer;
     // Check if user is assigned as door staff for any event
     const { count: staffCount } = await supabase
       .from("event_staff")
