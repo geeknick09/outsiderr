@@ -81,7 +81,7 @@ export function UserMenu({
               <Ticket className="h-4 w-4" /> My Tickets
             </MenuLink>
             <MenuLink href="/badges" onSelect={() => setOpen(false)}>
-              <Award className="h-4 w-4" /> Your Badges
+              <Award className="h-4 w-4" /> My Badges
             </MenuLink>
             <MenuLink href="/promoter" onSelect={() => setOpen(false)}>
               <BadgePercent className="h-4 w-4" /> Promote &amp; earn
