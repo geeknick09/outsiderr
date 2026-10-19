@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { lazy, Suspense } from "react";
 
 import { getCurrentUser , listMyCommunities } from "@/modules/shared/server";
@@ -47,6 +49,9 @@ export default async function CreateEventPage() {
   return (
     <div className="space-y-6 py-6">
       <div>
+        <Link href="/organizer" className="mb-2 inline-flex items-center gap-1 text-xs text-muted hover:text-violet-neon">
+          <ArrowLeft className="h-3 w-3" /> Creator Dashboard
+        </Link>
         <h1 className="text-2xl font-black">Create Event</h1>
         <p className="text-sm text-muted">Fill in the details to publish your event</p>
       </div>

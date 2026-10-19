@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { Pencil, Plus, Users } from "lucide-react";
 import Link from "next/link";
@@ -54,6 +55,7 @@ function LinkedinIcon({ className }: { className?: string }) {
 
 export function OrganizerHeader({ organizer, followerCount }: { organizer: Organizer; followerCount: number }) {
   const [editing, setEditing] = useState(false);
+  const pathname = usePathname();
 
   return (
     <div className="space-y-3">
@@ -156,14 +158,16 @@ export function OrganizerHeader({ organizer, followerCount }: { organizer: Organ
         </Button>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <Link href="/organizer/create">
-          <Button size="sm" className="shadow-glow-violet">
-            <Plus className="h-4 w-4" />
-            Create
-          </Button>
-        </Link>
-      </div>
+      {pathname !== "/organizer/create" ? (
+        <div className="flex flex-wrap gap-2">
+          <Link href="/organizer/create">
+            <Button size="sm" className="shadow-glow-violet">
+              <Plus className="h-4 w-4" />
+              Create
+            </Button>
+          </Link>
+        </div>
+      ) : null}
 
       {editing ? (
         <EditOrganizerProfile organizer={organizer} onClose={() => setEditing(false)} />
