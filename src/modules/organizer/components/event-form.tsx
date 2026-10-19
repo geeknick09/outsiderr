@@ -1060,7 +1060,7 @@ export function EventForm({
                   ) : null}
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-3">
                   <Field label="Name">
                     <input
                       name="tierName"
@@ -1103,25 +1103,9 @@ export function EventForm({
                       className={INPUT}
                     />
                   </Field>
-                  <Field label="Group admits">
-                    <input
-                      name="tierAdmits"
-                      type="number"
-                      min={1}
-                      max={10}
-                      inputMode="numeric"
-                      value={tier.admits}
-                      onChange={(event) => updateTier(tier.key, { admits: event.target.value })}
-                      placeholder="1"
-                      className={INPUT}
-                    />
-                  </Field>
+                  {/* group admits hidden for now - every tier is 1 ticket = 1 person */}
+                  <input type="hidden" name="tierAdmits" value="1" />
                 </div>
-                {Number(tier.admits) > 1 ? (
-                  <p className="mt-1.5 text-[11px] text-violet-neon">
-                    Group ticket - each purchase admits {tier.admits} people for {tier.price ? `₹${tier.price}` : "the flat price"}.
-                  </p>
-                ) : null}
 
                 <Field label="Perks (comma separated)">
                   <input
@@ -1323,7 +1307,7 @@ export function EventForm({
                   </button>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-3">
                   <Field label="Name">
                     <input
                       name="tierName"
