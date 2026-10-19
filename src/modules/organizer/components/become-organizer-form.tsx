@@ -164,14 +164,13 @@ export function BecomeOrganizerForm() {
   function canAdvance(): boolean {
     if (uploadError) return false;
     if (step === 0) return !!orgName.trim() && !uploading;
-    if (step === 1) return panValid && !panDocError && !uploadingPan; // PAN optional - like bank & GST
-    if (step === 2) return true; // GST is optional
-    // Step 3 (bank/UPI) is optional - community creators skip it; it becomes
-    // required later when they want event payouts.
+    // Steps 1-3 (PAN/GST/Bank): either skip entirely via "Skip - Add Later",
+    // or fill EVERY field - Continue stays disabled on a partial fill.
+    if (step === 1) return !!panNumber && panValid && !!panName && !!panDocumentUrl && !panDocError && !uploadingPan;
+    if (step === 2) return !!gstNumber && !!gstBusinessName;
     if (step === 3) {
-      const touched = !!(upiId || bankAccountNumber || bankIfsc || bankAccountName || bankDocumentUrl);
-      if (!touched) return true;
-      return !!bankAccountNumber && !!bankIfsc && ifscValid && !!bankAccountName && upiValid && !bankDocError && !uploadingBank;
+      return !!upiId && upiValid && !!bankAccountNumber && !!bankIfsc && ifscValid
+        && !!bankAccountName && !!bankDocumentUrl && !bankDocError && !uploadingBank;
     }
     return agreed;
   }
@@ -423,7 +422,7 @@ export function BecomeOrganizerForm() {
               {/* ── Step 1: PAN ────────────────────────────────── */}
               {step === 1 && (
                 <div className="space-y-4">
-                  <StepHeader title="PAN card details" subtitle="Optional - helps verify you faster for payouts. Add anytime from your dashboard." />
+                  <StepHeader title="PAN card details" subtitle="Skip this to add later - or fill every field including the card photo to continue." />
 
                   <label className={LABEL}>
                     <span className={LABEL_TEXT}>PAN Number <span className="normal-case text-zinc-400">(optional)</span></span>
@@ -452,7 +451,7 @@ export function BecomeOrganizerForm() {
                   </label>
 
                   <div className="space-y-1.5">
-                    <span className={LABEL_TEXT}>PAN card photo <span className="normal-case text-zinc-400">(optional - JPG/PNG/PDF under 1 MB)</span></span>
+                    <span className={LABEL_TEXT}>PAN card photo <span className="normal-case text-zinc-400">(required to continue - JPG/PNG/PDF under 1 MB)</span></span>
                     {panDocumentUrl ? (
                       <p className="text-xs text-emerald-500">PAN document attached ✓</p>
                     ) : null}
@@ -475,10 +474,10 @@ export function BecomeOrganizerForm() {
               {/* ── Step 2: GST ────────────────────────────────── */}
               {step === 2 && (
                 <div className="space-y-4">
-                  <StepHeader title="GST details" subtitle="Optional. Required only if you are GST-registered." />
+                  <StepHeader title="GST details" subtitle="Only if you are GST-registered - skip it, or fill both fields to continue." />
 
                   <div className="rounded-2xl border border-zinc-200 p-4 text-sm text-muted dark:border-white/10">
-                    Skip this step if you are not registered under GST. You can add it later from your organizer settings.
+                    Not GST-registered? Skip this step - you can add it later from your creator profile.
                   </div>
 
                   <label className={LABEL}>
@@ -507,7 +506,7 @@ export function BecomeOrganizerForm() {
               {/* ── Step 3: Bank + UPI ─────────────────────────── */}
               {step === 3 && (
                 <div className="space-y-4">
-                  <StepHeader title="Bank & UPI details" subtitle="Optional for now - needed only when you start taking payouts. Keep it accurate if you fill it." />
+                  <StepHeader title="Bank & UPI details" subtitle="Skip to add later - or fill everything including the bank proof to continue. Needed before payouts." />
 
                   <label className={LABEL}>
                     <span className={LABEL_TEXT}>UPI ID *</span>
@@ -589,7 +588,7 @@ export function BecomeOrganizerForm() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <span className={LABEL_TEXT}>Bank proof <span className="normal-case text-zinc-400">(optional - cancelled cheque/passbook, JPG/PNG/PDF under 1 MB)</span></span>
+                    <span className={LABEL_TEXT}>Bank proof <span className="normal-case text-zinc-400">(required to continue - cancelled cheque/passbook, JPG/PNG/PDF under 1 MB)</span></span>
                     {bankDocumentUrl ? (
                       <p className="text-xs text-emerald-500">Bank proof attached ✓</p>
                     ) : null}
