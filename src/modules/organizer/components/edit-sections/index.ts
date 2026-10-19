@@ -6,3 +6,4 @@ export { EditMediaSection } from "./edit-media-section";
 export { EditInformationSection } from "./edit-information-section";
 export { EditContactSection } from "./edit-contact-section";
 export { EditMiscSection } from "./edit-misc-section";
+export { EditCommunitySection } from "./edit-community-section";

@@ -9,10 +9,11 @@ import {
   EditInformationSection,
   EditContactSection,
   EditMiscSection,
+  EditCommunitySection,
 } from "./edit-sections";
-import type { EventDetail } from "@/modules/shared";
+import type { Community, EventDetail } from "@/modules/shared";
 
-export function EditEventForm({ event, pastEvents = [], lockLogistics = false }: { event: EventDetail; pastEvents?: Array<{ id: string; title: string; startsAt: string }>; /** Collaborators: city/venue/date fields are locked - owner only. */ lockLogistics?: boolean }) {
+export function EditEventForm({ event, pastEvents = [], communities = [], lockLogistics = false }: { event: EventDetail; pastEvents?: Array<{ id: string; title: string; startsAt: string }>; communities?: Community[]; /** Collaborators: city/venue/date/community fields are locked - owner only. */ lockLogistics?: boolean }) {
   return (
     <div className="glass space-y-3 rounded-3xl p-5">
       <div>
@@ -35,6 +36,7 @@ export function EditEventForm({ event, pastEvents = [], lockLogistics = false }:
       <EditMediaSection event={event} />
       <EditInformationSection event={event} />
       <EditContactSection event={event} />
+      <EditCommunitySection event={event} communities={communities} lockLogistics={lockLogistics} />
       <EditMiscSection event={event} pastEvents={pastEvents} lockLogistics={lockLogistics} />
     </div>
   );

@@ -18,6 +18,7 @@ import { getEvent, getOrganizerPastEventsForLinking } from "@/modules/shared/ser
 import { EventStaff } from "@/modules/scanner";
 import { GuestlistPanel } from "@/modules/organizer";
 import { listGuestlist } from "@/modules/shared/actions/communities";
+import { listMyCommunities } from "@/modules/shared/server";
 import { listEventCounterStaff } from "@/modules/scanner/server";
 import { getEventPromoters } from "@/modules/shared/server";
 import { PromotersPanel } from "@/modules/organizer";
@@ -150,6 +151,7 @@ export default async function ManageEventPage({
   }
 
   const pastEventsForLinking = await getOrganizerPastEventsForLinking(event.organizer.id, id);
+  const myCommunities = await listMyCommunities(user);
 
   const eventPast = isEventEnded(event.startsAt, event.endsAt);
 
@@ -244,7 +246,7 @@ export default async function ManageEventPage({
             <div className="space-y-3">
               {/* Edit form - read-only overview when locked (within 2h), cancelled, or past */}
               {canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast && (startMs - nowMs) > 2 * 60 * 60 * 1000 ? (
-                <EditEventForm event={event} pastEvents={pastEventsForLinking} lockLogistics={!isOwner} />
+                <EditEventForm event={event} pastEvents={pastEventsForLinking} communities={myCommunities} lockLogistics={!isOwner} />
               ) : (
                 <div className="space-y-3">
                   {canEdit && !eventPast && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" ? (

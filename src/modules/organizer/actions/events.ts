@@ -757,6 +757,7 @@ const EDIT_SECTIONS = new Set([
   "information",
   "contact",
   "tickets",
+  "community",
   "misc",
 ]);
 
@@ -813,7 +814,12 @@ export async function updateEventSectionAction(
       maxTicketsPerUser: current.maxTicketsPerUser ?? 5,
     };
 
-    let input: typeof base & { tiers?: TicketTierInput[] } = { ...base };
+    let input: typeof base & {
+      tiers?: TicketTierInput[];
+      communityId?: string | null;
+      visibility?: "OPEN" | "MEMBERS_ONLY" | "INVITE_ONLY";
+      inviteToken?: string | null;
+    } = { ...base };
 
     if (section === "details") {
       const title = String(formData.get("title") ?? "").trim();
@@ -937,6 +943,49 @@ export async function updateEventSectionAction(
         ...input,
         tiers,
         maxTicketsPerUser: Math.min(10, Math.max(1, Number(formData.get("maxTicketsPerUser") ?? 5) || 5)),
+      };
+    } else if (section === "community") {
+      // Owner-only: collaborators can't retarget which community an event
+      // belongs to - getEventAccessLevel already ran inside updateEvent, but
+      // the community write needs an explicit owner check here too.
+      const { getEventAccessLevel } = await import("@/modules/shared/server");
+      if ((await getEventAccessLevel(user, eventId)) !== "OWNER") {
+        return { error: "Only the event owner can change the community." };
+      }
+
+      const communityId = String(formData.get("communityId") ?? "").trim() || null;
+      const visibility = (communityId
+        ? (String(formData.get("visibility") ?? "OPEN") as "OPEN" | "MEMBERS_ONLY" | "INVITE_ONLY")
+        : "OPEN");
+      if (!["OPEN", "MEMBERS_ONLY", "INVITE_ONLY"].includes(visibility)) {
+        return { error: "Invalid visibility." };
+      }
+
+      let inviteToken: string | null = null;
+      if (communityId) {
+        const { getCommunity, getOrganizerProfile } = await import("@/modules/shared/server");
+        const [community, org] = await Promise.all([getCommunity(communityId), getOrganizerProfile(user)]);
+        if (!community || !org || community.ownerId !== org.id) {
+          return { error: "Pick one of your own communities." };
+        }
+        if (visibility === "INVITE_ONLY") {
+          // Keep the existing invite link if it's still live - breaking it
+          // would orphan links the organizer already shared.
+          const { createServiceClient } = await import("@/modules/shared/server");
+          const { data: existing } = await createServiceClient()
+            .from("event_invites")
+            .select("token")
+            .eq("event_id", eventId)
+            .maybeSingle();
+          inviteToken = existing?.token ?? crypto.randomUUID().slice(0, 12);
+        }
+      }
+
+      input = {
+        ...input,
+        communityId,
+        visibility,
+        inviteToken,
       };
     } else if (section === "misc") {
       input = {
