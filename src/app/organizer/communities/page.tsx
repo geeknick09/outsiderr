@@ -39,8 +39,16 @@ export default async function OrganizerCommunitiesPage() {
             myCommunities.map((community) => (
               <div key={community.id} className="glass rounded-3xl p-5">
                 <div className="mb-3 flex items-center justify-between gap-3">
-                  <a href={`/communities/${community.id}`} className="font-bold hover:text-violet-neon">
-                    {community.name}
+                  <a href={`/communities/${community.id}`} className="flex min-w-0 items-center gap-3 font-bold hover:text-violet-neon">
+                    {community.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={community.avatarUrl} alt="" className="h-10 w-10 shrink-0 rounded-xl object-cover" />
+                    ) : (
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-neon/20 text-sm font-black text-violet-neon">
+                        {community.name.slice(0, 1)}
+                      </span>
+                    )}
+                    <span className="truncate">{community.name}</span>
                   </a>
                   <a
                     href={`/organizer/communities/${community.id}`}

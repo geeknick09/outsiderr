@@ -162,6 +162,7 @@ export async function getOrganizerVirality(organizerId: string): Promise<{
 }
 
 export interface WarmLead {
+  userId: string;
   userName: string;
   email: string | null;
   phone: string | null;
@@ -210,9 +211,13 @@ export async function getWarmAudience(organizerId: string, limit = 50): Promise<
   const bought = new Set((buyers ?? []).map((o) => `${o.user_id}:${o.event_id}`));
   const joined = new Set((members ?? []).map((m) => `${m.user_id}:${m.community_id}`));
 
+  const { data: org } = await service.from("organizers").select("owner_id").eq("id", organizerId).maybeSingle();
+  const ownerId = org?.owner_id ?? null;
+
   const leads: { userId: string; entityType: "EVENT" | "COMMUNITY"; entityId: string; at: string }[] = [];
   for (const [k, v] of lastView) {
     const userId = k.split(":")[0];
+    if (userId === ownerId) continue;
     if (v.entityType === "EVENT" && evMap.has(v.entityId) && !bought.has(k)) {
       leads.push({ userId, entityType: "EVENT", entityId: v.entityId, at: v.at });
     }
@@ -228,6 +233,7 @@ export async function getWarmAudience(organizerId: string, limit = 50): Promise<
   const profMap = new Map((profs ?? []).map((p) => [p.id, p]));
 
   return leads.slice(0, limit).map((l) => ({
+    userId: l.userId,
     userName: profMap.get(l.userId)?.full_name ?? "Someone",
     email: profMap.get(l.userId)?.email ?? null,
     phone: profMap.get(l.userId)?.phone ?? null,
@@ -243,8 +249,14 @@ export async function getCommunityWarmAudience(communityId: string, limit = 50):
   const service = createServiceClient();
   const [{ data: evs }, { data: comm }] = await Promise.all([
     service.from("events").select("id, title").eq("community_id", communityId),
-    service.from("communities").select("id, name").eq("id", communityId).maybeSingle(),
+    service.from("communities").select("id, name, owner_id").eq("id", communityId).maybeSingle(),
   ]);
+  // The owner's own browsing is never a "lead".
+  let ownerUserId: string | null = null;
+  if (comm?.owner_id) {
+    const { data: org } = await service.from("organizers").select("owner_id").eq("id", comm.owner_id).maybeSingle();
+    ownerUserId = org?.owner_id ?? null;
+  }
   const evMap = new Map((evs ?? []).map((e) => [e.id, e.title]));
   const entityIds = [...evMap.keys(), communityId];
   const { data: views } = await service
@@ -274,6 +286,7 @@ export async function getCommunityWarmAudience(communityId: string, limit = 50):
   const leads: { userId: string; entityType: "EVENT" | "COMMUNITY"; entityId: string; at: string }[] = [];
   for (const [k, v] of lastView) {
     const userId = k.split(":")[0];
+    if (userId === ownerUserId) continue;
     if (v.entityType === "EVENT" && evMap.has(v.entityId) && !bought.has(k)) {
       leads.push({ userId, entityType: "EVENT", entityId: v.entityId, at: v.at });
     }
@@ -291,6 +304,7 @@ export async function getCommunityWarmAudience(communityId: string, limit = 50):
   return leads.slice(0, limit).map((l) => {
     const p = profMap.get(l.userId);
     return {
+      userId: l.userId,
       userName: p?.full_name ?? "Anonymous user",
       email: p?.email ?? null,
       phone: p?.phone ?? null,

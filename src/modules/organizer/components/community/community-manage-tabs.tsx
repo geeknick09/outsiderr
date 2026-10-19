@@ -37,6 +37,7 @@ export interface CommunityEventRow {
 }
 
 export interface CommunityWarmLead {
+  userId: string;
   userName: string;
   email: string | null;
   phone: string | null;
@@ -108,8 +109,8 @@ export function CommunityManageTabs({
       {tab === "members" ? <MembersTab community={community} members={members} showActions={false} /> : null}
       {tab === "requests" ? <MembersTab community={community} members={pending} showActions /> : null}
       {tab === "import" ? <MemberImportPanel communityId={community.id} imports={imports} /> : null}
-      {tab === "events" ? <EventsTab events={events} warmLeads={warmLeads} /> : null}
-      {tab === "analytics" ? <AnalyticsTab community={community} analytics={analytics} nonJoiners={nonJoiners} /> : null}
+      {tab === "events" ? <EventsTab events={events} /> : null}
+      {tab === "analytics" ? <AnalyticsTab community={community} analytics={analytics} warmLeads={warmLeads} /> : null}
     </div>
   );
 }
@@ -213,15 +214,12 @@ function MembersTab({
 function AnalyticsTab({
   community,
   analytics,
-  nonJoiners,
+  warmLeads,
 }: {
   community: Community;
   analytics: Analytics | null;
-  nonJoiners: string[];
+  warmLeads: CommunityWarmLead[];
 }) {
-  const [msg, setMsg] = useState(`Hey! ${community.name} on Outsiderr is building something for you - come join us.`);
-  const [sent, setSent] = useState<number | null>(null);
-  const [pending, startTransition] = useTransition();
 
   if (!analytics) return <p className="glass rounded-3xl p-5 text-sm text-muted">No analytics yet.</p>;
 
@@ -254,37 +252,12 @@ function AnalyticsTab({
         ))}
       </div>
 
-      <div className="glass space-y-3 rounded-3xl p-5">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-bold">Viewed but didn&apos;t join</p>
-          <Badge tone="neutral">{nonJoiners.length} people</Badge>
-        </div>
-        <textarea
-          value={msg}
-          onChange={(e) => setMsg(e.target.value)}
-          rows={2}
-          className={INPUT}
-          maxLength={500}
-        />
-        <Button
-          disabled={pending || !nonJoiners.length || !msg.trim()}
-          onClick={() =>
-            startTransition(async () => {
-              const res = await sendOutreachBlastAction("COMMUNITY", community.id, msg, nonJoiners);
-              if (!res.error) setSent(res.sent ?? 0);
-            })
-          }
-        >
-          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          Notify {nonJoiners.length} non-joiners
-        </Button>
-        {sent !== null ? <p className="text-xs font-semibold text-lime-neon">Sent {sent} notifications.</p> : null}
-      </div>
+      <WarmAudienceCard communityId={community.id} communityName={community.name} leads={warmLeads} />
     </div>
   );
 }
 
-function EventsTab({ events, warmLeads }: { events: CommunityEventRow[]; warmLeads: CommunityWarmLead[] }) {
+function EventsTab({ events }: { events: CommunityEventRow[] }) {
   return (
     <div className="space-y-4">
       {events.length === 0 ? (
@@ -330,41 +303,147 @@ function EventsTab({ events, warmLeads }: { events: CommunityEventRow[]; warmLea
         </div>
       )}
 
-      {warmLeads.length ? (
-        <div className="glass rounded-3xl p-5">
-          <h3 className="text-sm font-bold">Interested, not converted yet</h3>
-          <p className="mt-1 text-xs text-muted">
+    </div>
+  );
+}
+
+const LEAD_PAGE = 10;
+
+function WarmAudienceCard({
+  communityId,
+  communityName,
+  leads,
+}: {
+  communityId: string;
+  communityName: string;
+  leads: CommunityWarmLead[];
+}) {
+  const [msg, setMsg] = useState(`Hey! ${communityName} on Outsiderr is building something for you - come join us.`);
+  const [sent, setSent] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const [page, setPage] = useState(0);
+
+  const pages = Math.max(1, Math.ceil(leads.length / LEAD_PAGE));
+  const slice = leads.slice(page * LEAD_PAGE, (page + 1) * LEAD_PAGE);
+
+  function notify(userIds: string[], label: string) {
+    startTransition(async () => {
+      const res = await sendOutreachBlastAction("COMMUNITY", communityId, msg, userIds);
+      if (!res.error) setSent(label);
+    });
+  }
+
+  function exportCsv() {
+    const rows = [
+      ["name", "email", "phone", "viewed", "last_seen"],
+      ...leads.map((l) => [
+        l.userName,
+        l.email ?? "",
+        l.phone ?? "",
+        `${l.entityType === "EVENT" ? "Event" : "Community"}: ${l.entityName}`,
+        l.lastViewedAt,
+      ]),
+    ];
+    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${communityName.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-warm-audience.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <div className="glass space-y-3 rounded-3xl p-5">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-bold">Interested, not converted yet</p>
+          <p className="mt-0.5 text-xs text-muted">
             Signed-in users who viewed this community or its events but haven&apos;t joined or bought.
           </p>
-          <div className="mt-3 max-h-72 overflow-auto">
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge tone="neutral">{leads.length} people</Badge>
+          {leads.length ? (
+            <Button variant="secondary" size="sm" onClick={exportCsv}>
+              Export CSV
+            </Button>
+          ) : null}
+        </div>
+      </div>
+
+      {leads.length ? (
+        <>
+          <div className="overflow-auto rounded-2xl border border-zinc-200 dark:border-white/10">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-zinc-200 text-[10px] uppercase tracking-wide text-muted dark:border-white/10">
-                  <th className="pb-2">User</th>
-                  <th className="pb-2">Viewed</th>
-                  <th className="pb-2">Last seen</th>
+                  <th className="px-3 py-2">User</th>
+                  <th className="hidden px-3 py-2 md:table-cell">Viewed</th>
+                  <th className="hidden px-3 py-2 sm:table-cell">Last seen</th>
+                  <th className="px-3 py-2"></th>
                 </tr>
               </thead>
               <tbody>
-                {warmLeads.map((l, i) => (
-                  <tr key={i} className="border-b border-zinc-100 last:border-0 dark:border-white/5">
-                    <td className="py-2">
+                {slice.map((l) => (
+                  <tr key={l.userId + l.entityName} className="border-b border-zinc-100 last:border-0 dark:border-white/5">
+                    <td className="px-3 py-2">
                       <span className="font-semibold">{l.userName}</span>
                       <span className="block text-[10px] text-muted">
-                        {[l.email, l.phone].filter(Boolean).join(" · ") || "-"}
+                        {[l.email, l.phone].filter(Boolean).join(" \u00b7 ") || "-"}
                       </span>
                     </td>
-                    <td className="py-2 text-xs">
+                    <td className="hidden px-3 py-2 text-xs md:table-cell">
                       {l.entityType === "EVENT" ? "Event" : "Community"}: {l.entityName}
                     </td>
-                    <td className="py-2 text-xs text-muted">{formatDateTime(l.lastViewedAt)}</td>
+                    <td className="hidden px-3 py-2 text-xs text-muted sm:table-cell">{formatDateTime(l.lastViewedAt)}</td>
+                    <td className="px-3 py-2 text-right">
+                      <button
+                        type="button"
+                        disabled={pending || !msg.trim()}
+                        onClick={() => notify([l.userId], l.userName)}
+                        className="rounded-full border border-violet-neon/40 px-3 py-1 text-[10px] font-bold text-violet-neon transition-colors hover:bg-violet-neon/10 disabled:opacity-40"
+                      >
+                        Notify
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
-      ) : null}
+
+          {pages > 1 ? (
+            <div className="flex items-center justify-between text-xs text-muted">
+              <span>Page {page + 1} of {pages}</span>
+              <div className="flex gap-2">
+                <button type="button" disabled={page === 0} onClick={() => setPage((x) => x - 1)} className="rounded-full border border-zinc-300 px-3 py-1 disabled:opacity-40 dark:border-white/15">Prev</button>
+                <button type="button" disabled={page >= pages - 1} onClick={() => setPage((x) => x + 1)} className="rounded-full border border-zinc-300 px-3 py-1 disabled:opacity-40 dark:border-white/15">Next</button>
+              </div>
+            </div>
+          ) : null}
+
+          <textarea
+            value={msg}
+            onChange={(e) => setMsg(e.target.value)}
+            rows={2}
+            className={INPUT}
+            maxLength={500}
+          />
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              disabled={pending || !leads.length || !msg.trim()}
+              onClick={() => notify(leads.map((l) => l.userId), `${leads.length} people`)}
+            >
+              {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Notify all {leads.length}
+            </Button>
+            {sent !== null ? <p className="text-xs font-semibold text-lime-neon">Sent to {sent}.</p> : null}
+          </div>
+        </>
+      ) : (
+        <p className="text-xs text-muted">No warm audience yet - the list fills as people browse your community.</p>
+      )}
     </div>
   );
 }

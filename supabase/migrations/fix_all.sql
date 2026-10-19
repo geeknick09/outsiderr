@@ -9609,3 +9609,93 @@ begin
    where id = p_organizer_id;
 end;
 $$;
+-- STEP 56: exclude the community owner from their own analytics + lead lists.
+
+drop function if exists public.community_non_joiners(uuid);
+create or replace function public.community_non_joiners(p_community_id uuid)
+returns setof uuid
+language sql
+security definer
+set search_path = public
+as $$
+  select distinct v.user_id
+    from public.page_views v
+   where v.entity_type = 'COMMUNITY' and v.entity_id = p_community_id
+     and v.user_id <> (select o.owner_id from public.communities c
+                        join public.organizers o on o.id = c.owner_id
+                       where c.id = p_community_id)
+     and not exists (select 1 from public.community_members m
+                      where m.community_id = p_community_id
+                        and m.user_id = v.user_id and m.status in ('ACCEPTED','PENDING'));
+$$;
+
+create or replace function public.community_analytics(p_community_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v jsonb;
+begin
+  select jsonb_build_object(
+    'total_members', (
+      select count(*) from (
+        select cm.user_id from public.community_members cm
+         where cm.community_id = p_community_id and cm.status = 'ACCEPTED'
+        union
+        select ii.linked_user_id from public.community_member_imports ii
+         join public.community_member_imports i on i.id = ii.import_id
+         where i.community_id = p_community_id and i.status = 'APPROVED'
+           and ii.status in ('VALID','LINKED')
+      ) m
+    ),
+    'new_members_30d', (
+      select count(*) from public.community_members
+       where community_id = p_community_id and status = 'ACCEPTED'
+         and created_at > now() - interval '30 days'
+    ),
+    'pending_requests', (
+      select count(*) from public.community_members
+       where community_id = p_community_id and status = 'PENDING'
+    ),
+    'events_total', (
+      select count(*) from public.events where community_id = p_community_id
+    ),
+    'attendees', (
+      select count(distinct t.user_id)
+        from public.tickets t join public.events e on e.id = t.event_id
+       where e.community_id = p_community_id and t.status = 'USED' and t.user_id is not null
+         and t.user_id <> (select o.owner_id from public.communities c
+                            join public.organizers o on o.id = c.owner_id
+                           where c.id = p_community_id)
+    ),
+    'repeat_attendees', (
+      select count(*) from (
+        select t.user_id from public.tickets t
+         join public.events e on e.id = t.event_id
+         where e.community_id = p_community_id and t.status = 'USED' and t.user_id is not null
+           and t.user_id <> (select o.owner_id from public.communities c
+                              join public.organizers o on o.id = c.owner_id
+                             where c.id = p_community_id)
+         group by t.user_id having count(distinct t.event_id) >= 2
+      ) r
+    ),
+    'views', (
+      select count(distinct user_id) from public.page_views
+       where entity_type = 'COMMUNITY' and entity_id = p_community_id
+         and user_id <> (select o.owner_id from public.communities c
+                          join public.organizers o on o.id = c.owner_id
+                         where c.id = p_community_id)
+    ),
+    'followers', (
+      select count(*) from public.community_follows where community_id = p_community_id
+    )
+  ) into v;
+  return v;
+end;
+$$;
+revoke execute on function public.community_non_joiners(uuid) from public, anon, authenticated;
+revoke execute on function public.community_analytics(uuid) from public, anon, authenticated;
+grant execute on function public.community_non_joiners(uuid) to service_role;
+grant execute on function public.community_analytics(uuid) to service_role;
