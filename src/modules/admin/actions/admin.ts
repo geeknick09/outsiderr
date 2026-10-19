@@ -307,8 +307,8 @@ export async function adminInitiateRefundAction(
       reason: refundReason,
     });
     revalidatePath("/admin/orders");
-    revalidatePath("/admin/payments");
-    revalidatePath("/admin/refunds");
+    revalidatePath("/admin/money");
+    revalidatePath("/admin/money");
     revalidatePath("/tickets");
     return { success: true };
   } catch (err) {
@@ -376,7 +376,7 @@ export async function adminRecordPayoutAction(
     eventId,
   });
 
-  revalidatePath("/admin/payouts");
+  revalidatePath("/admin/money");
   revalidatePath("/organizer");
   return { success: true };
 }

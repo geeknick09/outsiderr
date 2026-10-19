@@ -1,7 +1,7 @@
 import { adminApproveCommunityAction, adminRejectCommunityAction } from "@/modules/admin/actions/admin";
 import { Badge } from "@/modules/shared";
 import { ActionButton } from "@/modules/shared";
-import { listCommunities, listPendingCommunities } from "@/modules/shared/server";
+import { listCommunities, listPendingCommunities, createServiceClient } from "@/modules/shared/server";
 import { cityLabel } from "@/modules/shared";
 import { formatDateTime } from "@/modules/shared";
 
@@ -14,6 +14,18 @@ export default async function AdminCommunitiesPage() {
     listPendingCommunities(),
     listCommunities(),
   ]);
+
+  // Per-community stats for the live list (members / 30d / events / attendees / views).
+  const supabase = createServiceClient();
+  const statsMap = new Map(
+    await Promise.all(
+      verified.slice(0, 50).map(async (c) => {
+        const { data } = await supabase.rpc("community_analytics", { p_community_id: c.id });
+        const a = data as { total_members: number; new_members_30d: number; events_total: number; attendees: number; views: number } | null;
+        return [c.id, a] as const;
+      }),
+    ),
+  );
 
   return (
     <div className="space-y-6">
@@ -114,6 +126,14 @@ export default async function AdminCommunitiesPage() {
                   {community.ownerName} · {community.memberCount} members
                   {community.city ? ` · ${cityLabel(community.city)}` : ""}
                 </p>
+                {statsMap.get(community.id) ? (
+                  <p className="mt-1 text-[10px] text-muted">
+                    +{statsMap.get(community.id)!.new_members_30d} members/30d
+                    {" · "}{statsMap.get(community.id)!.events_total} events
+                    {" · "}{statsMap.get(community.id)!.attendees} attendees
+                    {" · "}{statsMap.get(community.id)!.views} views
+                  </p>
+                ) : null}
               </div>
               <form>
                 <ActionButton

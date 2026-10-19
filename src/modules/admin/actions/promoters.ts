@@ -51,9 +51,15 @@ export async function createPromoterPayoutAction(promoterId: string) {
     return { error: `Payable balance below minimum (${Math.round(minPaise / 100)} INR).` };
   }
 
+  // Processing fee - admin-configurable via platform_settings (default 2%).
+  const { data: feeRow } = await supabase.from("platform_settings").select("value").eq("key", "promoter_payout_fee_bps").maybeSingle();
+  const feeBps = Number(feeRow?.value ?? 200);
+  const feePaise = Math.round((payablePaise * feeBps) / 10_000);
+  const netPaise = payablePaise - feePaise;
+
   const { error: payoutErr } = await supabase.from("promoter_payouts").insert({
     promoter_id: promoterId,
-    amount_paise: payablePaise,
+    amount_paise: netPaise,
     status: "PENDING",
     payout_snapshot: {
       account_name: promoter.payout_account_name,
@@ -61,6 +67,9 @@ export async function createPromoterPayoutAction(promoterId: string) {
       ifsc: promoter.payout_ifsc,
       pan: promoter.payout_pan,
       upi: promoter.upi_id,
+      gross_paise: payablePaise,
+      processing_fee_paise: feePaise,
+      processing_fee_bps: feeBps,
     },
   });
   if (payoutErr) return { error: payoutErr.message };

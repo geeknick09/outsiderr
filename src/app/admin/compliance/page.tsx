@@ -1,57 +1,47 @@
-import { ClipboardCheck, AlertTriangle } from "lucide-react";
+import Link from "next/link";
 
-import { listComplianceTasks, getComplianceSignals } from "@/modules/admin/server";
-import { CompliancePanel } from "@/modules/admin";
+import { cn } from "@/modules/shared";
+import AdminComplianceContent from "./content";
+import AdminLegalContent from "../legal/content";
 
 export const dynamic = "force-dynamic";
-
 export const metadata = { title: "Admin: Compliance - Outsiderr" };
 
-export default async function AdminCompliancePage() {
-  const [tasks, signals] = await Promise.all([listComplianceTasks(), getComplianceSignals()]);
+const TABS = [
+  { key: "tasks", label: "Tasks" },
+  { key: "legal", label: "Legal Pages" },
+] as const;
+
+type Tab = (typeof TABS)[number]["key"];
+
+export default async function AdminCompliancePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const { tab } = await searchParams;
+  const active: Tab = (TABS.some((t) => t.key === tab) ? tab : "tasks") as Tab;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl font-black">
-          <ClipboardCheck className="h-6 w-6 text-violet-neon" />
-          Compliance
-        </h1>
-        <p className="text-sm text-muted">
-          Registrations, filing dates, policy reviews - what&apos;s outstanding and what needs attention.
-        </p>
+    <div>
+      <div className="mb-4 flex flex-wrap gap-2 px-1 pt-4">
+        {TABS.map((t) => (
+          <Link
+            key={t.key}
+            href={`/admin/compliance?tab=${t.key}`}
+            className={cn(
+              "rounded-full px-4 py-1.5 text-xs font-bold transition-colors",
+              active === t.key
+                ? "bg-violet-neon text-white"
+                : "border border-zinc-200 text-muted hover:border-violet-neon/50 dark:border-white/10",
+            )}
+          >
+            {t.label}
+          </Link>
+        ))}
       </div>
-
-      {/* Auto signals */}
-      <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Needs attention</p>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {signals.map((s) => (
-            <a
-              key={s.label}
-              href={s.href}
-              className={`glass rounded-3xl p-4 transition-colors hover:border-violet-neon ${
-                s.count > 0 ? "border-amber-400/40" : ""
-              }`}
-            >
-              <p className="text-2xl font-black">{s.count}</p>
-              <p className="mt-0.5 flex items-center gap-1.5 text-sm font-semibold">
-                {s.count > 0 ? <AlertTriangle className="h-3.5 w-3.5 text-amber-400" /> : null}
-                {s.label}
-              </p>
-              <p className="text-xs text-muted">{s.note}</p>
-            </a>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Task tracker</p>
-        <CompliancePanel tasks={tasks.map((t) => ({
-          id: t.id, title: t.title, kind: t.kind, dueDate: t.due_date,
-          status: t.status, notes: t.notes, overdue: t.overdue, doneAt: t.done_at,
-        }))} />
-      </div>
+      {active === "tasks" ? <AdminComplianceContent /> : null}
+      {active === "legal" ? <AdminLegalContent /> : null}
     </div>
   );
 }

@@ -6,11 +6,13 @@ import type { CurrentUser } from "../auth/auth";
 export interface UserNotification {
   id: string;
   eventId: string;
+  communityId?: string | null;
   type: string;
   message: string;
   read: boolean;
   createdAt: string;
   eventTitle?: string;
+  communityName?: string;
 }
 
 /**
@@ -41,14 +43,23 @@ export async function listUserNotifications(
 
   const eventMap = Object.fromEntries((events ?? []).map((e) => [e.id, e.title]));
 
+  // Community names for community-linked notifications
+  const commIds = [...new Set(data.map((n) => n.community_id).filter(Boolean))] as string[];
+  const { data: comms } = commIds.length
+    ? await supabase.from("communities").select("id, name").in("id", commIds)
+    : { data: [] };
+  const commMap = Object.fromEntries((comms ?? []).map((c) => [c.id, c.name]));
+
   return data.map((n) => ({
     id: n.id,
     eventId: n.event_id,
+    communityId: n.community_id,
     type: n.type,
     message: n.message,
     read: n.read,
     createdAt: n.created_at,
     eventTitle: eventMap[n.event_id],
+    communityName: n.community_id ? commMap[n.community_id] : undefined,
   }));
 }
 

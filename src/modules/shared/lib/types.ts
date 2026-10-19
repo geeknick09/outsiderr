@@ -498,6 +498,7 @@ export interface Community {
   membershipFeePaise: number;
   terms: string[];
   memberCount: number;
+  showMemberCount: boolean;
   verified: boolean;
   createdAt: string;
 }

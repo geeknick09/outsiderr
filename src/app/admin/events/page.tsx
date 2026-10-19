@@ -179,6 +179,12 @@ export default async function AdminEventsPage({
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  href={`/admin/events/${event.id}`}
+                  className="rounded-full border border-violet-neon/40 px-2.5 py-1 text-[10px] font-bold text-violet-neon hover:bg-violet-neon/10"
+                >
+                  Analytics
+                </Link>
                 <Badge tone={statusTone}>
                   {statusLabel}
                 </Badge>

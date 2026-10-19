@@ -359,6 +359,7 @@ export type CommunityRow = {
   membership_fee_paise: number;
   terms: string[];
   member_count: number;
+  show_member_count: boolean;
   verified: boolean;
   created_at: string;
 }
@@ -761,8 +762,9 @@ export type PayoutRecordRow = {
 export type EventNotificationRow = {
   id: string;
   event_id: string;
+  community_id: string | null;
   user_id: string;
-  type: "CANCELLATION" | "POSTPONEMENT" | "RESCHEDULE" | "WAITLIST_OFFER" | "VENUE_CHANGE" | "CITY_CHANGE" | "TIME_CHANGE" | "PAYMENT_SUCCESS" | "PAYMENT_FAILED" | "REFUND_INITIATED" | "REFUND_COMPLETED" | "PAYOUT_COMPLETED" | "EVENT_UPDATE" | "EVENT_REMINDER" | "TICKETS_AVAILABLE" | "COLLAB_INVITE" | "COLLAB_ACCEPTED" | "ORDER_CONFIRMED" | "ORDER_REJECTED" | "KYC_APPROVED" | "KYC_REJECTED" | "KYC_CLARIFICATION" | "KYC_SUBMITTED" | "BOOST_REQUESTED" | "DOOR_STAFF_REQUESTED" | "HERO_BOOST";
+  type: "CANCELLATION" | "COMMUNITY_EVENT" | "OUTREACH" | "POSTPONEMENT" | "RESCHEDULE" | "WAITLIST_OFFER" | "VENUE_CHANGE" | "CITY_CHANGE" | "TIME_CHANGE" | "PAYMENT_SUCCESS" | "PAYMENT_FAILED" | "REFUND_INITIATED" | "REFUND_COMPLETED" | "PAYOUT_COMPLETED" | "EVENT_UPDATE" | "EVENT_REMINDER" | "TICKETS_AVAILABLE" | "COLLAB_INVITE" | "COLLAB_ACCEPTED" | "ORDER_CONFIRMED" | "ORDER_REJECTED" | "KYC_APPROVED" | "KYC_REJECTED" | "KYC_CLARIFICATION" | "KYC_SUBMITTED" | "BOOST_REQUESTED" | "DOOR_STAFF_REQUESTED" | "HERO_BOOST";
   message: string;
   read: boolean;
   created_at: string;

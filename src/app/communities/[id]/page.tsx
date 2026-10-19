@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import { BadgeCheck, CalendarDays, Globe, Lock, MapPin, Users } from "lucide-react";
 import { FacebookIcon, InstagramIcon, LinkedinIcon, XIcon, YoutubeIcon } from "@/modules/shared";
 
-import { JoinCommunityForm, CommunityFollowButton, CommunityTimeline, ShareEventButton } from "@/modules/web";
+import { JoinCommunityForm, CommunityTimeline, ShareEventButton } from "@/modules/web";
 import { Badge } from "@/modules/shared";
 import { getCurrentUser, createClient } from "@/modules/shared/server";
 import {
@@ -13,7 +13,6 @@ import {
   getMyMembership,
   listJoinQuestions,
   listCommunityEvents,
-  isFollowingCommunity,
 } from "@/modules/shared/server";
 import { logPageViewAction } from "@/modules/shared/actions/communities";
 import { cityLabel } from "@/modules/shared";
@@ -52,11 +51,10 @@ export default async function CommunityDetailPage({
   const [community, user] = await Promise.all([getCommunity(id), getCurrentUser()]);
   if (!community) notFound();
 
-  const [myMembership, questions, events, isFollowing] = await Promise.all([
+  const [myMembership, questions, events] = await Promise.all([
     user ? getMyMembership(user, community.id) : null,
     community.membershipType === "PRIVATE" ? listJoinQuestions(community.id) : [],
     listCommunityEvents(community.id),
-    user ? isFollowingCommunity(user, community.id) : false,
   ]);
   const isOwner = user?.id === community.ownerId;
 
@@ -142,10 +140,12 @@ export default async function CommunityDetailPage({
                 {cityLabel(community.city)}
               </span>
             ) : null}
-            <span className="flex items-center gap-1">
-              <Users className="h-3.5 w-3.5" />
-              {community.memberCount} members
-            </span>
+            {community.showMemberCount ? (
+              <span className="flex items-center gap-1">
+                <Users className="h-3.5 w-3.5" />
+                {community.memberCount} members
+              </span>
+            ) : null}
             {community.instagramHandle ? (
               <a
                 href={`https://instagram.com/${community.instagramHandle.replace("@", "")}`}
@@ -185,9 +185,6 @@ export default async function CommunityDetailPage({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {user && !isOwner ? (
-            <CommunityFollowButton communityId={community.id} isFollowing={isFollowing} />
-          ) : null}
           <ShareEventButton
             title={community.name}
             url={`/communities/${community.id}`}

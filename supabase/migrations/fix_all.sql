@@ -9699,3 +9699,61 @@ revoke execute on function public.community_non_joiners(uuid) from public, anon,
 revoke execute on function public.community_analytics(uuid) from public, anon, authenticated;
 grant execute on function public.community_non_joiners(uuid) to service_role;
 grant execute on function public.community_analytics(uuid) to service_role;
+-- STEP 57: community member-count visibility + community-linked notifications.
+alter table public.communities add column if not exists show_member_count boolean not null default true;
+
+alter table public.event_notifications add column if not exists community_id uuid references public.communities(id) on delete cascade;
+create index if not exists event_notif_community_idx on public.event_notifications(community_id);
+
+do $$ begin
+  alter type public.event_notification_type add value if not exists 'COMMUNITY_EVENT';
+exception when others then null; end $$;
+
+-- send_outreach_blast now links community blasts to the community so the
+-- notification can render a direct Join button.
+drop function if exists public.send_outreach_blast(uuid, text, uuid, text, uuid[]);
+create or replace function public.send_outreach_blast(
+  p_actor_id   uuid,
+  p_entity_type text,
+  p_entity_id  uuid,
+  p_message    text,
+  p_user_ids   uuid[]
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_ok boolean;
+begin
+  if p_entity_type = 'EVENT' then
+    select exists (
+      select 1 from public.events e join public.organizers o on o.id = e.organizer_id
+       where e.id = p_entity_id and o.owner_id = p_actor_id
+    ) into v_ok;
+  else
+    select exists (
+      select 1 from public.communities c join public.organizers o on o.id = c.owner_id
+       where c.id = p_entity_id and o.owner_id = p_actor_id
+    ) into v_ok;
+  end if;
+  if not v_ok and not exists (select 1 from public.profiles where id = p_actor_id and is_admin = true) then
+    raise exception 'Not authorized';
+  end if;
+
+  insert into public.event_notifications (event_id, community_id, user_id, type, message)
+  select case when p_entity_type = 'EVENT' then p_entity_id else null end,
+         case when p_entity_type = 'COMMUNITY' then p_entity_id else null end,
+         u, 'OUTREACH', p_message
+    from unnest(p_user_ids) u;
+  return coalesce(array_length(p_user_ids, 1), 0);
+end;
+$$;
+revoke execute on function public.send_outreach_blast(uuid, text, uuid, text, uuid[]) from public, anon, authenticated;
+grant execute on function public.send_outreach_blast(uuid, text, uuid, text, uuid[]) to service_role;
+-- STEP 58: promoter payout processing fee (bps - 200 = 2%).
+insert into public.platform_settings (key, value, description)
+values ('promoter_payout_fee_bps', '200',
+        'Processing fee deducted from promoter payouts, in basis points (200 = 2%). Editable by admins.')
+on conflict (key) do nothing;

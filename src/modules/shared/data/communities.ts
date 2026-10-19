@@ -46,7 +46,7 @@ export async function searchCommunities(term: string): Promise<Community[]> {
     coverUrl: row.cover_url ?? null, mobileCoverUrl: row.mobile_cover_url ?? null, galleryUrls: row.gallery_urls ?? [],
     instagramHandle: row.instagram_handle, youtubeUrl: row.youtube_url ?? null, xUrl: row.x_url ?? null, linkedinUrl: row.linkedin_url ?? null, facebookUrl: row.facebook_url ?? null, websiteUrl: row.website_url ?? null, upiId: null,
     membershipType: row.membership_type as JoinMode, membershipFeePaise: row.membership_fee_paise,
-    terms: row.terms ?? [], memberCount: row.member_count ?? 0, verified: row.verified,
+    terms: row.terms ?? [], memberCount: row.member_count ?? 0, showMemberCount: row.show_member_count ?? true, verified: row.verified,
     ownerName: "Organizer", createdAt: row.created_at,
   }));
 }
@@ -105,7 +105,7 @@ export async function listCommunities(city?: City): Promise<Community[]> {
     membershipType: row.membership_type as JoinMode,
     membershipFeePaise: row.membership_fee_paise,
     terms: row.terms ?? [],
-    memberCount: row.member_count ?? 0,
+    memberCount: row.member_count ?? 0, showMemberCount: row.show_member_count ?? true,
     verified: row.verified,
     createdAt: row.created_at,
   }));
@@ -139,7 +139,7 @@ export async function getCommunity(id: string): Promise<Community | null> {
     membershipType: data.membership_type as JoinMode,
     membershipFeePaise: data.membership_fee_paise,
     terms: data.terms ?? [],
-    memberCount: data.member_count ?? 0,
+    memberCount: data.member_count ?? 0, showMemberCount: data.show_member_count ?? true,
     verified: data.verified,
     createdAt: data.created_at,
   };
@@ -358,7 +358,7 @@ export async function listMyCommunities(user: CurrentUser): Promise<Community[]>
     membershipType: row.membership_type as JoinMode,
     membershipFeePaise: row.membership_fee_paise,
     terms: row.terms ?? [],
-    memberCount: row.member_count ?? 0,
+    memberCount: row.member_count ?? 0, showMemberCount: row.show_member_count ?? true,
     verified: row.verified,
     createdAt: row.created_at,
   }));
@@ -398,7 +398,7 @@ export async function listPendingCommunities(): Promise<Community[]> {
     membershipType: row.membership_type as JoinMode,
     membershipFeePaise: row.membership_fee_paise,
     terms: row.terms ?? [],
-    memberCount: row.member_count ?? 0,
+    memberCount: row.member_count ?? 0, showMemberCount: row.show_member_count ?? true,
     verified: false,
     createdAt: row.created_at,
   }));
@@ -604,7 +604,7 @@ export async function listFollowedCommunities(user: CurrentUser): Promise<Commun
     galleryUrls: row.gallery_urls ?? [], 
     instagramHandle: row.instagram_handle, youtubeUrl: row.youtube_url ?? null, xUrl: row.x_url ?? null, linkedinUrl: row.linkedin_url ?? null, facebookUrl: row.facebook_url ?? null, websiteUrl: row.website_url ?? null, upiId: row.upi_id ?? null,
     membershipType: row.membership_type as JoinMode, membershipFeePaise: row.membership_fee_paise,
-    terms: row.terms ?? [], memberCount: row.member_count ?? 0, verified: row.verified,
+    terms: row.terms ?? [], memberCount: row.member_count ?? 0, showMemberCount: row.show_member_count ?? true, verified: row.verified,
     createdAt: row.created_at,
   }));
 }
@@ -676,4 +676,44 @@ export async function listMyCommunityMemberships(
     .in("id", ids)
     .order("name");
   return (comms ?? []).map((c) => ({ id: c.id, name: c.name, avatarUrl: c.avatar_url }));
+}
+
+/** Notify all ACCEPTED members when an event goes live under their community.
+ * Idempotent per member+event (COMMUNITY_EVENT notifications are deduped). */
+export async function notifyCommunityMembersOfEvent(
+  communityId: string,
+  eventId: string,
+  eventTitle: string,
+): Promise<void> {
+  const supabase = createServiceClient();
+  const { data: comm } = await supabase
+    .from("communities").select("name, owner_id").eq("id", communityId).maybeSingle();
+  if (!comm) return;
+  const { data: org } = comm.owner_id
+    ? await supabase.from("organizers").select("owner_id").eq("id", comm.owner_id).maybeSingle()
+    : { data: null };
+
+  const { data: members } = await supabase
+    .from("community_members").select("user_id")
+    .eq("community_id", communityId).eq("status", "ACCEPTED");
+  const memberIds = [...new Set(
+    (members ?? []).map((m) => m.user_id).filter((id): id is string => !!id && id !== org?.owner_id),
+  )];
+  if (!memberIds.length) return;
+
+  const { data: existing } = await supabase
+    .from("event_notifications").select("user_id")
+    .eq("event_id", eventId).eq("type", "COMMUNITY_EVENT");
+  const already = new Set((existing ?? []).map((n) => n.user_id));
+
+  const rows = memberIds
+    .filter((uid) => !already.has(uid))
+    .map((uid) => ({
+      event_id: eventId,
+      community_id: communityId,
+      user_id: uid,
+      type: "COMMUNITY_EVENT" as const,
+      message: `${comm.name} has a new event: ${eventTitle}`,
+    }));
+  if (rows.length) await supabase.from("event_notifications").insert(rows);
 }

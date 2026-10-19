@@ -34,7 +34,7 @@ export async function saveLegalPageAction(
 
   try {
     await upsertLegalPage(user.id, slug, title, content, isPublished);
-    revalidatePath("/admin/legal");
+    revalidatePath("/admin/compliance");
     revalidatePath(`/legal/${slug}`);
     return { error: null };
   } catch (err) {
@@ -49,7 +49,7 @@ export async function deleteLegalPageAction(slug: string): Promise<{ error: stri
 
   try {
     await deleteLegalPage(slug);
-    revalidatePath("/admin/legal");
+    revalidatePath("/admin/compliance");
     revalidatePath(`/legal/${slug}`);
     return { error: null };
   } catch (err) {
@@ -76,7 +76,7 @@ export async function restoreLegalPageVersionAction(
   try {
     const user = await requireAdmin();
     const r = await restoreLegalPageVersion(user.id, slug, version);
-    revalidatePath("/admin/legal");
+    revalidatePath("/admin/compliance");
     revalidatePath(`/legal/${slug}`);
     return r;
   } catch (e) {

@@ -33,7 +33,7 @@ export async function adminApproveRefundAction(
   await requireAdmin();
   try {
     await approveRefund(refundId, scope, customAmountPaise ?? null, null);
-    revalidatePath("/admin/refunds");
+    revalidatePath("/admin/money");
     return {};
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Could not approve refund." };
@@ -48,7 +48,7 @@ export async function adminRejectRefundAction(
   await requireAdmin();
   try {
     await rejectRefund(refundId, reason ?? null);
-    revalidatePath("/admin/refunds");
+    revalidatePath("/admin/money");
     return {};
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Could not reject refund." };
@@ -63,7 +63,7 @@ export async function adminRequestRefundAction(
   await requireAdmin();
   try {
     await requestRefund(orderId, reason);
-    revalidatePath("/admin/refunds");
+    revalidatePath("/admin/money");
     return {};
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Could not create refund." };
@@ -78,7 +78,7 @@ export async function adminManualSettleAction(
   await requireAdmin();
   try {
     await adminManualSettleRefund(refundId, reference);
-    revalidatePath("/admin/refunds");
+    revalidatePath("/admin/money");
     return {};
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Could not settle refund." };
@@ -97,7 +97,7 @@ export async function adminProcessRefundsNowAction(): Promise<{
   try {
     const { processPendingRefunds } = await import("@/modules/shared/services/refunds");
     const result = await processPendingRefunds(20);
-    revalidatePath("/admin/refunds");
+    revalidatePath("/admin/money");
     return result;
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Worker run failed." };

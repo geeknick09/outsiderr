@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, getAuthUserId } from "../auth/auth";
 import {
   createCommunity,
+  getCommunity,
   joinCommunity,
   updateMemberStatus,
   setJoinQuestions,
@@ -331,4 +332,28 @@ export async function adminRejectImportAction(importId: string, note?: string): 
   if (error) return { error: error.message };
   revalidatePath("/admin/community-imports");
   return {};
+}
+
+/** Owner-only: show/hide the member count on the community landing page. */
+export async function toggleCommunityMemberCountAction(
+  communityId: string,
+  show: boolean,
+): Promise<{ ok?: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Sign in." };
+  const community = await getCommunity(communityId);
+  const { getOrganizerProfile } = await import("../data/organizer-profile");
+  const organizer = await getOrganizerProfile(user);
+  if (!community || !organizer || community.ownerId !== organizer.id) {
+    return { error: "Only the community owner can change this." };
+  }
+  const supabase = createServiceClient();
+  const { error } = await supabase
+    .from("communities")
+    .update({ show_member_count: show })
+    .eq("id", communityId);
+  if (error) return { error: error.message };
+  revalidatePath(`/communities/${communityId}`);
+  revalidatePath("/communities");
+  return { ok: true };
 }

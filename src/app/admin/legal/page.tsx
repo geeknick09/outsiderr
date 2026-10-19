@@ -1,17 +1,5 @@
-import { LegalPagesPanel } from "@/modules/admin";
-import { listLegalPages } from "@/modules/admin/server";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
-export const metadata = { title: "Legal Pages - Admin - Outsiderr" };
-
-export default async function AdminLegalPage() {
-  // Admin check is handled by the /admin layout
-  const pages = await listLegalPages();
-
-  return (
-    <div className="mx-auto max-w-3xl space-y-6 py-6">
-      <LegalPagesPanel pages={pages} />
-    </div>
-  );
+export default function AdminLegalRedirect() {
+  redirect("/admin/compliance?tab=legal");
 }

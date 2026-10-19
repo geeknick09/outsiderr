@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, Check, CheckCheck, Trash2 } from "lucide-react";
+import { Bell, Check, CheckCheck, Trash2, Users } from "lucide-react";
 
 import { markAllNotificationsReadAction, markNotificationReadAction, getNotificationsAction, clearAllNotificationsAction } from "@/modules/shared/actions/notifications";
+import { joinCommunityAction } from "@/modules/shared/actions/communities";
 import { useRealtime } from "../../hooks/use-realtime";
 import type { UserNotification } from "../../data/notifications";
 import { formatDateTime } from "../../lib/format";
@@ -28,6 +29,8 @@ const TYPE_LABELS: Record<string, string> = {
   EVENT_REMINDER: "Event Reminder",
   TICKETS_AVAILABLE: "Tickets Available",
   COLLAB_INVITE: "Collaboration Invite",
+  OUTREACH: "Message from the organizer",
+  COMMUNITY_EVENT: "New community event",
   COLLAB_ACCEPTED: "Collaboration Accepted",
   KYC_APPROVED: "Organizer Verified!",
   KYC_REJECTED: "Application Rejected",
@@ -41,6 +44,7 @@ const TYPE_LABELS: Record<string, string> = {
 /** Where each notification type actually belongs - the actionable screen. */
 function notificationHref(n: UserNotification): string {
   const eventPage = n.eventId ? `/events/${n.eventId}` : "/";
+  if (n.communityId) return `/communities/${n.communityId}`;
   switch (n.type) {
     // Ticket lifecycle → My Tickets (QRs, refund strip, keep/refund choice)
     case "ORDER_CONFIRMED":
@@ -116,6 +120,8 @@ const TYPE_COLORS: Record<string, string> = {
   DOOR_STAFF_REQUESTED: "text-amber-500",
   COLLAB_INVITE: "text-violet-neon",
   COLLAB_ACCEPTED: "text-emerald-500",
+  OUTREACH: "text-violet-neon",
+  COMMUNITY_EVENT: "text-violet-neon",
 };
 
 export function NotificationBell({
@@ -158,6 +164,7 @@ export function NotificationBell({
       const newNotif: UserNotification = {
         id: row.id as string,
         eventId: row.event_id as string,
+        communityId: (row.community_id as string | null) ?? null,
         type: row.type as string,
         message: row.message as string,
         read: false,
@@ -330,7 +337,18 @@ export function NotificationBell({
                             {n.eventTitle}
                           </span>
                         ) : null}
+                        {n.communityName ? (
+                          <span className="block truncate text-sm font-semibold group-hover:text-violet-neon">
+                            {n.communityName}
+                          </span>
+                        ) : null}
                         <p className="mt-0.5 text-xs text-muted">{n.message}</p>
+                        {n.communityId && n.type === "OUTREACH" ? (
+                          <CommunityJoinInline
+                            communityId={n.communityId}
+                            onJoined={() => void handleMarkRead(n.id)}
+                          />
+                        ) : null}
                         <p className="mt-1 text-[10px] text-muted">{formatDateTime(n.createdAt)}</p>
                       </Link>
                       {!n.read ? (
@@ -362,5 +380,37 @@ export function NotificationBell({
         </>
       ) : null}
     </div>
+  );
+}
+
+function CommunityJoinInline({ communityId, onJoined }: { communityId: string; onJoined: () => void }) {
+  const [state, setState] = useState<"idle" | "busy" | "joined" | "error">("idle");
+  if (state === "joined") {
+    return <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-emerald-500"><Check className="h-3 w-3" /> Joined!</span>;
+  }
+  return (
+    <span className="mt-1 inline-flex items-center gap-2">
+      <Link
+        href={`/communities/${communityId}`}
+        className="text-[10px] font-bold text-violet-neon hover:underline"
+      >
+        View community
+      </Link>
+      <button
+        type="button"
+        disabled={state === "busy"}
+        onClick={async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setState("busy");
+          const res = await joinCommunityAction(communityId);
+          if (!res.error) { setState("joined"); onJoined(); } else { setState("error"); }
+        }}
+        className="inline-flex items-center gap-1 rounded-full bg-violet-neon/15 px-2.5 py-0.5 text-[10px] font-bold text-violet-neon hover:bg-violet-neon/25 disabled:opacity-50"
+      >
+        <Users className="h-3 w-3" />
+        {state === "busy" ? "Joining…" : state === "error" ? "Try again" : "Join"}
+      </button>
+    </span>
   );
 }

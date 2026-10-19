@@ -520,6 +520,16 @@ export async function createEventAction(
     // Publish-time side effects - only when the event goes live (or draft→live),
     // never on a plain draft save (would duplicate door-staff orders per save).
     if (!isDraft) {
+    // Community members get pinged for every event that goes live under it.
+    if (communityId) {
+      try {
+        const { notifyCommunityMembersOfEvent } = await import("@/modules/shared/server");
+        const evTitle = String(formData.get("title") ?? "").trim() || "New event";
+        await notifyCommunityMembersOfEvent(communityId, eventId, evTitle);
+      } catch {
+        // notification fan-out is best-effort
+      }
+    }
     // Create door staff order if requested
     if (needsDoorStaff && !draftEventId) {
       const doorStaffCount = Number(formData.get("doorStaffCount") ?? 1);
@@ -997,6 +1007,14 @@ export async function updateEventSectionAction(
     }
 
     await updateEvent(user, eventId, input);
+
+    // Attaching a published event to a community notifies its members (deduped).
+    if (input.communityId && current.status === "PUBLISHED") {
+      try {
+        const { notifyCommunityMembersOfEvent } = await import("@/modules/shared/server");
+        await notifyCommunityMembersOfEvent(input.communityId, eventId, current.title ?? "New event");
+      } catch { /* best-effort */ }
+    }
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Could not save changes.",
@@ -1074,6 +1092,12 @@ export async function publishEventAction(eventId: string): Promise<void> {
 
   await updateEventStatus(user, eventId, "PUBLISHED");
   console.log(`[publish] Event published: eventId=${eventId}`);
+  if (ev?.communityId) {
+    try {
+      const { notifyCommunityMembersOfEvent } = await import("@/modules/shared/server");
+      await notifyCommunityMembersOfEvent(ev.communityId, eventId, ev.title ?? "New event");
+    } catch { /* best-effort */ }
+  }
   revalidatePath("/");
   revalidateTag("events");
   revalidatePath("/organizer");

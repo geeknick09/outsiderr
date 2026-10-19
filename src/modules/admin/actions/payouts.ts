@@ -83,7 +83,7 @@ export async function adminCreatePayoutAction(
 
   if (error) return { success: false, error: error.message };
   await auditFinancialAction(user.id, "CREATE_PAYOUT", organizerId, { amountPaise, method, eventId });
-  revalidatePath("/admin/payouts");
+  revalidatePath("/admin/money");
   return { success: true, id: data?.id };
 }
 
@@ -139,7 +139,7 @@ export async function adminUpdatePayoutStatusAction(
     bankReference: opts?.bankReference,
     failureReason: opts?.failureReason,
   });
-  revalidatePath("/admin/payouts");
+  revalidatePath("/admin/money");
   revalidatePath("/organizer/payments");
   return { success: true };
 }

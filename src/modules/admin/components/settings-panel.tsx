@@ -51,6 +51,8 @@ const SECTIONS: SectionDef[] = [
       { key: "cancellation_charge_percent", label: "Cancellation charge", type: "number", suffix: "%", min: 0 },
       { key: "postponement_charge_percent", label: "Postponement charge", type: "number", suffix: "%", min: 0 },
       { key: "max_tickets_per_order", label: "Max tickets per order", type: "number", min: 1 },
+      { key: "promoter_payout_fee_bps", label: "Promoter payout fee", type: "number", suffix: "bps (200=2%)", min: 0, help: "Processing fee deducted from each promoter payout" },
+      { key: "promoter_min_payout_paise", label: "Promoter min payout", type: "number", suffix: "paise (100000=₹1000)", min: 0 },
     ],
   },
   {

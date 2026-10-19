@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { CommunityManageTabs } from "@/modules/organizer";
+import { MemberCountToggle } from "@/modules/organizer/components/community/member-count-toggle";
 import {
   getCommunity,
   listCommunityMemberDetails,
@@ -130,6 +131,9 @@ export default async function OrganizerCommunityManagePage({
             <p className="text-sm text-muted">
               {community.memberCount} members · {community.membershipType.toLowerCase().replace("_", " ")} community
             </p>
+            <div className="mt-1.5">
+              <MemberCountToggle communityId={community.id} show={community.showMemberCount} />
+            </div>
           </div>
         </div>
       </div>
