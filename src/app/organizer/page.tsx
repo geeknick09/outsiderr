@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { CollaborationInvites } from "@/modules/organizer";
 import { KycStatusBanner } from "@/modules/organizer";
+import { Landmark } from "lucide-react";
 import { OrganizerEventsList } from "@/modules/organizer";
 import { OrganizerHeader } from "@/modules/organizer";
 import { OrganizerKycRealtimeRefresher } from "@/modules/organizer";
@@ -57,6 +58,19 @@ export default async function OrganizerPage({
         kycStatus={organizerProfile.kycStatus ?? "NOT_SUBMITTED"}
         hasPendingChanges={Object.keys(organizerProfile.pendingKyc ?? {}).length > 0}
       />
+
+      {!organizerProfile.bankAccountNumber && !(organizerProfile.bankAccounts?.length) ? (
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4">
+          <Landmark className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+          <div>
+            <p className="text-sm font-bold">Add your bank account</p>
+            <p className="mt-0.5 text-xs text-muted">
+              No payout account on file - your earnings can&apos;t be paid out until you add one.
+              Open <strong>Edit profile</strong> above and drop in your bank details.
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       {collabInvites.length > 0 ? <CollaborationInvites invites={collabInvites} /> : null}
 
