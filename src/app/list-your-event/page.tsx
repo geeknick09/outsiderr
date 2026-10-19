@@ -117,7 +117,7 @@ export default async function ListYourEventPage() {
             <BuildCard
               icon={Layers}
               title={`Communities (up to ${communityCap})`}
-              description="Clubs and crews with their own landing pages, members, timelines and event feeds. You can run several under one creator account."
+              description="Any niche - a sneaker club, a coding circle, a rap crew, a run class. Every community gets its own landing page, members, timeline and event feed. Run several under one creator account."
             />
           </div>
         </div>
