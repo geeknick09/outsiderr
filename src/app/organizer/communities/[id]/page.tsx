@@ -8,6 +8,7 @@ import {
 } from "@/modules/shared/server";
 import { getOrganizerGateContext } from "@/modules/organizer/server";
 import { createServiceClient } from "@/modules/shared/server";
+import { getCommunityWarmAudience } from "@/modules/analytics/server";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,49 @@ export default async function OrganizerCommunityManagePage({
     supabase.rpc("get_community_invite_token", { p_community_id: community.id, p_actor_id: user.id }),
   ]);
 
+  // Community events + per-event stats (views / sold / check-ins / net).
+  const { data: commEvents } = await supabase
+    .from("events")
+    .select("id, title, starts_at, status")
+    .eq("community_id", community.id)
+    .order("starts_at", { ascending: false });
+  const eventIds = (commEvents ?? []).map((e) => e.id);
+  const [{ data: evViews }, { data: evOrders }, { data: evTickets }] = await Promise.all([
+    eventIds.length
+      ? supabase.from("page_views").select("entity_id").eq("entity_type", "EVENT").in("entity_id", eventIds)
+      : Promise.resolve({ data: [] }),
+    eventIds.length
+      ? supabase.from("orders").select("event_id, organizer_payout_paise").eq("status", "CONFIRMED").in("event_id", eventIds)
+      : Promise.resolve({ data: [] }),
+    eventIds.length
+      ? supabase.from("tickets").select("event_id").eq("status", "USED").in("event_id", eventIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+  const countBy = (rows: { event_id?: string | null; entity_id?: string | null }[] | null, key: "event_id" | "entity_id") => {
+    const m = new Map<string, number>();
+    for (const r of rows ?? []) { const k = r[key] as string; m.set(k, (m.get(k) ?? 0) + 1); }
+    return m;
+  };
+  const viewMap = countBy(evViews, "entity_id");
+  const checkinMap = countBy(evTickets, "event_id");
+  const netMap = new Map<string, number>();
+  const soldMap = new Map<string, number>();
+  for (const o of evOrders ?? []) {
+    soldMap.set(o.event_id, (soldMap.get(o.event_id) ?? 0) + 1);
+    netMap.set(o.event_id, (netMap.get(o.event_id) ?? 0) + (o.organizer_payout_paise ?? 0));
+  }
+  const events = (commEvents ?? []).map((e) => ({
+    id: e.id,
+    title: e.title,
+    startsAt: e.starts_at,
+    status: e.status,
+    views: viewMap.get(e.id) ?? 0,
+    confirmedOrders: soldMap.get(e.id) ?? 0,
+    checkIns: checkinMap.get(e.id) ?? 0,
+    netPayoutPaise: netMap.get(e.id) ?? 0,
+  }));
+  const warmLeads = await getCommunityWarmAudience(community.id);
+
   return (
     <div className="mx-auto max-w-3xl space-y-6 py-6">
       <div className="overflow-hidden rounded-3xl">
@@ -75,9 +119,9 @@ export default async function OrganizerCommunityManagePage({
         <div className="glass -mt-10 flex items-end gap-4 rounded-t-3xl p-5">
           {community.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={community.avatarUrl} alt={community.name} className="h-16 w-16 rounded-2xl border-2 border-white object-cover dark:border-zinc-900" />
+            <img src={community.avatarUrl} alt={community.name} className="h-20 w-20 rounded-2xl border-2 border-white object-cover dark:border-zinc-900" />
           ) : (
-            <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-neon/20 text-2xl font-black text-violet-neon">
+            <span className="flex h-20 w-20 items-center justify-center rounded-2xl bg-violet-neon/20 text-3xl font-black text-violet-neon">
               {community.name.slice(0, 1)}
             </span>
           )}
@@ -98,8 +142,10 @@ export default async function OrganizerCommunityManagePage({
         }))}
         analytics={analytics}
         nonJoiners={nonJoiners ?? []}
+        events={events}
+        warmLeads={warmLeads}
         inviteToken={typeof inviteToken === "string" ? inviteToken : null}
-        initialTab={tab === "analytics" || tab === "requests" || tab === "import" ? tab : "members"}
+        initialTab={["analytics", "requests", "import", "events"].includes(tab ?? "") ? tab as "analytics" | "requests" | "import" | "events" : "members"}
       />
     </div>
   );

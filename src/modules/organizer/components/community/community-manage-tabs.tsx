@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Check, Loader2, Mail, Phone, Send, X } from "lucide-react";
 
 import { setMemberStatusAction, sendOutreachBlastAction } from "@/modules/shared/actions/communities";
-import { Badge, Button } from "@/modules/shared";
+import { Badge, Button, formatDateTime, formatPaise } from "@/modules/shared";
 import { BADGE_TONES, computeBadges } from "@/modules/shared";
 import { MemberImportPanel } from "./member-import-panel";
 import type { Community, CommunityMemberDetail } from "@/modules/shared";
@@ -25,12 +25,34 @@ interface Analytics {
   followers: number;
 }
 
+export interface CommunityEventRow {
+  id: string;
+  title: string;
+  startsAt: string;
+  status: string;
+  views: number;
+  confirmedOrders: number;
+  checkIns: number;
+  netPayoutPaise: number;
+}
+
+export interface CommunityWarmLead {
+  userName: string;
+  email: string | null;
+  phone: string | null;
+  entityType: "EVENT" | "COMMUNITY";
+  entityName: string;
+  lastViewedAt: string;
+}
+
 export function CommunityManageTabs({
   community,
   members,
   imports,
   analytics,
   nonJoiners,
+  events = [],
+  warmLeads = [],
   inviteToken = null,
   initialTab = "members",
 }: {
@@ -39,16 +61,19 @@ export function CommunityManageTabs({
   imports: { id: string; filename: string; status: string; validRows: number; invalidRows: number; createdAt: string }[];
   analytics: Analytics | null;
   nonJoiners: string[];
+  events?: CommunityEventRow[];
+  warmLeads?: CommunityWarmLead[];
   inviteToken?: string | null;
-  initialTab?: "members" | "requests" | "import" | "analytics";
+  initialTab?: "members" | "requests" | "import" | "analytics" | "events";
 }) {
-  const [tab, setTab] = useState<"members" | "requests" | "import" | "analytics">(initialTab);
+  const [tab, setTab] = useState<"members" | "requests" | "import" | "analytics" | "events">(initialTab);
   const pending = members.filter((m) => m.status === "PENDING");
 
   const tabs = [
     { key: "members" as const, label: `Members (${members.filter((m) => m.status === "ACCEPTED").length})` },
     { key: "requests" as const, label: `Requests${pending.length ? ` (${pending.length})` : ""}` },
     { key: "import" as const, label: "Import" },
+    { key: "events" as const, label: `Events${events.length ? ` (${events.length})` : ""}` },
     { key: "analytics" as const, label: "Analytics" },
   ];
 
@@ -83,6 +108,7 @@ export function CommunityManageTabs({
       {tab === "members" ? <MembersTab community={community} members={members} showActions={false} /> : null}
       {tab === "requests" ? <MembersTab community={community} members={pending} showActions /> : null}
       {tab === "import" ? <MemberImportPanel communityId={community.id} imports={imports} /> : null}
+      {tab === "events" ? <EventsTab events={events} warmLeads={warmLeads} /> : null}
       {tab === "analytics" ? <AnalyticsTab community={community} analytics={analytics} nonJoiners={nonJoiners} /> : null}
     </div>
   );
@@ -254,6 +280,91 @@ function AnalyticsTab({
         </Button>
         {sent !== null ? <p className="text-xs font-semibold text-lime-neon">Sent {sent} notifications.</p> : null}
       </div>
+    </div>
+  );
+}
+
+function EventsTab({ events, warmLeads }: { events: CommunityEventRow[]; warmLeads: CommunityWarmLead[] }) {
+  return (
+    <div className="space-y-4">
+      {events.length === 0 ? (
+        <div className="glass rounded-3xl p-5 text-sm text-muted">
+          No events linked to this community yet - create a community event or attach one from the
+          event&apos;s edit page.
+        </div>
+      ) : (
+        <div className="glass overflow-hidden rounded-3xl">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-zinc-200 text-[10px] uppercase tracking-wide text-muted dark:border-white/10">
+                <th className="px-4 py-2.5">Event</th>
+                <th className="hidden px-4 py-2.5 sm:table-cell">Views</th>
+                <th className="px-4 py-2.5">Sold</th>
+                <th className="hidden px-4 py-2.5 sm:table-cell">Check-ins</th>
+                <th className="hidden px-4 py-2.5 md:table-cell">Net</th>
+                <th className="px-4 py-2.5">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {events.map((e) => (
+                <tr key={e.id} className="border-b border-zinc-100 last:border-0 dark:border-white/5">
+                  <td className="px-4 py-2.5">
+                    <Link href={`/organizer/events/${e.id}`} className="font-semibold hover:text-violet-neon">
+                      {e.title}
+                    </Link>
+                    <span className="block text-[10px] text-muted">{formatDateTime(e.startsAt)}</span>
+                  </td>
+                  <td className="hidden px-4 py-2.5 sm:table-cell">{e.views}</td>
+                  <td className="px-4 py-2.5 font-bold">{e.confirmedOrders}</td>
+                  <td className="hidden px-4 py-2.5 sm:table-cell">{e.checkIns}</td>
+                  <td className="hidden px-4 py-2.5 md:table-cell">{formatPaise(e.netPayoutPaise)}</td>
+                  <td className="px-4 py-2.5">
+                    <Badge tone={e.status === "PUBLISHED" ? "success" : e.status === "CANCELLED" ? "danger" : "neutral"}>
+                      {e.status}
+                    </Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {warmLeads.length ? (
+        <div className="glass rounded-3xl p-5">
+          <h3 className="text-sm font-bold">Interested, not converted yet</h3>
+          <p className="mt-1 text-xs text-muted">
+            Signed-in users who viewed this community or its events but haven&apos;t joined or bought.
+          </p>
+          <div className="mt-3 max-h-72 overflow-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-zinc-200 text-[10px] uppercase tracking-wide text-muted dark:border-white/10">
+                  <th className="pb-2">User</th>
+                  <th className="pb-2">Viewed</th>
+                  <th className="pb-2">Last seen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {warmLeads.map((l, i) => (
+                  <tr key={i} className="border-b border-zinc-100 last:border-0 dark:border-white/5">
+                    <td className="py-2">
+                      <span className="font-semibold">{l.userName}</span>
+                      <span className="block text-[10px] text-muted">
+                        {[l.email, l.phone].filter(Boolean).join(" · ") || "-"}
+                      </span>
+                    </td>
+                    <td className="py-2 text-xs">
+                      {l.entityType === "EVENT" ? "Event" : "Community"}: {l.entityName}
+                    </td>
+                    <td className="py-2 text-xs text-muted">{formatDateTime(l.lastViewedAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

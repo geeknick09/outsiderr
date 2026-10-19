@@ -236,3 +236,67 @@ export async function getWarmAudience(organizerId: string, limit = 50): Promise<
     lastViewedAt: l.at,
   }));
 }
+
+/** Warm audience scoped to ONE community: viewers of the community page or
+ * any of its events who neither joined nor bought. */
+export async function getCommunityWarmAudience(communityId: string, limit = 50): Promise<WarmLead[]> {
+  const service = createServiceClient();
+  const [{ data: evs }, { data: comm }] = await Promise.all([
+    service.from("events").select("id, title").eq("community_id", communityId),
+    service.from("communities").select("id, name").eq("id", communityId).maybeSingle(),
+  ]);
+  const evMap = new Map((evs ?? []).map((e) => [e.id, e.title]));
+  const entityIds = [...evMap.keys(), communityId];
+  const { data: views } = await service
+    .from("page_views")
+    .select("user_id, entity_type, entity_id, created_at")
+    .in("entity_id", entityIds)
+    .order("created_at", { ascending: false })
+    .limit(5000);
+  if (!views?.length) return [];
+
+  const lastView = new Map<string, { entityType: string; entityId: string; at: string }>();
+  for (const v of views) {
+    const k = `${v.user_id}:${v.entity_id}`;
+    if (!lastView.has(k)) lastView.set(k, { entityType: v.entity_type, entityId: v.entity_id, at: v.created_at });
+  }
+  const viewerIds = [...new Set([...lastView.keys()].map((k) => k.split(":")[0]))];
+
+  const [{ data: buyers }, { data: members }] = await Promise.all([
+    evMap.size
+      ? service.from("orders").select("user_id, event_id").in("event_id", [...evMap.keys()]).eq("status", "CONFIRMED")
+      : Promise.resolve({ data: [] }),
+    service.from("community_members").select("user_id").eq("community_id", communityId),
+  ]);
+  const bought = new Set((buyers ?? []).map((o) => `${o.user_id}:${o.event_id}`));
+  const joined = new Set((members ?? []).map((m) => m.user_id));
+
+  const leads: { userId: string; entityType: "EVENT" | "COMMUNITY"; entityId: string; at: string }[] = [];
+  for (const [k, v] of lastView) {
+    const userId = k.split(":")[0];
+    if (v.entityType === "EVENT" && evMap.has(v.entityId) && !bought.has(k)) {
+      leads.push({ userId, entityType: "EVENT", entityId: v.entityId, at: v.at });
+    }
+    if (v.entityType === "COMMUNITY" && v.entityId === communityId && !joined.has(userId)) {
+      leads.push({ userId, entityType: "COMMUNITY", entityId: v.entityId, at: v.at });
+    }
+  }
+  leads.sort((a, b) => b.at.localeCompare(a.at));
+
+  const { data: profs } = viewerIds.length
+    ? await service.from("profiles").select("id, full_name, email, phone").in("id", viewerIds.slice(0, 1000))
+    : { data: [] };
+  const profMap = new Map((profs ?? []).map((p) => [p.id, p]));
+
+  return leads.slice(0, limit).map((l) => {
+    const p = profMap.get(l.userId);
+    return {
+      userName: p?.full_name ?? "Anonymous user",
+      email: p?.email ?? null,
+      phone: p?.phone ?? null,
+      entityType: l.entityType,
+      entityName: l.entityType === "EVENT" ? evMap.get(l.entityId) ?? "" : comm?.name ?? "",
+      lastViewedAt: l.at,
+    };
+  });
+}

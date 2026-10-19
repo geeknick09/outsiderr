@@ -113,7 +113,7 @@ export default async function CommunitiesPage({
                   <img src={community.coverUrl} alt="" className="h-full w-full object-cover" />
                 </div>
               ) : null}
-              <div className={`flex items-center justify-between px-5 ${community.coverUrl ? "-mt-5 mb-3" : "pt-5 mb-3"}`}>
+              <div className={`relative flex items-center justify-between px-5 ${community.coverUrl ? "-mt-5 mb-3" : "pt-5 mb-3"}`}>
                 {community.avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={community.avatarUrl} alt="" className="h-12 w-12 rounded-2xl border-2 border-white object-cover shadow-md dark:border-zinc-900" />
