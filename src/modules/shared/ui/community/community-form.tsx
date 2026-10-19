@@ -14,6 +14,15 @@ const INPUT =
 
 const OPTION = "bg-white text-zinc-900";
 
+const DEFAULT_COMMUNITY_TERMS = [
+  "Be respectful - no harassment, hate speech, or bullying.",
+  "Show up if you RSVP - flaky spots hurt the community.",
+  "What's shared in the community stays in the community.",
+  "No spam, self-promo, or resale without the admin's OK.",
+  "Follow venue and event rules at community meetups.",
+  "Break the rules and you may be removed without warning.",
+].join("\n");
+
 export function CommunityForm({ existingSubcategories = {} }: { existingSubcategories?: Record<string, string[]> }) {
   const [state, formAction, pending] = useActionState<CreateCommunityState, FormData>(
     createCommunityAction,
@@ -21,7 +30,8 @@ export function CommunityForm({ existingSubcategories = {} }: { existingSubcateg
   );
   const [membershipType, setMembershipType] = useState("OPEN");
   const [category, setCategory] = useState("");
-  const [subcategory, setSubcategory] = useState("");
+  const [subcategories, setSubcategories] = useState<string[]>([]);
+  const [customSub, setCustomSub] = useState("");
   const [questions, setQuestions] = useState<{ question: string; isMandatory: boolean }[]>([]);
   const [avatarUrl, setAvatarUrl] = useState("");
     const [coverUrl, setCoverUrl] = useState("");
@@ -161,7 +171,7 @@ export function CommunityForm({ existingSubcategories = {} }: { existingSubcateg
             required
             className={INPUT}
             value={category}
-            onChange={(e) => { setCategory(e.target.value); setSubcategory(""); }}
+            onChange={(e) => { setCategory(e.target.value); setSubcategories([]); }}
           >
             <option value="" disabled className={OPTION}>Pick what this community is about</option>
             {COMMUNITY_CATEGORIES.map((c) => (
@@ -188,16 +198,20 @@ export function CommunityForm({ existingSubcategories = {} }: { existingSubcateg
       {category ? (
         <div className="space-y-2">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-            What kind? (subcategory - shows on your page)
+            What kind? (pick one or more - shows on your page)
           </span>
           <div className="flex flex-wrap gap-2">
             {[...new Set([...(COMMUNITY_SUBCATEGORY_SUGGESTIONS[category as keyof typeof COMMUNITY_SUBCATEGORY_SUGGESTIONS] ?? []), ...(existingSubcategories[category] ?? [])])].map((s) => (
               <button
                 key={s}
                 type="button"
-                onClick={() => setSubcategory(subcategory === s ? "" : s)}
+                onClick={() =>
+                  setSubcategories((prev) =>
+                    prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
+                  )
+                }
                 className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-all ${
-                  subcategory === s
+                  subcategories.includes(s)
                     ? "border-violet-neon bg-violet-neon/15 text-violet-600 dark:text-violet-300"
                     : "border-zinc-300 text-muted hover:border-violet-neon/60 dark:border-white/15"
                 }`}
@@ -206,13 +220,34 @@ export function CommunityForm({ existingSubcategories = {} }: { existingSubcateg
               </button>
             ))}
           </div>
-          <input
-            value={subcategory}
-            onChange={(e) => setSubcategory(e.target.value)}
-            placeholder="Or type your own (e.g. Sunday Morning Cyclers)"
-            className={INPUT}
-          />
-          <input type="hidden" name="subcategory" value={subcategory} />
+          <div className="flex gap-2">
+            <input
+              value={customSub}
+              onChange={(e) => setCustomSub(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const v = customSub.trim();
+                  if (v && !subcategories.includes(v)) setSubcategories((prev) => [...prev, v]);
+                  setCustomSub("");
+                }
+              }}
+              placeholder="Type your own and press Enter (e.g. Sunday Morning Cyclers)"
+              className={INPUT}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const v = customSub.trim();
+                if (v && !subcategories.includes(v)) setSubcategories((prev) => [...prev, v]);
+                setCustomSub("");
+              }}
+              className="rounded-2xl border border-zinc-300 px-4 text-xs font-semibold text-muted hover:border-violet-neon dark:border-white/15"
+            >
+              Add
+            </button>
+          </div>
+          <input type="hidden" name="subcategory" value={subcategories.join(", ")} />
         </div>
       ) : (
         <input type="hidden" name="subcategory" value="" />
@@ -307,7 +342,10 @@ export function CommunityForm({ existingSubcategories = {} }: { existingSubcateg
 
       <label className="block space-y-1.5">
         <span className="text-xs font-semibold uppercase tracking-wide text-muted">Terms (one per line)</span>
-        <textarea name="terms" rows={3} placeholder="Show up at 6 AM every Sunday&#10;Bring your own water" className={INPUT} />
+        <textarea name="terms" rows={5} defaultValue={DEFAULT_COMMUNITY_TERMS} className={INPUT} />
+        <span className="text-[10px] text-muted">
+          Pre-filled with Outsiderr&apos;s default community rules - edit or add your own lines.
+        </span>
       </label>
 
       {state.error ? <p className="text-sm text-red-500">{state.error}</p> : null}
