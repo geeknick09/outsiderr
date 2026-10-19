@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { CollaborationInvites } from "@/modules/organizer";
 import { KycStatusBanner } from "@/modules/organizer";
 import { Landmark } from "lucide-react";
+import Link from "next/link";
 import { OrganizerEventsList } from "@/modules/organizer";
 import { OrganizerHeader } from "@/modules/organizer";
 import { OrganizerKycRealtimeRefresher } from "@/modules/organizer";
@@ -65,8 +66,11 @@ export default async function OrganizerPage({
           <div>
             <p className="text-sm font-bold">Add your bank account</p>
             <p className="mt-0.5 text-xs text-muted">
-              No payout account on file - your earnings can&apos;t be paid out until you add one.
-              Open <strong>Edit profile</strong> above and drop in your bank details.
+              No payout account on file - your earnings can&apos;t be paid out until you add one.{" "}
+              <Link href="/organizer?edit=1" className="font-semibold text-amber-600 underline underline-offset-2 hover:text-amber-500 dark:text-amber-400">
+                Open Edit profile
+              </Link>{" "}
+              and drop in your bank details.
             </p>
           </div>
         </div>
