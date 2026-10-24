@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { Badge, formatDateTime, formatPaise } from "@/modules/shared";
 import { createServiceClient, getEvent } from "@/modules/shared/server";
 import { getEventAnalytics } from "@/modules/analytics/server";
-import { cityLabel } from "@/modules/shared/lib/india-cities";
+import { cityLabel } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Admin: Event Analytics - Outsiderr" };

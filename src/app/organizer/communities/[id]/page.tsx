@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
-import { CommunityManageTabs } from "@/modules/organizer";
-import { MemberCountToggle } from "@/modules/organizer/components/community/member-count-toggle";
+import { CommunityManageTabs, MemberCountToggle } from "@/modules/organizer";
 import {
   getCommunity,
   listCommunityMemberDetails,
@@ -145,7 +144,6 @@ export default async function OrganizerCommunityManagePage({
           validRows: i.valid_rows, invalidRows: i.invalid_rows, createdAt: i.created_at,
         }))}
         analytics={analytics}
-        nonJoiners={nonJoiners ?? []}
         events={events}
         warmLeads={warmLeads}
         inviteToken={typeof inviteToken === "string" ? inviteToken : null}

@@ -40,3 +40,4 @@ export { CommunityManageTabs } from "./components/community/community-manage-tab
 export { GuestlistPanel } from "./components/community/guestlist-panel";
 export * from "./components/bank-accounts-panel";
 export * from "./components/promoters-panel";
+export { MemberCountToggle } from "./components/community/member-count-toggle";

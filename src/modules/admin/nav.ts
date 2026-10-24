@@ -2,9 +2,9 @@
 // and the mobile drawer (client component). Plain module - no "use client" -
 // so both server and client consumers can import it. Icons are lucide components.
 import {
-  BarChart2, BellRing, CalendarDays, Users, Zap, Settings, FileText,
-  TrendingUp, CreditCard, Wallet, LineChart, KeyRound, Store, BadgeCheck,
-  RotateCcw, Crown, Megaphone, ClipboardCheck } from "lucide-react";
+  BarChart2, BellRing, CalendarDays, Users, Zap, Settings,
+  Wallet, LineChart, KeyRound, Store, BadgeCheck, Crown, Megaphone,
+  ClipboardCheck } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export interface AdminNavItem {

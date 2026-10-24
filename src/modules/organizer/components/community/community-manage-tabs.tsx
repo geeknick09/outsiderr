@@ -51,7 +51,6 @@ export function CommunityManageTabs({
   members,
   imports,
   analytics,
-  nonJoiners,
   events = [],
   warmLeads = [],
   inviteToken = null,
@@ -61,7 +60,6 @@ export function CommunityManageTabs({
   members: CommunityMemberDetail[];
   imports: { id: string; filename: string; status: string; validRows: number; invalidRows: number; createdAt: string }[];
   analytics: Analytics | null;
-  nonJoiners: string[];
   events?: CommunityEventRow[];
   warmLeads?: CommunityWarmLead[];
   inviteToken?: string | null;

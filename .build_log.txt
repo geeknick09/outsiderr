@@ -1,0 +1,17 @@
+
+> outsiderr@0.1.0 build
+> next build
+
+   ▲ Next.js 15.5.23
+   - Environments: .env
+   - Experiments (use with caution):
+     · staleTimes
+     · serverActions
+     · clientTraceMetadata
+     · optimizePackageImports
+
+   Creating an optimized production build ...
+[@sentry/nextjs] DEPRECATION WARNING: It is recommended renaming your `sentry.client.config.ts` file, or moving its content to `instrumentation-client.ts`. When using Turbopack `sentry.client.config.ts` will no longer work. Read more about the `instrumentation-client.ts` file: https://nextjs.org/docs/app/api-reference/file-conventions/instrumentation-client
+ ✓ Compiled successfully in 6673.9min
+   Linting and checking validity of types ...
+Next.js build worker exited with code: 3221225794 and signal: null
