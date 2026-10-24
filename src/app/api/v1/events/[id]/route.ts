@@ -108,9 +108,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return apiError(error instanceof Error ? error.message : "Could not update the event.", 400);
     }
 
-    revalidatePath("/");
-    revalidateTag("events");
-    revalidatePath(`/events/${id}`);
+    revalidatePath("/", "layout");
+    revalidateTag("events", "expire");
+    revalidatePath(`/events/${id}`, "page");
 
     return apiOk({ eventId: id });
   });

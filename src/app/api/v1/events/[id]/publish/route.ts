@@ -18,9 +18,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     } catch (error) {
       return apiError(error instanceof Error ? error.message : "Could not publish event.", 400);
     }
-    revalidatePath("/");
-    revalidateTag("events");
-    revalidatePath(`/events/${id}`);
+    revalidatePath("/", "layout");
+    revalidateTag("events", "expire");
+    revalidatePath(`/events/${id}`, "page");
     return apiOk({ published: true });
   });
 }

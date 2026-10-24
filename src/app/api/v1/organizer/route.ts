@@ -81,7 +81,7 @@ export async function POST(request: Request) {
         panDocumentUrl: parsed.data.panDocumentUrl ?? null,
         bankDocumentUrl: parsed.data.bankDocumentUrl ?? null,
       });
-      revalidatePath("/organizer");
+      revalidatePath("/organizer", "layout");
       return apiOk({ organizerId });
     } catch (error) {
       return apiError(error instanceof Error ? error.message : "Could not create organizer profile.", 400);
@@ -102,7 +102,7 @@ export async function PATCH(request: Request) {
       // Partial update: only defined fields are written - omitted fields keep
       // their existing values (prevents wiping name/upiId on partial PATCH).
       await updateOrganizerProfile(user, parsed.data);
-      revalidatePath("/organizer");
+      revalidatePath("/organizer", "layout");
       return apiOk({ updated: true });
     } catch (error) {
       return apiError(error instanceof Error ? error.message : "Could not update organizer profile.", 400);

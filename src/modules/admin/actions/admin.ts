@@ -42,7 +42,7 @@ export async function adminDeleteEventAction(eventId: string): Promise<void> {
   revalidatePath("/admin/events");
   revalidatePath("/admin");
   revalidatePath("/");
-  revalidateTag("events");
+  revalidateTag("events", "expire");
 }
 
 export async function adminUpdateEventStatusAction(
@@ -74,7 +74,7 @@ export async function adminUpdateEventStatusAction(
   revalidatePath("/admin");
   revalidatePath(`/events/${eventId}`);
   revalidatePath("/");
-  revalidateTag("events");
+  revalidateTag("events", "expire");
 }
 
 export async function adminApproveOrderAction(orderId: string): Promise<void> {
@@ -155,7 +155,7 @@ export async function adminUpdateEventAction(
     revalidatePath("/admin/events");
     revalidatePath(`/events/${eventId}`);
     revalidatePath("/");
-    revalidateTag("events");
+    revalidateTag("events", "expire");
     return { error: null };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to update event." };

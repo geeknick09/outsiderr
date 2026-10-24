@@ -28,9 +28,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       // Refund rows are created PENDING inside cancel_event (with the
       // organizer liability ADJUSTMENT) - the refund worker pushes them.
       await cancelHeroBoostsForEvent(id);
-      revalidatePath("/");
-      revalidateTag("events");
-      revalidatePath(`/events/${id}`);
+      revalidatePath("/", "layout");
+      revalidateTag("events", "expire");
+      revalidatePath(`/events/${id}`, "page");
       return apiOk(result);
     } catch (error) {
       return apiError(error instanceof Error ? error.message : "Could not cancel event.", 400);

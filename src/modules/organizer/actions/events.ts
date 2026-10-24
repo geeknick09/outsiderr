@@ -589,7 +589,7 @@ export async function createEventAction(
   }
 
   revalidatePath("/");
-  revalidateTag("events");
+  revalidateTag("events", "expire");
   revalidatePath("/organizer");
   revalidatePath("/organizer", "layout");
   // Drafts redirect to the organizer events list; published events go to the event page
@@ -742,7 +742,7 @@ export async function updateEventAction(
   }
 
   revalidatePath("/");
-  revalidateTag("events");
+  revalidateTag("events", "expire");
   revalidatePath("/organizer");
   revalidatePath(`/events/${eventId}`);
   redirect(`/organizer/events/${eventId}`);
@@ -1022,7 +1022,7 @@ export async function updateEventSectionAction(
   }
 
   revalidatePath("/");
-  revalidateTag("events");
+  revalidateTag("events", "expire");
   revalidatePath("/organizer");
   revalidatePath(`/events/${eventId}`);
   revalidatePath(`/organizer/events/${eventId}`);
@@ -1059,7 +1059,7 @@ export async function cancelEventAction(formData: FormData): Promise<void> {
   console.log(`[cancel] cancelEventAction complete: eventId=${eventId}, refundsQueued=${result.refundCount}, organizerOwes=${result.organizerOwesPaise}paise`);
 
   revalidatePath("/");
-  revalidateTag("events");
+  revalidateTag("events", "expire");
   revalidatePath("/organizer");
   revalidatePath(`/events/${eventId}`);
   redirect(`/organizer/events/${eventId}`);
@@ -1099,7 +1099,7 @@ export async function publishEventAction(eventId: string): Promise<void> {
     } catch { /* best-effort */ }
   }
   revalidatePath("/");
-  revalidateTag("events");
+  revalidateTag("events", "expire");
   revalidatePath("/organizer");
   revalidatePath(`/events/${eventId}`);
   revalidatePath(`/organizer/events/${eventId}`);
@@ -1155,7 +1155,7 @@ export async function postponeEventAction(formData: FormData): Promise<void> {
   // No additional action needed - the query enforces eligibility by timestamp.
 
   revalidatePath("/");
-  revalidateTag("events");
+  revalidateTag("events", "expire");
   revalidatePath("/organizer");
   revalidatePath(`/events/${eventId}`);
   redirect(`/organizer/events/${eventId}`);

@@ -171,9 +171,9 @@ export async function POST(request: Request) {
       // best-effort
     }
 
-    revalidatePath("/");
-    revalidateTag("events");
-    revalidatePath("/organizer");
+    revalidatePath("/", "layout");
+    revalidateTag("events", "expire");
+    revalidatePath("/organizer", "layout");
 
     return apiOk({ eventId });
   });

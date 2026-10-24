@@ -31,9 +31,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     try {
       const result = await postponeEvent(user, id, startsAt, endsAt ?? null, reason);
-      revalidatePath("/");
-      revalidateTag("events");
-      revalidatePath(`/events/${id}`);
+      revalidatePath("/", "layout");
+      revalidateTag("events", "expire");
+      revalidatePath(`/events/${id}`, "page");
       return apiOk(result);
     } catch (error) {
       return apiError(error instanceof Error ? error.message : "Could not postpone event.", 400);

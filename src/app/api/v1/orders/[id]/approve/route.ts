@@ -17,7 +17,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     } catch (error) {
       return apiError(error instanceof Error ? error.message : "Could not approve order.", 400);
     }
-    revalidatePath("/organizer");
+    revalidatePath("/organizer", "layout");
     return apiOk({ approved: true });
   });
 }
