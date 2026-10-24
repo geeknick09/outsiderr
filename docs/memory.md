@@ -316,3 +316,16 @@ Last updated: 2026-10-08
   only notified on a complete submission.
 - Wizard steps 2/3/4 have "Skip - Add Later" buttons.
 - updateOrganizerProfile + submit_kyc RPC (STEP 55) enforce the same gate.
+
+## DAILY TASK - Security sweep (do not skip)
+
+Every session, run this checklist before/while working - it is cheap and catches regressions early:
+
+1. `npm audit` - flag any NEW critical/high; only apply non-breaking fixes before launch.
+2. Grep sinks: `dangerouslySetInnerHTML`, `eval(`, `new Function`, `.raw(`, template-injected `rpc(...${`.
+3. Grep secrets: `api[_-]?key|secret|password|token = '...'` literals in src/.
+4. New server actions: confirm auth is enforced (getCurrentUser/requireAdmin OR the RPC does auth.uid + ownership check).
+5. New redirects/paths: confirm no user-controlled `redirect()` targets (open-redirect risk).
+6. RLS: any new table must be default-deny + service-role grant, or have owner-scoped policies.
+
+Current standing (2026-10-24): 13 npm vulns remain - 3 critical (tinypool via vitest, needs vitest 5 breaking upgrade), 4 high, 6 moderate. No code-level findings: no secrets, no eval, single benign XSS sink (layout scrollRestoration), no open redirects, actions enforce auth at the RPC/auth.uid layer.
