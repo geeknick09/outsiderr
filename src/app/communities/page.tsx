@@ -49,8 +49,8 @@ export default async function CommunitiesPage({
         <div>
           <h1 className="text-3xl font-black tracking-tight">{header}</h1>
           <p className="text-sm text-muted">{subheader}</p>
-          <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-violet-neon">
-            {allCities ? "All cities" : cityFilter ? cityLabel(cityFilter) : "All cities"}
+          <p className="mt-3 text-xs font-semibold uppercase tracking-[0.3em] text-violet-neon">
+            {allCities ? "All Cities" : cityFilter ? cityLabel(cityFilter) : "All Cities"}
           </p>
         </div>
         {user ? (
