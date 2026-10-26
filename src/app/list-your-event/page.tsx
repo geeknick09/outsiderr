@@ -304,21 +304,6 @@ export default async function ListYourEventPage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-zinc-200 px-4 py-8 dark:border-white/10">
-        <div className="mx-auto flex max-w-4xl flex-col items-center justify-between gap-4 sm:flex-row">
-          <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-violet-neon" />
-            <span className="text-sm text-muted">Kolkata · Mumbai · Delhi · Bengaluru</span>
-          </div>
-          <div className="flex gap-6 text-sm text-muted">
-            <Link href="/about" className="hover:text-violet-neon">About</Link>
-            <Link href="/legal/terms" className="hover:text-violet-neon">Terms</Link>
-            <Link href="/legal/privacy" className="hover:text-violet-neon">Privacy</Link>
-            <Link href="/contact" className="hover:text-violet-neon">Contact</Link>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
