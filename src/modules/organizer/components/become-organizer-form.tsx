@@ -182,6 +182,18 @@ export function BecomeOrganizerForm() {
     }
   }
 
+  /** Skip - advance AND clear the current step's fields so typed-but-skipped
+   * values are never submitted. */
+  function skip() {
+    if (step === 1) { setPanNumber(""); setPanName(""); setPanDocumentUrl(""); setPanDocError(null); }
+    if (step === 2) { setGstNumber(""); setGstBusinessName(""); }
+    if (step === 3) {
+      setUpiId(""); setBankAccountNumber(""); setBankIfsc("");
+      setBankAccountName(""); setBankAccountType("SAVINGS"); setBankDocumentUrl(""); setBankDocError(null);
+    }
+    next();
+  }
+
   function back() {
     if (step > 0) {
       setStep((s) => (s - 1) as StepIndex);
@@ -660,7 +672,7 @@ export function BecomeOrganizerForm() {
                     {step >= 1 ? (
                       <button
                         type="button"
-                        onClick={next}
+                        onClick={skip}
                         className="rounded-2xl border border-zinc-300 px-5 py-3 text-sm font-semibold text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/10"
                       >
                         Skip - Add Later
