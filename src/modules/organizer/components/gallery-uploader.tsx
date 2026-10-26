@@ -29,7 +29,7 @@ export function GalleryUploader({
   // Build path: organizer-name/event-title/gallery
   const safeOrg = organizerName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "organizer";
   const safeTitle = eventTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "untitled-event";
-  const folder = `${safeOrg}/${safeTitle}/gallery`;
+  const folder = `organizer/events/${safeOrg}-${safeTitle}/gallery`;
 
   async function handleUpload(file: File | undefined) {
     if (!file) return;

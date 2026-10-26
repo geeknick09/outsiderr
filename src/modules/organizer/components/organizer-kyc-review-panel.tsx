@@ -105,7 +105,7 @@ export function OrganizerKycReviewPanel({ organizer, thread = [] }: { organizer:
     const setter = kind === "pan" ? setUploadingPan : setUploadingBank;
     setter(true);
     try {
-      const url = await uploadPublicFile(file, `organizer-kyc/${kind}`);
+      const url = await uploadPublicFile(file, `organizer/kyc/${kind}`);
       if (kind === "pan") setPanDocumentUrl(url ?? "");
       else setBankDocumentUrl(url ?? "");
       setMessage(null);

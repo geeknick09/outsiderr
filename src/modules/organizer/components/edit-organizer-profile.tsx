@@ -59,7 +59,7 @@ export function EditOrganizerProfile({
     const setter = kind === "pan" ? setUploadingPan : setUploadingBank;
     setter(true);
     try {
-      const url = await uploadPublicFile(file, `organizer-kyc/${kind}`);
+      const url = await uploadPublicFile(file, `organizer/kyc/${kind}`);
       if (kind === "pan") setPanDocumentUrl(url ?? "");
       else setBankDocumentUrl(url ?? "");
     } catch (err) {
@@ -107,7 +107,7 @@ export function EditOrganizerProfile({
     setUploadError(null);
     try {
       const compressed = await compressImage(file);
-      const url = await uploadPublicFile(compressed, "organizer-profiles");
+      const url = await uploadPublicFile(compressed, "organizer/avatar");
       if (url) setAvatarUrl(url);
       else setUploadError("Upload failed. Paste an image URL instead.");
     } catch (err) {

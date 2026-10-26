@@ -12,8 +12,11 @@ export async function uploadPublicFile(
   folder: string,
 ): Promise<string | null> {
   const supabase = createClient();
+  // Every upload lives under the owner's user dir: users/{uid}/{scope}/...
+  const { data: { user } } = await supabase.auth.getUser();
+  const owner = user?.id ?? "anonymous";
   const extension = file.name.split(".").pop() ?? "bin";
-  const path = `${folder}/${crypto.randomUUID()}.${extension}`;
+  const path = `users/${owner}/${folder}/${crypto.randomUUID()}.${extension}`;
 
   const { data, error } = await supabase.storage
     .from(STORAGE_BUCKET)

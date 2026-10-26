@@ -48,7 +48,7 @@ export function CommunityForm({ existingSubcategories = {} }: { existingSubcateg
     else setUploadingMobileCover(true);
     setUploadError(null);
     try {
-      const url = await uploadPublicFile(file, "community-media");
+      const url = await uploadPublicFile(file, "communities/uploads");
       if (url) {
         if (kind === "avatar") setAvatarUrl(url);
         else if (kind === "cover") setCoverUrl(url);

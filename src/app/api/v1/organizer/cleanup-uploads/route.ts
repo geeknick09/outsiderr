@@ -5,7 +5,7 @@ import { STORAGE_BUCKET } from "@/modules/shared/auth/config";
 
 const MARKER = `/object/public/${STORAGE_BUCKET}/`;
 // Prefixes the onboarding wizard is allowed to clean up.
-const ALLOWED_PREFIXES = ["organizer-kyc/"];
+const ALLOWED_PREFIXES = ["organizer/kyc/"];
 
 function pathFromUrl(url: string): string | null {
   const i = url.indexOf(MARKER);

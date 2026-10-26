@@ -98,7 +98,7 @@ export function EditProfileForm({
     setUploadError(null);
     try {
       const compressed = await compressImage(file);
-      const url = await uploadPublicFile(compressed, "avatars");
+      const url = await uploadPublicFile(compressed, "profile/avatar");
       if (url) setAvatarUrl(url);
       else setUploadError("Upload failed. Please try again.");
     } catch (err) {

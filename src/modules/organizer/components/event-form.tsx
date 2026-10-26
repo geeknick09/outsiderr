@@ -1625,7 +1625,7 @@ export function PosterField({
   // Sanitize: lowercase, replace spaces/special chars with hyphens
   const safeOrg = organizerName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "organizer";
   const safeTitle = eventTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "untitled-event";
-  const folder = `${safeOrg}/${safeTitle}/${subFolder}`;
+  const folder = `organizer/events/${safeOrg}-${safeTitle}/${subFolder}`;
 
   // On select: compression handles size limits internally, so just open the cropper
   function handleSelect(file: File | undefined) {
@@ -1715,7 +1715,7 @@ export function TeaserVideoField({
 
   const safeOrg = organizerName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "organizer";
   const safeTitle = eventTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "untitled-event";
-  const folder = `${safeOrg}/${safeTitle}/${subFolder}`;
+  const folder = `organizer/events/${safeOrg}-${safeTitle}/${subFolder}`;
 
   const MAX_BYTES = 50 * 1024 * 1024; // 50 MB - ~40 Mbps at 10s, plenty for high quality
   const MAX_SECONDS = 10;
