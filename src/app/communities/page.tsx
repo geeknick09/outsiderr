@@ -40,6 +40,7 @@ export default async function CommunitiesPage({
 }) {
   const { city, category, submitted } = await searchParams;
   const cityFilter = city && city !== "ALL" ? (city as City) : undefined;
+  const allCities = city === "ALL";
   const [communities, user, header, subheader, slotBoostEvents] = await Promise.all([listCommunities(cityFilter), getCurrentUser(), getCommunitiesHeader(), getCommunitiesSubheader(), listSlotBoostEvents("COMMUNITIES")]);
 
   return (
@@ -48,6 +49,9 @@ export default async function CommunitiesPage({
         <div>
           <h1 className="text-3xl font-black tracking-tight">{header}</h1>
           <p className="text-sm text-muted">{subheader}</p>
+          <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-violet-neon">
+            {allCities ? "All cities" : cityFilter ? cityLabel(cityFilter) : "All cities"}
+          </p>
         </div>
         {user ? (
           <Link
@@ -69,11 +73,11 @@ export default async function CommunitiesPage({
 
       {/* Category filter */}
       <div className="flex flex-wrap gap-2">
-        <CityChip href={`/communities${cityFilter ? `?city=${cityFilter}` : ""}`} active={!category} label="All" />
+        <CityChip href={`/communities${city ? `?city=${city}` : ""}`} active={!category} label="All" />
         {COMMUNITY_CATEGORIES.map((c) => (
           <CityChip
             key={c.value}
-            href={`/communities?category=${c.value}${cityFilter ? `&city=${cityFilter}` : ""}`}
+            href={`/communities?category=${c.value}${city ? `&city=${city}` : ""}`}
             active={category === c.value}
             label={c.label}
           />

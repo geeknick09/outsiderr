@@ -70,8 +70,9 @@ export default async function DiscoveryPage({
   // City-scoped slices drive the curated sections; `upcoming` stays all-cities
   // for the "All Events" grid.
   const live = upcoming;
-  const cityLive = live.filter((event) => event.city === city);
-  const cityPast = past.filter((event) => event.city === city);
+  const allCities = params.city === "ALL";
+  const cityLive = allCities ? live : live.filter((event) => event.city === city);
+  const cityPast = allCities ? past : past.filter((event) => event.city === city);
 
   const featured = cityLive
     .filter((event) => event.isFeatured)
@@ -103,7 +104,7 @@ export default async function DiscoveryPage({
             {taglineSubheader}
           </p>
           <p className="mt-3 text-xs font-semibold uppercase tracking-[0.3em] text-violet-neon">
-            {cityLabel(city)}
+            {allCities ? "All Cities" : cityLabel(city)}
           </p>
         </div>
         {/* Communities & Crews disabled for this release */}
@@ -195,7 +196,7 @@ export default async function DiscoveryPage({
       />
       <EventSection title="Popular Events" events={popular} />
       <EventSection
-        title={`Events in ${cityLabel(city)}`}
+        title={allCities ? "Events in all cities" : `Events in ${cityLabel(city)}`}
         subtitle="Happening near you"
         events={cityLive}
       />
@@ -211,7 +212,7 @@ export default async function DiscoveryPage({
         <div className="glass rounded-3xl p-10 text-center">
           <h2 className="text-lg font-bold">Nothing here yet</h2>
           <p className="mt-1 text-sm text-muted">
-            No {category ? CATEGORY_LABELS[category].toLowerCase() : "events"} in {cityLabel(city)} right now. Try another city or category.
+            No {category ? CATEGORY_LABELS[category].toLowerCase() : "events"} {allCities ? "live" : `in ${cityLabel(city)}`} right now. Try another city or category.
           </p>
         </div>
       ) : null}

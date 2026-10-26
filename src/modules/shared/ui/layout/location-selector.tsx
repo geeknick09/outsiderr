@@ -26,8 +26,13 @@ export function LocationSelector() {
   const [filter, setFilter] = useState("");
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  const paramCity = searchParams.get("city") as City | null;
-  const city = paramCity ? normalizeCityKey(paramCity) : DEFAULT_CITY;
+  const paramCity = searchParams.get("city");
+  const allCities = paramCity === "ALL";
+  const city: City | "ALL" = allCities
+    ? "ALL"
+    : paramCity
+      ? normalizeCityKey(paramCity)
+      : DEFAULT_CITY;
 
   const filteredCities = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -36,7 +41,7 @@ export function LocationSelector() {
   }, [filter]);
 
   const applyCity = useCallback(
-    (next: City) => {
+    (next: City | "ALL") => {
       window.localStorage.setItem(STORAGE_KEY, next);
       const params = new URLSearchParams(searchParams.toString());
       params.set("city", next);
@@ -55,7 +60,8 @@ export function LocationSelector() {
     if (paramCity) return;
     if (!CITY_PAGES.has(pathname)) return;
     const stored = window.localStorage.getItem(STORAGE_KEY) as City | null;
-    if (stored && stored !== DEFAULT_CITY && cityLabel(stored)) applyCity(stored);
+    if (stored === "ALL") applyCity("ALL");
+    else if (stored && stored !== DEFAULT_CITY && cityLabel(stored)) applyCity(stored);
   }, [applyCity, paramCity, pathname]);
 
   // Close dropdown on outside click
@@ -106,7 +112,7 @@ export function LocationSelector() {
         aria-haspopup="listbox"
       >
         <MapPin className="h-4 w-4 text-violet-neon" />
-        <span className="hidden sm:inline">{cityLabel(city)}</span>
+        <span className="hidden sm:inline">{city === "ALL" ? "All Cities" : cityLabel(city)}</span>
       </button>
 
       {open ? (
@@ -140,6 +146,22 @@ export function LocationSelector() {
           />
 
           <div className="grid max-h-56 grid-cols-2 gap-2 overflow-y-auto">
+            {!filter.trim() ? (
+              <button
+                type="button"
+                role="option"
+                aria-selected={allCities}
+                onClick={() => applyCity("ALL")}
+                className={cn(
+                  "col-span-2 w-full rounded-2xl border p-3 text-left text-sm font-semibold transition-all",
+                  allCities
+                    ? "border-violet-neon bg-violet-neon/10 text-violet-600 dark:text-violet-300"
+                    : "border-zinc-200 hover:border-violet-neon/60 dark:border-white/10",
+                )}
+              >
+                All Cities
+              </button>
+            ) : null}
             {filteredCities.map((option) => (
               <button
                 key={option.value}
