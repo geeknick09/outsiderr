@@ -169,7 +169,7 @@ export function BecomeOrganizerForm() {
     if (step === 1) return !!panNumber && panValid && !!panName && !!panDocumentUrl && !panDocError && !uploadingPan;
     if (step === 2) return !!gstNumber && !!gstBusinessName;
     if (step === 3) {
-      return !!upiId && upiValid && !!bankAccountNumber && !!bankIfsc && ifscValid
+      return upiValid && !!bankAccountNumber && !!bankIfsc && ifscValid
         && !!bankAccountName && !!bankDocumentUrl && !bankDocError && !uploadingBank;
     }
     return agreed;
@@ -509,7 +509,7 @@ export function BecomeOrganizerForm() {
                   <StepHeader title="Bank & UPI details" subtitle="Skip to add later - or fill everything including the bank proof to continue. Needed before payouts." />
 
                   <label className={LABEL}>
-                    <span className={LABEL_TEXT}>UPI ID *</span>
+                    <span className={LABEL_TEXT}>UPI ID (optional)</span>
                     <input
                       value={upiId}
                       onChange={(e) => setUpiId(e.target.value)}
