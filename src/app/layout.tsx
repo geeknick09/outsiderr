@@ -73,7 +73,8 @@ export default async function RootLayout({
             useEffect is too late (browser restores mid-page scroll first). */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `if ("scrollRestoration" in history) history.scrollRestoration = "manual";`,
+            __html: `if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+if ("serviceWorker" in navigator && location.hostname !== "localhost") navigator.serviceWorker.register("/sw.js").catch(() => {});`,
           }}
         />
         <ThemeProvider>
