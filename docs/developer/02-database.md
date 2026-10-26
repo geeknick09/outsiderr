@@ -1,4 +1,4 @@
-# Outsiderr — Database Schema Reference
+# Outsiderr - Database Schema Reference
 
 All tables live in `public` (plus an `analytics` schema for pre-computed rollups). Every column is `snake_case`; app code maps to camelCase in data functions.
 
@@ -9,8 +9,8 @@ All tables live in `public` (plus an `analytics` schema for pre-computed rollups
 | Table | Purpose | Key columns |
 |-------|---------|-------------|
 | `auth.users` | Supabase auth identities | id, email |
-| `profiles` | Public user profile — one per auth user. `is_admin` flips first user to admin via `auto_promote_first_admin` trigger | id (→ auth.users), full_name, avatar_url, city, gender, phone, interests[], is_admin |
-| `organizers` | Creator/creator-profile record — owns events + communities. `kyc_status` gates publishing | id, owner_id (→ auth.users), name, bio, avatar_url, intent, kyc_status, pending_kyc, bank_* columns, upi_id |
+| `profiles` | Public user profile - one per auth user. `is_admin` flips first user to admin via `auto_promote_first_admin` trigger | id (→ auth.users), full_name, avatar_url, city, gender, phone, interests[], is_admin |
+| `organizers` | Creator/creator-profile record - owns events + communities. `kyc_status` gates publishing | id, owner_id (→ auth.users), name, bio, avatar_url, intent, kyc_status, pending_kyc, bank_* columns, upi_id |
 | `organizer_bank_accounts` | Extra payout bank accounts per organizer | id, organizer_id, account_name, account_number, ifsc, pan, upi_id, is_primary |
 | `organizer_follows` | User → organizer follow (profile Following section) | organizer_id, follower_id |
 
@@ -32,12 +32,12 @@ All tables live in `public` (plus an `analytics` schema for pre-computed rollups
 |-------|---------|-------------|
 | `events` | The event. `community_id` links it to a community; `visibility` gates booking | id, organizer_id, title, description, category, categories[], tags[], city, venue_name/address/lat/lng/maps_link, starts_at, ends_at, status (DRAFT/PUBLISHED/POSTPONED/CANCELLED/COMPLETED), community_id, visibility (OPEN/MEMBERS_ONLY/INVITE_ONLY), pricing fields (see money doc), recurrence, images (card_poster_url, banner_poster_url, teaser_video_url, photos[]), waitlist_enabled, allow_booking_during_event, max_tickets_per_user, organizer agreement fields |
 | `ticket_tiers` | Sellable tiers per event (price × qty, phased windows) | event_id, name, price_paise, quantity, quantity_sold, quantity_reserved, sort_order, phase_opens_at/phase_closes_at, admits (reserved=1) |
-| `orders` | A purchase (or pending one) — the money row | event_id, tier_id, user_id, quantity, unit_price_paise, subtotal_paise, commission_paise, convenience_fee_paise, gateway_fee_paise, platform_fee_paise, organizer_payout_paise, total_paise, fee_payer, status (RESERVED/PENDING_VERIFICATION/CONFIRMED/REJECTED/CANCELLED/REFUND_REQUESTED/REFUNDED), order_source (ONLINE/BOX_OFFICE/WALKIN/GUESTLIST), buyer_*, reserved_at, reservation_expires_at, idempotency_key, razorpay_order_id, payment_ref, refund_*, promo fields |
+| `orders` | A purchase (or pending one) - the money row | event_id, tier_id, user_id, quantity, unit_price_paise, subtotal_paise, commission_paise, convenience_fee_paise, gateway_fee_paise, platform_fee_paise, organizer_payout_paise, total_paise, fee_payer, status (RESERVED/PENDING_VERIFICATION/CONFIRMED/REJECTED/CANCELLED/REFUND_REQUESTED/REFUNDED), order_source (ONLINE/BOX_OFFICE/WALKIN/GUESTLIST), buyer_*, reserved_at, reservation_expires_at, idempotency_key, razorpay_order_id, payment_ref, refund_*, promo fields |
 | `tickets` | One ticket per order-unit. `qr_hash` is the door credential | event_id, order_id, user_id, tier_id, qr_hash, status (VALID/USED/CANCELLED), used_at, admit_count |
 | `waitlist` | Sold-out waitlist (auto-backfill on cancellations) | event_id, user_id, status (WAITING/OFFERED/CONVERTED/EXPIRED) |
 | `event_subscriptions` | "Update me" alert opt-ins per event | event_id, user_id |
 | `event_invites` | Rotating invite-token secret for INVITE_ONLY events | event_id, token |
-| `event_collaborators` | Co-hosts/staff on an event — LIMITED access level | event_id, organizer_id, invited_by, status |
+| `event_collaborators` | Co-hosts/staff on an event - LIMITED access level | event_id, organizer_id, invited_by, status |
 | `event_staff` | Named door/box-office staff per event | event_id, organizer_id, name, phone, email |
 | `event_reviews` | Post-event star reviews | event_id, organizer_id, user_id, rating, comment |
 
@@ -55,8 +55,8 @@ All tables live in `public` (plus an `analytics` schema for pre-computed rollups
 
 | Table | Purpose | Key columns |
 |-------|---------|-------------|
-| `payment_ledger` | Append-only money journal — every paise movement | type, event_id, organizer_id, order_id, gross_paise, commission_paise, convenience_fee_paise, gateway_fee_paise, platform_fee_paise, net_organizer_paise, promoter_commission_paise |
-| `payout_records` | Outgoing payments to organizers | organizer_id, event_id, amount_paise, status (PENDING/PROCESSING/COMPLETED/FAILED), method, bank_account_id, bank_reference, failure_reason, payout_snapshot (jsonb — bank details frozen at payout time) |
+| `payment_ledger` | Append-only money journal - every paise movement | type, event_id, organizer_id, order_id, gross_paise, commission_paise, convenience_fee_paise, gateway_fee_paise, platform_fee_paise, net_organizer_paise, promoter_commission_paise |
+| `payout_records` | Outgoing payments to organizers | organizer_id, event_id, amount_paise, status (PENDING/PROCESSING/COMPLETED/FAILED), method, bank_account_id, bank_reference, failure_reason, payout_snapshot (jsonb - bank details frozen at payout time) |
 | `webhook_events` | Razorpay webhook idempotency | razorpay_event_id, event_type, created_at |
 | `refunds` | Refund records tied to orders | order_id, event_id, amount_paise, status, razorpay_refund_id |
 
@@ -86,18 +86,18 @@ All tables live in `public` (plus an `analytics` schema for pre-computed rollups
 
 | Table | Purpose | Key columns |
 |-------|---------|-------------|
-| `event_notifications` | The bell feed — user + realtime | event_id, community_id, user_id, type (ORDER_*, PAYMENT_*, REFUND_*, PAYOUT_COMPLETED, COMMUNITY_EVENT, OUTREACH, KYC_*, WAITLIST_*, COLLAB_*, …), message, read |
+| `event_notifications` | The bell feed - user + realtime | event_id, community_id, user_id, type (ORDER_*, PAYMENT_*, REFUND_*, PAYOUT_COMPLETED, COMMUNITY_EVENT, OUTREACH, KYC_*, WAITLIST_*, COLLAB_*, …), message, read |
 | `notification_outbox` | External delivery queue (push/email) | user_id, event_id, type, message, channel, delivered_at |
 
 ## Platform ops & governance
 
 | Table | Purpose | Key columns |
 |-------|---------|-------------|
-| `platform_settings` | Key-value config — all fee rates, caps, copy | key, value, description |
+| `platform_settings` | Key-value config - all fee rates, caps, copy | key, value, description |
 | `admin_change_log` | Audit trail for every admin edit | admin_id, table_name, record_id, field_name, old_value, new_value |
 | `compliance_tasks` | Admin ops task tracker | title, description, status, due_at |
 | `kyc_messages` | Review-thread messages between admin + creator | organizer_id, sender_role, message |
-| `legal_pages` + `legal_page_versions` | CMS for T&C/privacy/refund — version history + live pointer | pages: slug, title, content, version, is_published; versions: slug, version, title, content, saved_by_email |
+| `legal_pages` + `legal_page_versions` | CMS for T&C/privacy/refund - version history + live pointer | pages: slug, title, content, version, is_published; versions: slug, version, title, content, saved_by_email |
 | `event_terms_acceptances` | Per-event T&C acceptance record | event_id, organizer_id, terms_version |
 | `analytics.*` | Pre-computed rollups for dashboards (daily_metrics, event_rollup, organizer_rollup, user_activity_days, user_order_stats, totals) | refreshed by `refresh_analytics` cron |
 
@@ -110,5 +110,5 @@ auth.users ── profiles ── organizers ──┬─ events ── ticket_t
 events ── waitlist · event_staff · scanner/box_office_pins · scan_log · event_invites · boosts
 orders ── refunds · tickets · payment_ledger rows · promoter_earnings
 organizers ── payout_records          promoters ── promoter_links/codes/clicks/earnings/payouts
-event_notifications + notification_outbox — fed by actions + RPCs, delivered realtime
+event_notifications + notification_outbox - fed by actions + RPCs, delivered realtime
 ```

@@ -4,7 +4,7 @@
 
 /* App-like scrolling: momentum, no overscroll bounce.
    NOTE: scroll-behavior: smooth is intentionally NOT set globally because it
-   interferes with Next.js App Router navigation — after a route change or server
+   interferes with Next.js App Router navigation - after a route change or server
    action, Next scrolls to top/restore position instantly, but smooth makes it a
    visible "scroll down" animation. Apply smooth only where needed via inline style. */
 html {
@@ -37,7 +37,7 @@ body {
   display: none;
 }
 
-/* Faster tap response on mobile — eliminates 300ms tap delay */
+/* Faster tap response on mobile - eliminates 300ms tap delay */
 button, a, [role="button"] {
   touch-action: manipulation;
 }
@@ -70,7 +70,7 @@ body {
 
 @layer utilities {
   /*
-   * Frosted surface — adapts between light and dark themes.
+   * Frosted surface - adapts between light and dark themes.
    *
    * Mobile perf fix: changed dark:backdrop-blur-md (12px) → backdrop-blur-sm (4px).
    * backdrop-blur-md on every card was the #1 cause of scroll jank on low-end phones.
@@ -119,7 +119,7 @@ body {
   }
 
   /*
-   * content-visibility: auto — skip paint/layout for off-screen cards.
+   * content-visibility: auto - skip paint/layout for off-screen cards.
    * Apply to long lists of event cards so only visible cards are rendered.
    */
   .cv-auto {

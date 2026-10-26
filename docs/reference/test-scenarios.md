@@ -1,4 +1,4 @@
-# Outsiderr — Manual Test Scenarios
+# Outsiderr - Manual Test Scenarios
 
 > Complete end-to-end test plan for all completed features. Run these against a staging or local dev environment with a real Supabase backend.
 
@@ -55,8 +55,8 @@
 
 - [x] Navigate to organizer verification flow
 - [x] Step 1: Profile details
-- [x] Step 2: PAN number (validate format `ABCDE1234F`) + optional PAN card photo (JPG/PNG under 1 MB — oversized file shows error, doesn’t upload)
-- [x] Step 3: GST (optional — skip should work)
+- [x] Step 2: PAN number (validate format `ABCDE1234F`) + optional PAN card photo (JPG/PNG under 1 MB - oversized file shows error, doesn’t upload)
+- [x] Step 3: GST (optional - skip should work)
 - [x] Step 4: Bank + UPI (**optional** - marked "optional for now", advances empty; if touched, IFSC format `ABCD0123456` + all fields required)
 - [x] Step 5: Agreement acceptance
 - [x] Verify all KYC fields saved to organizer profile (incl. `pan_document_url` / `bank_document_url`)
@@ -79,7 +79,7 @@
 - [x] Only eligible organizers see “Creator Dashboard” in user menu
 - [x] Rejected below limit → `/list-your-event` shows “Start Creating” → `/organizer` renders the **fresh 5-step KYC wizard** (no notice card, no resubmit panel)
 - [x] Resubmitting the wizard **overwrites** the existing organizer row (all fields + docs), flips `kyc_status` → PENDING, preserves `rejection_count`, notifies admins + logs thread
-- [x] Rejection count reaches `organizer_rejection_limit` (platform\_settings, default 5) → `/list-your-event` shows “application rejected N times — contact support” instead of CTAs
+- [x] Rejection count reaches `organizer_rejection_limit` (platform\_settings, default 5) → `/list-your-event` shows “application rejected N times - contact support” instead of CTAs
 - [x] Blocked user visiting `/organizer` directly → “Organizer access blocked” panel (no wizard, no dashboard)
 - [ ] Change `organizer_rejection_limit` in platform\_settings → block threshold updates accordingly
 
@@ -93,12 +93,12 @@
 
 ### 2.5 KYC Polish & Thread
 
-- [ ] Doc uploads (PAN/bank) use a plain file picker — no cropper, accepts image + PDF
+- [ ] Doc uploads (PAN/bank) use a plain file picker - no cropper, accepts image + PDF
 - [ ] File >1 MB → inline red error under the upload button (“keep it under 1 MB”), nothing uploads
 - [ ] Page reload lands at the top of the page (no scroll-restore jump)
 - [ ] PENDING state → status banner + withdraw only (no response form until admin acts)
 - [ ] REJECTED/CLARIFICATION → “Update & resubmit” form visible, button reads “Resubmit application”
-- [ ] Admin KYC page: filter tabs show counts — Pending (n), Clarification Needed (n), Approved (n), Rejected (n), All (n)
+- [ ] Admin KYC page: filter tabs show counts - Pending (n), Clarification Needed (n), Approved (n), Rejected (n), All (n)
 - [ ] Admin card shows PAN document + bank proof links, organizer’s response note, and full communication thread with admin emails
 - [ ] Clarification message tells the organizer to respond in the dashboard (no “team member will contact you”)
 - [ ] Admin clicks Review → modal previews submission; approve/reject/clarify each show a confirm-preview with acting admin email + exact notification text before sending
@@ -136,11 +136,11 @@
 
 - [x] Navigate to `/organizer?tab=create`
 - [x] Fill event title, description
-- [x] Select category — verify “Alternate Sports & Fitness” appears (renamed from Fitness)
-- [x] Select “Gaming” category — verify it appears in the dropdown
+- [x] Select category - verify “Alternate Sports & Fitness” appears (renamed from Fitness)
+- [x] Select “Gaming” category - verify it appears in the dropdown
 - [x] Select city, venue name
 - [x] Use map picker to set location
-- [x] Add Google Maps link — verify validation
+- [x] Add Google Maps link - verify validation
 - [x] Add organizer contact email + phone
 - [x] Set start/end date and time
 - [x] Verify Poster & Description Guidelines panel is collapsible
@@ -198,7 +198,7 @@
 - [x] Try a video > 10s → rejected with a clear message before upload
 - [x] Try a video > 50 MB → rejected with a clear message
 - [ ] Leave it empty → event saves fine, card shows the photo (teaser is optional)
-- [ ] Same field on **edit** — replace/remove the teaser and verify it persists
+- [ ] Same field on **edit** - replace/remove the teaser and verify it persists
 
 ### 3.8 Poster Crop Tool
 
@@ -273,7 +273,7 @@
 - [ ] Select ticket tier and quantity
 - [ ] Fill RSVP form (email, gender if optional)
 - [ ] Verify checkout sidebar shows ticket subtotal + convenience fee + **total**
-- [ ] Razorpay Checkout opens — verify amount matches the sidebar total and the buyer’s name/email/phone are prefilled
+- [ ] Razorpay Checkout opens - verify amount matches the sidebar total and the buyer’s name/email/phone are prefilled
 - [ ] Test card `4111 1111 1111 1111` (any CVV, future expiry) or UPI `success@razorpay` → payment succeeds
 - [ ] Verify `/checkout/status` flips to confirmed (Realtime or poll) and redirects to `/tickets`
 - [ ] Verify ticket appears with QR; order shows invoice `OUT-YYYYMM-XXXXX` + `pay_…` reference
@@ -374,7 +374,7 @@
 ### 8.1 Invite a Co-Organizer
 
 - [ ] As Organizer A, navigate to event management page (`/organizer/events/[id]`)
-- [ ] Find the Collaborators panel — the search box is always visible (no separate Invite button)
+- [ ] Find the Collaborators panel - the search box is always visible (no separate Invite button)
 - [ ] Search for Organizer B by name
 - [ ] Select permission level (Ops / Ops + Money / Full access)
 - [ ] Click “Invite” on the search result
@@ -397,20 +397,20 @@
 - [ ] Verify invite disappears from dashboard
 - [ ] Verify event does NOT appear in Organizer D’s event list
 
-### 8.4 Co-Organizer Access — Ops (LIMITED)
+### 8.4 Co-Organizer Access - Ops (LIMITED)
 
 - [ ] As Organizer A, invite Organizer B with LIMITED (Ops)
 - [ ] As Organizer B, open the collaborated event
 - [ ] Verify event details page loads; “Co-organizer · LIMITED” badge shows
-- [ ] Verify Analytics panel is VISIBLE — but NO money cards (no gross revenue / convenience fee / net payout)
+- [ ] Verify Analytics panel is VISIBLE - but NO money cards (no gross revenue / convenience fee / net payout)
 - [ ] Verify Attendees/Orders section is VISIBLE
 - [ ] Verify Door Scanner + Staff Scanner buttons are VISIBLE
 - [ ] Verify Walk-in check-in + Door staff + Scanner PIN + Box-office PIN managers are VISIBLE (can generate/revoke PINs)
 - [ ] Verify Edit form is HIDDEN
 - [ ] Verify Cancel/Postpone is HIDDEN (owner only)
-- [ ] Verify Collaborators panel is VISIBLE read-only — shows other co-organizers with profile links; no invite/remove controls
+- [ ] Verify Collaborators panel is VISIBLE read-only - shows other co-organizers with profile links; no invite/remove controls
 
-### 8.5 Co-Organizer Access — Ops + Money (ANALYTICS)
+### 8.5 Co-Organizer Access - Ops + Money (ANALYTICS)
 
 - [ ] As Organizer A, change Organizer B’s permission to ANALYTICS (via dropdown)
 - [ ] As Organizer B, reload the event page
@@ -419,14 +419,14 @@
 - [ ] Verify Edit form is HIDDEN
 - [ ] Verify Cancel/Postpone is HIDDEN
 
-### 8.7 Co-Organizer Access — FULL
+### 8.7 Co-Organizer Access - FULL
 
 - [ ] As Organizer A, change Organizer B’s permission to FULL
 - [ ] As Organizer B, reload the event page
 - [ ] Verify everything in ANALYTICS is VISIBLE (full money analytics, orders, pins, staff)
-- [ ] Verify Edit form is VISIBLE — but city, venue name/address, maps link and date/time inputs are LOCKED with the co-organizer notice
+- [ ] Verify Edit form is VISIBLE - but city, venue name/address, maps link and date/time inputs are LOCKED with the co-organizer notice
 - [ ] Verify ticket tiers are NOT editable (pricing/inventory stays owner-only)
-- [ ] Verify Cancel/Postpone is HIDDEN — only the owner can cancel or reschedule
+- [ ] Verify Cancel/Postpone is HIDDEN - only the owner can cancel or reschedule
 - [ ] Verify Hero Boost / Slot Boost is VISIBLE
 
 ### 8.8 Change Permission Level (Owner)
@@ -436,13 +436,13 @@
 - [ ] Verify the dropdown updates
 - [ ] As Organizer B, reload → verify new permission level applies
 
-### 8.9a Organizer Events — Search + Pagination
+### 8.9a Organizer Events - Search + Pagination
 
 - [ ] Type in the search box → results span ALL states (published/draft/completed/cancelled), each with a state chip; clicking goes to the event manage page
 - [ ] More than 10 events → pager shows "Page 1 of N"; next/prev works, page resets on tab/sort/search change
 - [ ] Branded centered loader appears when switching tabs (events → create → analytics) and on event-page navigation
 - [ ] Create-event publish requires: About, Things to know, T&C, ≥1 category, city, ≥1 tag, contact email + phone (drafts exempt)
-- [ ] "Max tickets per person (1–10)" field on create + edit; cap enforced per-account across tiers — e.g. cap 4: buy 2 + 2 OK, +1 blocked; each ticket = one QR
+- [ ] "Max tickets per person (1-10)" field on create + edit; cap enforced per-account across tiers - e.g. cap 4: buy 2 + 2 OK, +1 blocked; each ticket = one QR
 - [ ] Admin events: lifecycle filter (upcoming/completed/draft/cancelled), organizer-name filter, sort by latest/registrations/commission/convenience, 10-per-page pager, dropdowns render options correctly
 - [ ] Buyer mid-checkout when admin changes commission/convenience → in-flight order keeps locked prices (15-min reservation); event page shows new fees on next load
 
@@ -491,7 +491,7 @@
 ### 9.3 Postpone Event (event stays live)
 
 - [ ] As Organizer A, postpone a published event (new date must be future)
-- [ ] Verify event stays PUBLISHED — no POSTPONED status, no “Postponed” section on the homepage; card/date just move
+- [ ] Verify event stays PUBLISHED - no POSTPONED status, no “Postponed” section on the homepage; card/date just move
 - [ ] Verify ticket holders + subscribers notified (POSTPONEMENT)
 - [ ] Ticket card shows “Event changed” panel → “Keep my ticket” clears it; “Request refund” → REFUND\_REQUESTED + PENDING refund + ticket cancelled + seat returned
 - [ ] Re-requesting a refund on the same order returns the existing refund (no duplicate)
@@ -579,7 +579,7 @@
 
 - [ ] Navigate to `/organizer/payments` (organizer dashboard → Payments tab)
 - [ ] Verify summary cards: Gross earned, Liabilities, Paid out, Balance due
-- [ ] Verify ledger table lists each sale with gross/fees/net — “You get” column is green
+- [ ] Verify ledger table lists each sale with gross/fees/net - “You get” column is green
 - [ ] Verify completed payouts appear with method chip + bank ref + timestamps
 - [ ] After admin completes a payout → Balance due drops accordingly
 
@@ -725,14 +725,14 @@
 
 ### 16.6a Admin Payments (reconciliation monitor)
 
-- [ ] Navigate to `/admin/payments` — verify “Payments” in the admin sidebar
+- [ ] Navigate to `/admin/payments` - verify “Payments” in the admin sidebar
 - [ ] Verify webhook event log lists deliveries with `processed` flag
 - [ ] Verify stale-RESERVED monitor lists orders past their reservation window
 - [ ] Click Export `ledger` / `orders` / `refunds` → verify CSV downloads open in Excel/Sheets with joined names (event title, organizer name)
 
 ### 16.6b Admin Refunds queue
 
-- [ ] Navigate to `/admin/refunds` — verify “Refunds” in the admin sidebar
+- [ ] Navigate to `/admin/refunds` - verify “Refunds” in the admin sidebar
 - [ ] Organizer requests a refund on a confirmed attendee (attendees table → Refund → reason) → verify the request lands in the queue with status “Under review”/REQUESTED
 - [ ] Approve (ticket) → status moves to processing; buyer gets REFUND\_APPROVED notification; tickets cancelled + inventory released
 - [ ] Approve full → refund amount equals order total (incl. fees)
@@ -743,7 +743,7 @@
 
 ### 16.6c Admin Payouts (manual settlement)
 
-- [ ] Navigate to `/admin/payouts` — verify “Payouts” in the admin sidebar
+- [ ] Navigate to `/admin/payouts` - verify “Payouts” in the admin sidebar
 - [ ] Verify “Due to organizers” card equals Σ ledger net-organizer minus in-flight payouts
 - [ ] Owed organizers list shows name + due amount + Schedule payout form
 - [ ] Schedule a payout (amount, method NEFT/UPI/IMPS/RTGS/CASH/OTHER, note) → record appears as PENDING in history
@@ -806,7 +806,7 @@
 - [ ] Verify note field appears (required)
 - [ ] Enter what clarification is needed → click “Send Clarification Request”
 - [ ] Verify status changes to CLARIFICATION\_NEEDED
-- [ ] As the organizer, check bell icon → verify “Clarification Needed — We’ll Contact You” notification appears
+- [ ] As the organizer, check bell icon → verify “Clarification Needed - We’ll Contact You” notification appears
 - [ ] Verify notification message includes “An Outsiderr team member will contact you shortly”
 - [ ] As the organizer, navigate to `/organizer` → verify blue “Clarification Needed” banner
 - [ ] As admin, verify the submission moves to “Clarification Needed” filter tab
@@ -823,8 +823,8 @@
 ### 16.13 Event Fee Lock (post-start)
 
 - [ ] Admin → `/admin/events` → find an **upcoming** paid event → commission/fee form is editable → change values → saves + audit row written
-- [ ] Find a **live/past** (started) event → fee area is a read-only summary (“locked — event started”), no form
-- [ ] Try to bypass via a crafted request → `adminUpdateEventFeesAction` returns “Event has already started — fees are locked.”
+- [ ] Find a **live/past** (started) event → fee area is a read-only summary (“locked - event started”), no form
+- [ ] Try to bypass via a crafted request → `adminUpdateEventFeesAction` returns “Event has already started - fees are locked.”
 - [ ] Verify Edit/Feature/Cancel/Publish/Delete are all hidden on a started event (whole card view-only)
 
 ## 17\. Notifications
@@ -859,7 +859,7 @@
 - [ ] Rows older than 24h → marked EXPIRED on next claim (no stale blast when a provider is enabled later)
 - [ ] `GET /api/cron/drain-notifications` with bad secret → 401; with `CRON_SECRET` → 200 `{status:"skipped"}` while no provider env (EXPO\_ACCESS\_TOKEN / FCM\_SERVER\_KEY / WEB\_PUSH\_PRIVATE\_KEY)
 - [ ] `notification_outbox` not readable/writable by anon or authenticated roles (service-role only)
-- [ ] `node scripts/_test_analytics_rollup.mjs` → T17–T21 cover this end-to-end
+- [ ] `node scripts/_test_analytics_rollup.mjs` → T17-T21 cover this end-to-end
 
 ## 18\. Legal & Info Pages
 
@@ -961,16 +961,16 @@ npx vitest run
 
 - [ ] Verify 7 test files pass
 - [ ] Verify 113 tests pass
-- [ ] Verify financial tests (19) — canonical 10×₹450 example
-- [ ] Verify validation tests (35) — Zod schemas
-- [ ] Verify rate-limit tests (10) — sliding window
-- [ ] Verify fixture tests (38) — data integrity
-- [ ] Verify api-auth tests (5) — bearer/ALS context
+- [ ] Verify financial tests (19) - canonical 10×₹450 example
+- [ ] Verify validation tests (35) - Zod schemas
+- [ ] Verify rate-limit tests (10) - sliding window
+- [ ] Verify fixture tests (38) - data integrity
+- [ ] Verify api-auth tests (5) - bearer/ALS context
 
 ### 22.2 E2E API Suite (seeded roles)
 
 ```bash
-npx next build && npx next start -p 3124   # production build — dev-mode
+npx next build && npx next start -p 3124   # production build - dev-mode
 # compiles stall long enough to expire the test JWTs; don't run against next dev
 node scripts/_seed_dev_test.mjs
 node scripts/_e2e_dev_test.mjs            # default base http://localhost:3124
@@ -1059,7 +1059,7 @@ npx next build
 
 - [ ] Open the same event in many tabs/browsers, hit “Book” simultaneously
 - [ ] If tickets ≥ demand → **all** orders succeed (each becomes RESERVED), inventory decrements per order
-- [ ] If tickets < demand → orders fill capacity exactly; extras get “Not enough tickets” + waitlist option — **never** over-sold
+- [ ] If tickets < demand → orders fill capacity exactly; extras get “Not enough tickets” + waitlist option - **never** over-sold
 - [ ] Confirm `quantity_sold` never exceeds `quantity` in the DB
 
 ### 26.2 Reservation Window (Razorpay)
@@ -1079,9 +1079,9 @@ npx next build
 - [ ] A user with an active order (CONFIRMED/RESERVED/PENDING) tries to book the same event again → blocked
 - [ ] Two users booking the last seat concurrently → exactly one succeeds
 
-### 26.5 Money Math — every path
+### 26.5 Money Math - every path
 
-- [ ] **Server is authoritative:** order RPCs recompute all paise fields from tier price + event fee config — caller-supplied amounts are ignored (verify via a manipulated RPC call: stored row ≠ submitted values)
+- [ ] **Server is authoritative:** order RPCs recompute all paise fields from tier price + event fee config - caller-supplied amounts are ignored (verify via a manipulated RPC call: stored row ≠ submitted values)
 - [ ] **Online paid:** buyer pays `subtotal + convenience_fee`; organizer gets `subtotal − commission`; platform keeps `commission + convenience_fee`
 - [ ] **Free:** ₹0 everywhere; no fees; ticket still mints
 - [ ] **Manual UPI / box office / walk-in:** convenience fee ₹0, commission still applies
@@ -1322,34 +1322,34 @@ npx next build
 
 | Module | Scenarios | Status |
 | --- | --- | --- |
-| Auth & Profile | 1.1–1.2 | ☐ |
-| Organizer Onboarding | 2.1–2.8 | ☐ |
-| Event Creation | 3.1–3.8 | ☐ |
-| Event Discovery | 4.1–4.4 | ☐ |
-| Booking & Tickets | 5.1–5.6 | ☐ |
-| Update Me Subscriptions | 6.1–6.4 | ☐ |
-| Follow/Unfollow | 7.1–7.3 | ☐ |
-| Collaboration | 8.1–8.11 | ☐ |
-| Event Management | 9.1–9.4 | ☐ |
-| Door Scanner | 10.1–10.5 | ☐ |
-| Orders & Revenue | 11.1–11.3 | ☐ |
-| Organizer Analytics | 12.1–12.2 | ☐ |
-| Boosting | 13.1–13.2 | ☐ |
-| Clubs & Crews | 14.1–14.3 | ☐ |
-| Reviews & Ratings | 15.1–15.2 | ☐ |
-| Admin Dashboard | 16.1–16.13 | ☐ |
-| Notifications | 17.1–17.3 | ☐ |
-| Legal & Info Pages | 18.1–18.3 | ☐ |
+| Auth & Profile | 1.1-1.2 | ☐ |
+| Organizer Onboarding | 2.1-2.8 | ☐ |
+| Event Creation | 3.1-3.8 | ☐ |
+| Event Discovery | 4.1-4.4 | ☐ |
+| Booking & Tickets | 5.1-5.6 | ☐ |
+| Update Me Subscriptions | 6.1-6.4 | ☐ |
+| Follow/Unfollow | 7.1-7.3 | ☐ |
+| Collaboration | 8.1-8.11 | ☐ |
+| Event Management | 9.1-9.4 | ☐ |
+| Door Scanner | 10.1-10.5 | ☐ |
+| Orders & Revenue | 11.1-11.3 | ☐ |
+| Organizer Analytics | 12.1-12.2 | ☐ |
+| Boosting | 13.1-13.2 | ☐ |
+| Clubs & Crews | 14.1-14.3 | ☐ |
+| Reviews & Ratings | 15.1-15.2 | ☐ |
+| Admin Dashboard | 16.1-16.13 | ☐ |
+| Notifications | 17.1-17.3 | ☐ |
+| Legal & Info Pages | 18.1-18.3 | ☐ |
 | Loading States | 19.1 | ☐ |
-| Error Handling | 20.1–20.4 | ☐ |
-| PWA & Branding | 21.1–21.2 | ☐ |
-| Automated Tests | 22.1–22.3 | ☐ |
-| Box Office | 23.1–23.4 | ☐ |
-| Offline Scan & Sync | 24.1–24.2 | ☐ |
-| Mobile & Navigation | 25.1–25.2 | ☐ |
-| Concurrency & Money | 26.1–26.6 | ☐ |
-| Security & Auth | 27.1–27.5 | ☐ |
-| Communities & Promoters | 28.1–28.5 | ☐ |
-| Communities Polish & Gates | 29.1–29.4 | ☐ |
-| Campaigns, Virality & Gates | 30.1–30.4 | ☐ |
-| Admin Tracking Tabs | 31.1–31.6 | ☐ |
+| Error Handling | 20.1-20.4 | ☐ |
+| PWA & Branding | 21.1-21.2 | ☐ |
+| Automated Tests | 22.1-22.3 | ☐ |
+| Box Office | 23.1-23.4 | ☐ |
+| Offline Scan & Sync | 24.1-24.2 | ☐ |
+| Mobile & Navigation | 25.1-25.2 | ☐ |
+| Concurrency & Money | 26.1-26.6 | ☐ |
+| Security & Auth | 27.1-27.5 | ☐ |
+| Communities & Promoters | 28.1-28.5 | ☐ |
+| Communities Polish & Gates | 29.1-29.4 | ☐ |
+| Campaigns, Virality & Gates | 30.1-30.4 | ☐ |
+| Admin Tracking Tabs | 31.1-31.6 | ☐ |

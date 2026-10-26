@@ -27,13 +27,13 @@ import { calculatePrice, DEFAULT_COMMISSION_BPS, DEFAULT_CONVENIENCE_FEE_BPS } f
  * Integration tests using deterministic test fixtures.
  *
  * These tests verify the relationships between fixtures and the financial
- * calculations that the fixtures represent. They don't hit the database —
+ * calculations that the fixtures represent. They don't hit the database -
  * they use the in-memory fixtures from tests/fixtures.ts.
  *
  * For database-backed tests, run scripts/seed-test-data.mjs against a test
  * database and write tests that query via the Supabase client.
  */
-describe("Test fixtures — data integrity", () => {
+describe("Test fixtures - data integrity", () => {
   it("all event IDs are unique", () => {
     const ids = allEvents.map((e) => e.id);
     expect(new Set(ids).size).toBe(ids.length);
@@ -85,7 +85,7 @@ describe("Test fixtures — data integrity", () => {
   });
 });
 
-describe("Test fixtures — financial accuracy", () => {
+describe("Test fixtures - financial accuracy", () => {
   it("online order matches financial expectations", () => {
     expect(onlineOrder.subtotalPaise).toBe(FINANCIAL_EXPECTATIONS.online.subtotal);
     expect(onlineOrder.commissionPaise).toBe(FINANCIAL_EXPECTATIONS.online.commission);
@@ -172,7 +172,7 @@ describe("Test fixtures — financial accuracy", () => {
   });
 });
 
-describe("Test fixtures — inventory state", () => {
+describe("Test fixtures - inventory state", () => {
   it("free event has 100% availability", () => {
     expect(freeTier.quantitySold).toBe(0);
     expect(freeTier.quantity - freeTier.quantitySold).toBe(100);
@@ -205,7 +205,7 @@ describe("Test fixtures — inventory state", () => {
   });
 });
 
-describe("Test fixtures — ticket state", () => {
+describe("Test fixtures - ticket state", () => {
   it("valid ticket is VALID and not checked in", () => {
     expect(validTicket.status).toBe("VALID");
     expect(validTicket.checkedInAt).toBeNull();
@@ -234,7 +234,7 @@ describe("Test fixtures — ticket state", () => {
   });
 });
 
-describe("Test fixtures — PIN state", () => {
+describe("Test fixtures - PIN state", () => {
   it("scanner PIN is active and for the paid event", () => {
     expect(scannerPin.eventId).toBe(IDS.PAID_EVENT_ID);
     expect(scannerPin.isActive).toBe(true);
@@ -257,7 +257,7 @@ describe("Test fixtures — PIN state", () => {
   });
 });
 
-describe("Test fixtures — event lifecycle", () => {
+describe("Test fixtures - event lifecycle", () => {
   it("all events are PUBLISHED", () => {
     for (const event of allEvents) {
       expect(event.status).toBe("PUBLISHED");

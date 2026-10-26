@@ -1,4 +1,4 @@
-# Outsiderr — High-Level Architecture
+# Outsiderr - High-Level Architecture
 
 ## What it is
 
@@ -60,8 +60,8 @@ graph TD
 | Layer | Where | What it does |
 |-------|-------|--------------|
 | **Middleware** | `src/middleware.ts` | Session refresh + route guards (`/admin`, `/organizer`, `/profile`, `/tickets`) |
-| **App Router pages** | `src/app/**` | Server components — fetch data server-side, render HTML |
-| **Server Actions** | `src/modules/*/actions/*.ts` | All mutations — called via `useActionState`/`useTransition` |
+| **App Router pages** | `src/app/**` | Server components - fetch data server-side, render HTML |
+| **Server Actions** | `src/modules/*/actions/*.ts` | All mutations - called via `useActionState`/`useTransition` |
 | **REST API** | `src/app/api/v1/**` | Mobile clients (bearer-token auth via `withApiContext`) |
 | **Modules** | `src/modules/{shared,web,organizer,admin,analytics}` | Data fns (`data/`), UI (`components/`), types |
 | **Supabase** | `supabase/` | Postgres + Auth + RLS + RPCs + Realtime + `event-media` bucket |
@@ -71,17 +71,17 @@ graph TD
 
 ESLint enforces `no-restricted-imports`: **never deep-import** into `src/modules/<x>/components|data/...` from outside that module. Always go through the module's `index.ts` / `server.ts` / `actions/*`. Violations fail the build.
 
-## Data flow (one example — buying a ticket)
+## Data flow (one example - buying a ticket)
 
 1. `GET /events/[id]` → server component calls `getEvent` (RLS select) → page renders
 2. User clicks Buy → `createOrderAction` (server action)
-3. Action calls the **`create_reserved_order` RPC** — all money math happens in SQL (`SECURITY DEFINER`), never client-side
+3. Action calls the **`create_reserved_order` RPC** - all money math happens in SQL (`SECURITY DEFINER`), never client-side
 4. Razorpay checkout opens → on success the webhook `/api/v1/payments/webhook` flips the order `RESERVED → CONFIRMED` and mints tickets
 5. `event_notifications` insert → realtime channel `notifications:{userId}` → bell updates without reload
 
 ## Key invariants
 
-- **All money is paise** (integer) — never floats, never client-computed
-- **RLS everywhere** — user-facing reads go through RLS; anything sensitive goes through service-role + `SECURITY DEFINER` RPCs (keys/tokens/secrets never readable by anon/auth users)
-- **Invite links are secrets** — `invite_token` columns are column-level revoked; validated only via RPCs
-- **Uploads live in `event-media`** — scoped cleanup paths (`organizer-kyc/`, `*/profile/`)
+- **All money is paise** (integer) - never floats, never client-computed
+- **RLS everywhere** - user-facing reads go through RLS; anything sensitive goes through service-role + `SECURITY DEFINER` RPCs (keys/tokens/secrets never readable by anon/auth users)
+- **Invite links are secrets** - `invite_token` columns are column-level revoked; validated only via RPCs
+- **Uploads live in `event-media`** - scoped cleanup paths (`organizer-kyc/`, `*/profile/`)

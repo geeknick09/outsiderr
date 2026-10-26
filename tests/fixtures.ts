@@ -427,7 +427,7 @@ export const usedTicket = {
   organizerContactEmail: "organizer@outsiderr.test",
 };
 
-// PINs (plaintext for test fixtures — real DB stores hashes)
+// PINs (plaintext for test fixtures - real DB stores hashes)
 export const scannerPin = {
   id: IDS.SCANNER_PIN_ID,
   eventId: IDS.PAID_EVENT_ID,

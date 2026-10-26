@@ -12,15 +12,15 @@ import {
   DEFAULT_GATEWAY_FEE_BPS,
 } from "@/modules/shared";
 
-describe("Financial calculations — dual-fee model", () => {
+describe("Financial calculations - dual-fee model", () => {
   // The canonical example from the product spec:
   // 10 tickets at ₹450 each
   //   subtotal:     ₹4,500 (450,000 paise)
-  //   commission:   ₹450  (45,000 paise)  — 10% of subtotal
-  //   convenience:  ₹90   (9,000 paise)   — 2% of subtotal
+  //   commission:   ₹450  (45,000 paise)  - 10% of subtotal
+  //   convenience:  ₹90   (9,000 paise)   - 2% of subtotal
   //   platform rev: ₹540  (54,000 paise)
   //   organizer:    ₹4,050 (405,000 paise)
-  //   gateway:      ₹110.94 (11,094 paise) — 2.36% gross-up
+  //   gateway:      ₹110.94 (11,094 paise) - 2.36% gross-up
   //   buyer total:  ₹4,700.94 (470,094 paise)
 
   const feeConfig = {
@@ -94,7 +94,7 @@ describe("Financial calculations — dual-fee model", () => {
       convenienceFeeEnabled: false,
     });
     expect(result.convenienceFeePaise).toBe(0);
-    expect(result.gatewayFeePaise).toBe(0);    // gateway fee bundled into convenience — disabled together
+    expect(result.gatewayFeePaise).toBe(0);    // gateway fee bundled into convenience - disabled together
     expect(result.totalPaise).toBe(50000); // no convenience fee added
   });
 
@@ -136,7 +136,7 @@ describe("Tiered fee (legacy model)", () => {
     expect(getFeeBpsForPrice(49999)).toBe(DEFAULT_FEE_TIERS.tier1Bps);
   });
 
-  it("applies 7% for ₹500–₹3000", () => {
+  it("applies 7% for ₹500-₹3000", () => {
     expect(getFeeBpsForPrice(50000)).toBe(DEFAULT_FEE_TIERS.tier2Bps);
     expect(getFeeBpsForPrice(300000)).toBe(DEFAULT_FEE_TIERS.tier2Bps);
   });
@@ -210,7 +210,7 @@ describe("Gateway fee gross-up", () => {
   });
 
   it("covers Razorpay's cut within 1 paisa", () => {
-    // Razorpay charges bps on the TOTAL collected — the grossed-up fee must
+    // Razorpay charges bps on the TOTAL collected - the grossed-up fee must
     // be within 1 paise of what they'd take.
     for (const [sub, conv] of [[450000, 9000], [50000, 1000], [123456, 2469], [99999, 2000]]) {
       const gw = gatewayFeePaise(sub, conv);

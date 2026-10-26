@@ -77,7 +77,7 @@ export default async function BoostInvoicePage({
             <tr className="border-b border-zinc-100 dark:border-white/5">
               <td className="py-3">
                 <p className="font-semibold">
-                  {inv.kind === "SLOT" ? `Sponsored slot #${inv.slot}` : "Feature placement"} — {inv.eventTitle}
+                  {inv.kind === "SLOT" ? `Sponsored slot #${inv.slot}` : "Feature placement"} - {inv.eventTitle}
                 </p>
                 <p className="text-xs text-muted">
                   {PLACEMENT_LABEL[inv.placement] ?? inv.placement}

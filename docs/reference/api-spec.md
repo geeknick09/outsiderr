@@ -1,4 +1,4 @@
-# Outsiderr — API Specification
+# Outsiderr - API Specification
 
 This document describes all HTTP API routes, Server Actions, Supabase RPCs, and
 realtime channels used by the Outsiderr platform.
@@ -68,7 +68,7 @@ window has elapsed. Releases reserved inventory back to the tier pool.
 | Runtime | `nodejs` |
 | Auth | Bearer token via `Authorization: Bearer <CRON_SECRET>` header |
 | Security | Timing-safe comparison to prevent timing attacks |
-| Schedule | Every 5 minutes (GitHub Actions — `.github/workflows/cron.yml`) |
+| Schedule | Every 5 minutes (GitHub Actions - `.github/workflows/cron.yml`) |
 
 **Responses:**
 
@@ -142,7 +142,7 @@ Handles both free and paid ticket bookings.
 |-----------|--------|----------|-------------|
 | `eventId` | formData | Yes | Event UUID |
 | `tierId` | formData | Yes | Ticket tier UUID |
-| `quantity` | formData | Yes | Number of tickets (1–5) |
+| `quantity` | formData | Yes | Number of tickets (1-5) |
 | `isFree` | formData | Yes | `"1"` for free events, `"0"` for paid |
 | `buyerName` | formData | No | Defaults to user's profile name |
 | `buyerPhone` | formData | No | Defaults to user's profile phone |
@@ -239,7 +239,7 @@ Organizer edits an existing event. Locked within 2 hours of start time.
 
 #### `publishEventAction(eventId)`
 
-Publishes a draft event — makes it visible on the discovery feed.
+Publishes a draft event - makes it visible on the discovery feed.
 
 **Validation:** Event must have at least one tier with capacity > 0.
 
@@ -382,7 +382,7 @@ Creates a community (PUBLIC / PRIVATE / INVITE) with join questions, cover/avata
 Joins per membership type: PUBLIC → instant; PRIVATE → pending + answers; INVITE → invite-token gated. Referral `refCode` is attributed either way.
 
 #### `followCommunityAction(id)` / `unfollowCommunityAction(id)`
-Community follows — notify on that community's events only (organizer follows notify on all). Both roll into the organizer's follower count via union.
+Community follows - notify on that community's events only (organizer follows notify on all). Both roll into the organizer's follower count via union.
 
 #### `setMemberStatusAction(memberId, communityId, "ACCEPTED"|"REJECTED"|"REMOVED")`
 Owner manages membership (private-community requests + member removal).
@@ -397,11 +397,11 @@ One-click in-app blast to funnel lists (viewed-not-joined / viewed-not-bought). 
 #### `addGuestEntryAction(eventId, name, phone?, email?)` → free ticket + `/guest/[qr_hash]` link.
 Capped at 10/event; order_source=GUESTLIST; zero ledger rows.
 
-#### `logPageViewAction("COMMUNITY"|"EVENT", entityId)` — dedupe per user/entity/day.
+#### `logPageViewAction("COMMUNITY"|"EVENT", entityId)` - dedupe per user/entity/day.
 
-### Events — community fields
+### Events - community fields
 
-`createEvent` accepts `communityId`, `visibility` (`OPEN`/`MEMBERS_ONLY`/`INVITE_ONLY`), `inviteToken` (server-generated for INVITE_ONLY). Community ownership is checked server-side. `create_reserved_order` / `create_free_order` enforce: MEMBERS_ONLY requires an ACCEPTED `community_members` row; INVITE_ONLY requires the token (or membership). Group tickets: `ticket_tiers.admits` (1–20) — one unit mints `admits` tickets; `registrations_count` counts people.
+`createEvent` accepts `communityId`, `visibility` (`OPEN`/`MEMBERS_ONLY`/`INVITE_ONLY`), `inviteToken` (server-generated for INVITE_ONLY). Community ownership is checked server-side. `create_reserved_order` / `create_free_order` enforce: MEMBERS_ONLY requires an ACCEPTED `community_members` row; INVITE_ONLY requires the token (or membership). Group tickets: `ticket_tiers.admits` (1-20) - one unit mints `admits` tickets; `registrations_count` counts people.
 
 ---
 
@@ -495,7 +495,7 @@ RLS where needed. They are the source of truth for all money and inventory mutat
 | `create_reserved_order` | `p_user_id uuid, p_event_id uuid, p_tier_id uuid, p_quantity int, p_unit_price_paise bigint, ...` | `orders` | Creates a `RESERVED` order with a 15-minute expiry for Razorpay checkout. |
 | `confirm_razorpay_order` | `p_order_id uuid, p_razorpay_payment_id text, p_razorpay_signature text, p_payment_method text` | `orders` | Confirms a Razorpay payment. Sets status to `CONFIRMED`, mints tickets, records payment details. |
 | `fail_razorpay_order` | `p_order_id uuid` | `orders` | Marks a Razorpay order as `FAILED` and releases reserved inventory. |
-| `expire_reserved_orders` | — | `int` | Expires all stale `RESERVED` orders past their 15-minute window. Called by cron. |
+| `expire_reserved_orders` | - | `int` | Expires all stale `RESERVED` orders past their 15-minute window. Called by cron. |
 | `set_razorpay_order_id` | `p_order_id uuid, p_razorpay_order_id text` | `orders` | Stores the Razorpay order ID on an internal order before checkout. |
 
 ### Event Lifecycle RPCs
@@ -503,17 +503,17 @@ RLS where needed. They are the source of truth for all money and inventory mutat
 | RPC | Parameters | Returns | Description |
 |-----|------------|---------|-------------|
 | `cancel_event` | `p_event_id uuid, p_reason text` | `void` | Cancels an event. Auto-refunds all confirmed orders. Updates `payment_ledger` with organizer liability. |
-| `postpone_event` | `p_event_id uuid, p_new_starts_at timestamptz, p_new_ends_at timestamptz, p_reason text` | `void` | Postpones an event. Sets status to `POSTPONED`. Does not auto-refund — users choose refund or retain. |
+| `postpone_event` | `p_event_id uuid, p_new_starts_at timestamptz, p_new_ends_at timestamptz, p_reason text` | `void` | Postpones an event. Sets status to `POSTPONED`. Does not auto-refund - users choose refund or retain. |
 | `request_postponement_refund` | `p_order_id uuid, p_choice text` | `orders` | Processes a user's refund/retain choice after postponement. If refund, initiates Razorpay refund and sets status to `REFUND_REQUESTED`. |
 
 ### Authorization RPCs
 
 | RPC | Parameters | Returns | Description |
 |-----|------------|---------|-------------|
-| `is_current_user_admin` | — | `boolean` | Checks if the authenticated user is an admin. |
+| `is_current_user_admin` | - | `boolean` | Checks if the authenticated user is an admin. |
 | `is_event_staff` | `p_event_id uuid` | `boolean` | Checks if the current user is the organizer or assigned staff for an event. |
-| `is_door_staff_any` | — | `boolean` | Checks if the current user is assigned as door staff for any event. |
-| `get_staff_organizer_ids` | — | `setof uuid` | Returns organizer IDs that the current user is staff for. |
+| `is_door_staff_any` | - | `boolean` | Checks if the current user is assigned as door staff for any event. |
+| `get_staff_organizer_ids` | - | `setof uuid` | Returns organizer IDs that the current user is staff for. |
 
 ### Utility RPCs
 
@@ -547,7 +547,7 @@ use `postgres_changes` on the `public` schema.
 ### Auth Provider
 
 Supabase Auth with:
-- **Phone OTP** (primary — Indian phone numbers, +91 prefix)
+- **Phone OTP** (primary - Indian phone numbers, +91 prefix)
 - **Google OAuth** (secondary)
 
 ### Role-Based Access
@@ -577,7 +577,7 @@ All tables have RLS enabled. Key policies:
 |----------|-------|----------|-------------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Client + Server | Yes | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Client + Server | Yes | Supabase anon/public key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server only | Yes | Supabase service role key (bypasses RLS — never expose to browser) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server only | Yes | Supabase service role key (bypasses RLS - never expose to browser) |
 | `SUPABASE_DB_PASSWORD` | Server only | No | Database password (used by test scripts) |
 | `RAZORPAY_KEY_ID` | Server only | No* | Razorpay API key ID |
 | `RAZORPAY_KEY_SECRET` | Server only | No* | Razorpay API key secret |

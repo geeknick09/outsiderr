@@ -1,17 +1,17 @@
-# PRD — Outsiderr
+# PRD - Outsiderr
 
-One-sentence purpose: defines *what* the product is, *who* it's for, and *what* ships in each phase — read before any product decision.
+One-sentence purpose: defines *what* the product is, *who* it's for, and *what* ships in each phase - read before any product decision.
 Last updated: 2025-09-20
 
 ## 1. Product overview
 
-Outsiderr is a culture-first event and community platform for underground and street scenes (rap battles, cyphers, skate sessions, BMX meets, jams, gaming tournaments, alternate sports). Ticketing is a feature, not the identity — the product exists to connect people to scenes, crews, places, and real-world participation.
+Outsiderr is a culture-first event and community platform for underground and street scenes (rap battles, cyphers, skate sessions, BMX meets, jams, gaming tournaments, alternate sports). Ticketing is a feature, not the identity - the product exists to connect people to scenes, crews, places, and real-world participation.
 
 The full product constitution is `PRODUCT_VISION.md` (root). This file summarizes the vision; the vision doc wins on any conflict.
 
 ## 2. Problem statement
 
-Mainstream event platforms (BookMyShow, District) optimize for search→checkout→schedule. They have no concept of scene, crew, spot, or participation history. Underground communities run on WhatsApp groups and Instagram DMs — no persistent identity, no door tooling, no way to verify who's coming, no money tracking.
+Mainstream event platforms (BookMyShow, District) optimize for search→checkout→schedule. They have no concept of scene, crew, spot, or participation history. Underground communities run on WhatsApp groups and Instagram DMs - no persistent identity, no door tooling, no way to verify who's coming, no money tracking.
 
 ## 3. Goals and non-goals
 
@@ -25,7 +25,7 @@ Mainstream event platforms (BookMyShow, District) optimize for search→checkout
 - Not a generic ticket marketplace.
 - Not a social feed / Instagram clone.
 - Not a generic event CMS.
-- No premature microservice split — modular monolith until scale demands otherwise.
+- No premature microservice split - modular monolith until scale demands otherwise.
 - No mainstream category expansion just for market size (authenticity over scale).
 
 ## 4. Target users
@@ -61,7 +61,7 @@ Mainstream event platforms (BookMyShow, District) optimize for search→checkout
 | Admin dashboard (stats, events CRUD, users, orders, payments, payouts, boosts, hero boosts, clubs, scanner/box-office PINs, settings, legal, revenue, analytics) | admin | `/admin/*` |
 | Slot boosts + Hero boost (7-day rotation, eligibility, UPI→Razorpay, admin verify) | organizer/admin/web | `?source=HERO_BOOST` tracking |
 | Clubs & crews (create, join, paid membership, cover photo, admin verify) | web | `/clubs` |
-| Reviews (checked-in only, 1–5★ + text, organizer aggregate) | web | organizer profile + completed event |
+| Reviews (checked-in only, 1-5★ + text, organizer aggregate) | web | organizer profile + completed event |
 | Engagement: Update-Me subscriptions, follow organizers, co-organizer collab invites | web/organizer | event page, `/organizers/[id]` |
 | Realtime notification bell (cancel, postpone, venue/city/time change, waitlist, collab, KYC) | shared | navbar bell, `event_notifications` |
 | Legal pages (DB-backed, admin CRUD, markdown, `/legal/[slug]`), About, Contact, footer | admin/web | `/admin/legal`, `/legal/[slug]` |
@@ -69,13 +69,13 @@ Mainstream event platforms (BookMyShow, District) optimize for search→checkout
 | PWA (manifest, SW, icons) + theme-aware logo + branded loaders | shared | `public/sw.js`, all `loading.tsx` |
 | Hardening: Sentry, pino logger (redaction), Zod validation, rate limiting, idempotency keys, hashed PINs, ISR + `revalidateTag("events")`, DB backup cron | shared | `lib/logger`, `lib/rate-limit`, `lib/validation`, `/api/cron/backup` |
 
-## 6. Financial model (canonical — never change silently)
+## 6. Financial model (canonical - never change silently)
 
 - Buyer pays `subtotal + convenience_fee`.
 - Organizer receives `subtotal − commission` (cancellation/postponement charges also deducted).
 - Platform retains `commission + convenience_fee`.
 - Walk-in / box-office orders: `convenience_fee = 0`, commission still applies.
-- Fee snapshots stored per order: `commission_paise`, `convenience_fee_paise`, `organizer_payout_paise` — historical orders never change when settings change.
+- Fee snapshots stored per order: `commission_paise`, `convenience_fee_paise`, `organizer_payout_paise` - historical orders never change when settings change.
 - Canonical test: `tests/financial.test.ts` (10 × ₹450 example).
 - All money = integer paise, never floats.
 
@@ -85,7 +85,7 @@ Mainstream event platforms (BookMyShow, District) optimize for search→checkout
 |---|---|---|---|
 | 1 | Custom domain + Vercel DNS | Not started | blocker for launch |
 | 2 | Phone + OTP auth | Not started | replaces email/password |
-| 3 | Notification providers (email/SMS/WhatsApp) | Not started | behind `sendNotification` abstraction — itself Not started |
+| 3 | Notification providers (email/SMS/WhatsApp) | Not started | behind `sendNotification` abstraction - itself Not started |
 | 4 | Online events (WhatsApp/Zoom/Teams meeting link) | Not started | |
 | 5 | Guest checkout | Not started | |
 | 6 | Event analytics (views, conversion, sales-over-time) | Not started | analytics module |
@@ -98,7 +98,7 @@ Mainstream event platforms (BookMyShow, District) optimize for search→checkout
 | 13 | Push notifications | Not started | `push.ts` + `push-subscribe` exist, provider wiring deferred |
 | 14 | Staging environment (E11) | Not started | step-by-step in task.md |
 
-## 8. Campaigns — planned domain (design now, build later)
+## 8. Campaigns - planned domain (design now, build later)
 
 **Problem.** Organizers share event links on Instagram/WhatsApp/posters but can't tell which channel actually sells tickets. Growth team has no click→booking attribution.
 
@@ -115,7 +115,7 @@ Mainstream event platforms (BookMyShow, District) optimize for search→checkout
 
 **Planned flow**
 1. Organizer creates campaign → gets `/c/[slug]` link.
-2. `/c/[slug]` route: insert click_event (hash IP+UA — no raw PII), set `oc_<campaign>` cookie (30d), 302 → destination.
+2. `/c/[slug]` route: insert click_event (hash IP+UA - no raw PII), set `oc_<campaign>` cookie (30d), 302 → destination.
 3. Checkout reads the cookie → on `confirm_*_order` writes `attributions` row.
 4. Organizer dashboard → "Campaigns" tab: clicks, uniques, bookings, revenue per link. Admin sees platform-wide roll-up.
 

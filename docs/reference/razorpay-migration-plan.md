@@ -1,6 +1,6 @@
-# Razorpay Payment Integration — Complete Migration Plan
+# Razorpay Payment Integration - Complete Migration Plan
 
-> **SUPERSEDED (2026-09-26)** — the approved, current plan is [`docs/razorpay-payments-plan.md`](../razorpay-payments-plan.md). This file is kept for history only.
+> **SUPERSEDED (2026-09-26)** - the approved, current plan is [`docs/razorpay-payments-plan.md`](../razorpay-payments-plan.md). This file is kept for history only.
 
 Replace all manual UPI/UTR payment verification with Razorpay Checkout for paid ticket bookings and Front Row/Boost purchases, including webhook-driven confirmation, inventory reservation, invoice generation, organizer revenue reporting, and admin reconciliation.
 
@@ -11,12 +11,12 @@ Replace all manual UPI/UTR payment verification with Razorpay Checkout for paid 
 | Decision | Answer |
 |---|---|
 | Razorpay account owner | **Outsiderr** (single account, all payments settle to Outsiderr) |
-| Scope — Phase 1 | **Ticket booking** + **Front Row / Boost** |
-| Scope — Deferred | Club membership, Door staff (both hidden from release) |
-| Free events | **Unchanged** — instant RSVP, no Razorpay involvement |
+| Scope - Phase 1 | **Ticket booking** + **Front Row / Boost** |
+| Scope - Deferred | Club membership, Door staff (both hidden from release) |
+| Free events | **Unchanged** - instant RSVP, no Razorpay involvement |
 | Invoice format | **Enhanced HTML print page** (no PDF library needed) |
 | Organizer payouts | **Manual bank transfer** by admin after events (MVP) |
-| Inventory reservation | **Reserve on order create** — hold inventory for ~15 min, release on timeout/failure |
+| Inventory reservation | **Reserve on order create** - hold inventory for ~15 min, release on timeout/failure |
 | Refund gateway fees | **Deducted from organizer** payout |
 | Business entity | **Sole proprietorship** |
 
@@ -32,7 +32,7 @@ Replace all manual UPI/UTR payment verification with Razorpay Checkout for paid 
 | Personal PAN | Owner's PAN card |
 | Aadhaar | Front + back scan |
 | Bank account | Personal savings or current account matching PAN name |
-| Website | `outsiderr.in` or similar — must be live, HTTPS |
+| Website | `outsiderr.in` or similar - must be live, HTTPS |
 | Business category | **Entertainment & Media → Event Ticketing** |
 | Email | Business email for transactional notifications |
 | Phone | Owner's phone (linked to CKYC if possible) |
@@ -53,7 +53,7 @@ Replace all manual UPI/UTR payment verification with Razorpay Checkout for paid 
      - `refund.created`
      - `refund.processed`
      - `refund.failed`
-3. **Payment Capture Settings** → Set to **Auto-capture** (recommended for ticketing — immediate capture, no manual step)
+3. **Payment Capture Settings** → Set to **Auto-capture** (recommended for ticketing - immediate capture, no manual step)
 4. **Allowed Payment Methods** → Enable all: UPI, Cards, Net Banking, Wallets, EMI (if desired)
 5. **Settlement Schedule** → Default T+2 business days (Razorpay controls this)
 6. **Test Mode** → Use test keys during development; switch to live keys for production
@@ -73,10 +73,10 @@ NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_test_xxxxxxxxxxxxx
 ### 1.4 Legal Pages Required by Razorpay
 
 Razorpay requires the website to have:
-- **Terms & Conditions** — must include intermediary disclosure
-- **Privacy Policy** — data collection and payment processing
-- **Refund/Cancellation Policy** — clear policy for event cancellations
-- **Contact Us** — business contact details
+- **Terms & Conditions** - must include intermediary disclosure
+- **Privacy Policy** - data collection and payment processing
+- **Refund/Cancellation Policy** - clear policy for event cancellations
+- **Contact Us** - business contact details
 
 These pages already exist at `/legal/terms`, `/legal/privacy`, `/contact`. They must be updated to include:
 - Statement that Outsiderr is an **intermediary platform** connecting event organizers and attendees
@@ -138,7 +138,7 @@ These pages already exist at `/legal/terms`, `/legal/privacy`, `/contact`. They 
      │                     │   - Log webhook event│
 ```
 
-### 2.2 State Machine — Orders
+### 2.2 State Machine - Orders
 
 ```
                   ┌──────────┐
@@ -186,7 +186,7 @@ export type OrderStatus =
   | "PENDING_VERIFICATION"; // LEGACY: kept for historical data only
 ```
 
-### 2.3 Free Event Flow — Unchanged
+### 2.3 Free Event Flow - Unchanged
 
 Free events continue to use `create_free_order` RPC → instant CONFIRMED + tickets minted. No Razorpay involvement.
 
@@ -239,9 +239,9 @@ CREATE INDEX IF NOT EXISTS orders_reservation_expires_idx
 ```
 
 **Legacy columns retained:**
-- `utr_reference` — kept for historical data, not used in new flows
-- `payment_proof_url` — kept for historical data, not used in new flows
-- `PENDING_VERIFICATION` enum value — kept for historical orders
+- `utr_reference` - kept for historical data, not used in new flows
+- `payment_proof_url` - kept for historical data, not used in new flows
+- `PENDING_VERIFICATION` enum value - kept for historical orders
 
 ### 3.2 Alter `ticket_tiers` Table
 
@@ -355,7 +355,7 @@ Invoice format: `OUT-{YYYYMM}-{seq}` e.g. `OUT-202609-10001`
 
 ## 4. New and Modified RPCs
 
-### 4.1 `create_reserved_order` (NEW — replaces `create_paid_order` for new flow)
+### 4.1 `create_reserved_order` (NEW - replaces `create_paid_order` for new flow)
 
 ```sql
 CREATE OR REPLACE FUNCTION public.create_reserved_order(
@@ -433,7 +433,7 @@ END;
 $$;
 ```
 
-### 4.2 `confirm_razorpay_order` (NEW — called after signature verification or webhook)
+### 4.2 `confirm_razorpay_order` (NEW - called after signature verification or webhook)
 
 ```sql
 CREATE OR REPLACE FUNCTION public.confirm_razorpay_order(
@@ -501,7 +501,7 @@ END;
 $$;
 ```
 
-### 4.3 `expire_reserved_orders` (NEW — cron/scheduled cleanup)
+### 4.3 `expire_reserved_orders` (NEW - cron/scheduled cleanup)
 
 ```sql
 CREATE OR REPLACE FUNCTION public.expire_reserved_orders()
@@ -584,7 +584,7 @@ POST /api/razorpay/webhook
 7. Return `200 OK` (always return 200 after signature verification to prevent retries)
 
 **Critical implementation details:**
-- Use `export const runtime = 'nodejs'` (not Edge — need `crypto` for HMAC)
+- Use `export const runtime = 'nodejs'` (not Edge - need `crypto` for HMAC)
 - Read body as `await request.text()` NOT `await request.json()`
 - Signature verification:
   ```typescript
@@ -613,7 +613,7 @@ GET /api/cron/expire-reservations
 
 ## 6. Server Actions Changes
 
-### 6.1 `src/actions/orders.ts` — Modify `submitPaymentAction`
+### 6.1 `src/actions/orders.ts` - Modify `submitPaymentAction`
 
 **Current:** Requires UTR, optionally uploads screenshot, calls `createOrder` (which calls `create_paid_order` RPC).
 
@@ -634,7 +634,7 @@ GET /api/cron/expire-reservations
 5. Update order with `razorpay_order_id`
 6. Return `{ orderId, razorpayOrderId, amount, currency, keyId }` to client
 
-### 6.2 `src/actions/orders.ts` — New `verifyPaymentAction`
+### 6.2 `src/actions/orders.ts` - New `verifyPaymentAction`
 
 Called after Razorpay Checkout returns successfully:
 1. Receive `{ razorpay_payment_id, razorpay_order_id, razorpay_signature }`
@@ -651,24 +651,24 @@ Called after Razorpay Checkout returns successfully:
 7. Revalidate paths
 8. Return success + redirect URL
 
-### 6.3 `src/actions/orders.ts` — New `handlePaymentFailureAction`
+### 6.3 `src/actions/orders.ts` - New `handlePaymentFailureAction`
 
 Called when Razorpay Checkout fires the `modal.dismissed` or payment failure:
 1. Look up order by `razorpay_order_id`
 2. If still `RESERVED`, call `fail_razorpay_order` RPC
 3. Release inventory
 
-### 6.4 `src/actions/hero-boosts.ts` — Modify for Razorpay
+### 6.4 `src/actions/hero-boosts.ts` - Modify for Razorpay
 
 Replace UTR-based boost purchase with:
 1. Create `hero_boosts` row with `PENDING` status + Razorpay order
 2. On payment success → verify signature → update to `ACTIVE`
 3. On payment failure → update to `FAILED`
 
-### 6.5 `src/actions/admin.ts` — New refund actions
+### 6.5 `src/actions/admin.ts` - New refund actions
 
-- `initiateRefundAction(orderId, amount?, reason)` — calls Razorpay Refunds API, creates refund record
-- `recordPayoutAction(organizerId, eventId, amount, bankReference)` — records manual payout
+- `initiateRefundAction(orderId, amount?, reason)` - calls Razorpay Refunds API, creates refund record
+- `recordPayoutAction(organizerId, eventId, amount, bankReference)` - records manual payout
 
 ---
 
@@ -704,7 +704,7 @@ Client component that:
      amount,
      currency: 'INR',
      name: 'Outsiderr',
-     description: `${eventTitle} — ${tierName} x ${quantity}`,
+     description: `${eventTitle} - ${tierName} x ${quantity}`,
      order_id: razorpayOrderId,
      prefill: { name: buyerName, email: buyerEmail, contact: buyerPhone },
      theme: { color: '#8b5cf6' }, // violet-neon
@@ -726,14 +726,14 @@ Client component that:
 4. Shows loading state while verifying
 5. Handles errors gracefully
 
-### 8.2 `src/components/checkout/checkout-form.tsx` — Major Rewrite
+### 8.2 `src/components/checkout/checkout-form.tsx` - Major Rewrite
 
 **Remove:**
 - UTR input field
 - Payment screenshot upload
 - WhatsApp payment proof instructions
 - UPI QR display
-- "I've paid — submit for verification" button
+- "I've paid - submit for verification" button
 
 **Replace with:**
 - Order summary showing: tier name, quantity, unit price, subtotal, convenience fee, total
@@ -742,7 +742,7 @@ Client component that:
 - Payment status indicator (processing, success, failure)
 - Retry button on failure
 
-### 8.3 `src/app/checkout/page.tsx` — Modify
+### 8.3 `src/app/checkout/page.tsx` - Modify
 
 **Remove:**
 - UPI QR code generation
@@ -759,7 +759,7 @@ Client component that:
 - Razorpay Checkout component integration
 - Post-payment redirect handling
 
-### 8.4 `src/components/organizer/verification-queue.tsx` — Remove/Replace
+### 8.4 `src/components/organizer/verification-queue.tsx` - Remove/Replace
 
 **Remove entirely** for new orders. Organizers no longer verify payments.
 
@@ -767,10 +767,10 @@ Client component that:
 - Shows all orders for organizer's events
 - Filterable by status: Confirmed, Reserved (pending payment), Failed, Expired
 - Shows: buyer name, tier, quantity, amount, payment method, Razorpay payment ID, timestamp
-- Read-only — no approve/reject actions
+- Read-only - no approve/reject actions
 - Real-time updates via Supabase Realtime
 
-### 8.5 `src/components/organizer/hero-boost-panel.tsx` — Modify
+### 8.5 `src/components/organizer/hero-boost-panel.tsx` - Modify
 
 **Remove:**
 - UPI QR code display
@@ -778,15 +778,15 @@ Client component that:
 - "Admin will verify your UTR" messaging
 
 **Replace with:**
-- "Buy Front Row — {price}" button
+- "Buy Front Row - {price}" button
 - Razorpay Checkout modal for boost payment
 - Payment status tracking
 
-### 8.6 `src/components/organizer/boost-panel.tsx` — Modify
+### 8.6 `src/components/organizer/boost-panel.tsx` - Modify
 
 Same changes as hero-boost-panel.
 
-### 8.7 `src/app/tickets/[id]/print/page.tsx` — Enhance (Invoice)
+### 8.7 `src/app/tickets/[id]/print/page.tsx` - Enhance (Invoice)
 
 **Add to the existing print page:**
 - Invoice number (`OUT-YYYYMM-XXXXX`)
@@ -806,9 +806,9 @@ Same changes as hero-boost-panel.
 - Organizer details (name, contact email)
 - Event details (title, date, venue, city)
 
-### 8.8 Ticket Card — Minor Enhancement
+### 8.8 Ticket Card - Minor Enhancement
 
-Add a small "Receipt" or "Invoice" link in the expanded modal that links to the print page. Already has "Print ticket" — this is sufficient.
+Add a small "Receipt" or "Invoice" link in the expanded modal that links to the print page. Already has "Print ticket" - this is sufficient.
 
 ---
 
@@ -837,7 +837,7 @@ Add a small "Receipt" or "Invoice" link in the expanded modal that links to the 
 - Gross ticket sales (sum of subtotals)
 - Platform commission (−X%)
 - Convenience fee collected (separate line)
-- Razorpay processing fee (informational — Razorpay deducts this from settlement)
+- Razorpay processing fee (informational - Razorpay deducts this from settlement)
 - Net organizer payout
 - Payout status and date
 - Refunds issued (count and amount)
@@ -845,7 +845,7 @@ Add a small "Receipt" or "Invoice" link in the expanded modal that links to the 
 - Add Payment ID and Payment Method columns
 - Remove "Pending verification" section
 
-### 9.3 Organizer Profile — Bank Details
+### 9.3 Organizer Profile - Bank Details
 
 Already has fields: `bank_account_number`, `bank_ifsc`, `bank_account_name`, `bank_account_type`.
 
@@ -980,7 +980,7 @@ No double-minting is possible because of the row lock + status check.
 | Scenario | Handling |
 |---|---|
 | Double click on "Pay" | `create_reserved_order` checks for existing RESERVED/CONFIRMED order for same user+event |
-| Two users race for last ticket | `quantity_reserved` incremented under `FOR UPDATE` lock — second user gets "Not enough tickets" |
+| Two users race for last ticket | `quantity_reserved` incremented under `FOR UPDATE` lock - second user gets "Not enough tickets" |
 | Payment succeeds but browser closes | Webhook fires `payment.captured` → `confirm_razorpay_order` confirms + mints tickets |
 | Webhook arrives before callback | Webhook confirms order. When callback arrives, RPC returns existing tickets (idempotent) |
 | Callback arrives before webhook | Callback confirms order. When webhook arrives, idempotency check skips processing |
@@ -988,7 +988,7 @@ No double-minting is possible because of the row lock + status check.
 | User abandons checkout (modal dismissed) | `handlePaymentFailureAction` releases inventory immediately. Backup: `expire_reserved_orders` cron releases after 15 min |
 | Razorpay order created but payment never attempted | `expire_reserved_orders` cron releases after 15 min |
 | Amount tampered on client | Server-side signature verification ensures amount matches. Additionally, `verifyPaymentAction` fetches order from Razorpay API to confirm amount matches internal total |
-| Concurrent event cancellation during payment | `cancel_event` RPC now handles `RESERVED` orders too — releases inventory, marks as CANCELLED |
+| Concurrent event cancellation during payment | `cancel_event` RPC now handles `RESERVED` orders too - releases inventory, marks as CANCELLED |
 
 ---
 
@@ -1063,7 +1063,7 @@ When a refund occurs:
 All pricing fields are stored on the order at creation time:
 - `unit_price_paise`, `subtotal_paise`, `commission_paise`, `convenience_fee_paise`, `platform_fee_paise`, `organizer_payout_paise`, `total_paise`
 - Changing platform settings (commission %, convenience fee %) does NOT affect existing orders
-- The Razorpay order is created with `amount = total_paise` — this is immutable
+- The Razorpay order is created with `amount = total_paise` - this is immutable
 
 ---
 
@@ -1116,7 +1116,7 @@ All pricing fields are stored on the order at creation time:
 
 | File | Status |
 |---|---|
-| `src/lib/upi.ts` | **Deprecate** — remove all imports, keep file briefly for reference, then delete |
+| `src/lib/upi.ts` | **Deprecate** - remove all imports, keep file briefly for reference, then delete |
 | `src/components/organizer/verification-queue.tsx` | **Replace** with `order-monitor.tsx` |
 | `src/components/admin/bulk-approve-panel.tsx` | **Keep temporarily** for legacy `PENDING_VERIFICATION` orders, remove when all are resolved |
 
@@ -1231,7 +1231,7 @@ Must pass with zero type errors after all changes.
 33. Write unit tests
 34. Write integration tests
 35. Write/update Playwright E2E tests
-36. Run `npx next build` — zero errors
+36. Run `npx next build` - zero errors
 37. Manual testing in Razorpay test mode
 
 ---

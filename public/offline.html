@@ -33,8 +33,8 @@
 <body>
   <span class="badge">Outsiderr</span>
   <h1>You're offline</h1>
-  <p class="sub">No connection right now — your feed, tickets and communities will be right here when you're back.</p>
-  <p class="hint">Meanwhile — a quick snake break 🐍</p>
+  <p class="sub">No connection right now - your feed, tickets and communities will be right here when you're back.</p>
+  <p class="hint">Meanwhile - a quick snake break 🐍</p>
   <canvas id="game" width="360" height="360"></canvas>
   <p id="score">Score: 0</p>
   <p class="hint">Arrow keys / WASD · swipe on mobile</p>
@@ -82,7 +82,7 @@
       x.fillStyle="#fafafa"; x.font="bold 20px system-ui"; x.textAlign="center";
       x.fillText("Game over",c.width/2,c.height/2-12);
       x.font="13px system-ui"; x.fillStyle="#a1a1aa";
-      x.fillText("Score "+score+" — press any key to retry",c.width/2,c.height/2+14); }
+      x.fillText("Score "+score+" - press any key to retry",c.width/2,c.height/2+14); }
     setTimeout(tick, dead ? 300 : speed);
   }
   tick();

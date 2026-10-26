@@ -1,9 +1,9 @@
-# Razorpay-Only Payments — Megaplan (approved 2026-09-26)
+# Razorpay-Only Payments - Megaplan (approved 2026-09-26)
 
 > Source of truth for the Razorpay phase. Supersedes `docs/reference/razorpay-migration-plan.md`. Execution order + status tracked in §16 and `docs/task.md`.
 
 
-Replace every manual UPI/UTR flow (tickets, slot boosts, door-staff, club fees; hero boost already done) with a Razorpay-only pipeline built on a unified `payment_intents` router, DB-enforced idempotency and inventory locks, a webhook that is the source of truth (with 5xx retries + reconciliation cron), a durable refund worker (BMS model: ticket price refunded, convenience+gateway fee kept), and dedicated Refunds / Payments / Settlement dashboards for organizers and admins — plus closing the wide-open write grants on money tables found during this audit.
+Replace every manual UPI/UTR flow (tickets, slot boosts, door-staff, club fees; hero boost already done) with a Razorpay-only pipeline built on a unified `payment_intents` router, DB-enforced idempotency and inventory locks, a webhook that is the source of truth (with 5xx retries + reconciliation cron), a durable refund worker (BMS model: ticket price refunded, convenience+gateway fee kept), and dedicated Refunds / Payments / Settlement dashboards for organizers and admins - plus closing the wide-open write grants on money tables found during this audit.
 
 ## 0. Locked decisions (from Q&A)
 
@@ -20,7 +20,7 @@ Replace every manual UPI/UTR flow (tickets, slot boosts, door-staff, club fees; 
 
 ---
 
-## 1. Audit — what exists today and what's wrong
+## 1. Audit - what exists today and what's wrong
 
 **Already built (reuse):** `create_reserved_order` (tier `FOR UPDATE`, server-side money, one-active-order-per-user), `confirm_razorpay_order` (idempotent, late-capture → auto refund row), `fail_razorpay_order`, `expire_reserved_orders` (+cron, 5 min), `set_razorpay_order_id`, unique indexes on `razorpay_order_id`/`razorpay_payment_id`/`idempotency_key`/`payment_ledger.razorpay_payment_id`, `webhook_events` (unique `razorpay_event_id`), `RazorpayCheckout` client component, `runCheckout`/`runVerifyPayment`/`runPaymentFailure` in `shared/services/orders.ts`, refund/ledger/payout tables, `adminInitiateRefundAction` + `adminRecordPayoutAction` (written but **wired to no UI**), hero-boost Razorpay path.
 
@@ -33,13 +33,13 @@ Replace every manual UPI/UTR flow (tickets, slot boosts, door-staff, club fees; 
 | A3 | Refund execution is non-atomic Node code: Razorpay call first, DB row after → crash = money moved, no record; retry = double refund. Same pattern in cancel sweep + postponement + admin action. | P0 money |
 | A4 | `cancel_event` sets orders `REFUNDED` **before** any money moves; if sweep fails, UI says refunded, buyer has nothing. | P0 money |
 | A5 | Webhook always returns 200 → transient failure = lost confirmation until a human looks at `webhook_events`. No amount/currency verification against the order. Ledger insert is best-effort outside the confirm transaction. | P1 |
-| A6 | No reconciliation: missed webhook + closed tab = paid buyer with `RESERVED` order that cron **expires** (late capture then auto-refunds — buyer loses the seat they paid for). | P1 |
+| A6 | No reconciliation: missed webhook + closed tab = paid buyer with `RESERVED` order that cron **expires** (late capture then auto-refunds - buyer loses the seat they paid for). | P1 |
 | A7 | No `gateway_fee` in the money model; `razorpay_fee_paise` always 0 → platform net revenue overstated. | P1 |
 | A8 | No refund dashboard (organizer or admin); `adminInitiateRefundAction` unreachable; `refund_status` lacks REQUESTED/REJECTED. | feature |
 | A9 | Slot boosts, door-staff, club fees are UTR + admin/owner eyeballing. | feature |
-| A10 | `webhook_events` has a duplicate non-unique index; hero-boost fallback is a hard-coded `if` in the webhook — doesn't scale to 5 payable kinds. | hygiene |
+| A10 | `webhook_events` has a duplicate non-unique index; hero-boost fallback is a hard-coded `if` in the webhook - doesn't scale to 5 payable kinds. | hygiene |
 | A11 | Two `create_paid_order` overloads still live + PUBLIC execute. `PENDING_VERIFICATION`/`REJECTED` become legacy-only. | cleanup |
-| A12 | Organizer UPI ID is required in KYC step 4 solely for checkout QR — obsolete once buyers pay Razorpay. | cleanup |
+| A12 | Organizer UPI ID is required in KYC step 4 solely for checkout QR - obsolete once buyers pay Razorpay. | cleanup |
 
 ---
 
@@ -62,7 +62,7 @@ refund_full       = total                                               (admin o
 
 New column `orders.gateway_fee_paise`. `platform_fee_paise` keeps meaning commission+convenience. Display: one "Convenience fee ⓘ" row = convenience + gateway, tooltip itemises both percentages.
 
-### 2.2 `payment_intents` — one router for every payable thing
+### 2.2 `payment_intents` - one router for every payable thing
 
 ```
 payment_intents(
@@ -94,7 +94,7 @@ Webhook resolves `razorpay_order_id → intent → kind` and calls one dispatche
 
 ---
 
-## 3. Idempotency & concurrency — mechanism by layer
+## 3. Idempotency & concurrency - mechanism by layer
 
 | Threat | Mechanism |
 |---|---|
@@ -115,41 +115,41 @@ Webhook resolves `razorpay_order_id → intent → kind` and calls one dispatche
 
 ## 4. Database migrations (each appended to `fix_all.sql` + `schema.sql`, applied live via `pg`)
 
-**STEP 32 — Security lockdown (P0, first)**
+**STEP 32 - Security lockdown (P0, first)**
 - `revoke insert, update, delete on orders, tickets, refunds, payment_ledger, payout_records, webhook_events from anon, authenticated;` grant to `service_role`.
 - `ticket_tiers`: revoke table-level UPDATE from authenticated, then `grant update (name, price_paise, quantity, perks, sort_order, tier_type, phase_order, phase_opens_at, phase_closes_at) on ticket_tiers to authenticated` (organizer edits keep working; `quantity_sold`/`quantity_reserved` RPC-only). Add the CHECK constraint.
 - Drop policies: `organizer updates orders`, `organizer updates tickets`, `organizer creates tickets`, `organizers can create refunds`, `organizers can update refund status`, `admins insert refunds`. Keep SELECT policies.
 - Drop both `create_paid_order` overloads. Revoke PUBLIC on `create_reserved_order`, `cancel_event`, `request_postponement_refund`; grant `authenticated` only.
 - Verify with anon/organizer probes (expect 401/permission denied).
 
-**STEP 33 — Money model + intents**
+**STEP 33 - Money model + intents**
 - `orders` add `gateway_fee_paise int default 0`, `order_source` values doc'd (`ONLINE`,`WALKIN`,`BOX_OFFICE`,`MANUAL_UPI` legacy); backfill `order_source='MANUAL_UPI'` where `razorpay_order_id is null and status in ('CONFIRMED','PENDING_VERIFICATION','REJECTED') and not is_box_office`.
 - `platform_settings`: `gateway_fee_bps=236`, `reservation_ttl_minutes=15`, `refund_fees_on_cancellation=false`.
 - `payment_intents` table (§2.2) + RLS (owner SELECT, admin SELECT, service-only writes).
 - `create_reserved_order` v2: add `p_idempotency_key`; compute `gateway_fee` per §2.1; TTL from setting; also insert `payment_intents(kind='TICKET_ORDER')`; return order + intent id.
-- `create_payment_intent(p_kind, p_ref_id, p_amount_paise, p_idempotency_key)` for HERO_BOOST/SLOT_BOOST/DOOR_STAFF/CLUB_MEMBERSHIP — validates ownership + amount server-side per kind (boost slot price from `boost_slot_prices`, door-staff from `door_staff_pricing` settings, club fee from `clubs.membership_fee_paise`, hero from setting).
+- `create_payment_intent(p_kind, p_ref_id, p_amount_paise, p_idempotency_key)` for HERO_BOOST/SLOT_BOOST/DOOR_STAFF/CLUB_MEMBERSHIP - validates ownership + amount server-side per kind (boost slot price from `boost_slot_prices`, door-staff from `door_staff_pricing` settings, club fee from `clubs.membership_fee_paise`, hero from setting).
 - `attach_razorpay_order(p_intent_id, p_razorpay_order_id)` (replaces `set_razorpay_order_id`, also writes `orders.razorpay_order_id` for TICKET_ORDER).
 
-**STEP 34 — Capture/fail dispatcher + atomic ledger**
+**STEP 34 - Capture/fail dispatcher + atomic ledger**
 - `apply_captured_payment(p_razorpay_order_id, p_razorpay_payment_id, p_amount, p_currency, p_method, p_fee, p_tax, p_signature)`: lock intent; if PAID → return (idempotent); amount/currency check → MISMATCH path; else switch(kind): TICKET_ORDER → inline `confirm_razorpay_order` logic + ledger `TICKET_SALE` (with `razorpay_fee_paise`); HERO_BOOST → activate (existing `activateHeroBoost` logic ported to SQL) + `BOOST_SALE` ledger; SLOT_BOOST → `boosts.status='ACTIVE'`, `reviewed_at=now()` + ledger; DOOR_STAFF → `payment_status='PAID'` + ledger `DOOR_STAFF_SALE`; CLUB_MEMBERSHIP → `club_members.status='ACCEPTED'` (payment ⇒ acceptance; owner approval step removed for paid clubs) + ledger `CLUB_FEE`. Sets intent PAID. Notifications inside txn.
 - `apply_failed_payment(p_razorpay_order_id)`: TICKET_ORDER → `fail_razorpay_order`; others → intent FAILED (ref stays pending/retryable).
 - `expire_payment_intents()`: TTL-expired CREATED intents → EXPIRED (+ `expire_reserved_orders` semantics for TICKET_ORDER). Called by cron **after** reconciliation.
-- `record_webhook_event(p_event_id, p_type, p_payload) returns (is_new bool, already_processed bool)` — ON CONFLICT logic + processing claim; `finish_webhook_event(p_event_id, p_ok, p_error)`.
+- `record_webhook_event(p_event_id, p_type, p_payload) returns (is_new bool, already_processed bool)` - ON CONFLICT logic + processing claim; `finish_webhook_event(p_event_id, p_ok, p_error)`.
 
-**STEP 35 — Refund pipeline**
+**STEP 35 - Refund pipeline**
 - `refund_status` enum add `REQUESTED`, `INITIATING`, `REJECTED`, `MANUAL_SETTLED`. `refunds` add `refund_scope text check in ('TICKET_PRICE','FULL','CUSTOM')`, `requested_by uuid`, `approved_by uuid`, `approved_at`, `rejected_reason text`, `claimed_at timestamptz`, `attempts int default 0`, `last_error text`, `receipt text unique default gen_random_uuid()::text`.
 - Trigger `refunds_no_overrefund` (Σ ≤ total).
-- `request_refund(p_order_id, p_reason)` — caller must be event manager (or admin); order CONFIRMED; no active refund; inserts REQUESTED with `amount = subtotal`; `notifyAdmins(REFUND_REQUESTED)`.
-- `approve_refund(p_refund_id, p_scope, p_custom_amount, p_note)` — admin; REQUESTED→PENDING; sets amount per scope; order → REFUND_REQUESTED; tickets → CANCELLED only when scope ∈ (TICKET_PRICE, FULL) i.e. whole-order refund; releases `quantity_sold`; `offer_waitlist_next`; notify buyer + organizer.
-- `reject_refund(p_refund_id, p_reason)` — admin; REQUESTED→REJECTED; notify organizer.
-- `claim_pending_refunds(p_limit) returns setof refunds` — service; `PENDING` or (`INITIATING` and `claimed_at < now()-10min`) `FOR UPDATE SKIP LOCKED` → INITIATING, attempts+1.
-- `complete_refund_initiation(p_refund_id, p_razorpay_refund_id, p_ok, p_error)` — service; → INITIATED (+ ledger `REFUND` row `ON CONFLICT DO NOTHING`, key `refund_<rzp_id>`) or FAILED after 5 attempts (else back to PENDING with backoff via `claimed_at`).
-- `finalize_refund(p_razorpay_refund_id, p_status)` — service (webhook); COMPLETED → order `REFUNDED` (if whole-order) + notify buyer `REFUND_COMPLETED`; FAILED → FAILED + `notifyAdmins`.
-- `cancel_event` v2: orders → `REFUND_REQUESTED` (not REFUNDED); refund rows PENDING with amount = subtotal (or total if `refund_fees_on_cancellation`); tickets CANCELLED immediately; organizer liability ADJUSTMENT written **inside** the RPC (moves out of Node sweep). Node sweep removed — worker does the money.
+- `request_refund(p_order_id, p_reason)` - caller must be event manager (or admin); order CONFIRMED; no active refund; inserts REQUESTED with `amount = subtotal`; `notifyAdmins(REFUND_REQUESTED)`.
+- `approve_refund(p_refund_id, p_scope, p_custom_amount, p_note)` - admin; REQUESTED→PENDING; sets amount per scope; order → REFUND_REQUESTED; tickets → CANCELLED only when scope ∈ (TICKET_PRICE, FULL) i.e. whole-order refund; releases `quantity_sold`; `offer_waitlist_next`; notify buyer + organizer.
+- `reject_refund(p_refund_id, p_reason)` - admin; REQUESTED→REJECTED; notify organizer.
+- `claim_pending_refunds(p_limit) returns setof refunds` - service; `PENDING` or (`INITIATING` and `claimed_at < now()-10min`) `FOR UPDATE SKIP LOCKED` → INITIATING, attempts+1.
+- `complete_refund_initiation(p_refund_id, p_razorpay_refund_id, p_ok, p_error)` - service; → INITIATED (+ ledger `REFUND` row `ON CONFLICT DO NOTHING`, key `refund_<rzp_id>`) or FAILED after 5 attempts (else back to PENDING with backoff via `claimed_at`).
+- `finalize_refund(p_razorpay_refund_id, p_status)` - service (webhook); COMPLETED → order `REFUNDED` (if whole-order) + notify buyer `REFUND_COMPLETED`; FAILED → FAILED + `notifyAdmins`.
+- `cancel_event` v2: orders → `REFUND_REQUESTED` (not REFUNDED); refund rows PENDING with amount = subtotal (or total if `refund_fees_on_cancellation`); tickets CANCELLED immediately; organizer liability ADJUSTMENT written **inside** the RPC (moves out of Node sweep). Node sweep removed - worker does the money.
 - `request_postponement_refund` v2: amount = subtotal; row PENDING; no Node Razorpay call (worker).
 - `admin_manual_settle_refund(p_refund_id, p_reference)` for legacy `MANUAL_UPI` orders → MANUAL_SETTLED + audit.
 
-**STEP 36 — Settlement & notifications**
+**STEP 36 - Settlement & notifications**
 - View `organizer_settlement_v` (service/admin/owner-select): per organizer `gross_sales`, `commission`, `refund_adjustments`, `payout_due = Σnet_organizer(TICKET_SALE) + Σnet_organizer(ADJUSTMENT) − Σ(PAYOUT)`, `paid_out`, `last_payout_at` from `payment_ledger`. Per-event variant.
 - `event_notification_type` add `REFUND_REQUESTED`, `REFUND_APPROVED`, `REFUND_REJECTED`, `PAYMENT_ALERT`, `PAYOUT_RECORDED`.
 - `payment_ledger.type` doc'd set: `TICKET_SALE, REFUND, ADJUSTMENT, PAYOUT, BOOST_SALE, DOOR_STAFF_SALE, CLUB_FEE`.
@@ -193,7 +193,7 @@ Webhook resolves `razorpay_order_id → intent → kind` and calls one dispatche
 
 - `app/checkout/page.tsx`: remove UPI QR aside + "Secure manual payment" copy; fee card shows Ticket / Convenience fee ⓘ (platform x% + gateway 2.36%) / Total; note "Convenience fee is non-refundable".
 - `web/components/checkout/checkout-form.tsx`: paid path → `createCheckoutAction(formData + idempotencyKey)` → render `RazorpayCheckout` with `verifyPaymentAction`/`handlePaymentFailureAction`, `successRedirect=/checkout/status?intent=…`. Free path unchanged. Delete UPI copy/WhatsApp/UTR blocks + `upi-qr-code.tsx`.
-- New `app/checkout/status/page.tsx` + client poller: shows "Confirming payment…" and subscribes to `orders` realtime (already in publication) + polls `getPaymentStatusAction` every 3s up to 2 min → CONFIRMED → `/tickets?success=1`; FAILED/EXPIRED → retry CTA; still pending after 2 min → "We're confirming with the bank — you'll get a notification; no double charge will occur" (webhook/reconcile will land it).
+- New `app/checkout/status/page.tsx` + client poller: shows "Confirming payment…" and subscribes to `orders` realtime (already in publication) + polls `getPaymentStatusAction` every 3s up to 2 min → CONFIRMED → `/tickets?success=1`; FAILED/EXPIRED → retry CTA; still pending after 2 min → "We're confirming with the bank - you'll get a notification; no double charge will occur" (webhook/reconcile will land it).
 - `RazorpayCheckout`: pass `notes`, `timeout` (TTL seconds) to Checkout.js; `retry: {enabled:false}` so a retried payment can't outlive the reservation; forward `payment_method` from response when available.
 - `/tickets`: order card shows refund status timeline (Requested → Approved → Initiated → Completed) + "Convenience fee non-refundable" note; `PostponementRefundButton` copy → "refund of ticket price ₹X".
 - Event page CTA copy: "Pay securely via UPI / cards / netbanking".
@@ -240,7 +240,7 @@ Webhook resolves `razorpay_order_id → intent → kind` and calls one dispatche
 
 ## 12. Testing plan
 
-**Unit (vitest, new `tests/payments-*.test.ts`)**: pricing gross-up + rounding across ₹1–₹50,000 and bps combos; refund split (TICKET_PRICE/FULL/CUSTOM); state-machine transition table (pure fn mirrored from SQL); webhook signature; `describeFees` text.
+**Unit (vitest, new `tests/payments-*.test.ts`)**: pricing gross-up + rounding across ₹1-₹50,000 and bps combos; refund split (TICKET_PRICE/FULL/CUSTOM); state-machine transition table (pure fn mirrored from SQL); webhook signature; `describeFees` text.
 
 **DB probes (`scripts/_test_payments.mjs`, live DB, self-cleaning, mirrors `_test_analytics_rollup.mjs` style)**:
 1. Reservation burst: 10 concurrent `create_reserved_order` on qty-3 tier → exactly 3 RESERVED, 7 "Not enough tickets"; CHECK constraint never violated.
@@ -260,13 +260,13 @@ Webhook resolves `razorpay_order_id → intent → kind` and calls one dispatche
 
 **Regression**: `scripts/_e2e_dev_test.mjs` updated (manual-UPI steps replaced; 72 → adjusted count green), `_test_analytics_rollup.mjs` 21/21, vitest 113+ green, `tsc`, `next lint`, `next build`.
 
-**Docs**: `docs/reference/test-scenarios.md` — rewrite §Payments, §Refunds, add §Settlement, §Admin Refunds, §Webhook resilience; checklist ranges updated.
+**Docs**: `docs/reference/test-scenarios.md` - rewrite §Payments, §Refunds, add §Settlement, §Admin Refunds, §Webhook resilience; checklist ranges updated.
 
 ---
 
 ## 13. Rollout & go-live checklist
 1. Apply STEP 32 live first (security) → probes green.
-2. STEP 33–36 live; backfill `order_source`; `refresh_analytics_rollups(p_full)` after money-column changes; add `refunds`, `payment_intents` to `supabase_realtime`.
+2. STEP 33-36 live; backfill `order_source`; `refresh_analytics_rollups(p_full)` after money-column changes; add `refunds`, `payment_intents` to `supabase_realtime`.
 3. Env (local `.env` now, Vercel later): `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `NEXT_PUBLIC_RAZORPAY_KEY_ID`; `.env.example` + `health` route report `razorpayConfigured`.
 4. Razorpay dashboard: webhook URL + secret + event list; auto-capture default on orders (we also pass `payment_capture:1`); refund speed normal; test → live key swap only after live staging run.
 5. GH Actions: `process-refunds` (*/2), `reconcile-payments` (*/10); confirm repo secrets `CRON_SECRET`, `APP_URL`.
@@ -278,7 +278,7 @@ Webhook resolves `razorpay_order_id → intent → kind` and calls one dispatche
 ## 14. Risks & mitigations
 - **Gateway fee under-recovery**: Razorpay fee varies by method (UPI/cards/netbanking, intl cards higher). Gross-up at 2.36% covers domestic; actual fee recorded → `/admin/revenue` shows variance; setting is adjustable.
 - **Razorpay refund idempotency** relies on `receipt` lookup, not a hard server guarantee → worker lists existing refunds before creating; INITIATING claim window 10 min; alerts on attempts ≥3.
-- **5xx retries** could pile up if DB is down — bounded by Razorpay's 24h backoff; idempotent; admin page shows backlog.
+- **5xx retries** could pile up if DB is down - bounded by Razorpay's 24h backoff; idempotent; admin page shows backlog.
 - **Legacy CONFIRMED manual orders (43)**: no `razorpay_payment_id` → refunds only via MANUAL_SETTLED; analytics unaffected.
 - **Auto-acceptance for paid clubs** changes club-owner control; acceptable since payment implies intent; owners can still remove members.
 - **Checkout.js timeout vs TTL**: we set Checkout `timeout` = remaining TTL−30s so a late payment attempt is blocked client-side; server still handles late capture.
@@ -299,13 +299,13 @@ Webhook resolves `razorpay_order_id → intent → kind` and calls one dispatche
 ---
 
 ## 16. Execution order (one green commit-ready checkpoint each; never push)
-1. **P0 Lockdown** — STEP 32 + probes.
-2. **Money & intents** — STEP 33 + `pricing.ts` + types + unit tests.
-3. **Dispatcher & webhook** — STEP 34 + webhook rewrite + `services/payments.ts` + simulated-webhook suite.
-4. **Refund pipeline** — STEP 35 + worker cron + reconcile cron + DB probes 5–8.
-5. **Buyer checkout swap** — checkout UI, status page, remove manual; e2e script update.
-6. **Organizer** — Payments tab, `/organizer/refunds`, settlement, boosts/door-staff/clubs → Razorpay.
-7. **Admin** — `/admin/refunds`, payments/settlements upgrades, settings.
+1. **P0 Lockdown** - STEP 32 + probes.
+2. **Money & intents** - STEP 33 + `pricing.ts` + types + unit tests.
+3. **Dispatcher & webhook** - STEP 34 + webhook rewrite + `services/payments.ts` + simulated-webhook suite.
+4. **Refund pipeline** - STEP 35 + worker cron + reconcile cron + DB probes 5-8.
+5. **Buyer checkout swap** - checkout UI, status page, remove manual; e2e script update.
+6. **Organizer** - Payments tab, `/organizer/refunds`, settlement, boosts/door-staff/clubs → Razorpay.
+7. **Admin** - `/admin/refunds`, payments/settlements upgrades, settings.
 8. **API v1 + docs + STEP 36 settlement view/notifications**.
 9. **Live ngrok run** with your test keys; fix; final `tsc`/lint/build/vitest/e2e; docs & test-scenarios finalized.
 

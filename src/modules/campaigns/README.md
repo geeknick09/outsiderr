@@ -1,6 +1,6 @@
 # modules/campaigns
 
-**Status:** Foundation stub (Phase R7) — contract types only, no live UI/tables yet.
+**Status:** Foundation stub (Phase R7) - contract types only, no live UI/tables yet.
 
 ## Purpose
 
@@ -16,13 +16,13 @@ links, influencer shares, paid ads) actually drive ticket sales.
 
 ## Uses
 
-- `shared` — db, auth, types
-- `analytics` — reporting surface for click→booking attribution
+- `shared` - db, auth, types
+- `analytics` - reporting surface for click→booking attribution
 
 ## Data model
 
 See `types.ts` for the contract and `docs/prd.md` § Campaigns for the full spec
-(tables, redirect flow, attribution window, privacy rules — UA/IP hashed only).
+(tables, redirect flow, attribution window, privacy rules - UA/IP hashed only).
 
 ## When extracting to apps/campaigns
 

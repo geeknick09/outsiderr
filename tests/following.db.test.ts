@@ -1,5 +1,5 @@
 /**
- * "Build a following" — auto-follow on purchase + follower launch notification.
+ * "Build a following" - auto-follow on purchase + follower launch notification.
  * Runs against the live database inside a single rolled-back transaction.
  * Mirrors the pattern in box-office.db.test.ts.
  */
