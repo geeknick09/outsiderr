@@ -1,5 +1,6 @@
 import "server-only";
 
+import { redirect } from "next/navigation";
 import { createClient } from "../../shared/auth/server";
 import { createServiceClient } from "../../shared/auth/service";
 import { getCurrentUser } from "../../shared/auth/auth";
@@ -52,7 +53,7 @@ type EventRollupRow = {
 
 async function requireAdminUser(): Promise<void> {
   const user = await getCurrentUser();
-  if (!user) throw new Error("Authentication required.");
+  if (!user) redirect("/login?next=%2Fadmin");
   const supabase = await createClient();
   const { data: profile } = await supabase
     .from("profiles")
