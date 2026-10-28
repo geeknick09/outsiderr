@@ -17,7 +17,7 @@ graph TD
         RSC[Server Components<br/>pages render via data fns]
         SA[Server Actions<br/>useActionState mutations]
         API[/api/v1/*<br/>REST for mobile]
-        MW[Middleware<br/>auth + route guards]
+        MW[Middleware<br/>session refresh]
     end
 
     subgraph Modules["src/modules"]
@@ -59,7 +59,7 @@ graph TD
 
 | Layer | Where | What it does |
 |-------|-------|--------------|
-| **Middleware** | `src/middleware.ts` | Session refresh + route guards (`/admin`, `/organizer`, `/profile`, `/tickets`) |
+| **Middleware** | `src/middleware.ts` | Session refresh only - route guards live in each page (`getCurrentUser` → `redirect("/login?next=...")`; admin pages via `requireAdminUser`) |
 | **App Router pages** | `src/app/**` | Server components - fetch data server-side, render HTML |
 | **Server Actions** | `src/modules/*/actions/*.ts` | All mutations - called via `useActionState`/`useTransition` |
 | **REST API** | `src/app/api/v1/**` | Mobile clients (bearer-token auth via `withApiContext`) |

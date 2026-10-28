@@ -329,3 +329,36 @@ Every session, run this checklist before/while working - it is cheap and catches
 6. RLS: any new table must be default-deny + service-role grant, or have owner-scoped policies.
 
 Current standing (2026-10-24): 13 npm vulns remain - 3 critical (tinypool via vitest, needs vitest 5 breaking upgrade), 4 high, 6 moderate. No code-level findings: no secrets, no eval, single benign XSS sink (layout scrollRestoration), no open redirects, actions enforce auth at the RPC/auth.uid layer.
+
+## 2026-10-28 - STEP 58 creator referrals + auth fix + clean DB
+
+- **STEP 58 (applied live + fix_all.sql + `_step58_org_referrals.sql`)**: promoter
+  organizer-referral program. `promoter_links` gained `link_kind` (EVENT/ORGANIZER)
+  + `expires_at` + nullable `event_id`; `organizers` gained
+  `referred_by_promoter_id`/`referred_at`/`referral_events_count`; `events` gained
+  `referral_promoter_id`; `promoter_earnings.via` extended to `ORG_REFERRAL` with
+  per-via unique partial indexes (LINK/PROMO_CODE and ORG_REFERRAL may BOTH earn on
+  one order). Settings: `promoter_org_share_bps`(1000), `promoter_org_event_limit`(5),
+  `promoter_org_link_ttl_days`(30), `promoter_org_attribution_days`(30) - all editable
+  in Settings→Charges.
+- **Flow**: `/r/<slug>` route logs click + drops `outsiderr_ref` cookie →
+  `createOrganizerAction` calls `attribute_organizer_referral` (self-ref blocked via
+  `organizers.owner_id`, first-write wins) → `trg_mark_org_referral` stamps first N
+  PAID publishes → `trg_org_referral_earning` mints 10%-of-commission on CONFIRMED.
+  Referral earnings are Outsiderr's cost - `orders.promoter_id` stays NULL.
+  `trg_refund_reverse_promoter` now loops all EARNING rows (was single-row).
+- **Bug caught by e2e**: RPC referenced `v_org.user_id` - organizers column is
+  `owner_id`. `scripts/_test_org_referral.mjs` = 18-check live-DB suite, all green.
+- **Auth fix**: `requireAdminUser` (admin.ts/admin-organizers.ts/admin-analytics.ts)
+  threw on logged-out users → error boundary. Now `redirect("/login?next=/admin")`
+  matching /profile /tickets /promoter gates.
+- **DB wiped clean** (0 users/orgs/events/orders/communities) + settings(44) +
+  legal pages(4) restored from seeds. First signup auto-admin via
+  `auto_promote_first_admin` trigger. NOTE: `wipe_all.sql` is STALE (references
+  dropped `club_members` table) - used direct truncate instead.
+- **Audit status**: npm audit = 3 moderate only (tinypool/vitest-5 chain resolved
+  by upgrading; Node pinned 24.x in engines + .nvmrc). Vitest runs on Node 24.
+- **Storage layout** (commit 98e7aef): `users/{uid}/` → `profile/avatar`,
+  `organizer/{avatar,kyc}`, `organizer/events/{slug}`, `communities/uploads`.
+- **Docs**: `docs/developer/` = architecture/database/money-math trio updated for
+  referrals; 5-day plan has referral + logged-out-gate scenarios.

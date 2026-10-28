@@ -174,8 +174,12 @@ Cross-reference `docs/reference/test-scenarios.md` for deep scenario detail per 
 - [ ] Community card on /communities: avatar + subcategory chip NOT clipped
 - [ ] Sign out/in flows; session persistence across reload
 - [ ] Direct URL access: non-owner hits `/organizer/events/[id]` → blocked; collaborator gets LIMITED view; non-admin hits `/admin` → blocked; non-creator hits `/organizer` → gate screen
+- [ ] **Logged-out access**: every protected route shows the login gate (never an error page) - `/admin`, `/admin/money`, `/organizer`, `/organizer/events/[id]`, `/tickets`, `/profile`, `/promoter`, `/box-office`, `/scan`
+- [ ] **Invisible events**: draft event URL → 404 publicly (visible to owner only); cancelled event → correct state; random fake UUID → 404
+- [ ] **Dead referral links**: `/p/badslug` → clean redirect to `/` (no error); `/r/badslug` + expired `/r/` link → lands on `/list-your-event` with no attribution
 - [ ] Organizer premium purchase (if enabled): premium price from settings, expiry respected
 - [ ] Share/copy-link buttons on event + community pages
+- [ ] Offline: kill network → themed offline page + snake game shows
 
  *
 

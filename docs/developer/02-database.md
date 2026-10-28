@@ -10,7 +10,7 @@ All tables live in `public` (plus an `analytics` schema for pre-computed rollups
 |-------|---------|-------------|
 | `auth.users` | Supabase auth identities | id, email |
 | `profiles` | Public user profile - one per auth user. `is_admin` flips first user to admin via `auto_promote_first_admin` trigger | id (→ auth.users), full_name, avatar_url, city, gender, phone, interests[], is_admin |
-| `organizers` | Creator/creator-profile record - owns events + communities. `kyc_status` gates publishing | id, owner_id (→ auth.users), name, bio, avatar_url, intent, kyc_status, pending_kyc, bank_* columns, upi_id |
+| `organizers` | Creator/creator-profile record - owns events + communities. `kyc_status` gates publishing. `referred_by_promoter_id` + `referral_events_count` track promoter-referral onboarding | id, owner_id (→ auth.users), name, bio, avatar_url, intent, kyc_status, pending_kyc, bank_* columns, upi_id, referred_by_promoter_id, referred_at, referral_events_count |
 | `organizer_bank_accounts` | Extra payout bank accounts per organizer | id, organizer_id, account_name, account_number, ifsc, pan, upi_id, is_primary |
 | `organizer_follows` | User → organizer follow (profile Following section) | organizer_id, follower_id |
 
@@ -30,7 +30,7 @@ All tables live in `public` (plus an `analytics` schema for pre-computed rollups
 
 | Table | Purpose | Key columns |
 |-------|---------|-------------|
-| `events` | The event. `community_id` links it to a community; `visibility` gates booking | id, organizer_id, title, description, category, categories[], tags[], city, venue_name/address/lat/lng/maps_link, starts_at, ends_at, status (DRAFT/PUBLISHED/POSTPONED/CANCELLED/COMPLETED), community_id, visibility (OPEN/MEMBERS_ONLY/INVITE_ONLY), pricing fields (see money doc), recurrence, images (card_poster_url, banner_poster_url, teaser_video_url, photos[]), waitlist_enabled, allow_booking_during_event, max_tickets_per_user, organizer agreement fields |
+| `events` | The event. `community_id` links it to a community; `visibility` gates booking; `referral_promoter_id` marks an organizer-referral earning event | id, organizer_id, title, description, category, categories[], tags[], city, venue_name/address/lat/lng/maps_link, starts_at, ends_at, status (DRAFT/PUBLISHED/POSTPONED/CANCELLED/COMPLETED), community_id, visibility (OPEN/MEMBERS_ONLY/INVITE_ONLY), referral_promoter_id, pricing fields (see money doc), recurrence, images (card_poster_url, banner_poster_url, teaser_video_url, photos[]), waitlist_enabled, allow_booking_during_event, max_tickets_per_user, organizer agreement fields |
 | `ticket_tiers` | Sellable tiers per event (price × qty, phased windows) | event_id, name, price_paise, quantity, quantity_sold, quantity_reserved, sort_order, phase_opens_at/phase_closes_at, admits (reserved=1) |
 | `orders` | A purchase (or pending one) - the money row | event_id, tier_id, user_id, quantity, unit_price_paise, subtotal_paise, commission_paise, convenience_fee_paise, gateway_fee_paise, platform_fee_paise, organizer_payout_paise, total_paise, fee_payer, status (RESERVED/PENDING_VERIFICATION/CONFIRMED/REJECTED/CANCELLED/REFUND_REQUESTED/REFUNDED), order_source (ONLINE/BOX_OFFICE/WALKIN/GUESTLIST), buyer_*, reserved_at, reservation_expires_at, idempotency_key, razorpay_order_id, payment_ref, refund_*, promo fields |
 | `tickets` | One ticket per order-unit. `qr_hash` is the door credential | event_id, order_id, user_id, tier_id, qr_hash, status (VALID/USED/CANCELLED), used_at, admit_count |
@@ -65,10 +65,10 @@ All tables live in `public` (plus an `analytics` schema for pre-computed rollups
 | Table | Purpose | Key columns |
 |-------|---------|-------------|
 | `promoters` | Promoter account + payout bank details | user_id, name, email, phone, payout_account_name/number, payout_ifsc, payout_pan, upi_id, is_blocked |
-| `promoter_links` | Referral link per promoter per event | promoter_id, event_id, slug |
+| `promoter_links` | Tracked link - `link_kind='EVENT'` per event (`/p/<slug>`) or `'ORGANIZER'` creator-referral (`/r/<slug>`, one per promoter, `event_id` NULL, `expires_at` TTL) | promoter_id, event_id?, slug, link_kind, expires_at, is_active |
 | `promoter_promo_codes` | Promo-code channel | promoter_id, event_id, code |
-| `promoter_clicks` | Click-through tracking for attribution | promoter_id, event_id, via |
-| `promoter_earnings` | Commission earned per attributed order | promoter_id, event_id, order_id, via, kind (EARNING/REVERSAL), amount_paise, reversed_paise, ticket_subtotal_paise, status |
+| `promoter_clicks` | Click log for both link kinds (dedupe by link + ip/ua hash) | link_id, ip_hash, ua_hash, referrer, clicked_at |
+| `promoter_earnings` | Commission earned per attributed order - `via` = LINK / PROMO_CODE / ORG_REFERRAL (referral = Outsiderr's cost, never deducted from organizer payout) | promoter_id, event_id, organizer_id, order_id, via, kind (EARNING/CLAWBACK), amount_paise, reversed_paise, commission_bps, ticket_subtotal_paise, status (EARNED/PAID/REVERSED) |
 | `promoter_payouts` | Outgoing payouts to promoters | promoter_id, amount_paise, status, payout_snapshot (incl. gross_paise, processing_fee_paise, processing_fee_bps) |
 
 ## Discovery & growth
@@ -110,5 +110,6 @@ auth.users ── profiles ── organizers ──┬─ events ── ticket_t
 events ── waitlist · event_staff · scanner/box_office_pins · scan_log · event_invites · boosts
 orders ── refunds · tickets · payment_ledger rows · promoter_earnings
 organizers ── payout_records          promoters ── promoter_links/codes/clicks/earnings/payouts
+promoters ── organizers (referred_by_promoter_id) ── events (referral_promoter_id)
 event_notifications + notification_outbox - fed by actions + RPCs, delivered realtime
 ```
