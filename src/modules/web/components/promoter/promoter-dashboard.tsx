@@ -121,6 +121,59 @@ export function PromoterDashboardView({ dashboard }: { dashboard: PromoterDashbo
         )}
       </section>
 
+      {/* Creator referrals */}
+      <section className="glass rounded-3xl p-5">
+        <h2 className="mb-1 text-sm font-bold">Refer creators</h2>
+        <p className="mb-3 text-xs text-muted">
+          Share your link - when a creator signs up through it, you earn a share of the
+          platform commission on their first events.
+        </p>
+        {dashboard.orgReferralLink ? (
+          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-200 px-4 py-3 dark:border-white/10">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs text-muted">
+                {dashboard.orgReferralLink.clicks} clicks
+                {dashboard.orgReferralLink.expiresAt
+                  ? ` · expires ${formatDateTime(dashboard.orgReferralLink.expiresAt)}`
+                  : ""}
+              </p>
+            </div>
+            <code className="rounded-lg bg-black/30 px-2.5 py-1 text-xs text-white">/r/{dashboard.orgReferralLink.slug}</code>
+            <button
+              type="button"
+              onClick={() =>
+                copy(
+                  `${typeof window !== "undefined" ? window.location.origin : ""}/r/${dashboard.orgReferralLink!.slug}`,
+                  `ref-${dashboard.orgReferralLink!.slug}`,
+                )
+              }
+              className="rounded-lg border border-zinc-200 p-1.5 text-muted hover:border-violet-neon hover:text-violet-neon dark:border-white/10"
+              aria-label="Copy"
+            >
+              {copied === `ref-${dashboard.orgReferralLink.slug}` ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            </button>
+          </div>
+        ) : null}
+        {dashboard.orgReferrals.length > 0 ? (
+          <div className="mt-3 space-y-1.5">
+            {dashboard.orgReferrals.map((o) => (
+              <div key={o.organizerId} className="flex items-center justify-between text-sm">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold">{o.name}</p>
+                  <p className="text-xs text-muted">
+                    {o.joinedAt ? `${formatDateTime(o.joinedAt)} · ` : ""}
+                    {o.eventsUsed}/{o.eventLimit} events counted
+                  </p>
+                </div>
+                <span className="ml-3 shrink-0 font-bold">{formatPaise(o.earnedPaise)}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-3 text-xs text-muted">No creators onboarded yet.</p>
+        )}
+      </section>
+
       {/* Earnings ledger */}
       <section className="glass rounded-3xl p-5">
         <h2 className="mb-3 text-sm font-bold">Earnings</h2>
@@ -133,7 +186,7 @@ export function PromoterDashboardView({ dashboard }: { dashboard: PromoterDashbo
                 <div className="min-w-0">
                   <p className="truncate font-semibold">{e.eventTitle}</p>
                   <p className="text-xs text-muted">
-                    {formatDateTime(e.createdAt)} · {e.via === "LINK" ? "Share link" : "Promo code"}
+                    {formatDateTime(e.createdAt)} · {e.via === "LINK" ? "Share link" : e.via === "ORG_REFERRAL" ? "Creator referral" : "Promo code"}
                     {e.kind === "CLAWBACK" ? " · refund reversal" : ""}
                   </p>
                 </div>

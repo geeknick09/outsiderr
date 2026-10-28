@@ -1,9 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/modules/shared/server";
+import { createServiceClient } from "@/modules/shared/server";
 import { createOrganizerProfile, updateOrganizerProfile, notifyAdmins, addKycMessage } from "@/modules/shared/server";
 
 export interface CreateOrganizerState {
@@ -89,6 +91,19 @@ export async function createOrganizerAction(
     return {
       error: error instanceof Error ? error.message : "Could not create organizer profile.",
     };
+  }
+
+  // Promoter referral attribution - the cookie was dropped by /r/<slug> when
+  // the organizer clicked a promoter's creator-referral link. First-write wins
+  // and self-referral is blocked inside the RPC.
+  const cookieStore = await cookies();
+  const refSlug = cookieStore.get("outsiderr_ref")?.value;
+  if (refSlug) {
+    await createServiceClient().rpc("attribute_organizer_referral", {
+      p_organizer_id: organizerId,
+      p_slug: refSlug,
+    });
+    cookieStore.delete("outsiderr_ref");
   }
 
   // Only complete applications enter the review queue - PAN + bank + GST all

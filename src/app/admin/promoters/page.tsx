@@ -25,6 +25,7 @@ export default async function AdminPromotersPage() {
               <th className="px-4 py-3">Earned (net)</th>
               <th className="px-4 py-3">Payable</th>
               <th className="px-4 py-3">Paid</th>
+              <th className="px-4 py-3">Creators onboarded</th>
               <th className="px-4 py-3">Bank</th>
               <th className="px-4 py-3">Actions</th>
             </tr>
@@ -40,6 +41,15 @@ export default async function AdminPromotersPage() {
                 <td className="px-4 py-3 font-semibold">{formatPaise(p.earnedPaise)}</td>
                 <td className="px-4 py-3 font-semibold text-lime-500">{formatPaise(p.payablePaise)}</td>
                 <td className="px-4 py-3">{formatPaise(p.paidPaise)}</td>
+                <td className="px-4 py-3 text-xs">
+                  {p.orgReferrals.length > 0 ? (
+                    <span>
+                      {p.orgReferrals.length} · {formatPaise(p.orgReferralEarnedPaise)} earned
+                    </span>
+                  ) : (
+                    <span className="text-muted">-</span>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-xs">
                   {p.hasBank ? (
                     <span className="text-muted">
@@ -59,11 +69,34 @@ export default async function AdminPromotersPage() {
               </tr>
             ))}
             {promoters.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-muted">No promoters yet.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-muted">No promoters yet.</td></tr>
             ) : null}
           </tbody>
         </table>
       </section>
+
+      {promoters.some((p) => p.orgReferrals.length > 0) ? (
+        <section className="glass rounded-3xl p-5">
+          <h2 className="mb-3 text-sm font-bold">Creator referrals</h2>
+          <div className="space-y-3">
+            {promoters.filter((p) => p.orgReferrals.length > 0).map((p) => (
+              <div key={p.id}>
+                <p className="text-sm font-semibold">{p.name}</p>
+                <div className="mt-1 space-y-1">
+                  {p.orgReferrals.map((o) => (
+                    <div key={o.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200 px-3 py-2 text-xs dark:border-white/10">
+                      <span className="font-semibold">{o.name}</span>
+                      <span className="text-muted">
+                        joined {o.joinedAt ? formatDateTime(o.joinedAt) : "-"} · {o.eventsUsed} events counted
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {payouts.length > 0 ? (
         <section className="glass rounded-3xl p-5">

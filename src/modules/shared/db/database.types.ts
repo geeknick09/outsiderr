@@ -68,6 +68,9 @@ export type OrganizerRow = {
   kyc_response_document_url: string | null;
   pending_kyc: Record<string, string | null> | null;
   premium_until: string | null;
+  referred_by_promoter_id: string | null;
+  referred_at: string | null;
+  referral_events_count: number;
 }
 
 export type EventRow = {
@@ -105,6 +108,7 @@ export type EventRow = {
   community_id?: string | null;
   payout_account_id?: string | null;
   promoter_mode?: string;
+  referral_promoter_id?: string | null;
   promoter_commission_bps?: number;
   promo_buyer_discount_bps?: number;
   promo_promoter_bps?: number;
@@ -276,8 +280,10 @@ export type PromoterRow = {
 export type PromoterLinkRow = {
   id: string;
   promoter_id: string;
-  event_id: string;
+  event_id: string | null;
   slug: string;
+  link_kind: string;
+  expires_at: string | null;
   is_active: boolean;
   created_at: string;
 }
@@ -1203,6 +1209,18 @@ export type Database = {
       promoter_payable_paise: {
         Args: { p_promoter_id: string };
         Returns: number;
+      };
+      get_or_create_org_referral_link: {
+        Args: Record<string, never>;
+        Returns: { slug: string; expires_at: string | null } | null;
+      };
+      org_referral_slug_lookup: {
+        Args: { p_slug: string };
+        Returns: { link_id: string; promoter_id: string } | null;
+      };
+      attribute_organizer_referral: {
+        Args: { p_organizer_id: string; p_slug: string };
+        Returns: string | null;
       };
       community_invite_valid: {
         Args: { p_community_id: string; p_token: string };

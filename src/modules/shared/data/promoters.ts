@@ -41,21 +41,23 @@ export async function getPromoterDashboard(user: CurrentUser): Promise<PromoterD
       balances: { clicks: 0, redemptions: 0, earnedPaise: 0, payablePaise: 0, paidPaise: 0, clawedPaise: 0 },
       programs: [],
       earnings: [],
+      orgReferralLink: null,
+      orgReferrals: [],
       hasPayoutDetails: false,
       masked: { account: null, ifsc: null, pan: null, upi: null },
     };
   }
 
   const [{ data: links }, { data: codes }, { data: earnings }, { data: payouts }] = await Promise.all([
-    supabase.from("promoter_links").select("id, event_id, slug, is_active").eq("promoter_id", promoter.id),
+    supabase.from("promoter_links").select("id, event_id, slug, is_active, link_kind, expires_at").eq("promoter_id", promoter.id),
     supabase.from("promoter_promo_codes").select("id, event_id, code, is_active").eq("promoter_id", promoter.id),
-    supabase.from("promoter_earnings").select("id, event_id, via, kind, amount_paise, status, reversed_paise, ticket_subtotal_paise, created_at")
+    supabase.from("promoter_earnings").select("id, event_id, organizer_id, via, kind, amount_paise, status, reversed_paise, ticket_subtotal_paise, created_at")
       .eq("promoter_id", promoter.id).order("created_at", { ascending: false }).limit(100),
     supabase.from("promoter_payouts").select("id, amount_paise, status, initiated_at").eq("promoter_id", promoter.id).order("initiated_at", { ascending: false }).limit(20),
   ]);
 
   const eventIds = [...new Set([
-    ...(links ?? []).map((l) => l.event_id),
+    ...(links ?? []).map((l) => l.event_id).filter((id): id is string => !!id),
     ...(codes ?? []).map((c) => c.event_id),
     ...(earnings ?? []).map((e) => e.event_id),
   ])];
@@ -99,15 +101,48 @@ export async function getPromoterDashboard(user: CurrentUser): Promise<PromoterD
     })
     .reduce((s, e) => s + e.amount_paise - e.reversed_paise, 0);
 
+  // Organizer-referral link: use the live one or mint a fresh slug when the
+  // old expired/was deactivated (link TTL is admin-configurable).
+  let orgLink = (links ?? []).find(
+    (l) => l.link_kind === "ORGANIZER" && l.is_active && (!l.expires_at || new Date(l.expires_at) > new Date()),
+  );
+  if (!orgLink) {
+    const ttlDays = (await getSettingInt("promoter_org_link_ttl_days")) || 30;
+    await supabase.from("promoter_links").update({ is_active: false })
+      .eq("promoter_id", promoter.id).eq("link_kind", "ORGANIZER");
+    const { data: minted } = await supabase.from("promoter_links").insert({
+      promoter_id: promoter.id,
+      event_id: null,
+      slug: `r${crypto.randomUUID().replaceAll("-", "")}`,
+      link_kind: "ORGANIZER",
+      expires_at: new Date(Date.now() + ttlDays * 86400000).toISOString(),
+    }).select("id, slug, expires_at").single();
+    if (minted) orgLink = { ...minted, event_id: null, is_active: true, link_kind: "ORGANIZER" };
+  }
+
+  // Organizers onboarded through this promoter's referral link.
+  const eventLimit = (await getSettingInt("promoter_org_event_limit")) || 5;
+  const { data: refOrgs } = await supabase
+    .from("organizers")
+    .select("id, name, referred_at, referral_events_count")
+    .eq("referred_by_promoter_id", promoter.id)
+    .order("referred_at", { ascending: false });
+  const orgEarned = new Map<string, number>();
+  for (const e of earnings ?? []) {
+    if (e.via === "ORG_REFERRAL" && e.kind === "EARNING" && e.organizer_id) {
+      orgEarned.set(e.organizer_id, (orgEarned.get(e.organizer_id) ?? 0) + e.amount_paise - e.reversed_paise);
+    }
+  }
+
   const programs = [
-    ...(links ?? []).map((l) => ({
-      eventId: l.event_id,
-      eventTitle: eventMap.get(l.event_id)?.title ?? "Event",
+    ...(links ?? []).filter((l) => l.link_kind !== "ORGANIZER" && l.event_id).map((l) => ({
+      eventId: l.event_id!,
+      eventTitle: eventMap.get(l.event_id!)?.title ?? "Event",
       mode: "LINK" as const,
       slug: l.slug,
       clicks: clicksByLink.get(l.id) ?? 0,
-      salesPaise: salesByEvent.get(l.event_id)?.paise ?? 0,
-      earnedPaise: salesByEvent.get(l.event_id)?.earned ?? 0,
+      salesPaise: salesByEvent.get(l.event_id!)?.paise ?? 0,
+      earnedPaise: salesByEvent.get(l.event_id!)?.earned ?? 0,
     })),
     ...(codes ?? []).map((c) => ({
       eventId: c.event_id,
@@ -143,6 +178,17 @@ export async function getPromoterDashboard(user: CurrentUser): Promise<PromoterD
       amountPaise: e.amount_paise,
       status: e.status,
       createdAt: e.created_at,
+    })),
+    orgReferralLink: orgLink
+      ? { slug: orgLink.slug, expiresAt: orgLink.expires_at ?? null, clicks: clicksByLink.get(orgLink.id) ?? 0 }
+      : null,
+    orgReferrals: (refOrgs ?? []).map((o) => ({
+      organizerId: o.id,
+      name: o.name ?? "Organizer",
+      joinedAt: o.referred_at ?? "",
+      eventsUsed: o.referral_events_count ?? 0,
+      eventLimit,
+      earnedPaise: orgEarned.get(o.id) ?? 0,
     })),
     hasPayoutDetails: !!(promoter.payout_account_number && promoter.payout_ifsc),
     masked: {
@@ -230,7 +276,7 @@ export async function getAdminPromoters() {
     .order("created_at", { ascending: false });
   const { data: earnings } = await supabase
     .from("promoter_earnings")
-    .select("promoter_id, kind, amount_paise, reversed_paise, status, event_id");
+    .select("promoter_id, kind, amount_paise, reversed_paise, status, event_id, via, organizer_id");
   const { data: payouts } = await supabase
     .from("promoter_payouts")
     .select("id, promoter_id, amount_paise, status, bank_reference, initiated_at, completed_at, payout_snapshot")
@@ -265,6 +311,30 @@ export async function getAdminPromoters() {
     }
   }
 
+  // Organizer-referral map: who onboarded which organizer, window usage and
+  // org-referral earnings (separate from event-promo earnings).
+  const promoterIds = (promoters ?? []).map((p) => p.id);
+  const { data: refOrgs } = promoterIds.length
+    ? await supabase
+        .from("organizers")
+        .select("id, name, referred_by_promoter_id, referred_at, referral_events_count")
+        .in("referred_by_promoter_id", promoterIds)
+    : { data: [] };
+  const orgRefByPromoter = new Map<string, { earned: number; orgs: { id: string; name: string; joinedAt: string; eventsUsed: number }[] }>();
+  const refOrgEarned = new Map<string, number>();
+  for (const e of earnings ?? []) {
+    if (e.via === "ORG_REFERRAL" && e.organizer_id) {
+      refOrgEarned.set(e.organizer_id, (refOrgEarned.get(e.organizer_id) ?? 0) + e.amount_paise - e.reversed_paise);
+    }
+  }
+  for (const o of refOrgs ?? []) {
+    const entry = orgRefByPromoter.get(o.referred_by_promoter_id!) ?? { earned: 0, orgs: [] };
+    const e = refOrgEarned.get(o.id) ?? 0;
+    entry.earned += e;
+    entry.orgs.push({ id: o.id, name: o.name ?? "Organizer", joinedAt: o.referred_at ?? "", eventsUsed: o.referral_events_count ?? 0 });
+    orgRefByPromoter.set(o.referred_by_promoter_id!, entry);
+  }
+
   return {
     promoters: (promoters ?? []).map((p) => ({
       id: p.id,
@@ -281,6 +351,8 @@ export async function getAdminPromoters() {
         ifsc: p.payout_ifsc,
         pan: p.payout_pan,
       },
+      orgReferrals: orgRefByPromoter.get(p.id)?.orgs ?? [],
+      orgReferralEarnedPaise: orgRefByPromoter.get(p.id)?.earned ?? 0,
     })),
     payouts: (payouts ?? []).map((p) => ({
       id: p.id,

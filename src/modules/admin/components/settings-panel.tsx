@@ -53,6 +53,10 @@ const SECTIONS: SectionDef[] = [
       { key: "max_tickets_per_order", label: "Max tickets per order", type: "number", min: 1 },
       { key: "promoter_payout_fee_bps", label: "Promoter payout fee", type: "number", suffix: "bps (200=2%)", min: 0, help: "Processing fee deducted from each promoter payout" },
       { key: "promoter_min_payout_paise", label: "Promoter min payout", type: "number", suffix: "paise (100000=₹1000)", min: 0 },
+      { key: "promoter_org_share_bps", label: "Creator-referral share", type: "number", suffix: "bps (1000=10%)", min: 0, help: "Promoter's share of platform commission on a referred organizer's orders" },
+      { key: "promoter_org_event_limit", label: "Creator-referral event limit", type: "number", suffix: "events", min: 0, help: "How many of a referred organizer's paid events earn the promoter" },
+      { key: "promoter_org_link_ttl_days", label: "Referral link lifetime", type: "number", suffix: "days", min: 1, help: "Organizer-referral links expire after this many days" },
+      { key: "promoter_org_attribution_days", label: "Referral attribution window", type: "number", suffix: "days", min: 1, help: "Click-to-signup window for referral attribution" },
     ],
   },
   {

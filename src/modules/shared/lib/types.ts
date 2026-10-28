@@ -668,6 +668,15 @@ export type PromoterDashboard = {
     earnedPaise: number;
   }[];
   earnings: PromoterEarningView[];
+  orgReferralLink: { slug: string; expiresAt: string | null; clicks: number } | null;
+  orgReferrals: {
+    organizerId: string;
+    name: string;
+    joinedAt: string;
+    eventsUsed: number;
+    eventLimit: number;
+    earnedPaise: number;
+  }[];
   hasPayoutDetails: boolean;
   masked: { account: string | null; ifsc: string | null; pan: string | null; upi: string | null };
 };

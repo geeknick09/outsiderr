@@ -23,6 +23,7 @@ export async function GET(
     .from("promoter_links")
     .select("id, event_id, is_active, promoter_id")
     .eq("slug", slug.toLowerCase())
+    .eq("link_kind", "EVENT")
     .maybeSingle();
 
   const base = new URL(request.url);
