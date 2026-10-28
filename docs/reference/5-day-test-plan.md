@@ -12,15 +12,16 @@ What should happen:
 Screenshot? yes/no
 ```
 
-**Accounts you'll need:**
-- 1 admin (first signup after the wipe auto-becomes admin)
-- **2 creator accounts** - Creator A and Creator B (needed for collaborator tests)
-- 3+ plain users - User 1 buys tickets/joins communities, User 2 becomes a promoter, User 3 tests fresh-state edge cases
-- 1 second promoter if you want to compare attribution between two promoters
+**Accounts you’ll need:**
+
+*   1 admin (first signup after the wipe auto-becomes admin)
+*   **2 creator accounts** - Creator A and Creator B (needed for collaborator tests)
+*   3+ plain users - User 1 buys tickets/joins communities, User 2 becomes a promoter, User 3 tests fresh-state edge cases
+*   1 second promoter if you want to compare attribution between two promoters
 
 Cross-reference `docs/reference/test-scenarios.md` for deep scenario detail per section.
 
----
+ *
 
 ## Day 1 - Discovery, auth, profile, creator onboarding
 
@@ -38,13 +39,13 @@ Cross-reference `docs/reference/test-scenarios.md` for deep scenario detail per 
 - [ ] Member public profile `/members/[id]` renders
 - [ ] `/badges` - ladder shows earned vs locked with requirements
 - [ ] Become a Creator (`/list-your-event`) - hero, orbit, three CTAs (Communities / Start Creating / Events)
-- [ ] Creator wizard: name + terms required; PAN / GST / bank all skippable via "Skip - Add Later"
+- [ ] Creator wizard: name + terms required; PAN / GST / bank all skippable via “Skip - Add Later”
 - [ ] When PAN filled: card photo required before Continue; Bank step needs UPI+acct+IFSC+name+proof OR skip
 - [ ] Abandon onboarding mid-upload → uploaded media is cleaned up
 - [ ] Submit bare application → dashboard opens, NO admin KYC notification
 - [ ] Fill PAN+bank+GST later via Edit profile → goes to admin review (PENDING)
-- [ ] Dashboard shows "Add your bank account" notice until bank details exist; clicking it opens Edit profile
-- [ ] "Become a Creator" menu item flips to "Creator Dashboard" for the creator account
+- [ ] Dashboard shows “Add your bank account” notice until bank details exist; clicking it opens Edit profile
+- [ ] “Become a Creator” menu item flips to “Creator Dashboard” for the creator account
 - [ ] Repeat for **Creator B** - both accounts must exist end of Day 1
 
 ## Day 2 - Creator: events, communities, collaborators
@@ -52,30 +53,33 @@ Cross-reference `docs/reference/test-scenarios.md` for deep scenario detail per 
 **Focus: the full organizer toolkit.**
 
 **Events**
+
 - [ ] Create event end-to-end: title/dates/venue(TBA + real)/tiers/pricing/categories/multi-category/tags/photos
 - [ ] Save draft → publish later via Publish button AND via edit → publish
 - [ ] Edit event: every section saves independently; banner/poster/teaser upload
 - [ ] Attach event to a community, change community, detach to public - all three paths
 - [ ] Visibility: Open / Members-only / Invite-only - invite link works, broken link rejected
 - [ ] Recurring (weekly) community event creates repeats; linked past events work
-- [ ] Waitlist toggle + "update me" subscription + max tickets per user
+- [ ] Waitlist toggle + “update me” subscription + max tickets per user
 - [ ] Things-to-know bullets, contact info, terms acceptance on publish
 - [ ] Cancel/postpone buttons notify ticket holders
 
 **Communities**
+
 - [ ] Create community: name, category, **multiple subcategories**, prefilled terms (edit them), socials
 - [ ] Community page: cover (16:9 + 3:4 mobile), avatar not clipped, join button (NO follow button)
 - [ ] Community cap: creating community #11 fails (or your admin-set cap+1)
 - [ ] Manage community: Members / Requests / Import / Events / Analytics tabs
-- [ ] Member count toggle → public page shows/hides "N members"
+- [ ] Member count toggle → public page shows/hides “N members”
 - [ ] Events tab lists community events w/ views, sold, check-ins, net payout
-- [ ] Analytics tab: stats + "Interested, not converted" (paginate, Export CSV, per-row Notify, Notify all)
+- [ ] Analytics tab: stats + “Interested, not converted” (paginate, Export CSV, per-row Notify, Notify all)
 - [ ] Join questions (private community) - request → approve → member list
 - [ ] **Invite-only community**: invite link joins directly
 - [ ] Member removal + re-join behavior
 - [ ] CSV member import: upload, invalid-row surfacing, admin approve, members appear
 
 **Collaborators (needs Creator A + B)**
+
 - [ ] Creator A invites Creator B as collaborator on an event
 - [ ] Creator B sees invite (notification + `/organizer` panel), accepts → gets access
 - [ ] Creator B (LIMITED): sees operational analytics, CANNOT see money, CANNOT edit community attach, CANNOT cancel
@@ -100,16 +104,31 @@ Cross-reference `docs/reference/test-scenarios.md` for deep scenario detail per 
 - [ ] Cancel event → refund choices work; postpone → notified; money math on each
 - [ ] Refund queue → Razorpay refund initiates; manual settle path; refund failure retry
 - [ ] Organizer Ledger (`/organizer/payments`): every txn listed, net payout column correct
-- [ ] Admin → Money → Organizer Payouts: create payout, mark complete w/ UTR; payout failure + failure_reason recorded; ledger updates
+- [ ] Admin → Money → Organizer Payouts: create payout, mark complete w/ UTR; payout failure + failure\_reason recorded; ledger updates
 - [ ] Admin → Money → Revenue/Payments/Refunds tabs all render with correct math
 - [ ] **Promoter (User 2)**: `/promoter` dashboard, create link for an event
-- [ ] Promoter link click → User 1 books → commission accrues on organizer's tab; click tracked
+- [ ] Promoter link click → User 1 books → commission accrues on organizer’s tab; click tracked
 - [ ] Promo-code mode: buyer discount % off + promoter share %, both math-checked
 - [ ] Promoter payout: below min → blocked; at min → 2% processing fee deducted; snapshot shows gross + fee + bank
 - [ ] Duplicate-click protection: same user buying twice via same link only counts once
+
+**Creator referral program** (Promoter 2 → Creator B):
+- [ ] `/promoter` → "Refer creators" card shows a `/r/<slug>` link with expiry date + click count
+- [ ] Copy link → open incognito → lands on `/list-your-event`; click is counted on the promoter dashboard
+- [ ] Creator B signs up via that link → creator wizard completes → promoter dashboard lists "Creator B" under onboarded organizers (0/5 events)
+- [ ] Creator B publishes a **free** event → organizer still shows 0/5 (free events never consume the window)
+- [ ] Creator B publishes a **paid** event → "1/5 events counted"
+- [ ] User 1 buys on that paid event → promoter earning row appears labelled "Creator referral", amount = 10% of the order's platform commission (math-check: subtotal × commission_bps × 10%)
+- [ ] Publish + sell on events 2-5 → each earns; event 6 → sells fine but earns ₹0 for the referrer
+- [ ] Creator B's payout is unaffected - referral cost does NOT come out of their money
+- [ ] Refund that order → referral earning claws back (row shows reversal)
+- [ ] Admin → Settings → Charges: change "Creator-referral event limit" to 1 → next referred organizer only earns on 1 event; change share to 5% → earning math follows
+- [ ] Link expiry: temporarily set link TTL to 0 days / wait for expiry → old link stops attributing, promoter regenerates a fresh slug
+- [ ] Self-referral: promoter's own organizer signup via own link → not attributed
+- [ ] Admin → Money top strip: "Referral cost (ours)" tile reflects the referral earnings; `/admin/promoters` shows Creator B under the promoter's onboarded list
 - [ ] Guestlist ticket is ₹0 - no payment required
 - [ ] Box office sale: cash/UPI sale records correctly; refund on a box-office order
-- [ ] Second promoter attribution - commissions don't bleed between promoters
+- [ ] Second promoter attribution - commissions don’t bleed between promoters
 
 ## Day 4 - Admin console + notifications + door ops
 
@@ -158,6 +177,6 @@ Cross-reference `docs/reference/test-scenarios.md` for deep scenario detail per 
 - [ ] Organizer premium purchase (if enabled): premium price from settings, expiry respected
 - [ ] Share/copy-link buttons on event + community pages
 
----
+ *
 
 **Daily rhythm:** test during the day → send findings by evening → I fix overnight → next morning verify + move on. Monday = deploy prep.

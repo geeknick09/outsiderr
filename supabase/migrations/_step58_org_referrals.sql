@@ -129,7 +129,7 @@ begin
   v_promoter := v_link.promoter_id;
 
   if exists (select 1 from public.promoters p
-              where p.id = v_promoter and p.user_id = v_org.user_id) then
+              where p.id = v_promoter and p.user_id = v_org.owner_id) then
     return null;
   end if;
 

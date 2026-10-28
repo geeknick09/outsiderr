@@ -79,9 +79,26 @@ ESLint enforces `no-restricted-imports`: **never deep-import** into `src/modules
 4. Razorpay checkout opens → on success the webhook `/api/v1/payments/webhook` flips the order `RESERVED → CONFIRMED` and mints tickets
 5. `event_notifications` insert → realtime channel `notifications:{userId}` → bell updates without reload
 
+## Tracked-link flows (promoters)
+
+- **`/p/<slug>`** - event-promotion link. `route.ts` logs a deduped
+  `promoter_clicks` row, drops `oc_promo` cookie (30d), redirects to the event.
+  At checkout the cookie attributes the order (`orders.promoter_id`/`promoter_via`);
+  `trg_promoter_earning` mints an earning on CONFIRMED.
+- **`/r/<slug>`** - creator-referral link (`link_kind='ORGANIZER'`). Same pattern:
+  click logged, `outsiderr_ref` cookie (TTL = `promoter_org_attribution_days`),
+  redirects to `/list-your-event`. On creator-signup `createOrganizerAction`
+  calls `attribute_organizer_referral` → `organizers.referred_by_promoter_id`.
+  `trg_mark_org_referral` stamps the organizer's first N **paid** publishes with
+  `events.referral_promoter_id`; `trg_org_referral_earning` mints
+  `via='ORG_REFERRAL'` earnings = share_bps of platform commission (Outsiderr's
+  cost - never deducted from organizer payouts).
+- Both link kinds share `promoter_links` (nullable `event_id` + `link_kind` +
+  `expires_at`), `promoter_clicks`, `promoter_earnings`, `promoter_payouts`.
+
 ## Key invariants
 
 - **All money is paise** (integer) - never floats, never client-computed
 - **RLS everywhere** - user-facing reads go through RLS; anything sensitive goes through service-role + `SECURITY DEFINER` RPCs (keys/tokens/secrets never readable by anon/auth users)
 - **Invite links are secrets** - `invite_token` columns are column-level revoked; validated only via RPCs
-- **Uploads live in `event-media`** - scoped cleanup paths (`organizer-kyc/`, `*/profile/`)
+- **Uploads live in `event-media`** - user-scoped tree: `users/{uid}/` → `profile/avatar`, `organizer/avatar`, `organizer/kyc`, `organizer/events/{slug}`, `communities/uploads`

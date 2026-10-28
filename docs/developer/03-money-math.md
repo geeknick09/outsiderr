@@ -53,6 +53,10 @@ platform rev  = 10,000 + 2,000 = 12,000 = ₹120  (+ 2,460 covers the gateway fe
 | `postponement_charge_percent` | - | Charge on organizer postponements |
 | `promoter_payout_fee_bps` | 200 (2%) | Processing fee on promoter payouts |
 | `promoter_min_payout_paise` | 100000 (₹1,000) | Min promoter payout |
+| `promoter_org_share_bps` | 1000 (10%) | Referral share of platform commission on referred-organizer orders |
+| `promoter_org_event_limit` | 5 | Paid events per referred organizer that earn the promoter |
+| `promoter_org_link_ttl_days` | 30 | Creator-referral link lifetime |
+| `promoter_org_attribution_days` | 30 | Click-to-signup attribution window |
 | `promoter_commission_min/max_bps` | 500-3000 (5-30%) | Per-event promoter commission range |
 | `promo_discount_max_bps` | 1500 (15%) | Max buyer discount via promo code |
 | `promo_promoter_max_bps` | 1500 (15%) | Max promoter share via promo code |
@@ -78,6 +82,42 @@ promoter_commission = attributed_subtotal × event.promoter_commission_bps / 100
   - fee + gross both stored in `payout_snapshot` for audit
 - `promoter_min_payout_paise` (₹1,000) is the release threshold
 - Refunds reverse earnings via `reversed_paise` - net payable = `earnings − reversals − payouts_paid`
+
+## Creator referrals - the fourth money flow (Outsiderr's cost)
+
+Promoters can also **onboard organizers**, not just push ticket sales. This
+earning is paid **out of Outsiderr's commission** - it is never deducted from
+the organizer's payout.
+
+1. Promoter shares `/r/<slug>` → visitor lands on `/list-your-event` →
+   click logged in `promoter_clicks` + `outsiderr_ref` httpOnly cookie dropped
+   (TTL = `promoter_org_attribution_days`).
+2. Organizer completes creator onboarding → `createOrganizerAction` resolves the
+   cookie → `organizers.referred_by_promoter_id` stamped (self-referral blocked,
+   first-write wins, immutable).
+3. On each publish of a **paid** event, `trg_mark_org_referral` stamps
+   `events.referral_promoter_id` while `referral_events_count <
+   promoter_org_event_limit`. Free events never consume the window.
+4. Confirmed order on a stamped event → `trg_org_referral_earning` mints
+   `promoter_earnings` with `via='ORG_REFERRAL'`:
+
+```
+referral_earning = commission_paise × promoter_org_share_bps / 10000
+                 = (subtotal × commission_bps) × share_bps / 10000
+
+Example: ₹1,000 ticket at 5% commission → ₹50 commission → promoter gets ₹5
+```
+
+- `orders.promoter_id` stays NULL (no event-promotion attribution) - organizer
+  payout math is untouched.
+- Referral earnings join the normal promoter lifecycle: hold days, min payout,
+  2% processing fee, refund clawback (`trg_refund_reverse_promoter` loops all
+  earning rows on the order).
+- Anti-abuse: links expire (`expires_at`, TTL = `promoter_org_link_ttl_days`);
+  expired clicks are still counted but never attribute; admins can deactivate
+  links; one referral link per promoter at a time.
+- `/admin/promoters` maps promoter → onboarded organizers with window usage;
+  `/admin/money` shows the full in/out summary including referral cost.
 
 ## Refunds
 
