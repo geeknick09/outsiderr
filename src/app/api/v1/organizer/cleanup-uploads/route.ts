@@ -4,8 +4,8 @@ import { createClient, createServiceClient } from "@/modules/shared/server";
 import { STORAGE_BUCKET } from "@/modules/shared/auth/config";
 
 const MARKER = `/object/public/${STORAGE_BUCKET}/`;
-// Prefixes the onboarding wizard is allowed to clean up.
-const ALLOWED_PREFIXES = ["organizer/kyc/"];
+// Subtrees under a user's own folder that abandoned-upload cleanup may touch.
+const ALLOWED_SUBTREES = ["/profile/", "/organizer/kyc/", "/organizer/avatar/", "/organizer/events/", "/communities/"];
 
 function pathFromUrl(url: string): string | null {
   const i = url.indexOf(MARKER);
@@ -36,8 +36,10 @@ export async function POST(req: Request) {
   const paths = urls
     .map(pathFromUrl)
     .filter((p): p is string => !!p)
-    .filter((p) =>
-      ALLOWED_PREFIXES.some((pre) => p.startsWith(pre)) || p.includes("/profile/"),
+    .filter(
+      (p) =>
+        p.startsWith(`users/${user.id}/`) &&
+        ALLOWED_SUBTREES.some((sub) => p.includes(sub)),
     );
 
   if (paths.length) {

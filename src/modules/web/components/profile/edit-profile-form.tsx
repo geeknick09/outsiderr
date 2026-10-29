@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { Check, Upload } from "lucide-react";
 
 import { updateProfileAction } from "@/modules/shared/actions/profile";
@@ -62,6 +62,43 @@ export function EditProfileForm({
   const [birthDate, setBirthDate] = useState(initialBirthDate);
   const [birthDateError, setBirthDateError] = useState<string | null>(null);
 
+  // Abandoned-upload cleanup: every uploaded-but-unsaved photo is tracked and
+  // deleted from the bucket on unmount/close. On save, the kept url is marked
+  // saved and the REPLACED avatar is cleaned up too.
+  const orphansRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const cleanup = () => {
+      const urls = [...orphansRef.current];
+      if (urls.length) {
+        navigator.sendBeacon(
+          "/api/v1/organizer/cleanup-uploads",
+          new Blob([JSON.stringify({ urls })], { type: "application/json" }),
+        );
+        orphansRef.current.clear();
+      }
+    };
+    window.addEventListener("beforeunload", cleanup);
+    return () => {
+      window.removeEventListener("beforeunload", cleanup);
+      cleanup();
+    };
+  }, []);
+  useEffect(() => {
+    if (!state.success) return;
+    // The saved url is now referenced by the profile - stop tracking it, and
+    // drop the previously-saved avatar file it replaced.
+    orphansRef.current.delete(avatarUrl);
+    const replaced = initialAvatarUrl;
+    if (replaced && replaced !== avatarUrl) {
+      fetch("/api/v1/organizer/cleanup-uploads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urls: [replaced] }),
+      }).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.success]);
+
   // Track whether any field has changed from initial values
   const isDirty =
     fullName !== initialName ||
@@ -99,8 +136,11 @@ export function EditProfileForm({
     try {
       const compressed = await compressImage(file);
       const url = await uploadPublicFile(compressed, "profile/avatar");
-      if (url) setAvatarUrl(url);
-      else setUploadError("Upload failed. Please try again.");
+      if (url) {
+        setAvatarUrl(url);
+        // Track as an orphan candidate - deleted on unmount unless saved.
+        orphansRef.current.add(url);
+      } else setUploadError("Upload failed. Please try again.");
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed.");
     } finally {
@@ -119,6 +159,7 @@ export function EditProfileForm({
 
   return (
     <form action={formAction} className="space-y-6">
+      <fieldset disabled={pending} className="contents">
       {/* Personal details */}
       <section className="glass space-y-4 overflow-hidden rounded-3xl p-5">
         <h2 className="text-base font-bold">Personal details</h2>
@@ -379,6 +420,7 @@ export function EditProfileForm({
       <Button type="submit" size="lg" disabled={pending || !!birthDateError || !isDirty} className="w-full" loading={pending} loadingText="Saving…">
         Save profile
       </Button>
+      </fieldset>
     </form>
   );
 }
