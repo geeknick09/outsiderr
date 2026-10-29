@@ -77,8 +77,10 @@ export function EditProfileForm({
         orphansRef.current.clear();
       }
     };
+    window.addEventListener("pagehide", cleanup);
     window.addEventListener("beforeunload", cleanup);
     return () => {
+      window.removeEventListener("pagehide", cleanup);
       window.removeEventListener("beforeunload", cleanup);
       cleanup();
     };

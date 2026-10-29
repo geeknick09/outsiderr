@@ -13,8 +13,11 @@ export async function uploadPublicFile(
 ): Promise<string | null> {
   const supabase = createClient();
   // Every upload lives under the owner's user dir: users/{uid}/{scope}/...
-  const { data: { user } } = await supabase.auth.getUser();
-  const owner = user?.id ?? "anonymous";
+  // getSession() reads the cached local session - getUser() is a network call
+  // that can return null on a live session and produced "anonymous" folders.
+  const { data: { session } } = await supabase.auth.getSession();
+  const owner = session?.user?.id;
+  if (!owner) throw new Error("Sign in to upload files.");
   const extension = file.name.split(".").pop() ?? "bin";
   const path = `users/${owner}/${folder}/${crypto.randomUUID()}.${extension}`;
 
