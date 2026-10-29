@@ -1,6 +1,4 @@
-import Link from "next/link";
-
-import { cn, formatPaise } from "@/modules/shared";
+import { formatPaise, TabLink } from "@/modules/shared";
 import { createServiceClient } from "@/modules/shared/server";
 import AdminRevenuePage from "../revenue/content";
 import AdminPaymentsPage from "../payments/content";
@@ -76,18 +74,9 @@ export default async function AdminMoneyPage({
       </div>
       <div className="mb-4 mt-4 flex flex-wrap gap-2 px-1">
         {TABS.map((t) => (
-          <Link
-            key={t.key}
-            href={`/admin/money?tab=${t.key}`}
-            className={cn(
-              "rounded-full px-4 py-1.5 text-xs font-bold transition-colors",
-              active === t.key
-                ? "bg-violet-neon text-white"
-                : "border border-zinc-200 text-muted hover:border-violet-neon/50 dark:border-white/10",
-            )}
-          >
+          <TabLink key={t.key} href={`/admin/money?tab=${t.key}`} active={active === t.key}>
             {t.label}
-          </Link>
+          </TabLink>
         ))}
       </div>
 

@@ -1,6 +1,4 @@
-import Link from "next/link";
-
-import { cn } from "@/modules/shared";
+import { TabLink } from "@/modules/shared";
 import AdminBoxOfficeContent from "./content";
 import AdminBoxOfficeStaffContent from "../box-office-staff/content";
 import AdminBoxOfficePinsContent from "../box-office-pins/content";
@@ -28,18 +26,9 @@ export default async function AdminBoxOfficePage({
     <div>
       <div className="mb-4 flex flex-wrap gap-2 px-1 pt-4">
         {TABS.map((t) => (
-          <Link
-            key={t.key}
-            href={`/admin/box-office?tab=${t.key}`}
-            className={cn(
-              "rounded-full px-4 py-1.5 text-xs font-bold transition-colors",
-              active === t.key
-                ? "bg-violet-neon text-white"
-                : "border border-zinc-200 text-muted hover:border-violet-neon/50 dark:border-white/10",
-            )}
-          >
+          <TabLink key={t.key} href={`/admin/box-office?tab=${t.key}`} active={active === t.key}>
             {t.label}
-          </Link>
+          </TabLink>
         ))}
       </div>
       {active === "orders" ? <AdminBoxOfficeContent /> : null}

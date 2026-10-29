@@ -1,5 +1,6 @@
 import { listKycSubmissions, listKycCounts } from "@/modules/admin/server";
 import { getCurrentUser } from "@/modules/shared/server";
+import { TabLink } from "@/modules/shared";
 import { KycReviewTable } from "@/modules/admin";
 import { AdminKycRealtimeRefresher } from "@/modules/admin";
 
@@ -41,17 +42,13 @@ export default async function AdminKycPage({
       {/* Filter tabs */}
       <div className="flex flex-wrap gap-2">
         {filters.map((f) => (
-          <a
+          <TabLink
             key={f.value}
             href={`/admin/kyc?status=${f.value}`}
-            className={`rounded-full px-4 py-1.5 text-xs font-bold ${
-              (status ?? "PENDING") === f.value
-                ? "bg-violet-neon text-white"
-                : "border border-zinc-200 text-muted hover:border-violet-neon/50 dark:border-white/10"
-            }`}
+            active={(status ?? "PENDING") === f.value}
           >
             {f.label} ({counts[f.value] ?? 0})
-          </a>
+          </TabLink>
         ))}
       </div>
 

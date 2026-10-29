@@ -1,4 +1,4 @@
-import { Badge } from "@/modules/shared";
+import { Badge, TabLink } from "@/modules/shared";
 import { listAllAdminOrders } from "@/modules/admin/server";
 import { formatDateTime, formatPaise } from "@/modules/shared";
 import type { OrderStatus } from "@/modules/shared";
@@ -86,17 +86,14 @@ export default async function AdminTransactionsPage({
       {/* Filter tabs */}
       <div className="flex flex-wrap gap-2">
         {FILTER_TABS.map((tab) => (
-          <a
+          <TabLink
             key={tab.key}
             href={`/admin/orders?status=${tab.key}`}
-            className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition-colors ${
-              (status ?? "all") === tab.key
-                ? "border-violet-neon bg-violet-neon/10 text-violet-neon"
-                : "border-zinc-200 text-muted hover:border-violet-neon/50 dark:border-white/10"
-            }`}
+            active={(status ?? "all") === tab.key}
+            className={(status ?? "all") === tab.key ? "border-violet-neon bg-violet-neon/10 text-violet-neon" : "border"}
           >
             {tab.label}
-          </a>
+          </TabLink>
         ))}
       </div>
 

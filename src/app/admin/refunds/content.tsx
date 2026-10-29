@@ -1,6 +1,4 @@
-import Link from "next/link";
-
-import { Badge } from "@/modules/shared";
+import { Badge, TabLink } from "@/modules/shared";
 import { formatDateTime, formatPaise } from "@/modules/shared";
 import { createServiceClient } from "@/modules/shared/server";
 import { RefundRowActions, ProcessRefundsButton } from "@/modules/admin";
@@ -84,17 +82,14 @@ export default async function AdminRefundsPage({
 
       <nav className="flex flex-wrap gap-2">
         {FILTER_TABS.map((t) => (
-          <Link
+          <TabLink
             key={t.key}
             href={t.key === "queue" ? "/admin/money?tab=refunds" : `/admin/money?tab=refunds&status=${t.key}`}
-            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-              filter === t.key
-                ? "bg-violet-neon text-white"
-                : "bg-zinc-100 text-muted hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10"
-            }`}
+            active={filter === t.key}
+            className="bg-zinc-100 px-3 text-muted hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10"
           >
             {t.label}
-          </Link>
+          </TabLink>
         ))}
       </nav>
 
