@@ -431,37 +431,41 @@ export function EditOrganizerProfile({
                 <input type="hidden" name="bankDocumentUrl" value={bankDocumentUrl} />
               </div>
             </div>
+
+            <label className="block space-y-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+                UPI ID <span className="text-red-500">*</span>
+              </span>
+              <input
+                name="upiId"
+                required
+                value={upiId}
+                onChange={(e) => setUpiId(e.target.value)}
+                placeholder="basement@upi"
+                className={`${INPUT} ${!upiId ? "border-amber-500/50" : ""} ${upiId && !upiValid ? "border-red-500" : ""}`}
+              />
+              {upiId && !upiValid ? (
+                <p className="text-xs text-red-500">
+                  Invalid UPI ID format. Expected format: name@bank (e.g. basement@upi)
+                </p>
+              ) : null}
+              {!upiId ? (
+                <p className="text-xs text-amber-500">UPI ID is required.</p>
+              ) : null}
+            </label>
+
+            {/* UPI QR preview */}
+            {qrValue ? (
+              <div className="flex flex-col items-center gap-2 rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  UPI QR preview
+                </span>
+                <QrCode value={qrValue} size={140} className="rounded-xl bg-white p-2" />
+                <p className="text-[10px] text-muted">Scan to verify your UPI ID is correct</p>
+              </div>
+            ) : null}
           </div>
 
-          <label className="block space-y-1.5">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-              UPI ID *
-            </span>
-            <input
-              name="upiId"
-              required
-              value={upiId}
-              onChange={(e) => setUpiId(e.target.value)}
-              placeholder="basement@upi"
-              className={`${INPUT} ${upiId && !upiValid ? "border-red-500" : ""}`}
-            />
-            {upiId && !upiValid ? (
-              <p className="text-xs text-red-500">
-                Invalid UPI ID format. Expected format: name@bank (e.g. basement@upi)
-              </p>
-            ) : null}
-          </label>
-
-          {/* UPI QR preview */}
-          {qrValue ? (
-            <div className="flex flex-col items-center gap-2 rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
-              <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-                UPI QR preview
-              </span>
-              <QrCode value={qrValue} size={140} className="rounded-xl bg-white p-2" />
-              <p className="text-[10px] text-muted">Scan to verify your UPI ID is correct</p>
-            </div>
-          ) : null}
 
           {state.error ? <p className="text-sm text-red-500">{state.error}</p> : null}
           {state.notice ? (
@@ -473,7 +477,7 @@ export function EditOrganizerProfile({
           <div className="flex gap-2">
             <Button
               type="submit"
-              disabled={pending || uploading || uploadingPan || uploadingBank || (!!upiId && !upiValid) || !kycValid}
+              disabled={pending || uploading || uploadingPan || uploadingBank || !upiId || !upiValid || !kycValid}
               loading={pending}
               loadingText="Saving…"
               className="flex-1"
