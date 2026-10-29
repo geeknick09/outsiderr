@@ -45,6 +45,7 @@ export function EditOrganizerProfile({
   const [uploadingBank, setUploadingBank] = useState(false);
   const [panDocError, setPanDocError] = useState<string | null>(null);
   const [bankDocError, setBankDocError] = useState<string | null>(null);
+  const [dirty, setDirty] = useState(false);
 
   const MAX_DOC_MB = 1;
 
@@ -62,6 +63,7 @@ export function EditOrganizerProfile({
       const url = await uploadPublicFile(file, `organizer/kyc/${kind}`);
       if (kind === "pan") setPanDocumentUrl(url ?? "");
       else setBankDocumentUrl(url ?? "");
+      if (url) setDirty(true);
     } catch (err) {
       setErr(err instanceof Error ? err.message : "Upload failed.");
     } finally {
@@ -112,7 +114,10 @@ export function EditOrganizerProfile({
     try {
       const compressed = await compressImage(file);
       const url = await uploadPublicFile(compressed, "organizer/avatar");
-      if (url) setAvatarUrl(url);
+      if (url) {
+        setAvatarUrl(url);
+        setDirty(true);
+      }
       else setUploadError("Upload failed. Paste an image URL instead.");
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed.");
@@ -134,7 +139,7 @@ export function EditOrganizerProfile({
           </button>
         </div>
 
-        <form action={formAction} className="space-y-4">
+        <form action={formAction} className="space-y-4" onChange={() => setDirty(true)}>
           {/* Avatar */}
           <div className="space-y-1.5">
             <span className="text-xs font-semibold uppercase tracking-wide text-muted">
@@ -473,7 +478,7 @@ export function EditOrganizerProfile({
           <div className="flex gap-2">
             <Button
               type="submit"
-              disabled={pending || uploading || uploadingPan || uploadingBank || (!!upiId && !upiValid) || !kycValid}
+              disabled={pending || uploading || uploadingPan || uploadingBank || (!!upiId && !upiValid) || !kycValid || !dirty}
               loading={pending}
               loadingText="Saving…"
               className="flex-1"
