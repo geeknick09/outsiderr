@@ -80,7 +80,7 @@ export function EditOrganizerProfile({
   const acctValid = !bankAccountNumber || ACCT_RE.test(bankAccountNumber);
   // Doc requirements: PAN filled → card photo mandatory; any bank field → proof doc mandatory.
   const panDocRequired = !!panNumber && !panDocumentUrl;
-  const bankFilled = !!(bankAccountNumber || bankIfsc || bankAccountName);
+  const bankFilled = !!(bankAccountNumber || bankIfsc);
   const bankDocRequired = bankFilled && !bankDocumentUrl;
   const kycValid = panValid && gstValid && ifscValid && acctValid && !panDocRequired && !bankDocRequired;
 
