@@ -78,7 +78,11 @@ export function EditOrganizerProfile({
   const gstValid = !gstNumber || GST_RE.test(gstNumber);
   const ifscValid = !bankIfsc || IFSC_RE.test(bankIfsc);
   const acctValid = !bankAccountNumber || ACCT_RE.test(bankAccountNumber);
-  const kycValid = panValid && gstValid && ifscValid && acctValid;
+  // Doc requirements: PAN filled → card photo mandatory; any bank field → proof doc mandatory.
+  const panDocRequired = !!panNumber && !panDocumentUrl;
+  const bankFilled = !!(bankAccountNumber || bankIfsc || bankAccountName);
+  const bankDocRequired = bankFilled && !bankDocumentUrl;
+  const kycValid = panValid && gstValid && ifscValid && acctValid && !panDocRequired && !bankDocRequired;
 
   const upiValid = upiId ? validateUpiId(upiId) : true;
   const qrValue = upiValid && upiId
@@ -205,6 +209,20 @@ export function EditOrganizerProfile({
 
           <label className="block space-y-1.5">
             <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+              Intent <span className="normal-case text-zinc-400">(what kind of events you&apos;ll host)</span>
+            </span>
+            <textarea
+              name="organizerIntent"
+              rows={2}
+              maxLength={300}
+              defaultValue={organizer.organizerIntent ?? ""}
+              placeholder="e.g. Underground cyphers, skate jams, intimate gigs"
+              className={INPUT}
+            />
+          </label>
+
+          <label className="block space-y-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted">
               Instagram URL (optional)
             </span>
             <input
@@ -274,17 +292,6 @@ export function EditOrganizerProfile({
               Changes to these fields are re-verified by our team before they take
               effect - your verified details stay active meanwhile.
             </p>
-            <label className="block space-y-1">
-              <span className="text-xs text-muted">Intent <span className="normal-case">(what kind of events you&apos;ll host)</span></span>
-              <textarea
-                name="organizerIntent"
-                rows={2}
-                maxLength={300}
-                defaultValue={organizer.organizerIntent ?? ""}
-                placeholder="e.g. Underground cyphers, skate jams, intimate gigs"
-                className={INPUT}
-              />
-            </label>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block space-y-1">
                 <span className="text-xs text-muted">PAN number</span>
@@ -394,6 +401,9 @@ export function EditOrganizerProfile({
                     error={panDocError}
                     onFile={(f) => handleDocUpload(f, "pan")}
                   />
+                  {panDocRequired ? (
+                    <p className="text-xs text-red-500">PAN card photo is required when a PAN number is entered.</p>
+                  ) : null}
                 </div>
                 <input type="hidden" name="panDocumentUrl" value={panDocumentUrl} />
               </div>
@@ -414,6 +424,9 @@ export function EditOrganizerProfile({
                     error={bankDocError}
                     onFile={(f) => handleDocUpload(f, "bank")}
                   />
+                  {bankDocRequired ? (
+                    <p className="text-xs text-red-500">Bank proof document is required when bank details are entered.</p>
+                  ) : null}
                 </div>
                 <input type="hidden" name="bankDocumentUrl" value={bankDocumentUrl} />
               </div>
