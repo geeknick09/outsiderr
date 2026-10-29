@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/modules/shared/server";
 import { createServiceClient } from "@/modules/shared/server";
-import { createOrganizerProfile, updateOrganizerProfile, notifyAdmins, addKycMessage } from "@/modules/shared/server";
+import { createOrganizerProfile, updateOrganizerProfile } from "@/modules/shared/server";
 
 export interface CreateOrganizerState {
   error: string | null;
@@ -116,13 +116,7 @@ export async function createOrganizerAction(
     bankAccountName &&
     gstNumber
   );
-  if (reviewReady) {
-    await notifyAdmins({
-      type: "KYC_SUBMITTED",
-      message: `New organizer application: ${name}. KYC pending review.`,
-    });
-    await addKycMessage(organizerId, "organizer", user.email ?? null, "Application submitted for review.");
-  }
+  void reviewReady;
 
   // Revalidate the organizer page so the route refreshes and shows the
   // verification banner instead of leaving the user on the submission form.
@@ -165,7 +159,6 @@ export async function updateOrganizerAction(
   const kycResponseDocumentUrl = String(formData.get("kycResponseDocumentUrl") ?? "").trim() || undefined;
 
   if (!name) return { error: "Enter your organizer name." };
-  if (!upiId) return { error: "Enter a UPI ID so attendees can pay you." };
 
   // Validate PAN format if provided
   if (panNumber && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(panNumber)) {

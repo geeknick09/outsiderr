@@ -48,7 +48,7 @@ Cross-reference `docs/reference/test-scenarios.md` for deep scenario detail per 
 - [ ] When PAN filled: card photo required before Continue; bank step needs acct+IFSC+name+proof OR skip
 - [ ] Abandon onboarding mid-upload → uploaded media is cleaned up
 - [ ] Submit bare application → dashboard opens, NO admin KYC notification
-- [ ] Fill PAN+bank+GST later via Edit profile → goes to admin review (PENDING)
+- [ ] Fill PAN+bank+GST later via Edit profile → saves directly, auto-verified (no admin review for now)
 - [ ] Dashboard shows “Add your bank account” notice until bank details exist; clicking it opens Edit profile
 - [ ] “Become a Creator” menu item flips to “Creator Dashboard” for creator accounts
 

@@ -6,7 +6,7 @@ import type { CurrentUser } from "../auth/auth";
 import type { Database } from "../db/database.types";
 import type { Organizer } from "../lib/types";
 import { getSettingInt } from "./platform-settings";
-import { getOrganizerAccessState, computePendingKyc } from "../lib/organizer-eligibility";
+import { getOrganizerAccessState } from "../lib/organizer-eligibility";
 
 export async function getOrganizerProfile(
   user: CurrentUser,
@@ -140,7 +140,7 @@ export async function createOrganizerProfile(
       bank_account_type: input.bankAccountType || null,
       bank_document_url: input.bankDocumentUrl || null,
       kyc_submitted: reviewReady(input),
-      kyc_status: reviewReady(input) ? "PENDING" : "NOT_SUBMITTED",
+      kyc_status: reviewReady(input) ? "APPROVED" : "NOT_SUBMITTED",
       // Fresh application clears the previous response fields (rejection_count
       // is preserved - it feeds the block limit).
       kyc_response_note: null,
@@ -188,7 +188,7 @@ export async function createOrganizerProfile(
     bank_document_url: input.bankDocumentUrl || null,
     rejection_count: 0,
     kyc_submitted: reviewReady(input),
-    kyc_status: reviewReady(input) ? "PENDING" : "NOT_SUBMITTED",
+    kyc_status: reviewReady(input) ? "APPROVED" : "NOT_SUBMITTED",
   } satisfies Record<string, string | boolean | number | null>;
 
   const { data, error } = await supabase
@@ -262,8 +262,6 @@ export async function updateOrganizerProfile(
   if (!organizer) throw new Error("No organizer profile found.");
 
   const supabase = await createClient();
-  const approved = organizer.kycStatus === "APPROVED";
-
   // Partial update - only fields present in the input are written, so a PATCH
   // that omits name/upiId can't wipe them.
   const update: Database["public"]["Tables"]["organizers"]["Update"] = {};
@@ -296,21 +294,13 @@ export async function updateOrganizerProfile(
     ["bankDocumentUrl", "bank_document_url", organizer.bankDocumentUrl ?? null],
   ];
 
-  let nextPending: Record<string, string | null> = { ...(organizer.pendingKyc ?? {}) };
-  if (approved) {
-    // Stage real changes only; values reverted to the verified one leave pending.
-    const values: Record<string, { value: string | null | undefined; current: string | null }> = {};
-    for (const [field, column, current] of sensitive) {
-      values[column] = { value: input[field] as string | null | undefined, current };
-    }
-    nextPending = computePendingKyc({ existing: organizer.pendingKyc, values });
-    update.pending_kyc = Object.keys(nextPending).length ? nextPending : null;
-  } else {
-    for (const [field, column] of sensitive) {
-      const raw = input[field] as string | null | undefined;
-      if (raw === undefined) continue;
-      (update as Record<string, unknown>)[column] = raw || null;
-    }
+  // KYC verification is automated for now - all fields write directly, no
+  // pending_kyc staging and no admin queue. Re-enable staging if manual
+  // re-verification is needed later.
+  for (const [field, column] of sensitive) {
+    const raw = input[field] as string | null | undefined;
+    if (raw === undefined) continue;
+    (update as Record<string, unknown>)[column] = raw || null;
   }
 
   const { error } = await supabase
@@ -320,70 +310,13 @@ export async function updateOrganizerProfile(
 
   if (error) throw error;
 
-  const pendingKycRequested = approved && Object.keys(nextPending).length > 0;
+  const pendingKycRequested = false;
 
-  // Notify when the pending change-set actually changed - a plain profile
-  // edit that doesn't touch sensitive fields must not spam the admin queue.
-  if (
-    pendingKycRequested &&
-    JSON.stringify(nextPending) !== JSON.stringify(organizer.pendingKyc ?? {})
-  ) {
-    const { notifyAdmins, addKycMessage, sendNotification } = await import("../notifications");
-    await notifyAdmins({
-      type: "KYC_CHANGE_REQUESTED",
-      message: `Organizer "${organizer.name}" submitted KYC/payout changes - pending re-verification.`,
-    });
-    await sendNotification({
-      userId: organizer.ownerId,
-      type: "KYC_CHANGE_REQUESTED",
-      message: "Your KYC/payout changes were received and are under review - your verified details stay live meanwhile.",
-      channels: ["in-app", "email"],
-    });
-    await addKycMessage(
-      organizer.id,
-      "organizer",
-      user.email ?? null,
-      "Submitted KYC/payout changes for admin re-verification.",
-    );
-  }
-
-  // If KYC data was provided, transition status via the RPC - kyc_status is
-  // a privileged column that only flips to PENDING through submit_kyc.
-  // Approved organizers stage changes instead of re-entering the queue.
-  if (!approved && reviewReady(input)) {
-    // A blocked (max-rejected) organizer must not re-enter the review queue.
-    // The RPC enforces this at DB level too - this guard gives a clean error.
-    if (organizer.kycStatus === "REJECTED") {
-      const accessState = getOrganizerAccessState({
-        kycStatus: organizer.kycStatus,
-        rejectionCount: organizer.rejectionCount,
-        rejectionLimit: await getSettingInt("organizer_rejection_limit"),
-      });
-      if (accessState.blocked) {
-        throw new Error("Your organizer application was rejected the maximum number of times. Please contact Outsiderr support.");
-      }
-    }
-
-    const { error: kycError } = await supabase.rpc("submit_kyc", {
-      p_organizer_id: organizer.id,
-    });
-    if (kycError) {
-      console.error("submit_kyc RPC failed:", kycError);
-    } else {
-      // (Re)submission → admins need to review again
-      const { notifyAdmins, addKycMessage } = await import("../notifications");
-      await notifyAdmins({
-        type: "KYC_SUBMITTED",
-        message: `Organizer "${organizer.name}" (re)submitted KYC details - pending review.`,
-      });
-      const note = input.kycResponseNote?.trim();
-      await addKycMessage(
-        organizer.id,
-        "organizer",
-        user.email ?? null,
-        note ? `Resubmitted with a response: ${note}` : "Updated KYC details and resubmitted.",
-      );
-    }
+  // Full KYC details present → auto-approve (kyc_status is privileged, so
+  // use the service client; the user-scoped update above can't touch it).
+  if (reviewReady(input) && organizer.kycStatus !== "APPROVED") {
+    const service = createServiceClient();
+    await service.from("organizers").update({ kyc_status: "APPROVED" }).eq("id", organizer.id);
   }
 
   return { pendingKycRequested };
