@@ -112,6 +112,8 @@ Cross-reference `docs/reference/test-scenarios.md` for deep scenario detail per 
 - [ ] Event card → detail page; poster, price, venue, date all correct
 - [ ] Organizer public page `/organizers/[id]` - bio, events, follow button
 - [ ] Community page: Join works → member appears; auto-subscribed to that community’s events
+- [ ] Profile → Communities section shows the joined community; Following section lists followed organizers
+- [ ] Member public profile `/members/[id]` renders - click a member from the community Members list
 - [ ] Member removal + re-join behavior
 - [ ] Free event: book → ticket issued instantly
 - [ ] Paid event: Razorpay checkout success → confirmed order + ticket + notification
