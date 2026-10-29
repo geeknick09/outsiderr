@@ -158,6 +158,11 @@ export function EventForm({
   const [promoterMode, setPromoterMode] = useState<string>((draftEvent?.promoterMode as string | undefined) ?? "NONE");
   const [staffRows, setStaffRows] = useState<{ name: string; phone: string; email: string }[]>([]);
   const [uploadsInFlight, setUploadsInFlight] = useState(0);
+
+  // Step change lands the user mid-page otherwise - always reset to top.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+  }, [step]);
   const bumpUpload = (delta: number) => setUploadsInFlight((n) => Math.max(0, n + delta));
   const [communityId, setCommunityId] = useState(draftEvent?.communityId ?? "");
   const [visibility, setVisibility] = useState<"OPEN" | "MEMBERS_ONLY" | "INVITE_ONLY">(
