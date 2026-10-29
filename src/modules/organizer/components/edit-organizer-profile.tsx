@@ -434,23 +434,19 @@ export function EditOrganizerProfile({
 
             <label className="block space-y-1.5">
               <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-                UPI ID <span className="text-red-500">*</span>
+                UPI ID <span className="normal-case text-zinc-400">(optional)</span>
               </span>
               <input
                 name="upiId"
-                required
                 value={upiId}
                 onChange={(e) => setUpiId(e.target.value)}
                 placeholder="basement@upi"
-                className={`${INPUT} ${!upiId ? "border-amber-500/50" : ""} ${upiId && !upiValid ? "border-red-500" : ""}`}
+                className={`${INPUT} ${upiId && !upiValid ? "border-red-500" : ""}`}
               />
               {upiId && !upiValid ? (
                 <p className="text-xs text-red-500">
                   Invalid UPI ID format. Expected format: name@bank (e.g. basement@upi)
                 </p>
-              ) : null}
-              {!upiId ? (
-                <p className="text-xs text-amber-500">UPI ID is required.</p>
               ) : null}
             </label>
 
@@ -477,7 +473,7 @@ export function EditOrganizerProfile({
           <div className="flex gap-2">
             <Button
               type="submit"
-              disabled={pending || uploading || uploadingPan || uploadingBank || !upiId || !upiValid || !kycValid}
+              disabled={pending || uploading || uploadingPan || uploadingBank || (!!upiId && !upiValid) || !kycValid}
               loading={pending}
               loadingText="Saving…"
               className="flex-1"
