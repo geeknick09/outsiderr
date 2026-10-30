@@ -1,8 +1,7 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { Suspense, useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { MapPin, Plus, Trash2, Upload, X } from "lucide-react";
+import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Plus, Trash2, Upload, X } from "lucide-react";
 
 import { createEventAction, type CreateEventState } from "../actions/events";
 import { Button } from "@/modules/shared";
@@ -18,11 +17,6 @@ import { isGoogleMapsLink } from "@/modules/shared";
 import { cn } from "@/modules/shared";
 import type { EventDetail } from "@/modules/shared";
 
-// Lazy load MapPicker with ssr: false - Leaflet requires `window`
-const MapPicker = dynamic(
-  () => import("./map-picker").then((m) => m.MapPicker),
-  { ssr: false },
-);
 
 const OPTION = "bg-white text-zinc-900";
 const INPUT =
@@ -240,9 +234,6 @@ export function EventForm({
   const [mapsLink, setMapsLink] = useState(sv?.googleMapsLink ?? "");
   const [mapsError, setMapsError] = useState<string | null>(null);
   const [instagramUrl, setInstagramUrl] = useState(sv?.instagramUrl ?? "");
-  const [showMapPicker, setShowMapPicker] = useState(false);
-  const [lat, setLat] = useState(sv?.latitude ?? "");
-  const [lng, setLng] = useState(sv?.longitude ?? "");
 
   function validateDates(start: string, end: string) {
     // Treat naive datetime-local values as IST (UTC+05:30)
@@ -669,44 +660,10 @@ export function EventForm({
             )}
           </Field>
 
-          {/* Hidden inputs for lat/lng - populated by the map picker */}
-          <input type="hidden" name="latitude" value={lat} />
-          <input type="hidden" name="longitude" value={lng} />
-
-          {/* Optional map picker - collapsible */}
-          <div className="space-y-2">
-            <button
-              type="button"
-              onClick={() => setShowMapPicker((v) => !v)}
-              className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted hover:text-violet-neon"
-            >
-              <MapPin className="h-4 w-4" />
-              {showMapPicker ? "Hide map picker" : "Choose location on map (optional)"}
-            </button>
-            {showMapPicker ? (
-              <div className="space-y-1.5">
-                <p className="text-xs text-muted">
-                  Use this if you don&apos;t have a Google Maps link. Click the map or drag the marker to set the exact location.
-                </p>
-                <Suspense
-                  fallback={
-                    <div className="flex h-64 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100 dark:border-white/10 dark:bg-white/5">
-                      <p className="text-xs text-muted">Loading map…</p>
-                    </div>
-                  }
-                >
-                  <MapPicker
-                    initialLat={lat || sv?.latitude}
-                    initialLng={lng || sv?.longitude}
-                    onLocationChange={(newLat, newLng) => {
-                      setLat(String(newLat));
-                      setLng(String(newLng));
-                    }}
-                  />
-                </Suspense>
-              </div>
-            ) : null}
-          </div>
+          {/* Hidden inputs for lat/lng - preserved on edit; venues are located
+              via the Google Maps link, no in-app map picker */}
+          <input type="hidden" name="latitude" value={sv?.latitude ?? ""} />
+          <input type="hidden" name="longitude" value={sv?.longitude ?? ""} />
         </>
       )}
 
