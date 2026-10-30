@@ -58,47 +58,50 @@ Cross-reference `docs/reference/test-scenarios.md` for deep scenario detail per 
 
 ## Day 2 - Content: events in every city, communities, collaborators
 
-**Focus: build the content that Days 3-6 will test against.**
+**Focus: build the content that Days 3-6 will test against. Run sections in order - communities must exist before members-only/attach/recurring checks.**
 
-**Events (Creator A - spread across cities on purpose)**
+### 2A - Events (Creator A - spread across cities; no community needed)
 
 - [ ] Create a PAID event in City 1 (Mumbai): title/dates/venue (TBA + real)/tiers/phased pricing/categories/multi-category/tags/photos
 - [ ] Create a FREE event in City 2 (Delhi)
 - [ ] Create a second PAID event in City 3 (Bengaluru) - needed for the referral window test
-- [ ] Create a DRAFT event (unpublished) - confirm it’s invisible to the public
-- [ ] Save draft → publish later via Publish button AND via edit → publish
+- [ ] Create a DRAFT event (unpublished) - confirm it's invisible to the public
+- [ ] Save draft -> publish later via Publish button AND via edit -> publish
 - [ ] Edit event: every section saves independently; banner/poster/teaser upload
-- [ ] Visibility: Open / Members-only / Invite-only - invite link works, broken link rejected
-- [ ] Recurring (weekly) community event creates repeats; linked past events work
-- [ ] Waitlist toggle + “update me” subscription + max tickets per user
+- [ ] Waitlist toggle + "update me" subscription + max tickets per user
 - [ ] Things-to-know bullets, contact info, terms acceptance on publish
 - [ ] Cancel/postpone buttons notify ticket holders (verify on one event)
 
-**Communities (Creator A + one for Creator B)**
+### 2B - Communities (Creator A + one for Creator B)
 
 - [ ] Create community: name, category, **multiple subcategories**, prefilled terms (edit them), socials
 - [ ] Community page: cover (16:9 + 3:4 mobile), avatar not clipped, Join button (NO Follow button)
-- [ ] Attach a published event to a community, change community, detach to public - all three paths
-- [ ] Member count toggle → public page shows/hides “N members”
-- [ ] Join questions (private community) - request → approve → member list
-- [ ] **Invite-only community**: invite link joins directly
-- [ ] CSV member import: upload, invalid-row surfacing, members appear (admin approval is Day 5)
 - [ ] Community cap: creating community #11 fails (or your admin-set cap+1)
 
-**Collaborators (Creator A + B)**
+### 2C - Community-dependent event features (needs 2A events + 2B communities)
+
+- [ ] Attach a published event to a community, change community, detach to public - all three paths
+- [ ] Visibility: Open / **Members-only** (community exists now) / **Invite-only** - invite link works, broken link rejected
+- [ ] Recurring (weekly) community event creates repeats; linked past events work
+- [ ] Member count toggle -> public page shows/hides "N members"
+- [ ] Join questions (private community) - request -> approve -> member list
+- [ ] **Invite-only community**: invite link joins directly
+- [ ] CSV member import: upload, invalid-row surfacing, members appear (admin approval is Day 5)
+
+### 2D - Collaborators & staff (Creator A + B)
 
 - [ ] Creator A invites Creator B as collaborator on an event
-- [ ] Creator B sees invite (notification + `/organizer` panel), accepts → gets access
+- [ ] Creator B sees invite (notification + `/organizer` panel), accepts -> gets access
 - [ ] Creator B (LIMITED): sees ops analytics, CANNOT see money, CANNOT edit community attach, CANNOT cancel
-- [ ] Declined invite → no access; removed collaborator → access gone
+- [ ] Declined invite -> no access; removed collaborator -> access gone
 - [ ] Staff members: add door staff + box office staff (name+phone or email), they can sign in
 - [ ] Box office PIN + scanner PIN generation + revoke
-- [ ] Door-staff paid order: request N staff → service fee recorded
+- [ ] Door-staff paid order: request N staff -> service fee recorded
 - [ ] Guestlist link creation + guest claims free ticket
 
 **Exit criteria:** paid + free + draft events exist across 2-3 cities; communities exist with members; collaborator access verified.
 
- *
+
 
 ## Day 3 - Discovery as a user: browse, filter, join, book
 
