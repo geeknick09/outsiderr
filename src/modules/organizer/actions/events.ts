@@ -592,12 +592,8 @@ export async function createEventAction(
   revalidateTag("events", "expire");
   revalidatePath("/organizer");
   revalidatePath("/organizer", "layout");
-  // Drafts redirect to the organizer events list; published events go to the event page
-  if (isDraft) {
-    redirect(`/organizer`);
-  } else {
-    redirect(`/organizer/events/${eventId}`);
-  }
+  // Both publish + draft land on the creator dashboard.
+  redirect(`/organizer`);
 }
 
 // ---------------------------------------------------------------------------
