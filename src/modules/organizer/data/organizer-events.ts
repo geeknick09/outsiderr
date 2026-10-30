@@ -493,7 +493,11 @@ export async function updateEvent(
   const isCollabFull = accessLevel === "FULL";
   if (!isOwner && !isCollabFull) throw new Error("Not authorised to edit this event.");
 
-  const supabase = isCollabFull ? createServiceClient() : await createClient();
+  // Service client for the update: several writable-by-design columns
+  // (community_id, visibility, promoter_*) are outside the authenticated
+  // column grant, so a user-scoped update throws "permission denied for
+  // table events". Access is verified above via getEventAccessLevel.
+  const supabase = createServiceClient();
 
   // Fetch current event to detect changes for notifications
   const { data: currentEvent } = await supabase
