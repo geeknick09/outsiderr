@@ -763,7 +763,7 @@ export async function updateEventAction(
   revalidateTag("events", "expire");
   revalidatePath("/organizer");
   revalidatePath(`/events/${eventId}`);
-  redirect(`/organizer/events/${eventId}`);
+  redirect(isDraftSave ? "/organizer" : `/organizer/events/${eventId}`);
 }
 
 // ---------------------------------------------------------------------------
