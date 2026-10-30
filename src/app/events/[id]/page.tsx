@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { BadgeCheck, CalendarDays, Globe, Info, Link2, Mail, MapPin, MessageCircle, Phone, Play, Star, UserPlus } from "lucide-react";
-import { InstagramIcon } from "@/modules/shared";
+import { FacebookIcon, InstagramIcon, LinkedInIcon, XIcon, YouTubeIcon } from "@/modules/shared";
 import { EventRealtimeWrapper } from "@/modules/web";
 
 import { EventReviews } from "@/modules/web";
@@ -550,7 +550,7 @@ export default async function EventDetailsPage({
                       className="text-muted hover:text-violet-neon"
                       aria-label="YouTube"
                     >
-                      <Play className="h-5 w-5" />
+                      <YouTubeIcon className="h-5 w-5" />
                     </a>
                   ) : null}
                   {event.xUrl ? (
@@ -561,7 +561,7 @@ export default async function EventDetailsPage({
                       className="text-muted hover:text-violet-neon"
                       aria-label="X"
                     >
-                      <MessageCircle className="h-5 w-5" />
+                      <XIcon className="h-5 w-5" />
                     </a>
                   ) : null}
                   {event.facebookUrl ? (
@@ -572,7 +572,7 @@ export default async function EventDetailsPage({
                       className="text-muted hover:text-violet-neon"
                       aria-label="Facebook"
                     >
-                      <Globe className="h-5 w-5" />
+                      <FacebookIcon className="h-5 w-5" />
                     </a>
                   ) : null}
                   {event.linkedinUrl ? (
@@ -583,7 +583,7 @@ export default async function EventDetailsPage({
                       className="text-muted hover:text-violet-neon"
                       aria-label="LinkedIn"
                     >
-                      <Link2 className="h-5 w-5" />
+                      <LinkedInIcon className="h-5 w-5" />
                     </a>
                   ) : null}
                 </div>

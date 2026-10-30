@@ -53,6 +53,7 @@ export * from "./ui/ui/download-qr-button";
 export * from "./ui/ui/image-cropper";
 export * from "./ui/ui/instagram-icon";
 export * from "./ui/ui/social-icons";
+export * from "./ui/ui/social-icons";
 export * from "./ui/ui/tab-link";
 export * from "./ui/ui/modal";
 export * from "./ui/ui/navigation-progress";
