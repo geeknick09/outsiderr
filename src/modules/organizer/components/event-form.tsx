@@ -264,6 +264,13 @@ export function EventForm({
   const [promoCommission, setPromoCommission] = useState(String(Number(sv?.promoterCommissionBps ?? 1000) / 100));
   const [promoBuyer, setPromoBuyer] = useState(String(Number(sv?.promoBuyerDiscountBps ?? 500) / 100));
   const [promoPromoter, setPromoPromoter] = useState(String(Number(sv?.promoPromoterBps ?? 500) / 100));
+  // Contact fields tracked so invalid values block Continue on this step.
+  const [contactEmail, setContactEmail] = useState(sv?.contactEmail ?? "");
+  const [contactPhone, setContactPhone] = useState(sv?.contactPhone ?? "");
+  const contactError =
+    !contactEmail.trim() ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail.trim()) ||
+    !(contactPhone.startsWith("+91") && contactPhone.replace("+91", "").length === 10);
   const [mapsError, setMapsError] = useState<string | null>(null);
   const [instagramUrl, setInstagramUrl] = useState(sv?.instagramUrl ?? "");
 
@@ -850,6 +857,8 @@ export function EventForm({
           <Field label="Contact email (for attendee queries) *">
             <input
               name="contactEmail"
+              value={contactEmail}
+              onChange={(e) => setContactEmail(e.target.value)}
               type="email"
               required
               defaultValue={sv?.contactEmail ?? ""}
@@ -858,7 +867,7 @@ export function EventForm({
             />
           </Field>
           <Field label="Contact phone (for attendee queries) *">
-            <PhoneInput name="contactPhone" required defaultValue={sv?.contactPhone ?? ""} />
+            <PhoneInput name="contactPhone" required defaultValue={sv?.contactPhone ?? ""} onValueChange={setContactPhone} />
           </Field>
         </div>
 
@@ -1483,7 +1492,7 @@ export function EventForm({
       <input type="hidden" name="saveMode" value="publish" />
 
       <div className="flex flex-wrap gap-3">
-        <Button type="submit" size="lg" disabled={pending || uploadsInFlight > 0 || !!dateError || !!mapsError || !!phaseError || staffError} loading={pending} loadingText="Publishing…">
+        <Button type="submit" size="lg" disabled={pending || uploadsInFlight > 0 || !!dateError || !!mapsError || contactError || !!phaseError || staffError} loading={pending} loadingText="Publishing…">
           Publish event
         </Button>
         <Button
@@ -1515,6 +1524,7 @@ export function EventForm({
               disabled={
                 uploadsInFlight > 0 ||
                 (step === 1 && (!!dateError || !!mapsError)) ||
+                (step === 3 && contactError) ||
                 (step === 4 && !!phaseError) ||
                 (step === 5 && staffError)
               }
