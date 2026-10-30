@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { BadgeCheck, CalendarDays, Globe, Info, Link2, Mail, MapPin, MessageCircle, Phone, Play, Star, UserPlus } from "lucide-react";
+import { BadgeCheck, CalendarDays, Info, Mail, MapPin, Phone, Star, UserPlus } from "lucide-react";
 import { FacebookIcon, InstagramIcon, LinkedInIcon, XIcon, YouTubeIcon } from "@/modules/shared";
 import { EventRealtimeWrapper } from "@/modules/web";
 

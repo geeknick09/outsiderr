@@ -68,3 +68,7 @@ export function LinkedInIcon({ className }: { className?: string }) {
     </svg>
   );
 }
+
+// Casing aliases - other components import these names
+export const YoutubeIcon = YouTubeIcon;
+export const LinkedinIcon = LinkedInIcon;
