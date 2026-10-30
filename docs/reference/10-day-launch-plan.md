@@ -1,6 +1,6 @@
-# 6-Day Full-App Test Plan
+# 10-Day Launch Plan
 
-**Goal:** cover every user-facing flow + every admin feature + every money path before go-live. Test each day, send findings nightly, fixes land overnight. Day 6 closes with a regression sweep over whatever broke earlier in the week.
+**Goal:** 6 days of full-app testing (every user flow + every admin feature + every money path) followed by 4 days of launch readiness - staging/prod infra, real domain, live payments, company formation - ending in the MVP launch. Test each day, send findings nightly, fixes land overnight.
 
 **Why this order:** the sequence mirrors the real product lifecycle - accounts exist before content, content exists before discovery is testable, bookings exist before money is testable, and everything exists before the admin audit. You can’t test a city filter before there are events in different cities.
 
@@ -251,4 +251,63 @@ Cross-reference `docs/reference/test-scenarios.md` for deep scenario detail per 
 
  *
 
-**Daily rhythm:** test during the day → send findings by evening → I fix overnight → next morning verify + move on. After Day 6 = deploy prep.
+**Daily rhythm:** test during the day -> send findings by evening -> fixes overnight -> next morning verify + move on.
+
+## Day 7 - Infrastructure: staging + production environments + real domain
+
+**Focus: run staging as a safe playground; prod is where users land.**
+
+- [ ] **Two environments**: staging (test freely) + production (live users) - separate Vercel deployments
+- [ ] **Separate databases**: staging Supabase project + prod Supabase project - never test writes on prod data (schema mirrored via `fix_all.sql` + migrations)
+- [ ] **Env var split**: `NEXT_PUBLIC_SUPABASE_URL/ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `RAZORPAY_KEY_ID/SECRET`, `NEXT_PUBLIC_APP_URL` - staging keys on staging, live keys on prod only
+- [ ] **Real domain**: register domain (e.g. outsiderr.com / outsiderr.in) -> Vercel Domains -> CNAME/A records -> SSL auto-issues
+- [ ] `NEXT_PUBLIC_APP_URL` = real domain on prod; confirm canonical links, auth redirects (`Site URL` + `Redirect URLs` in Supabase Auth), and OAuth callback domains updated (Google OAuth console -> add domain)
+- [ ] **Subdomain plan** (optional): `app.outsiderr.com` for the app, apex for marketing later
+- [ ] Verify: staging deploy on `staging.<domain>` or Vercel preview URL; prod on apex; env vars confirmed not crossed
+- [ ] Email/SMTP for auth emails + notifications on the real domain (SPF/DKIM) - Supabase custom SMTP (Resend/Postmark/SES) so OTP emails don't land in spam
+
+## Day 8 - Payments: Razorpay live mode
+
+**Focus: flip from test keys to live keys - one real money movement end to end.**
+
+- [ ] **Razorpay account activation**: PAN, business details, bank account for settlements (Day 9 company docs needed here)
+- [ ] **Razorpay KYC** submitted + approved (usually 1-3 days - start early)
+- [ ] **Live keys**: `RAZORPAY_KEY_ID` + `RAZORPAY_KEY_SECRET` (live mode) on prod env only; test keys stay on staging
+- [ ] **Webhooks**: create live webhook endpoint -> `payment.captured`, `payment.failed`, `refund.processed` events; secret in env vars; verify signature works (test event from dashboard)
+- [ ] **Real order test**: buy one ticket at min price with a real card/UPI -> order CONFIRMED -> ticket + QR issued -> money shows in Razorpay dashboard
+- [ ] **Real refund test**: refund that order -> refund hits source account -> ledger shows reversal
+- [ ] **Organizer payout path**: payout marks correctly against live balance
+- [ ] **Fee math on live money**: verify commission + GST + fee-payer split matches settings to the paisa on the real transaction
+- [ ] **Settlement schedule**: T+2/T+3 settlements land in the linked bank account
+
+## Day 9 - Company formation + legal (India)
+
+**Focus: the entity that owns Outsiderr + the documents payments/banks need.**
+
+- [ ] **Entity type**: Private Limited (recommended - investors, liability, legitimacy) or LLP (cheaper, simpler) - ~Rs 10-15k + 7-10 days via a CA or platforms (LegalWiz, Vakilsearch, Razorpay Rize)
+- [ ] **Company name approval** (RUN on MCA) -> DSC + DIN for directors -> incorporation filing (SPICe+)
+- [ ] **PAN + TAN** for the company (auto with incorporation)
+- [ ] **Business bank account**: current account at a bank - needed for Razorpay settlements + payouts
+- [ ] **GST registration** (GSTIN): required for platform commission income + issuing invoices; threshold Rs 20L services but get it from day 1 for Razorpay + B2B invoices
+- [ ] **Registered office**: address proof + NOC if rented/home office
+- [ ] **Legal documents reviewed by a CA/lawyer**: Terms of Service (organizer + user), Privacy Policy (DPDP Act 2023 - India data protection), Refund/Cancellation policy, Promoter agreement terms
+- [ ] **Invoice format**: GST-compliant invoices for commission fees to organizers; credit notes for refunds
+- [ ] **Contracts**: organizer payout terms (hold periods, dispute handling), staff/contractor agreements later
+- [ ] **Insurance note**: public liability optional for now; platform T&C shifts event liability to organizers (have lawyer confirm)
+- [ ] **Compliance calendar**: GST returns (GSTR-1/3B monthly), MCA annual filings, TDS if paying vendors
+
+## Day 10 - MVP launch
+
+**Focus: real users on real money with a safety net.**
+
+- [ ] **Go-live checklist**: prod deploy green, domain live, live Razorpay keys, legal pages published (organizer-v1.0 + user terms + privacy + refunds), 44 settings verified, seed/test data purged
+- [ ] **Monitoring**: Vercel logs + alerts; Supabase logs; Sentry or similar for errors; uptime check on `/` + `/api/health` (add if missing)
+- [ ] **Support channel**: support@<domain> or WhatsApp business number; contact links point to it
+- [ ] **First real organizers**: onboard 2-3 known creators manually; walk them through event creation + first ticket sale live
+- [ ] **First real sale**: real customer buys -> whole funnel (order -> payment -> ticket -> scan -> payout) observed live
+- [ ] **Rollback plan**: Vercel instant rollback to last good deploy; DB backup/restore tested once (Supabase PITR or pg_dump)
+- [ ] **Rate limits + abuse**: login limiter, upload limits, payment webhook signature - all confirmed on prod
+- [ ] **Analytics baseline**: orders/day, signups/day, conversion tracked from day 1
+- [ ] **Post-launch watch**: monitor first 48h closely - refunds, failed payments, error spikes
+
+**Exit criteria:** MVP is live on the real domain with real payments, a registered Indian company behind it, and the first real organizers selling tickets.
