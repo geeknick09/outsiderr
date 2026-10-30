@@ -289,6 +289,8 @@ export function EventForm({
     setNowLocal(nowISTInput());
   }, []);
   const [phaseError, setPhaseError] = useState<string | null>(null);
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const staffError = staffRows.some((r) => r.email && !EMAIL_RE.test(r.email));
 
   function validatePhases(rows: PhaseRow[]) {
     // Treat naive datetime-local values as IST (UTC+05:30)
@@ -1356,8 +1358,13 @@ export function EventForm({
               onChange={(e) => setStaffRows((rs) => rs.map((r, j) => (j === i ? { ...r, name: e.target.value } : r)))} />
             <input name="staffPhone" placeholder="Phone (+91…)" value={row.phone} className={`${INPUT} sm:col-span-2`}
               onChange={(e) => setStaffRows((rs) => rs.map((r, j) => (j === i ? { ...r, phone: e.target.value } : r)))} />
-            <input name="staffEmail" placeholder="Email" value={row.email} className={`${INPUT} sm:col-span-2`}
-              onChange={(e) => setStaffRows((rs) => rs.map((r, j) => (j === i ? { ...r, email: e.target.value } : r)))} />
+            <div className="sm:col-span-2">
+              <input name="staffEmail" placeholder="Email" value={row.email} className={`${INPUT} ${row.email && !EMAIL_RE.test(row.email) ? "border-red-500" : ""}`}
+                onChange={(e) => setStaffRows((rs) => rs.map((r, j) => (j === i ? { ...r, email: e.target.value } : r)))} />
+              {row.email && !EMAIL_RE.test(row.email) ? (
+                <p className="mt-1 text-[10px] text-red-500">Invalid email format</p>
+              ) : null}
+            </div>
             <button type="button" className="text-xs font-semibold text-red-500"
               onClick={() => setStaffRows((rs) => rs.filter((_, j) => j !== i))}>
               Remove
@@ -1429,7 +1436,7 @@ export function EventForm({
       <input type="hidden" name="saveMode" value="publish" />
 
       <div className="flex flex-wrap gap-3">
-        <Button type="submit" size="lg" disabled={pending || uploadsInFlight > 0 || !!dateError || !!mapsError || !!phaseError} loading={pending} loadingText="Publishing…">
+        <Button type="submit" size="lg" disabled={pending || uploadsInFlight > 0 || !!dateError || !!mapsError || !!phaseError || staffError} loading={pending} loadingText="Publishing…">
           Publish event
         </Button>
         <Button
@@ -1456,7 +1463,7 @@ export function EventForm({
             {uploadsInFlight > 0 ? (
               <span className="text-xs font-semibold text-amber-600">Uploading media - wait for it to finish…</span>
             ) : null}
-            <Button type="button" disabled={uploadsInFlight > 0 || !!dateError || !!mapsError || !!phaseError} onClick={() => setStep((v) => Math.min(STEPS.length - 1, v + 1))}>
+            <Button type="button" disabled={uploadsInFlight > 0 || !!dateError || !!mapsError || !!phaseError || staffError} onClick={() => setStep((v) => Math.min(STEPS.length - 1, v + 1))}>
               {step === 0 ? "Get started →" : "Continue →"}
             </Button>
           </div>
