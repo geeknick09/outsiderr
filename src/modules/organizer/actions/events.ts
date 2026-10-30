@@ -10,6 +10,9 @@ import type { City, EventCategory, FeePayer, PricingMode } from "@/modules/share
 
 export interface CreateEventState {
   error: string | null;
+  /** Set instead of throwing redirect() - draft saves run inside a manual
+   * useTransition where NEXT_REDIRECT isn't routed and hits the boundary. */
+  redirectTo?: string;
   values?: {
     title: string;
     category: string;
@@ -615,7 +618,9 @@ export async function createEventAction(
   revalidateTag("events", "expire");
   revalidatePath("/organizer");
   revalidatePath("/organizer", "layout");
-  // Both publish + draft land on the creator dashboard.
+  // Draft saves navigate client-side (see redirectTo note on CreateEventState);
+  // publishes go through the form action where redirect() routes correctly.
+  if (isDraft) return { error: null, redirectTo: "/organizer" };
   redirect(`/organizer`);
 }
 
@@ -625,6 +630,7 @@ export async function createEventAction(
 
 export interface UpdateEventState {
   error: string | null;
+  redirectTo?: string;
 }
 
 export async function updateEventAction(
@@ -765,7 +771,8 @@ export async function updateEventAction(
   revalidateTag("events", "expire");
   revalidatePath("/organizer");
   revalidatePath(`/events/${eventId}`);
-  redirect(isDraftSave ? "/organizer" : `/organizer/events/${eventId}`);
+  if (isDraftSave) return { error: null, redirectTo: "/organizer" };
+  redirect(`/organizer/events/${eventId}`);
 }
 
 // ---------------------------------------------------------------------------

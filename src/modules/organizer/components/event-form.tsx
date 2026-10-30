@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Trash2, Upload, X } from "lucide-react";
 
 import { createEventAction, type CreateEventState } from "../actions/events";
@@ -157,6 +158,13 @@ export function EventForm({
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
   }, [step]);
+
+  const router = useRouter();
+  // Draft saves return a redirect target instead of throwing redirect() -
+  // the imperative transition doesn't route NEXT_REDIRECT to the router.
+  useEffect(() => {
+    if (state?.redirectTo) router.push(state.redirectTo);
+  }, [state, router]);
 
   // Load staff already saved on this draft so reopening shows the rows.
   // Owner read is allowed by the event_staff RLS policies.
