@@ -251,6 +251,11 @@ export function EventForm({
   );
   const [mapsLink, setMapsLink] = useState(sv?.googleMapsLink ?? "");
   const [maxTickets, setMaxTickets] = useState(String(sv?.maxTicketsPerUser ?? "5"));
+  // Promoter % inputs are controlled so values survive step navigation and
+  // remounts (the conditional blocks below remount on mode changes).
+  const [promoCommission, setPromoCommission] = useState(String(Number(sv?.promoterCommissionBps ?? 1000) / 100));
+  const [promoBuyer, setPromoBuyer] = useState(String(Number(sv?.promoBuyerDiscountBps ?? 500) / 100));
+  const [promoPromoter, setPromoPromoter] = useState(String(Number(sv?.promoPromoterBps ?? 500) / 100));
   const [mapsError, setMapsError] = useState<string | null>(null);
   const [instagramUrl, setInstagramUrl] = useState(sv?.instagramUrl ?? "");
 
@@ -1423,17 +1428,17 @@ export function EventForm({
           {promoterMode === "LINK" ? (
             <Field label="Promoter commission %">
               <input name="promoterCommissionBps" type="number" min={5} max={30} step={0.5}
-                defaultValue={String(Number(sv?.promoterCommissionBps ?? 1000) / 100)} className={INPUT} />
+                value={promoCommission} onChange={(e) => setPromoCommission(e.target.value)} className={INPUT} />
             </Field>
           ) : promoterMode === "PROMO_CODE" ? (
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Buyer discount %">
                 <input name="promoBuyerDiscountBps" type="number" min={0} max={15} step={0.5}
-                  defaultValue={String(Number(sv?.promoBuyerDiscountBps ?? 500) / 100)} className={INPUT} />
+                  value={promoBuyer} onChange={(e) => setPromoBuyer(e.target.value)} className={INPUT} />
               </Field>
               <Field label="Promoter commission %">
                 <input name="promoPromoterBps" type="number" min={0} max={15} step={0.5}
-                  defaultValue={String(Number(sv?.promoPromoterBps ?? 500) / 100)} className={INPUT} />
+                  value={promoPromoter} onChange={(e) => setPromoPromoter(e.target.value)} className={INPUT} />
               </Field>
             </div>
           ) : null}
