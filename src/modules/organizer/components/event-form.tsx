@@ -1497,7 +1497,16 @@ export function EventForm({
             {uploadsInFlight > 0 ? (
               <span className="text-xs font-semibold text-amber-600">Uploading media - wait for it to finish…</span>
             ) : null}
-            <Button type="button" disabled={uploadsInFlight > 0 || !!dateError || !!mapsError || !!phaseError || staffError} onClick={() => setStep((v) => Math.min(STEPS.length - 1, v + 1))}>
+            <Button
+              type="button"
+              disabled={
+                uploadsInFlight > 0 ||
+                (step === 1 && (!!dateError || !!mapsError)) ||
+                (step === 4 && !!phaseError) ||
+                (step === 5 && staffError)
+              }
+              onClick={() => setStep((v) => Math.min(STEPS.length - 1, v + 1))}
+            >
               {step === 0 ? "Get started →" : "Continue →"}
             </Button>
           </div>
@@ -1674,13 +1683,34 @@ export function PosterField({
           Upload failed. Please try again.
         </p>
       ) : null}
-      <input
-        name={name}
-        value={url}
-        onChange={(event) => setUrl(event.target.value)}
-        placeholder={uploadError ? "Upload failed - paste an image URL" : "or paste an image URL"}
-        className={INPUT}
-      />
+      {url ? (
+        <div className="space-y-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={url}
+            alt={label}
+            style={{ aspectRatio: String(aspect) }}
+            className="w-full max-w-[240px] rounded-2xl border border-zinc-200 object-cover dark:border-white/10"
+          />
+          {/* URL travels in a hidden input - raw storage paths aren't shown */}
+          <input type="hidden" name={name} value={url} />
+          <button
+            type="button"
+            onClick={() => setUrl("")}
+            className="text-xs font-semibold text-violet-neon underline"
+          >
+            Replace / use a different image
+          </button>
+        </div>
+      ) : (
+        <input
+          name={name}
+          value={url}
+          onChange={(event) => setUrl(event.target.value)}
+          placeholder={uploadError ? "Upload failed - paste an image URL" : "or paste an image URL"}
+          className={INPUT}
+        />
+      )}
       {pendingFile ? (
         <ImageCropper
           file={pendingFile}
