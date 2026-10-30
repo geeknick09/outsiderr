@@ -562,25 +562,6 @@ export async function createEventAction(
       }
     }
 
-    // Staff rows collected in the create form (door scanner + box office share
-    // the event_staff table - phone or email identifies them at sign-in).
-    const staffNames = formData.getAll("staffName").map(String);
-    const staffPhones = formData.getAll("staffPhone").map(String);
-    const staffEmails = formData.getAll("staffEmail").map(String);
-    for (let i = 0; i < staffNames.length; i++) {
-      const name = staffNames[i]?.trim();
-      const phone = staffPhones[i]?.trim() || null;
-      const email = staffEmails[i]?.trim() || null;
-      if (!name || (!phone && !email)) continue;
-      try {
-        const { addEventStaff } = await import("../data/event-staff");
-        const res = await addEventStaff(user, eventId, email, phone, name);
-        if (!res.success) console.error(`[createEvent] staff save failed for ${name}:`, res.error);
-      } catch (err) {
-        console.error(`[createEvent] staff save threw for ${name}:`, err);
-      }
-    }
-
     // Store T&C acceptance with the current terms version
     try {
       const { getTermsVersion } = await import("@/modules/shared/server");
@@ -601,6 +582,27 @@ export async function createEventAction(
     } catch {
       // T&C acceptance logging is best-effort - don't fail the event creation
     }
+    }
+
+    // Staff rows collected in the create form (door scanner + box office share
+    // the event_staff table - phone or email identifies them at sign-in).
+    // Runs on draft saves too - addEventStaff dedupes by email/phone so
+    // resaving a draft can't double-insert.
+    const staffNames = formData.getAll("staffName").map(String);
+    const staffPhones = formData.getAll("staffPhone").map(String);
+    const staffEmails = formData.getAll("staffEmail").map(String);
+    for (let i = 0; i < staffNames.length; i++) {
+      const name = staffNames[i]?.trim();
+      const phone = staffPhones[i]?.trim() || null;
+      const email = staffEmails[i]?.trim() || null;
+      if (!name || (!phone && !email)) continue;
+      try {
+        const { addEventStaff } = await import("../data/event-staff");
+        const res = await addEventStaff(user, eventId, email, phone, name);
+        if (!res.success) console.error(`[createEvent] staff save failed for ${name}:`, res.error);
+      } catch (err) {
+        console.error(`[createEvent] staff save threw for ${name}:`, err);
+      }
     }
   } catch (error) {
     return {

@@ -157,6 +157,24 @@ export function EventForm({
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
   }, [step]);
+
+  // Load staff already saved on this draft so reopening shows the rows.
+  // Owner read is allowed by the event_staff RLS policies.
+  useEffect(() => {
+    if (!draftEvent?.id) return;
+    let cancelled = false;
+    (async () => {
+      const { createClient } = await import("@/modules/shared/auth/client");
+      const { data } = await createClient()
+        .from("event_staff")
+        .select("display_name, phone, email")
+        .eq("event_id", draftEvent.id);
+      if (!cancelled && data?.length) {
+        setStaffRows(data.map((s) => ({ name: s.display_name ?? "", phone: s.phone ?? "", email: s.email ?? "" })));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [draftEvent?.id]);
   const bumpUpload = (delta: number) => setUploadsInFlight((n) => Math.max(0, n + delta));
   const [communityId, setCommunityId] = useState(draftEvent?.communityId ?? "");
   const [visibility, setVisibility] = useState<"OPEN" | "MEMBERS_ONLY" | "INVITE_ONLY">(
