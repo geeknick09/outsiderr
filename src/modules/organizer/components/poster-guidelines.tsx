@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, ImageIcon, Monitor, Smartphone } from "lucide-react";
+import { FileText, Film, ImageIcon, Monitor, Smartphone } from "lucide-react";
 
 import { Modal } from "@/modules/shared";
 
@@ -106,6 +106,48 @@ export function PosterGuidelines() {
               <strong>Safe area:</strong> Centre key elements. On very wide
               screens the banner may be cropped - avoid placing text near the
               far left or right edges.
+            </p>
+          </section>
+
+          <section>
+            <h3 className="flex items-center gap-2 text-sm font-bold">
+              <Film className="h-4 w-4 text-violet-neon" />
+              Teaser Video - Optional
+            </h3>
+            <p className="mt-1 text-xs text-muted">
+              Plays muted on the event card in feeds - a short vertical clip
+              that hooks people as they scroll.
+            </p>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full border-collapse text-xs">
+                <tbody>
+                  <tr className="border-b border-zinc-100 dark:border-white/5">
+                    <td className="py-1.5 pr-4 font-semibold">Aspect ratio</td>
+                    <td className="py-1.5 text-muted">3:4 (portrait) looks best - fills the card frame</td>
+                  </tr>
+                  <tr className="border-b border-zinc-100 dark:border-white/5">
+                    <td className="py-1.5 pr-4 font-semibold">Recommended size</td>
+                    <td className="py-1.5 text-muted">720 × 960 px or 1080 × 1440 px</td>
+                  </tr>
+                  <tr className="border-b border-zinc-100 dark:border-white/5">
+                    <td className="py-1.5 pr-4 font-semibold">Max duration</td>
+                    <td className="py-1.5 text-muted">10 seconds</td>
+                  </tr>
+                  <tr className="border-b border-zinc-100 dark:border-white/5">
+                    <td className="py-1.5 pr-4 font-semibold">Max file size</td>
+                    <td className="py-1.5 text-muted">50 MB</td>
+                  </tr>
+                  <tr>
+                    <td className="py-1.5 pr-4 font-semibold">Format</td>
+                    <td className="py-1.5 text-muted">.mp4 or .webm</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-2 text-xs text-muted">
+              <strong>Keep it looping-friendly:</strong> it autoplays silently,
+              so rely on visuals - no audio needed. Lead with the best moment in
+              the first 2 seconds and put key visuals near the centre.
             </p>
           </section>
 

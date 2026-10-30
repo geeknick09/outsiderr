@@ -1456,7 +1456,7 @@ export function EventForm({
             {uploadsInFlight > 0 ? (
               <span className="text-xs font-semibold text-amber-600">Uploading media - wait for it to finish…</span>
             ) : null}
-            <Button type="button" disabled={uploadsInFlight > 0} onClick={() => setStep((v) => Math.min(STEPS.length - 1, v + 1))}>
+            <Button type="button" disabled={uploadsInFlight > 0 || !!dateError || !!mapsError || !!phaseError} onClick={() => setStep((v) => Math.min(STEPS.length - 1, v + 1))}>
               {step === 0 ? "Get started →" : "Continue →"}
             </Button>
           </div>
@@ -1747,22 +1747,36 @@ export function TeaserVideoField({
         />
       </label>
       {url ? (
-        <video
-          src={url}
-          controls
-          muted
-          playsInline
-          className="aspect-[3/4] w-full max-w-[240px] rounded-2xl bg-black object-cover"
+        <div className="space-y-2">
+          <video
+            src={url}
+            controls
+            muted
+            playsInline
+            className="aspect-[3/4] w-full max-w-[240px] rounded-2xl bg-black object-cover"
+          />
+          {/* URL travels in a hidden input - raw storage paths aren't shown */}
+          <input type="hidden" name={name} value={url} />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setUrl("")}
+              className="text-xs font-semibold text-violet-neon underline"
+            >
+              Replace / use a different video
+            </button>
+          </div>
+        </div>
+      ) : (
+        <input
+          name={name}
+          value={url}
+          onChange={(event) => setUrl(event.target.value)}
+          placeholder="or paste a video URL"
+          className={INPUT}
         />
-      ) : null}
+      )}
       {error ? <p className="text-xs font-semibold text-red-500">{error}</p> : null}
-      <input
-        name={name}
-        value={url}
-        onChange={(event) => setUrl(event.target.value)}
-        placeholder="or paste a video URL"
-        className={INPUT}
-      />
       <p className="text-xs text-muted">
         Optional. Plays muted on the event card - keep it under {MAX_SECONDS}s. Vertical 3:4 looks best.
       </p>
