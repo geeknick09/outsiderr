@@ -22,6 +22,8 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "**.googleusercontent.com" },
       { protocol: "https", hostname: "**.fbcdn.net" },
       { protocol: "https", hostname: "**.instagram.com" },
+      // User-pasted image URLs can come from any host
+      { protocol: "https", hostname: "**" },
     ],
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 86400,
