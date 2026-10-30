@@ -216,6 +216,26 @@ function buildTiers(formData: FormData, pricingMode: PricingMode): TicketTierInp
   return parseTiers(formData);
 }
 
+
+/**
+ * Show validation/user-meaningful errors as-is; hide technical noise
+ * (permission/DB/Postgrest messages) behind a friendly line. The real
+ * error is always logged for debugging.
+ */
+function actionErrorMessage(error: unknown, friendly: string): string {
+  const raw =
+    error instanceof Error
+      ? error.message
+      : error && typeof error === "object" && "message" in error
+        ? String((error as { message: unknown }).message)
+        : null;
+  if (error) console.error("[event action]", error);
+  if (!raw) return friendly;
+  return /permission denied|database error|violates|constraint|column|relation|does not exist/i.test(raw)
+    ? friendly
+    : raw;
+}
+
 export async function createEventAction(
   _prev: CreateEventState,
   formData: FormData,
@@ -584,7 +604,7 @@ export async function createEventAction(
     }
   } catch (error) {
     return {
-      error: error instanceof Error ? error.message : (error && typeof error === "object" && "message" in error ? String((error as { message: unknown }).message) : "Could not publish the event."),
+      error: actionErrorMessage(error, "Something went wrong. Try publishing again or save as draft."),
       values: extractFormValues(formData),
     };
   }
@@ -734,7 +754,7 @@ export async function updateEventAction(
     });
   } catch (error) {
     return {
-      error: error instanceof Error ? error.message : (error && typeof error === "object" && "message" in error ? String((error as { message: unknown }).message) : "Could not save changes."),
+      error: actionErrorMessage(error, "Something went wrong. Try saving again."),
     };
   }
 
@@ -1014,7 +1034,7 @@ export async function updateEventSectionAction(
     }
   } catch (error) {
     return {
-      error: error instanceof Error ? error.message : (error && typeof error === "object" && "message" in error ? String((error as { message: unknown }).message) : "Could not save changes."),
+      error: actionErrorMessage(error, "Something went wrong. Try saving again."),
     };
   }
 
