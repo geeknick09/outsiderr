@@ -271,6 +271,15 @@ export function EventForm({
     !contactEmail.trim() ||
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail.trim()) ||
     !(contactPhone.startsWith("+91") && contactPhone.replace("+91", "").length === 10);
+  // Every step's Continue is gated on its own validation issues.
+  const communityError = eventKind === "COMMUNITY" && !communityId;
+  const maxTicketsError = !maxTickets || Number(maxTickets) < 1 || Number(maxTickets) > 10;
+  const promoError =
+    (promoterMode === "LINK" &&
+      (Number(promoCommission) < 5 || Number(promoCommission) > 30 || !promoCommission)) ||
+    (promoterMode === "PROMO_CODE" &&
+      (Number(promoBuyer) < 0 || Number(promoBuyer) > 15 || !promoBuyer ||
+        Number(promoPromoter) < 0 || Number(promoPromoter) > 15 || !promoPromoter));
   const [mapsError, setMapsError] = useState<string | null>(null);
   const [instagramUrl, setInstagramUrl] = useState(sv?.instagramUrl ?? "");
 
@@ -304,6 +313,9 @@ export function EventForm({
           }))
       : [emptyPhase(), emptyPhase()],
   );
+  const tierError =
+    pricingMode !== "FREE" &&
+    tiers.some((t) => !t.name.trim() || Number(t.price) < 1 || Number(t.quantity) < 1);
 
   // Draft save → confirm retention notice, then submit programmatically so
   // native `required` validation never blocks an incomplete draft.
@@ -1492,7 +1504,7 @@ export function EventForm({
       <input type="hidden" name="saveMode" value="publish" />
 
       <div className="flex flex-wrap gap-3">
-        <Button type="submit" size="lg" disabled={pending || uploadsInFlight > 0 || !!dateError || !!mapsError || contactError || !!phaseError || staffError} loading={pending} loadingText="Publishing…">
+        <Button type="submit" size="lg" disabled={pending || uploadsInFlight > 0 || !!dateError || !!mapsError || contactError || !!phaseError || staffError || communityError || tierError || maxTicketsError || promoError} loading={pending} loadingText="Publishing…">
           Publish event
         </Button>
         <Button
@@ -1523,10 +1535,11 @@ export function EventForm({
               type="button"
               disabled={
                 uploadsInFlight > 0 ||
+                (step === 0 && communityError) ||
                 (step === 1 && (!!dateError || !!mapsError)) ||
                 (step === 3 && contactError) ||
-                (step === 4 && !!phaseError) ||
-                (step === 5 && staffError)
+                (step === 4 && (!!phaseError || tierError || maxTicketsError)) ||
+                (step === 5 && (staffError || promoError))
               }
               onClick={() => setStep((v) => Math.min(STEPS.length - 1, v + 1))}
             >
