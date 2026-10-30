@@ -1628,6 +1628,7 @@ export function PosterField({
   onUploadingChange?: (uploading: boolean) => void;
 }) {
   const [url, setUrl] = useState(initialValue ?? "");
+  const [prevUrl, setPrevUrl] = useState<string | null>(null);
   const [uploading, setUploadingState] = useState(false);
   const setUploading = (v: boolean) => { setUploadingState(v); onUploadingChange?.(v); };
   const [uploadError, setUploadError] = useState(false);
@@ -1696,20 +1697,31 @@ export function PosterField({
           <input type="hidden" name={name} value={url} />
           <button
             type="button"
-            onClick={() => setUrl("")}
+            onClick={() => { setPrevUrl(url); setUrl(""); }}
             className="text-xs font-semibold text-violet-neon underline"
           >
             Replace / use a different image
           </button>
         </div>
       ) : (
-        <input
-          name={name}
-          value={url}
-          onChange={(event) => setUrl(event.target.value)}
-          placeholder={uploadError ? "Upload failed - paste an image URL" : "or paste an image URL"}
-          className={INPUT}
-        />
+        <>
+          <input
+            name={name}
+            value={url}
+            onChange={(event) => setUrl(event.target.value)}
+            placeholder={uploadError ? "Upload failed - paste an image URL" : "or paste an image URL"}
+            className={INPUT}
+          />
+          {prevUrl ? (
+            <button
+              type="button"
+              onClick={() => { setUrl(prevUrl); setPrevUrl(null); }}
+              className="text-xs font-semibold text-violet-neon underline"
+            >
+              Undo - restore previous image
+            </button>
+          ) : null}
+        </>
       )}
       {pendingFile ? (
         <ImageCropper
@@ -1742,6 +1754,7 @@ export function TeaserVideoField({
   onUploadingChange?: (uploading: boolean) => void;
 }) {
   const [url, setUrl] = useState(initialValue ?? "");
+  const [prevUrl, setPrevUrl] = useState<string | null>(null);
   const [uploading, setUploadingState] = useState(false);
   const setUploading = (v: boolean) => { setUploadingState(v); onUploadingChange?.(v); };
   const [error, setError] = useState<string | null>(null);
@@ -1831,7 +1844,7 @@ export function TeaserVideoField({
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => setUrl("")}
+              onClick={() => { setPrevUrl(url); setUrl(""); }}
               className="text-xs font-semibold text-violet-neon underline"
             >
               Replace / use a different video
@@ -1839,13 +1852,24 @@ export function TeaserVideoField({
           </div>
         </div>
       ) : (
-        <input
-          name={name}
-          value={url}
-          onChange={(event) => setUrl(event.target.value)}
-          placeholder="or paste a video URL"
-          className={INPUT}
-        />
+        <>
+          <input
+            name={name}
+            value={url}
+            onChange={(event) => setUrl(event.target.value)}
+            placeholder="or paste a video URL"
+            className={INPUT}
+          />
+          {prevUrl ? (
+            <button
+              type="button"
+              onClick={() => { setUrl(prevUrl); setPrevUrl(null); }}
+              className="text-xs font-semibold text-violet-neon underline"
+            >
+              Undo - restore previous video
+            </button>
+          ) : null}
+        </>
       )}
       {error ? <p className="text-xs font-semibold text-red-500">{error}</p> : null}
       <p className="text-xs text-muted">
