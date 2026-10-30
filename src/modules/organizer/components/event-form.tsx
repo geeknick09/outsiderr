@@ -290,7 +290,13 @@ export function EventForm({
   }, []);
   const [phaseError, setPhaseError] = useState<string | null>(null);
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const staffError = staffRows.some((r) => r.email && !EMAIL_RE.test(r.email));
+  const PHONE_RE = /^[0-9+\-\s]{8,15}$/;
+  const staffError = staffRows.some(
+    (r) =>
+      (r.email && !EMAIL_RE.test(r.email)) ||
+      (r.phone && !PHONE_RE.test(r.phone)) ||
+      (r.name && !r.phone && !r.email),
+  );
 
   function validatePhases(rows: PhaseRow[]) {
     // Treat naive datetime-local values as IST (UTC+05:30)
@@ -1356,8 +1362,13 @@ export function EventForm({
           <div key={i} className="grid gap-2 rounded-2xl border border-zinc-200 p-3 dark:border-white/10 sm:grid-cols-7">
             <input name="staffName" placeholder="Name" value={row.name} className={`${INPUT} sm:col-span-2`}
               onChange={(e) => setStaffRows((rs) => rs.map((r, j) => (j === i ? { ...r, name: e.target.value } : r)))} />
-            <input name="staffPhone" placeholder="Phone (+91…)" value={row.phone} className={`${INPUT} sm:col-span-2`}
-              onChange={(e) => setStaffRows((rs) => rs.map((r, j) => (j === i ? { ...r, phone: e.target.value } : r)))} />
+            <div className="sm:col-span-2">
+              <input name="staffPhone" placeholder="Phone (+91…)" value={row.phone} className={`${INPUT} ${row.phone && !PHONE_RE.test(row.phone) ? "border-red-500" : ""}`}
+                onChange={(e) => setStaffRows((rs) => rs.map((r, j) => (j === i ? { ...r, phone: e.target.value } : r)))} />
+              {row.phone && !PHONE_RE.test(row.phone) ? (
+                <p className="mt-1 text-[10px] text-red-500">Invalid phone number</p>
+              ) : null}
+            </div>
             <div className="sm:col-span-2">
               <input name="staffEmail" placeholder="Email" value={row.email} className={`${INPUT} ${row.email && !EMAIL_RE.test(row.email) ? "border-red-500" : ""}`}
                 onChange={(e) => setStaffRows((rs) => rs.map((r, j) => (j === i ? { ...r, email: e.target.value } : r)))} />
@@ -1371,6 +1382,9 @@ export function EventForm({
             </button>
           </div>
         ))}
+        {staffRows.some((r) => r.name && !r.phone && !r.email) ? (
+          <p className="text-xs text-red-500">Each staff member needs a phone or email to sign in.</p>
+        ) : null}
         {staffRows.length < 5 ? (
           <button type="button" className="text-xs font-semibold text-violet-neon"
             onClick={() => setStaffRows((rs) => [...rs, { name: "", phone: "", email: "" }])}>

@@ -152,7 +152,7 @@ export async function createOrganizerProfile(
     // row was fetched under the user's own RLS, so it's guaranteed to be theirs.
     const supabase2 = createServiceClient();
     const { error } = await supabase2.from("organizers").update(resubmit).eq("id", existing.id);
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     return existing.id;
   }
 
@@ -308,7 +308,7 @@ export async function updateOrganizerProfile(
     .update(update)
     .eq("id", organizer.id);
 
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 
   const pendingKycRequested = false;
 

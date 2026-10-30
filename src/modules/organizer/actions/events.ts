@@ -554,9 +554,10 @@ export async function createEventAction(
       if (!name || (!phone && !email)) continue;
       try {
         const { addEventStaff } = await import("../data/event-staff");
-        await addEventStaff(user, eventId, email, phone, name);
-      } catch {
-        // best-effort - staff can also be added from the event page
+        const res = await addEventStaff(user, eventId, email, phone, name);
+        if (!res.success) console.error(`[createEvent] staff save failed for ${name}:`, res.error);
+      } catch (err) {
+        console.error(`[createEvent] staff save threw for ${name}:`, err);
       }
     }
 
@@ -583,7 +584,7 @@ export async function createEventAction(
     }
   } catch (error) {
     return {
-      error: error instanceof Error ? error.message : "Could not publish the event.",
+      error: error instanceof Error ? error.message : (error && typeof error === "object" && "message" in error ? String((error as { message: unknown }).message) : "Could not publish the event."),
       values: extractFormValues(formData),
     };
   }
@@ -733,7 +734,7 @@ export async function updateEventAction(
     });
   } catch (error) {
     return {
-      error: error instanceof Error ? error.message : "Could not save changes.",
+      error: error instanceof Error ? error.message : (error && typeof error === "object" && "message" in error ? String((error as { message: unknown }).message) : "Could not save changes."),
     };
   }
 
@@ -1013,7 +1014,7 @@ export async function updateEventSectionAction(
     }
   } catch (error) {
     return {
-      error: error instanceof Error ? error.message : "Could not save changes.",
+      error: error instanceof Error ? error.message : (error && typeof error === "object" && "message" in error ? String((error as { message: unknown }).message) : "Could not save changes."),
     };
   }
 

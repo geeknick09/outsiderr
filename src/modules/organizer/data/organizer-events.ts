@@ -569,7 +569,7 @@ export async function updateEvent(
     .eq("organizer_id", isCollabFull ? eventOrganizerId! : organizer.id)
     .select("id")
     .maybeSingle();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   if (!updatedEvent) throw new Error("Event not found or not owned by you.");
 
   // Invite token lives in a service-role-only side table.
@@ -768,7 +768,7 @@ export async function deleteEvent(
     .delete()
     .eq("id", eventId)
     .eq("organizer_id", organizer.id);
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }
 
 /**
