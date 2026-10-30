@@ -232,6 +232,7 @@ export function EventForm({
     draftEvent?.venueName === "TBA" ? "TBA" : "NOW",
   );
   const [mapsLink, setMapsLink] = useState(sv?.googleMapsLink ?? "");
+  const [maxTickets, setMaxTickets] = useState(String(sv?.maxTicketsPerUser ?? "5"));
   const [mapsError, setMapsError] = useState<string | null>(null);
   const [instagramUrl, setInstagramUrl] = useState(sv?.instagramUrl ?? "");
 
@@ -788,7 +789,8 @@ export function EventForm({
               type="number"
               min={1}
               max={10}
-              defaultValue={sv?.maxTicketsPerUser ?? 5}
+              value={maxTickets}
+              onChange={(e) => setMaxTickets(e.target.value)}
               className={INPUT}
             />
           </Field>
