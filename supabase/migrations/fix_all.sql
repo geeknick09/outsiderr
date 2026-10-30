@@ -9451,12 +9451,15 @@ begin
 end;
 $$;
 
+-- KYC publish gate disabled for now (auto-verification, no manual review).
+-- Trigger intentionally dropped, not recreated. Re-enable when manual
+-- KYC review returns: recreate trg_events_publish_kyc with the block below.
+-- create trigger trg_events_publish_kyc
+--   before insert or update of status on public.events
+--   for each row
+--   when (new.status = 'PUBLISHED'::public.event_status)
+--   execute function public.enforce_event_publish_kyc();
 drop trigger if exists trg_events_publish_kyc on public.events;
-create trigger trg_events_publish_kyc
-  before insert or update of status on public.events
-  for each row
-  when (new.status = 'PUBLISHED'::public.event_status)
-  execute function public.enforce_event_publish_kyc();
 
 -- STEP 51: community subcategory (e.g. "Run Club" inside Fitness & Movements)
 alter table public.communities add column if not exists subcategory text;
