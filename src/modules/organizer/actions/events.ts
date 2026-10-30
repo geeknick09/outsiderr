@@ -635,6 +635,7 @@ export async function updateEventAction(
   const eventId = String(formData.get("eventId") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim();
   const startsAt = String(formData.get("startsAt") ?? "").trim();
+  const isDraftSave = String(formData.get("saveMode") ?? "") === "draft";
 
   if (!eventId) return { error: "Missing event ID." };
   if (!title) return { error: "Give the event a title." };
