@@ -21,24 +21,39 @@ export type EventPromoterRow = {
 export function PromotersPanel({
   eventId,
   promoters,
+  program,
 }: {
   eventId: string;
   promoters: EventPromoterRow[];
+  /** Configured program - shown even before anyone signs up. */
+  program?: { mode: string; commissionBps: number; promoBuyerBps?: number; promoPromoterBps?: number };
 }) {
   const [rows, setRows] = useOptimistic(promoters);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
+  const programSummary = program && program.mode !== "NONE" ? (
+    <p className="rounded-2xl border border-violet-neon/30 bg-violet-neon/5 px-4 py-2.5 text-xs font-semibold text-violet-neon">
+      {program.mode === "LINK"
+        ? `Share-link program - promoters earn ${(program.commissionBps / 100).toFixed(1)}% of each sale.`
+        : `Promo codes - buyers get ${((program.promoBuyerBps ?? 0) / 100).toFixed(1)}% off, promoters earn ${((program.promoPromoterBps ?? 0) / 100).toFixed(1)}%.`}
+    </p>
+  ) : null;
+
   if (promoters.length === 0) {
     return (
-      <p className="text-sm text-muted">
-        No promoters yet - share the event link; anyone who taps &quot;Promote this event&quot; shows up here.
-      </p>
+      <div className="space-y-2">
+        {programSummary}
+        <p className="text-sm text-muted">
+          No promoters yet - share the event link; anyone who taps &quot;Promote this event&quot; shows up here.
+        </p>
+      </div>
     );
   }
 
   return (
     <div className="space-y-2">
+      {programSummary}
       <p className="flex items-center gap-2 text-xs text-muted">
         <Megaphone className="h-3.5 w-3.5" /> Promoter commission comes out of your payout - never the buyer.
       </p>

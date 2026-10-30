@@ -20,6 +20,7 @@ import { GuestlistPanel } from "@/modules/organizer";
 import { listGuestlist } from "@/modules/shared/actions/communities";
 import { listMyCommunities } from "@/modules/shared/server";
 import { listEventCounterStaff } from "@/modules/scanner/server";
+import { listEventStaff } from "@/modules/organizer/server";
 import { getEventPromoters } from "@/modules/shared/server";
 import { PromotersPanel } from "@/modules/organizer";
 import { getOrganizerEventAnalytics, getEventVirality } from "@/modules/analytics/server";
@@ -64,7 +65,7 @@ export default async function ManageEventPage({
 
   // Load all page data in parallel. Log the real error server-side before letting
   // the route-level error.tsx handle the fallback UI for the user.
-  const [event, analytics, cancelChargePct, postponeChargePct, heroBoost, heroBoostPrice, heroBoostDuration, orders, tickets, waitlistEntries, collaborators, eventStaff, guestlist, eventVirality] = await Promise.all([
+  const [event, analytics, cancelChargePct, postponeChargePct, heroBoost, heroBoostPrice, heroBoostDuration, orders, tickets, waitlistEntries, collaborators, eventStaff, guestlist, eventVirality, counterStaff] = await Promise.all([
     getEvent(id),
     getOrganizerEventAnalytics(user, id),
     getCancellationChargePercent(),
@@ -76,9 +77,10 @@ export default async function ManageEventPage({
     listEventTickets(id),
     listEventWaitlist(id),
     getEventCollaboratorsForOwner(user, id),
-    listEventCounterStaff(id),
+    listEventStaff(user, id),
     listGuestlist(id),
     getEventVirality(id),
+    listEventCounterStaff(id),
   ]).catch((err: unknown) => {
     console.error("[ManageEventPage] Data load error for event", id, err);
     throw err; // Re-throw so the route error boundary (error.tsx) handles it
@@ -310,13 +312,32 @@ export default async function ManageEventPage({
 
               {event.promoterMode !== "NONE" ? (
                 <CollapsibleSection title="Promoters" description="People driving sales for this event - links/codes, clicks, earned commission.">
-                  <PromotersPanel eventId={event.id} promoters={promoters} />
+                  <PromotersPanel
+                    eventId={event.id}
+                    promoters={promoters}
+                    program={{
+                      mode: event.promoterMode ?? "NONE",
+                      commissionBps: event.promoterCommissionBps ?? 1000,
+                      promoBuyerBps: event.promoBuyerDiscountBps ?? 500,
+                      promoPromoterBps: event.promoPromoterBps ?? 500,
+                    }}
+                  />
                 </CollapsibleSection>
               ) : null}
 
               {canScan && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
                 <CollapsibleSection title="Staff" description="Door + box-office staff. They sign in at /scan and /box-office with the phone or email + password you set here.">
-                  <EventStaff eventId={event.id} staff={eventStaff} />
+                  {eventStaff.length > 0 ? (
+                    <ul className="mb-4 space-y-1.5">
+                      {eventStaff.map((s) => (
+                        <li key={s.id} className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-200 px-4 py-2.5 text-sm dark:border-white/10">
+                          <span className="min-w-0 flex-1 truncate font-semibold">{s.displayName}</span>
+                          <span className="truncate text-xs text-muted">{s.phone || s.email || ""}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  <EventStaff eventId={event.id} staff={counterStaff} />
                 </CollapsibleSection>
               ) : null}
 
