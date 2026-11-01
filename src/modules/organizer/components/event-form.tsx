@@ -23,7 +23,23 @@ const OPTION = "bg-white text-zinc-900";
 const INPUT =
   "w-full min-w-0 box-border rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon [color-scheme:light] dark:[color-scheme:dark] dark:border-white/10 dark:bg-white/5 dark:text-white";
 
+/** Block non-numeric keys that type="number" still allows (e, E, +, -). */
+function blockNonNumericKeys(e: React.KeyboardEvent<HTMLInputElement>, allowDecimal = false) {
+  if (["e", "E", "+", "-"].includes(e.key) || (!allowDecimal && e.key === ".")) {
+    e.preventDefault();
+  }
+}
 
+/** Strip anything that isn't a digit (or decimal point when allowed), used for paste sanitization. */
+function sanitizeNumeric(value: string, allowDecimal = false): string {
+  if (allowDecimal) {
+    // Keep only digits and at most one decimal point
+    const cleaned = value.replace(/[^0-9.]/g, "");
+    const parts = cleaned.split(".");
+    return parts.length > 2 ? parts[0] + "." + parts.slice(1).join("") : cleaned;
+  }
+  return value.replace(/[^0-9]/g, "");
+}
 
 
 type PricingMode = "FREE" | "FLAT" | "PAID" | "PHASED";
@@ -259,6 +275,10 @@ export function EventForm({
   );
   const [mapsLink, setMapsLink] = useState(sv?.googleMapsLink ?? "");
   const [maxTickets, setMaxTickets] = useState(String(sv?.maxTicketsPerUser ?? "5"));
+  // Controlled state for FREE/FLAT quantity and price so we can sanitize input.
+  const [freeQuantity, setFreeQuantity] = useState(sv?.freeQuantity ?? "");
+  const [flatPrice, setFlatPrice] = useState(sv?.flatPrice ?? "");
+  const [flatQuantity, setFlatQuantity] = useState(sv?.flatQuantity ?? "");
   // Promoter % inputs are controlled so values survive step navigation and
   // remounts (the conditional blocks below remount on mode changes).
   const [promoCommission, setPromoCommission] = useState(String(Number(sv?.promoterCommissionBps ?? 1000) / 100));
@@ -314,8 +334,10 @@ export function EventForm({
       : [emptyPhase(), emptyPhase()],
   );
   const tierError =
-    pricingMode !== "FREE" &&
-    tiers.some((t) => !t.name.trim() || Number(t.price) < 1 || Number(t.quantity) < 1);
+    (pricingMode === "FREE" && (Number(freeQuantity) < 1 || !freeQuantity)) ||
+    (pricingMode === "FLAT" && (Number(flatPrice) < 1 || !flatPrice || Number(flatQuantity) < 1 || !flatQuantity)) ||
+    ((pricingMode === "PAID" || pricingMode === "PHASED") &&
+      tiers.some((t) => !t.name.trim() || Number(t.price) < 1 || Number(t.quantity) < 1));
 
   // Draft save → confirm retention notice, then submit programmatically so
   // native `required` validation never blocks an incomplete draft.
@@ -840,7 +862,8 @@ export function EventForm({
               min={1}
               max={10}
               value={maxTickets}
-              onChange={(e) => setMaxTickets(e.target.value)}
+              onChange={(e) => setMaxTickets(sanitizeNumeric(e.target.value))}
+              onKeyDown={(e) => blockNonNumericKeys(e)}
               className={INPUT}
             />
           </Field>
@@ -1001,7 +1024,9 @@ export function EventForm({
                 type="number"
                 min={1}
                 required
-                defaultValue={sv?.freeQuantity ?? ""}
+                value={freeQuantity}
+                onChange={(e) => setFreeQuantity(sanitizeNumeric(e.target.value))}
+                onKeyDown={(e) => blockNonNumericKeys(e)}
                 placeholder="100"
                 className={INPUT}
               />
@@ -1023,7 +1048,9 @@ export function EventForm({
                   type="number"
                   min={1}
                   required
-                  defaultValue={sv?.flatPrice ?? ""}
+                  value={flatPrice}
+                  onChange={(e) => setFlatPrice(sanitizeNumeric(e.target.value, true))}
+                  onKeyDown={(e) => blockNonNumericKeys(e, true)}
                   placeholder="399"
                   className={INPUT}
                 />
@@ -1034,7 +1061,9 @@ export function EventForm({
                   type="number"
                   min={1}
                   required
-                  defaultValue={sv?.flatQuantity ?? ""}
+                  value={flatQuantity}
+                  onChange={(e) => setFlatQuantity(sanitizeNumeric(e.target.value))}
+                  onKeyDown={(e) => blockNonNumericKeys(e)}
                   placeholder="100"
                   className={INPUT}
                 />
@@ -1106,7 +1135,8 @@ export function EventForm({
                       max={100000}
                       inputMode="decimal"
                       value={tier.price}
-                      onChange={(event) => updateTier(tier.key, { price: event.target.value })}
+                      onChange={(event) => updateTier(tier.key, { price: sanitizeNumeric(event.target.value, true) })}
+                      onKeyDown={(e) => blockNonNumericKeys(e, true)}
                       placeholder="399"
                       className={INPUT}
                     />
@@ -1121,8 +1151,9 @@ export function EventForm({
                       inputMode="numeric"
                       value={tier.quantity}
                       onChange={(event) =>
-                        updateTier(tier.key, { quantity: event.target.value })
+                        updateTier(tier.key, { quantity: sanitizeNumeric(event.target.value) })
                       }
+                      onKeyDown={(e) => blockNonNumericKeys(e)}
                       placeholder="100"
                       className={INPUT}
                     />
@@ -1237,7 +1268,8 @@ export function EventForm({
                       required
                       inputMode="decimal"
                       value={phase.price}
-                      onChange={(e) => updatePhase(phase.key, { price: e.target.value })}
+                      onChange={(e) => updatePhase(phase.key, { price: sanitizeNumeric(e.target.value, true) })}
+                      onKeyDown={(e) => blockNonNumericKeys(e, true)}
                       placeholder="199"
                       className={INPUT}
                     />
@@ -1249,7 +1281,8 @@ export function EventForm({
                       required
                       inputMode="numeric"
                       value={phase.quantity}
-                      onChange={(e) => updatePhase(phase.key, { quantity: e.target.value })}
+                      onChange={(e) => updatePhase(phase.key, { quantity: sanitizeNumeric(e.target.value) })}
+                      onKeyDown={(e) => blockNonNumericKeys(e)}
                       placeholder="50"
                       className={INPUT}
                     />
@@ -1353,7 +1386,8 @@ export function EventForm({
                       max={100000}
                       inputMode="decimal"
                       value={tier.price}
-                      onChange={(event) => updateTier(tier.key, { price: event.target.value })}
+                      onChange={(event) => updateTier(tier.key, { price: sanitizeNumeric(event.target.value, true) })}
+                      onKeyDown={(e) => blockNonNumericKeys(e, true)}
                       placeholder="999"
                       className={INPUT}
                     />
@@ -1368,8 +1402,9 @@ export function EventForm({
                       inputMode="numeric"
                       value={tier.quantity}
                       onChange={(event) =>
-                        updateTier(tier.key, { quantity: event.target.value })
+                        updateTier(tier.key, { quantity: sanitizeNumeric(event.target.value) })
                       }
+                      onKeyDown={(e) => blockNonNumericKeys(e)}
                       placeholder="20"
                       className={INPUT}
                     />
@@ -1457,17 +1492,20 @@ export function EventForm({
           {promoterMode === "LINK" ? (
             <Field label="Promoter commission %">
               <input name="promoterCommissionBps" type="number" min={5} max={30} step={0.5}
-                value={promoCommission} onChange={(e) => setPromoCommission(e.target.value)} className={INPUT} />
+                value={promoCommission} onChange={(e) => setPromoCommission(sanitizeNumeric(e.target.value, true))}
+                onKeyDown={(e) => blockNonNumericKeys(e, true)} className={INPUT} />
             </Field>
           ) : promoterMode === "PROMO_CODE" ? (
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Buyer discount %">
                 <input name="promoBuyerDiscountBps" type="number" min={0} max={15} step={0.5}
-                  value={promoBuyer} onChange={(e) => setPromoBuyer(e.target.value)} className={INPUT} />
+                  value={promoBuyer} onChange={(e) => setPromoBuyer(sanitizeNumeric(e.target.value, true))}
+                  onKeyDown={(e) => blockNonNumericKeys(e, true)} className={INPUT} />
               </Field>
               <Field label="Promoter commission %">
                 <input name="promoPromoterBps" type="number" min={0} max={15} step={0.5}
-                  value={promoPromoter} onChange={(e) => setPromoPromoter(e.target.value)} className={INPUT} />
+                  value={promoPromoter} onChange={(e) => setPromoPromoter(sanitizeNumeric(e.target.value, true))}
+                  onKeyDown={(e) => blockNonNumericKeys(e, true)} className={INPUT} />
               </Field>
             </div>
           ) : null}
