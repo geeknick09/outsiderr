@@ -1101,11 +1101,13 @@ export async function updateEventSectionAction(
     };
   }
 
+  // Only revalidate discovery + public event page. Do NOT revalidate the
+  // organizer layout or the manage page — the 15+ parallel fetches crash
+  // during the server re-render (Ref: 2468244401). The section form already
+  // reflects the new state client-side.
   revalidatePath("/");
   revalidateTag("events", "expire");
-  revalidatePath("/organizer");
   revalidatePath(`/events/${eventId}`);
-  revalidatePath(`/organizer/events/${eventId}`);
   return { error: null, saved: section };
 }
 
