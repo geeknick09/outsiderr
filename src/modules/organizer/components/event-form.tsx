@@ -167,7 +167,7 @@ export function EventForm({
     (draftEvent?.categories as string[] | undefined) ?? (draftEvent?.category ? [draftEvent.category] : []),
   );
   const [promoterMode, setPromoterMode] = useState<string>((draftEvent?.promoterMode as string | undefined) ?? "NONE");
-  const [staffRows, setStaffRows] = useState<{ name: string; phone: string; email: string }[]>([]);
+  const [staffRows, setStaffRows] = useState<{ name: string; phone: string; email: string; password: string }[]>([]);
   const [uploadsInFlight, setUploadsInFlight] = useState(0);
 
   // Step change lands the user mid-page otherwise - always reset to top.
@@ -199,7 +199,7 @@ export function EventForm({
         .select("display_name, phone, email")
         .eq("event_id", draftEvent.id);
       if (!cancelled && data?.length) {
-        setStaffRows(data.map((s) => ({ name: s.display_name ?? "", phone: s.phone ?? "", email: s.email ?? "" })));
+        setStaffRows(data.map((s) => ({ name: s.display_name ?? "", phone: s.phone ?? "", email: s.email ?? "", password: "" })));
       }
     })();
     return () => { cancelled = true; };
@@ -405,7 +405,8 @@ export function EventForm({
     (r) =>
       (r.email && !EMAIL_RE.test(r.email)) ||
       (r.phone && !PHONE_RE.test(r.phone)) ||
-      (r.name && !r.phone && !r.email),
+      (r.name && !r.phone && !r.email) ||
+      (r.name && r.password.length > 0 && r.password.length < 6),
   );
 
   function validatePhases(rows: PhaseRow[]) {
@@ -1485,7 +1486,7 @@ export function EventForm({
           </p>
         </div>
         {staffRows.map((row, i) => (
-          <div key={i} className="grid gap-2 rounded-2xl border border-zinc-200 p-3 dark:border-white/10 sm:grid-cols-7">
+          <div key={i} className="grid gap-2 rounded-2xl border border-zinc-200 p-3 dark:border-white/10 sm:grid-cols-9">
             <input name="staffName" placeholder="Name" value={row.name} className={`${INPUT} sm:col-span-2`}
               onChange={(e) => setStaffRows((rs) => rs.map((r, j) => (j === i ? { ...r, name: e.target.value } : r)))} />
             <div className="sm:col-span-2">
@@ -1502,6 +1503,13 @@ export function EventForm({
                 <p className="mt-1 text-[10px] text-red-500">Invalid email format</p>
               ) : null}
             </div>
+            <div className="sm:col-span-2">
+              <input name="staffPassword" type="password" placeholder="Password" value={row.password} className={`${INPUT} ${row.password && row.password.length < 6 ? "border-red-500" : ""}`}
+                onChange={(e) => setStaffRows((rs) => rs.map((r, j) => (j === i ? { ...r, password: e.target.value } : r)))} />
+              {row.password && row.password.length < 6 ? (
+                <p className="mt-1 text-[10px] text-red-500">Min 6 characters</p>
+              ) : null}
+            </div>
             <button type="button" className="text-xs font-semibold text-red-500"
               onClick={() => setStaffRows((rs) => rs.filter((_, j) => j !== i))}>
               Remove
@@ -1513,7 +1521,7 @@ export function EventForm({
         ) : null}
         {staffRows.length < 5 ? (
           <button type="button" className="text-xs font-semibold text-violet-neon"
-            onClick={() => setStaffRows((rs) => [...rs, { name: "", phone: "", email: "" }])}>
+            onClick={() => setStaffRows((rs) => [...rs, { name: "", phone: "", email: "", password: "" }])}>
             + Add staff member
           </button>
         ) : null}

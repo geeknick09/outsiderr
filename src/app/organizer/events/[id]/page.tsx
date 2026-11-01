@@ -63,28 +63,29 @@ export default async function ManageEventPage({
 
   const { id } = await params;
 
-  // Load all page data in parallel. Log the real error server-side before letting
-  // the route-level error.tsx handle the fallback UI for the user.
+  // Load all page data in parallel. Only the event itself is critical — every
+  // other fetch defaults to a safe fallback so one flaky query can't crash the
+  // whole manage page (the old ".catch → throw" killed the page on any failure).
+  const safe = <T,>(p: Promise<T>, fallback: T): Promise<T> =>
+    p.catch((err) => { console.error("[ManageEventPage] non-critical fetch failed for", id, err); return fallback; });
+
   const [event, analytics, cancelChargePct, postponeChargePct, heroBoost, heroBoostPrice, heroBoostDuration, orders, tickets, waitlistEntries, collaborators, eventStaff, guestlist, eventVirality, counterStaff] = await Promise.all([
-    getEvent(id),
-    getOrganizerEventAnalytics(user, id),
-    getCancellationChargePercent(),
-    getPostponementChargePercent(),
-    getHeroBoostForEvent(user, id),
-    getHeroBoostPrice(),
-    getHeroBoostDurationDays(),
-    listEventOrders(id),
-    listEventTickets(id),
-    listEventWaitlist(id),
-    getEventCollaboratorsForOwner(user, id),
-    listEventStaff(user, id),
-    listGuestlist(id),
-    getEventVirality(id),
-    listEventCounterStaff(id),
-  ]).catch((err: unknown) => {
-    console.error("[ManageEventPage] Data load error for event", id, err);
-    throw err; // Re-throw so the route error boundary (error.tsx) handles it
-  });
+    getEvent(id),                                           // critical — checked below
+    safe(getOrganizerEventAnalytics(user, id), null),
+    safe(getCancellationChargePercent(), 0),
+    safe(getPostponementChargePercent(), 0),
+    safe(getHeroBoostForEvent(user, id), null),
+    safe(getHeroBoostPrice(), 0),
+    safe(getHeroBoostDurationDays(), 7),
+    safe(listEventOrders(id), []),
+    safe(listEventTickets(id), []),
+    safe(listEventWaitlist(id), []),
+    safe(getEventCollaboratorsForOwner(user, id), []),
+    safe(listEventStaff(user, id), []),
+    safe(listGuestlist(id), []),
+    safe(getEventVirality(id), null),
+    safe(listEventCounterStaff(id), []),
+  ]);
 
   // Expire stale waitlist offers (best-effort, non-blocking)
   try { await expireWaitlistOffers(); } catch { /* ignore */ }

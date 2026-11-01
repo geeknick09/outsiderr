@@ -626,6 +626,7 @@ export type EventStaffRow = {
   phone: string | null;
   user_id: string | null;
   display_name: string;
+  password_hash: string | null;
   created_at: string;
 }
 

@@ -97,6 +97,7 @@ export async function addEventStaff(
   email: string | null,
   phone: string | null,
   displayName: string,
+  passwordHash: string | null = null,
 ): Promise<{ success: boolean; error?: string }> {
   const organizer = await getOrganizerProfile(user);
   if (!organizer) return { success: false, error: "No organizer profile." };
@@ -154,6 +155,7 @@ export async function addEventStaff(
     phone: phone || null,
     user_id: userId,
     display_name: displayName,
+    ...(passwordHash ? { password_hash: passwordHash } : {}),
   });
 
   if (error) return { success: false, error: error.message };

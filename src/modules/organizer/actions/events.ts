@@ -596,14 +596,24 @@ export async function createEventAction(
     const staffNames = formData.getAll("staffName").map(String);
     const staffPhones = formData.getAll("staffPhone").map(String);
     const staffEmails = formData.getAll("staffEmail").map(String);
+    const staffPasswords = formData.getAll("staffPassword").map(String);
     for (let i = 0; i < staffNames.length; i++) {
       const name = staffNames[i]?.trim();
       const phone = staffPhones[i]?.trim() || null;
       const email = staffEmails[i]?.trim() || null;
+      const rawPassword = staffPasswords[i]?.trim() || null;
       if (!name || (!phone && !email)) continue;
+      // Hash the password with SHA-256 + salt (lightweight server-side hash)
+      let passwordHash: string | null = null;
+      if (rawPassword && rawPassword.length >= 6) {
+        const { createHash, randomBytes } = await import("crypto");
+        const salt = randomBytes(16).toString("hex");
+        const hash = createHash("sha256").update(salt + rawPassword).digest("hex");
+        passwordHash = `${salt}:${hash}`;
+      }
       try {
         const { addEventStaff } = await import("../data/event-staff");
-        const res = await addEventStaff(user, eventId, email, phone, name);
+        const res = await addEventStaff(user, eventId, email, phone, name, passwordHash);
         if (!res.success) console.error(`[createEvent] staff save failed for ${name}:`, res.error);
       } catch (err) {
         console.error(`[createEvent] staff save threw for ${name}:`, err);

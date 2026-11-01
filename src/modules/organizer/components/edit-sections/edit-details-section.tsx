@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { CollapsibleSection, CATEGORIES, cn } from "@/modules/shared";
+import { CollapsibleSection, CATEGORIES, cn, tagsForCategories } from "@/modules/shared";
 import { updateEventSectionAction, type UpdateEventSectionState } from "../../actions/events";
 import type { EventDetail } from "@/modules/shared";
 
@@ -16,7 +16,7 @@ export function EditDetailsSection({ event, lockLogistics = false }: { event: Ev
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(event.title);
   const [description, setDescription] = useState(event.description);
-  const [tags, setTags] = useState(event.tags.join(", "));
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set(event.tags));
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     (event.categories?.length ? event.categories : [event.category]) as string[],
   );
@@ -28,7 +28,7 @@ export function EditDetailsSection({ event, lockLogistics = false }: { event: Ev
   function handleCancel() {
     setTitle(event.title);
     setDescription(event.description);
-    setTags(event.tags.join(", "));
+    setSelectedTags(new Set(event.tags));
     setSelectedCategories((event.categories?.length ? event.categories : [event.category]) as string[]);
     setIsEditing(false);
   }
@@ -109,16 +109,43 @@ export function EditDetailsSection({ event, lockLogistics = false }: { event: Ev
         </div>
 
         <div>
-          <label className="mb-1.5 block text-xs font-semibold text-muted">Tags (comma separated)</label>
-          <input
-            name="tags"
-            type="text"
-            value={tags}
-            onChange={(e) => setTags(e.target.value)}
-            readOnly={!isEditing}
-            placeholder="live music, rooftop, techno"
-            className={INPUT}
-          />
+          <label className="mb-1.5 block text-xs font-semibold text-muted">Tags</label>
+          {(() => {
+            const visible = tagsForCategories(selectedCategories);
+            const shown = [...new Set([...visible, ...selectedTags])];
+            return (
+              <div className="flex flex-wrap gap-2 rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
+                {shown.map((tag) => {
+                  const active = selectedTags.has(tag);
+                  return (
+                    <button
+                      type="button"
+                      key={tag}
+                      disabled={!isEditing}
+                      onClick={() =>
+                        setSelectedTags((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(tag)) next.delete(tag);
+                          else next.add(tag);
+                          return next;
+                        })
+                      }
+                      className={cn(
+                        "rounded-full border px-3 py-1 text-xs font-semibold transition-all",
+                        active
+                          ? "border-violet-neon bg-violet-neon/15 text-violet-neon"
+                          : "border-zinc-200 text-zinc-600 hover:border-violet-neon/50 dark:border-white/10 dark:text-zinc-300",
+                        !isEditing && "cursor-default opacity-70",
+                      )}
+                    >
+                      {tag}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
+          <input type="hidden" name="tags" value={[...selectedTags].join(",")} />
         </div>
       </form>
     </CollapsibleSection>
