@@ -284,6 +284,8 @@ export function EventForm({
   const [promoCommission, setPromoCommission] = useState(String(Number(sv?.promoterCommissionBps ?? 1000) / 100));
   const [promoBuyer, setPromoBuyer] = useState(String(Number(sv?.promoBuyerDiscountBps ?? 500) / 100));
   const [promoPromoter, setPromoPromoter] = useState(String(Number(sv?.promoPromoterBps ?? 500) / 100));
+  // Terms checkbox must be checked before Publish is enabled.
+  const [termsAccepted, setTermsAccepted] = useState(sv?.organizerTerms ?? false);
   // Contact fields tracked so invalid values block Continue on this step.
   const [contactEmail, setContactEmail] = useState(sv?.contactEmail ?? "");
   const [contactPhone, setContactPhone] = useState(sv?.contactPhone ?? "");
@@ -296,7 +298,7 @@ export function EventForm({
   const maxTicketsError = !maxTickets || Number(maxTickets) < 1 || Number(maxTickets) > 10;
   const promoError =
     (promoterMode === "LINK" &&
-      (Number(promoCommission) < 1 || Number(promoCommission) > 100 || !promoCommission)) ||
+      (Number(promoCommission) < 1 || Number(promoCommission) > 15 || !promoCommission)) ||
     (promoterMode === "PROMO_CODE" &&
       (Number(promoBuyer) < 0 || Number(promoBuyer) > 15 || !promoBuyer ||
         Number(promoPromoter) < 0 || Number(promoPromoter) > 15 || !promoPromoter));
@@ -1491,7 +1493,7 @@ export function EventForm({
           </Field>
           {promoterMode === "LINK" ? (
             <Field label="Promoter commission %">
-              <input name="promoterCommissionBps" type="number" min={1} max={100} step={0.5}
+              <input name="promoterCommissionBps" type="number" min={1} max={15} step={0.5}
                 value={promoCommission} onChange={(e) => setPromoCommission(sanitizeNumeric(e.target.value, true))}
                 onKeyDown={(e) => blockNonNumericKeys(e, true)} className={INPUT} />
             </Field>
@@ -1524,7 +1526,8 @@ export function EventForm({
           type="checkbox"
           name="organizerTerms"
           required
-          defaultChecked={sv?.organizerTerms ?? false}
+          checked={termsAccepted}
+          onChange={(e) => setTermsAccepted(e.target.checked)}
           className="mt-0.5 h-4 w-4 accent-violet-neon"
         />
         <span className="text-xs text-muted">
@@ -1542,7 +1545,7 @@ export function EventForm({
       <input type="hidden" name="saveMode" value="publish" />
 
       <div className="flex flex-wrap gap-3">
-        <Button type="submit" size="lg" disabled={pending || uploadsInFlight > 0 || !!dateError || !!mapsError || contactError || !!phaseError || staffError || communityError || tierError || maxTicketsError || promoError} loading={pending} loadingText="Publishing…">
+        <Button type="submit" size="lg" disabled={pending || uploadsInFlight > 0 || !termsAccepted || !!dateError || !!mapsError || contactError || !!phaseError || staffError || communityError || tierError || maxTicketsError || promoError} loading={pending} loadingText="Publishing…">
           Publish event
         </Button>
         <Button
