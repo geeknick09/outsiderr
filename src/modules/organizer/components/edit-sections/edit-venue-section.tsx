@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 import { CollapsibleSection, CityPicker, cn, isGoogleMapsLink, cityLabel } from "@/modules/shared";
 import { updateEventSectionAction, type UpdateEventSectionState } from "../../actions/events";
@@ -13,6 +14,7 @@ export function EditVenueSection({ event, lockLogistics = false }: { event: Even
     updateEventSectionAction,
     { error: null },
   );
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [venueMode, setVenueMode] = useState<"NOW" | "TBA">(
     event.venueName === "TBA" ? "TBA" : "NOW",
@@ -24,7 +26,7 @@ export function EditVenueSection({ event, lockLogistics = false }: { event: Even
   const [mapsError, setMapsError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (state.saved === "venue") setIsEditing(false);
+    if (state.saved === "venue") { setIsEditing(false); router.refresh(); }
   }, [state]);
 
   function handleCancel() {

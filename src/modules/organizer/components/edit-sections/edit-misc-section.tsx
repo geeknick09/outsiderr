@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 import { CollapsibleSection, cn } from "@/modules/shared";
 import { updateEventSectionAction, type UpdateEventSectionState } from "../../actions/events";
@@ -17,6 +18,7 @@ export function EditMiscSection({ event, pastEvents, lockLogistics = false }: Ed
     updateEventSectionAction,
     { error: null },
   );
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [waitlistEnabled, setWaitlistEnabled] = useState(event.waitlistEnabled);
   const [allowBookingDuringEvent, setAllowBookingDuringEvent] = useState(event.allowBookingDuringEvent);
@@ -25,7 +27,7 @@ export function EditMiscSection({ event, pastEvents, lockLogistics = false }: Ed
   const [pickerKey, setPickerKey] = useState(0);
 
   useEffect(() => {
-    if (state.saved === "misc") setIsEditing(false);
+    if (state.saved === "misc") { setIsEditing(false); router.refresh(); }
   }, [state]);
 
   function handleCancel() {

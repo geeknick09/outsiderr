@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 import { CollapsibleSection, CATEGORIES, cn, tagsForCategories } from "@/modules/shared";
 import { updateEventSectionAction, type UpdateEventSectionState } from "../../actions/events";
@@ -13,6 +14,7 @@ export function EditDetailsSection({ event, lockLogistics = false }: { event: Ev
     updateEventSectionAction,
     { error: null },
   );
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(event.title);
   const [description, setDescription] = useState(event.description);
@@ -22,7 +24,7 @@ export function EditDetailsSection({ event, lockLogistics = false }: { event: Ev
   );
 
   useEffect(() => {
-    if (state.saved === "details") setIsEditing(false);
+    if (state.saved === "details") { setIsEditing(false); router.refresh(); }
   }, [state]);
 
   function handleCancel() {

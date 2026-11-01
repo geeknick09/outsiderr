@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 import { CollapsibleSection, utcToISTInput } from "@/modules/shared";
 import { updateEventSectionAction, type UpdateEventSectionState } from "../../actions/events";
@@ -13,13 +14,14 @@ export function EditTimeSection({ event, lockLogistics = false }: { event: Event
     updateEventSectionAction,
     { error: null },
   );
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [startsAt, setStartsAt] = useState(utcToISTInput(event.startsAt));
   const [endsAt, setEndsAt] = useState(event.endsAt ? utcToISTInput(event.endsAt) : "");
   const [dateError, setDateError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (state.saved === "schedule") setIsEditing(false);
+    if (state.saved === "schedule") { setIsEditing(false); router.refresh(); }
   }, [state]);
 
   function validateDates(start: string, end: string) {

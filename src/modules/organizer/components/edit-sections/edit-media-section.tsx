@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 import { CollapsibleSection } from "@/modules/shared";
 import { GalleryUploader } from "../gallery-uploader";
@@ -13,10 +14,11 @@ export function EditMediaSection({ event }: { event: EventDetail }) {
     updateEventSectionAction,
     { error: null },
   );
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
-    if (state.saved === "media") setIsEditing(false);
+    if (state.saved === "media") { setIsEditing(false); router.refresh(); }
   }, [state]);
 
   return (

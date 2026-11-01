@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 import { CollapsibleSection } from "@/modules/shared";
 import { PhoneInput } from "@/modules/shared";
@@ -14,6 +15,7 @@ export function EditContactSection({ event }: { event: EventDetail }) {
     updateEventSectionAction,
     { error: null },
   );
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [contactEmail, setContactEmail] = useState(event.contactEmail ?? "");
   const [instagramUrl, setInstagramUrl] = useState(event.instagramUrl ?? "");
@@ -23,7 +25,7 @@ export function EditContactSection({ event }: { event: EventDetail }) {
   const [linkedinUrl, setLinkedinUrl] = useState(event.linkedinUrl ?? "");
 
   useEffect(() => {
-    if (state.saved === "contact") setIsEditing(false);
+    if (state.saved === "contact") { setIsEditing(false); router.refresh(); }
   }, [state]);
 
   function handleCancel() {

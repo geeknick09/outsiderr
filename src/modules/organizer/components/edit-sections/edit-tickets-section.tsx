@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CollapsibleSection, utcToISTInput, cn } from "@/modules/shared";
 import { Plus, Ban } from "lucide-react";
 import { updateEventSectionAction, type UpdateEventSectionState } from "../../actions/events";
@@ -61,6 +62,7 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
     updateEventSectionAction,
     { error: null },
   );
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const mode = event.pricingMode ?? "PAID";
 
@@ -116,6 +118,7 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
         lastSynced.current = { tiers: fresh, expiredIds: freshExpired, maxPerUser: maxTicketsPerUser };
       }
       setIsEditing(false);
+      router.refresh();
     }
   }, [state]);
 
