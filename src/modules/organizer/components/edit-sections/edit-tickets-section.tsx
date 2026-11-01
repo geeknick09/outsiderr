@@ -1,8 +1,8 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { CollapsibleSection, utcToISTInput } from "@/modules/shared";
-import { Plus, Trash2 } from "lucide-react";
+import { CollapsibleSection, utcToISTInput, cn } from "@/modules/shared";
+import { Plus, Ban } from "lucide-react";
 import { updateEventSectionAction, type UpdateEventSectionState } from "../../actions/events";
 import type { EventDetail } from "@/modules/shared";
 
@@ -19,10 +19,18 @@ interface EditableTier {
   quantity: string;
   quantitySold: number;
   isNew?: boolean;
+  isExpired?: boolean;
   tierType?: string;
   phaseOpensAt?: string;
   phaseClosesAt?: string;
 }
+
+const MODE_LABELS: Record<string, string> = {
+  FREE: "Free Event",
+  FLAT: "Single Price",
+  PAID: "Multiple Tiers",
+  PHASED: "Phased Pricing",
+};
 
 function toLocal(iso: string | null | undefined): string {
   return iso ? utcToISTInput(iso) : "";
@@ -34,6 +42,8 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
     { error: null },
   );
   const [isEditing, setIsEditing] = useState(false);
+  const mode = event.pricingMode ?? "PAID";
+
   const seedTiers = () =>
     event.tiers.map((t) => ({
       id: t.id,
@@ -41,12 +51,14 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
       price: (t.pricePaise / 100).toFixed(0),
       quantity: String(t.quantity),
       quantitySold: t.quantitySold,
+      isExpired: t.quantity > 0 && t.quantity === t.quantitySold && t.quantitySold > 0,
       tierType: t.tierType,
       phaseOpensAt: toLocal(t.phaseOpensAt),
       phaseClosesAt: toLocal(t.phaseClosesAt),
     }));
 
   const [tiers, setTiers] = useState<EditableTier[]>(seedTiers);
+  const [expiredIds, setExpiredIds] = useState<Set<string>>(new Set());
   const [maxTicketsPerUser, setMaxTicketsPerUser] = useState(String(event.maxTicketsPerUser ?? 5));
   const [phaseError, setPhaseError] = useState<string | null>(null);
 
@@ -54,12 +66,17 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
     if (state.saved === "tickets") setIsEditing(false);
   }, [state.saved]);
 
+  const isTierExpired = (tier: EditableTier) => expiredIds.has(tier.id);
+
+  // Validate only active (non-expired) tiers
   const tierError = (() => {
-    for (const t of tiers) {
+    const activeTiers = tiers.filter((t) => !isTierExpired(t));
+    if (activeTiers.length === 0) return "At least one active tier is required.";
+    for (const t of activeTiers) {
       const price = Number(t.price);
       const qty = Number(t.quantity);
       if (t.name.trim().length === 0) return "All tiers must have a name.";
-      if (isNaN(price) || price < 0) return `Tier "${t.name || "unnamed"}" has an invalid price.`;
+      if (mode !== "FREE" && (isNaN(price) || price < 0)) return `Tier "${t.name || "unnamed"}" has an invalid price.`;
       if (isNaN(qty) || qty <= 0) return `Tier "${t.name || "unnamed"}" needs a quantity of at least 1.`;
       if (qty < t.quantitySold) return `Tier "${t.name}" quantity (${qty}) cannot be less than already sold (${t.quantitySold}).`;
     }
@@ -67,7 +84,7 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
   })();
 
   function validatePhases(rows: EditableTier[]) {
-    const phases = rows.filter((t) => t.tierType === "FLAT_PHASE" && t.phaseOpensAt);
+    const phases = rows.filter((t) => t.tierType === "FLAT_PHASE" && t.phaseOpensAt && !expiredIds.has(t.id));
     for (let i = 0; i < phases.length; i++) {
       const p = phases[i];
       if (p.phaseClosesAt && new Date(p.phaseClosesAt) <= new Date(p.phaseOpensAt!)) {
@@ -92,16 +109,38 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
     validatePhases(updated);
   }
 
+  function expireTier(id: string) {
+    setExpiredIds((prev) => new Set([...prev, id]));
+  }
+
+  function unexpireTier(id: string) {
+    setExpiredIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }
+
   function addTier() {
+    const tierType = mode === "PHASED" ? "FLAT_PHASE" : "NAMED";
     setTiers([
       ...tiers,
-      { id: `new-${crypto.randomUUID()}`, name: "", price: "", quantity: "", quantitySold: 0, isNew: true },
+      {
+        id: `new-${crypto.randomUUID()}`,
+        name: "",
+        price: mode === "FREE" ? "0" : "",
+        quantity: "",
+        quantitySold: 0,
+        isNew: true,
+        tierType,
+      },
     ]);
   }
 
-  function removeTier(id: string) {
+  function removeNewTier(id: string) {
+    // Only brand-new unsaved tiers can be removed
     const tier = tiers.find((t) => t.id === id);
-    if (tier && tier.quantitySold > 0) return; // Can't remove tiers with sales
+    if (!tier?.isNew) return;
     const updated = tiers.filter((t) => t.id !== id);
     setTiers(updated);
     validatePhases(updated);
@@ -109,12 +148,20 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
 
   function handleCancel() {
     setTiers(seedTiers());
+    setExpiredIds(new Set());
     setMaxTicketsPerUser(String(event.maxTicketsPerUser ?? 5));
     setPhaseError(null);
     setIsEditing(false);
   }
 
-  const hasPhases = tiers.some((t) => t.tierType === "FLAT_PHASE");
+  const hasPhases = mode === "PHASED" || tiers.some((t) => t.tierType === "FLAT_PHASE");
+  const showPrice = mode !== "FREE";
+  const canAddTiers = mode === "PAID" || mode === "PHASED";
+
+  // For saving: expired tiers get quantity = quantitySold (caps them, preserves data)
+  const effectiveTiers = tiers.map((t) =>
+    isTierExpired(t) ? { ...t, quantity: String(t.quantitySold || 0) } : t,
+  );
 
   return (
     <CollapsibleSection
@@ -133,15 +180,31 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
         <input type="hidden" name="eventId" value={event.id} />
         <input type="hidden" name="section" value="tickets" />
 
+        {/* Pricing mode label */}
+        <div className="flex items-center gap-2">
+          <span className="rounded-full border border-violet-neon/40 bg-violet-neon/10 px-3 py-1 text-xs font-semibold text-violet-neon">
+            {MODE_LABELS[mode] ?? mode}
+          </span>
+          {!isEditing ? null : (
+            <span className="text-[10px] text-muted">Pricing type cannot be changed after publishing.</span>
+          )}
+        </div>
+
         {!isEditing ? (
           <div className="space-y-2 text-sm text-muted">
             <p><strong>Max tickets per user:</strong> {maxTicketsPerUser}</p>
             <ul className="space-y-1">
-              {tiers.map((t) => (
-                <li key={t.id}>
-                  <strong>{t.name || "Unnamed"}</strong> - ₹{t.price || "0"} · {t.quantity} qty · {t.quantitySold} sold
-                </li>
-              ))}
+              {tiers.map((t) => {
+                const expired = t.quantity === String(t.quantitySold) && t.quantitySold > 0 && Number(t.quantity) === t.quantitySold;
+                return (
+                  <li key={t.id} className={expired ? "opacity-50" : ""}>
+                    <strong>{t.name || "Unnamed"}</strong>
+                    {showPrice ? ` - ₹${t.price || "0"}` : " - Free"}
+                    {" · "}{t.quantity} qty · {t.quantitySold} sold
+                    {expired ? <span className="ml-1 text-[10px] font-semibold text-amber-500">Sold out</span> : null}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         ) : (
@@ -159,96 +222,151 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
             </div>
 
             <div className="space-y-2">
-              {tiers.map((tier) => (
-                <div key={tier.id} className="rounded-xl border border-zinc-200 p-3 dark:border-white/10">
-                  <div className="grid gap-2 sm:grid-cols-[1fr_100px_100px_32px]">
-                    <input
-                      type="text"
-                      placeholder="Name"
-                      value={tier.name}
-                      onChange={(e) => updateTier(tier.id, { name: e.target.value })}
-                      className={SMALL_INPUT}
-                    />
-                    <input
-                      type="number"
-                      placeholder="Price (₹)"
-                      value={tier.price}
-                      onChange={(e) => updateTier(tier.id, { price: e.target.value })}
-                      className={SMALL_INPUT}
-                    />
-                    <input
-                      type="number"
-                      placeholder="Qty"
-                      value={tier.quantity}
-                      onChange={(e) => updateTier(tier.id, { quantity: e.target.value })}
-                      className={SMALL_INPUT}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeTier(tier.id)}
-                      disabled={tier.quantitySold > 0}
-                      title={tier.quantitySold > 0 ? "Cannot delete - has sales" : "Remove tier"}
-                      className="self-center rounded-lg p-1 text-muted hover:text-red-500 disabled:opacity-30"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                  {tier.tierType === "FLAT_PHASE" ? (
-                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                      <div>
-                        <label className="mb-0.5 block text-[10px] font-semibold uppercase text-muted">Opens</label>
+              {tiers.map((tier) => {
+                const expired = isTierExpired(tier);
+                return (
+                  <div
+                    key={tier.id}
+                    className={cn(
+                      "rounded-xl border p-3 transition-opacity",
+                      expired
+                        ? "border-amber-500/30 bg-amber-500/5 opacity-60"
+                        : "border-zinc-200 dark:border-white/10",
+                    )}
+                  >
+                    {expired ? (
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-amber-500">
+                          Expired — no more sales · {tier.quantitySold} tickets preserved
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => unexpireTier(tier.id)}
+                          className="text-[10px] font-semibold text-violet-neon hover:underline"
+                        >
+                          Restore
+                        </button>
+                      </div>
+                    ) : null}
+
+                    <div className={cn(
+                      "grid gap-2",
+                      showPrice ? "sm:grid-cols-[1fr_100px_100px_auto]" : "sm:grid-cols-[1fr_100px_auto]",
+                    )}>
+                      <input
+                        type="text"
+                        placeholder="Name"
+                        value={tier.name}
+                        onChange={(e) => updateTier(tier.id, { name: e.target.value })}
+                        disabled={expired}
+                        className={SMALL_INPUT}
+                      />
+                      {showPrice ? (
                         <input
-                          type="datetime-local"
-                          value={tier.phaseOpensAt}
-                          onChange={(e) => updateTier(tier.id, { phaseOpensAt: e.target.value })}
+                          type="number"
+                          placeholder="Price (₹)"
+                          min={0}
+                          value={tier.price}
+                          onChange={(e) => updateTier(tier.id, { price: e.target.value })}
+                          disabled={expired}
                           className={SMALL_INPUT}
                         />
-                      </div>
-                      <div>
-                        <label className="mb-0.5 block text-[10px] font-semibold uppercase text-muted">Closes</label>
-                        <input
-                          type="datetime-local"
-                          value={tier.phaseClosesAt}
-                          onChange={(e) => updateTier(tier.id, { phaseClosesAt: e.target.value })}
-                          className={SMALL_INPUT}
-                        />
-                      </div>
+                      ) : null}
+                      <input
+                        type="number"
+                        placeholder="Qty"
+                        min={tier.quantitySold || 1}
+                        value={expired ? tier.quantitySold : tier.quantity}
+                        onChange={(e) => updateTier(tier.id, { quantity: e.target.value })}
+                        disabled={expired}
+                        className={SMALL_INPUT}
+                      />
+                      {/* Expire / Remove button */}
+                      {!expired && !tier.isNew ? (
+                        <button
+                          type="button"
+                          onClick={() => expireTier(tier.id)}
+                          title="Expire tier — stops sales but preserves ticket data"
+                          className="self-center rounded-lg p-1 text-muted hover:text-amber-500"
+                        >
+                          <Ban className="h-3.5 w-3.5" />
+                        </button>
+                      ) : tier.isNew ? (
+                        <button
+                          type="button"
+                          onClick={() => removeNewTier(tier.id)}
+                          title="Remove unsaved tier"
+                          className="self-center rounded-lg p-1 text-muted hover:text-red-500"
+                        >
+                          <Ban className="h-3.5 w-3.5" />
+                        </button>
+                      ) : null}
                     </div>
-                  ) : null}
-                  {tier.quantitySold > 0 ? (
-                    <p className="mt-1 text-[10px] text-muted">{tier.quantitySold} sold - qty can&apos;t go below that.</p>
-                  ) : null}
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={addTier}
-                className="flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-zinc-300 py-2.5 text-xs font-semibold text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/15"
-              >
-                <Plus className="h-3.5 w-3.5" /> Add tier
-              </button>
+
+                    {/* Phase dates for PHASED mode */}
+                    {(tier.tierType === "FLAT_PHASE" || mode === "PHASED") && !expired ? (
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                        <div>
+                          <label className="mb-0.5 block text-[10px] font-semibold uppercase text-muted">Opens</label>
+                          <input
+                            type="datetime-local"
+                            value={tier.phaseOpensAt}
+                            onChange={(e) => updateTier(tier.id, { phaseOpensAt: e.target.value })}
+                            className={SMALL_INPUT}
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-0.5 block text-[10px] font-semibold uppercase text-muted">Closes</label>
+                          <input
+                            type="datetime-local"
+                            value={tier.phaseClosesAt}
+                            onChange={(e) => updateTier(tier.id, { phaseClosesAt: e.target.value })}
+                            className={SMALL_INPUT}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {!expired && tier.quantitySold > 0 ? (
+                      <p className="mt-1 text-[10px] text-muted">
+                        {tier.quantitySold} sold — qty can&apos;t go below that.
+                      </p>
+                    ) : null}
+                  </div>
+                );
+              })}
+
+              {canAddTiers ? (
+                <button
+                  type="button"
+                  onClick={addTier}
+                  className="flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-zinc-300 py-2.5 text-xs font-semibold text-muted transition-colors hover:border-violet-neon hover:text-violet-neon dark:border-white/15"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add tier
+                </button>
+              ) : null}
             </div>
           </>
         )}
 
-        {/* Hidden posts */}
+        {/* Hidden posts — use effectiveTiers so expired tiers have qty=sold */}
         <input type="hidden" name="maxTicketsPerUser" value={maxTicketsPerUser} />
-        {tiers.map((tier) => (
+        {effectiveTiers.map((tier) => (
           <input key={`id-${tier.id}`} type="hidden" name="tierId[]" value={tier.id} />
         ))}
-        {tiers.map((tier) => (
+        {effectiveTiers.map((tier) => (
           <input key={`n-${tier.id}`} type="hidden" name="tierName[]" value={tier.name} />
         ))}
-        {tiers.map((tier) => (
-          <input key={`p-${tier.id}`} type="hidden" name="tierPrice[]" value={tier.price} />
+        {effectiveTiers.map((tier) => (
+          <input key={`p-${tier.id}`} type="hidden" name="tierPrice[]" value={mode === "FREE" ? "0" : tier.price} />
         ))}
-        {tiers.map((tier) => (
+        {effectiveTiers.map((tier) => (
           <input key={`q-${tier.id}`} type="hidden" name="tierQty[]" value={tier.quantity} />
         ))}
-        {hasPhases && tiers.map((tier) => (
+        {hasPhases && effectiveTiers.map((tier) => (
           <input key={`po-${tier.id}`} type="hidden" name="tierPhaseOpensAt[]" value={tier.phaseOpensAt ?? ""} />
         ))}
-        {hasPhases && tiers.map((tier) => (
+        {hasPhases && effectiveTiers.map((tier) => (
           <input key={`pc-${tier.id}`} type="hidden" name="tierPhaseClosesAt[]" value={tier.phaseClosesAt ?? ""} />
         ))}
       </form>
