@@ -18,6 +18,7 @@ export function EditContactSection({ event }: { event: EventDetail }) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [contactEmail, setContactEmail] = useState(event.contactEmail ?? "");
+  const [contactPhone, setContactPhone] = useState(event.contactPhone ?? "");
   const [instagramUrl, setInstagramUrl] = useState(event.instagramUrl ?? "");
   const [youtubeUrl, setYoutubeUrl] = useState(event.youtubeUrl ?? "");
   const [xUrl, setXUrl] = useState(event.xUrl ?? "");
@@ -30,6 +31,7 @@ export function EditContactSection({ event }: { event: EventDetail }) {
 
   function handleCancel() {
     setContactEmail(event.contactEmail ?? "");
+    setContactPhone(event.contactPhone ?? "");
     setInstagramUrl(event.instagramUrl ?? "");
     setYoutubeUrl(event.youtubeUrl ?? "");
     setXUrl(event.xUrl ?? "");
@@ -70,11 +72,11 @@ export function EditContactSection({ event }: { event: EventDetail }) {
           <div>
             <label className="mb-1.5 block text-xs font-semibold text-muted">Contact phone</label>
             {isEditing ? (
-              <PhoneInput name="contactPhone" defaultValue={event.contactPhone ?? ""} />
+              <PhoneInput name="contactPhone" defaultValue={event.contactPhone ?? ""} onValueChange={setContactPhone} />
             ) : (
               <>
-                <p className="py-2.5 text-sm text-muted">{event.contactPhone || "-"}</p>
-                <input type="hidden" name="contactPhone" value={event.contactPhone ?? ""} />
+                <p className="py-2.5 text-sm text-muted">{contactPhone || "-"}</p>
+                <input type="hidden" name="contactPhone" value={contactPhone} />
               </>
             )}
           </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { CollapsibleSection } from "@/modules/shared";
 import { GalleryUploader } from "../gallery-uploader";
 import { PosterGuidelines } from "../poster-guidelines";
@@ -16,9 +16,21 @@ export function EditMediaSection({ event }: { event: EventDetail }) {
   );
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
+  // Read view renders this, not event.* (stale until router.refresh() lands).
+  const [viewMedia, setViewMedia] = useState({
+    photoUrls: event.photoUrls ?? [],
+    cardPosterUrl: event.cardPosterUrl ?? "",
+    bannerPosterUrl: event.bannerPosterUrl ?? "",
+    teaserVideoUrl: event.teaserVideoUrl ?? "",
+  });
+  const pendingMedia = useRef<typeof viewMedia | null>(null);
 
   useEffect(() => {
-    if (state.saved === "media") { setIsEditing(false); router.refresh(); }
+    if (state.saved === "media") {
+      if (pendingMedia.current) setViewMedia(pendingMedia.current);
+      setIsEditing(false);
+      router.refresh();
+    }
   }, [state]);
 
   return (
@@ -33,31 +45,44 @@ export function EditMediaSection({ event }: { event: EventDetail }) {
       error={state.error}
       saved={state.saved === "media"}
     >
-      <form id="sec-media" action={formAction} className="space-y-4">
+      <form
+        id="sec-media"
+        action={formAction}
+        className="space-y-4"
+        onSubmit={(e) => {
+          const fd = new FormData(e.currentTarget);
+          pendingMedia.current = {
+            photoUrls: fd.getAll("photoUrls[]").map(String).filter(Boolean),
+            cardPosterUrl: String(fd.get("cardPosterUrl") ?? ""),
+            bannerPosterUrl: String(fd.get("bannerPosterUrl") ?? ""),
+            teaserVideoUrl: String(fd.get("teaserVideoUrl") ?? ""),
+          };
+        }}
+      >
         <input type="hidden" name="eventId" value={event.id} />
         <input type="hidden" name="section" value="media" />
 
         {!isEditing ? (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {event.cardPosterUrl ? (
+            {viewMedia.cardPosterUrl ? (
               <div className="space-y-1">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={event.cardPosterUrl} alt="Card poster" className="aspect-[3/4] w-full rounded-xl object-cover" />
+                <img src={viewMedia.cardPosterUrl} alt="Card poster" className="aspect-[3/4] w-full rounded-xl object-cover" />
                 <p className="text-[10px] font-semibold uppercase text-muted">Card</p>
               </div>
             ) : null}
-            {event.bannerPosterUrl ? (
+            {viewMedia.bannerPosterUrl ? (
               <div className="space-y-1">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={event.bannerPosterUrl} alt="Banner poster" className="aspect-video w-full rounded-xl object-cover" />
+                <img src={viewMedia.bannerPosterUrl} alt="Banner poster" className="aspect-video w-full rounded-xl object-cover" />
                 <p className="text-[10px] font-semibold uppercase text-muted">Banner</p>
               </div>
             ) : null}
-            {(event.photoUrls ?? []).map((url) => (
+            {viewMedia.photoUrls.map((url) => (
               // eslint-disable-next-line @next/next/no-img-element
               <img key={url} src={url} alt="Gallery" className="aspect-square w-full rounded-xl object-cover" />
             ))}
-            {!event.cardPosterUrl && !event.bannerPosterUrl && (event.photoUrls ?? []).length === 0 ? (
+            {!viewMedia.cardPosterUrl && !viewMedia.bannerPosterUrl && viewMedia.photoUrls.length === 0 ? (
               <p className="col-span-full text-sm text-muted">No media uploaded yet.</p>
             ) : null}
           </div>
@@ -69,7 +94,7 @@ export function EditMediaSection({ event }: { event: EventDetail }) {
               </span>
               <GalleryUploader
                 name="photoUrls[]"
-                initialUrls={event.photoUrls ?? []}
+                initialUrls={viewMedia.photoUrls}
                 organizerName={event.organizer.name}
                 eventTitle={event.title}
               />
@@ -83,7 +108,7 @@ export function EditMediaSection({ event }: { event: EventDetail }) {
                 organizerName={event.organizer.name}
                 eventTitle={event.title}
                 subFolder="card-posters"
-                initialValue={event.cardPosterUrl ?? ""}
+                initialValue={viewMedia.cardPosterUrl}
                 aspect={3 / 4}
               />
               <PosterField
@@ -92,7 +117,7 @@ export function EditMediaSection({ event }: { event: EventDetail }) {
                 organizerName={event.organizer.name}
                 eventTitle={event.title}
                 subFolder="banner-posters"
-                initialValue={event.bannerPosterUrl ?? ""}
+                initialValue={viewMedia.bannerPosterUrl}
                 aspect={16 / 9}
               />
             </div>
@@ -103,7 +128,7 @@ export function EditMediaSection({ event }: { event: EventDetail }) {
               organizerName={event.organizer.name}
               eventTitle={event.title}
               subFolder="teasers"
-              initialValue={event.teaserVideoUrl ?? ""}
+              initialValue={viewMedia.teaserVideoUrl}
             />
           </>
         )}
@@ -111,12 +136,12 @@ export function EditMediaSection({ event }: { event: EventDetail }) {
         {/* When not editing, still post current values so section saves don't wipe media. */}
         {!isEditing ? (
           <>
-            {(event.photoUrls ?? []).map((url) => (
+            {viewMedia.photoUrls.map((url) => (
               <input key={url} type="hidden" name="photoUrls[]" value={url} />
             ))}
-            <input type="hidden" name="cardPosterUrl" value={event.cardPosterUrl ?? ""} />
-            <input type="hidden" name="bannerPosterUrl" value={event.bannerPosterUrl ?? ""} />
-            <input type="hidden" name="teaserVideoUrl" value={event.teaserVideoUrl ?? ""} />
+            <input type="hidden" name="cardPosterUrl" value={viewMedia.cardPosterUrl} />
+            <input type="hidden" name="bannerPosterUrl" value={viewMedia.bannerPosterUrl} />
+            <input type="hidden" name="teaserVideoUrl" value={viewMedia.teaserVideoUrl} />
           </>
         ) : null}
       </form>

@@ -40,14 +40,16 @@ export function EditCommunitySection({
     setIsEditing(false);
   }
 
-  const currentCommunity = communities.find((c) => c.id === event.communityId);
+  // Local state holds the just-saved values - event.* props are stale until
+  // router.refresh() completes, which produced a visible old→new flash.
+  const currentCommunity = communities.find((c) => c.id === communityId);
 
   return (
     <CollapsibleSection
       title="Community"
       description={
         currentCommunity
-          ? `Part of ${currentCommunity.name} - ${VISIBILITY_LABEL[event.visibility ?? "OPEN"]}`
+          ? `Part of ${currentCommunity.name} - ${VISIBILITY_LABEL[visibility ?? "OPEN"]}`
           : "Public event - not linked to a community."
       }
       onEdit={() => setIsEditing(true)}
