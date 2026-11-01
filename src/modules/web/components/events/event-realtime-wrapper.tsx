@@ -67,7 +67,7 @@ export function EventRealtimeWrapper({
   return (
     <>
       {showBanner ? (
-        <div className="fixed left-1/2 top-4 z-[3000] -translate-x-1/2 rounded-2xl bg-violet-neon px-5 py-3 text-sm font-bold text-white shadow-glow-violet animate-in fade-in slide-in-from-top-4">
+        <div className="fixed left-1/2 top-4 z-[3000] w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-2xl bg-violet-neon px-5 py-3 text-center text-sm font-bold text-white shadow-glow-violet animate-in fade-in slide-in-from-top-4">
           {bannerText}
         </div>
       ) : null}
