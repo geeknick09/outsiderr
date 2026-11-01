@@ -1587,7 +1587,7 @@ export function EventForm({
       <input type="hidden" name="saveMode" value="publish" />
 
       <div className="flex flex-wrap gap-3">
-        <Button type="submit" size="lg" disabled={pending || uploadsInFlight > 0 || !termsAccepted || !!dateError || !!mapsError || contactError || !!phaseError || staffError || communityError || tierError || maxTicketsError || promoError} loading={pending} loadingText="Publishing…">
+        <Button type="submit" size="lg" disabled={pending || uploadsInFlight > 0 || !termsAccepted || !!dateError || !startsAt || !endsAt || !!mapsError || contactError || !!phaseError || staffError || communityError || tierError || maxTicketsError || promoError} loading={pending} loadingText="Publishing…">
           Publish event
         </Button>
         {draftEvent ? (
@@ -1633,7 +1633,7 @@ export function EventForm({
               disabled={
                 uploadsInFlight > 0 ||
                 (step === 0 && communityError) ||
-                (step === 1 && (!!dateError || !!mapsError)) ||
+                (step === 1 && (!!dateError || !startsAt || !endsAt || !!mapsError)) ||
                 (step === 3 && contactError) ||
                 (step === 4 && (!!phaseError || tierError || maxTicketsError)) ||
                 (step === 5 && (staffError || promoError))
