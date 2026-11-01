@@ -960,6 +960,7 @@ export async function updateEventSectionAction(
       const tierNames = formData.getAll("tierName[]").map(String);
       const tierPrices = formData.getAll("tierPrice[]").map((v) => Number(v));
       const tierQtys = formData.getAll("tierQty[]").map((v) => Number(v));
+      const tierExpiredFlags = formData.getAll("tierExpired[]").map((v) => v === "1");
       const tierPhaseOpensAt = formData.getAll("tierPhaseOpensAt[]").map(String);
       const tierPhaseClosesAt = formData.getAll("tierPhaseClosesAt[]").map(String);
       if (tierNames.length === 0) return { error: "Add at least one ticket tier." };
@@ -972,14 +973,26 @@ export async function updateEventSectionAction(
         phaseOpensAt: tierPhaseOpensAt[i] ? istToUTC(tierPhaseOpensAt[i]) : null,
         phaseClosesAt: tierPhaseClosesAt[i] ? istToUTC(tierPhaseClosesAt[i]) : null,
       }));
+      const isExpiredTier = (i: number) => tierExpiredFlags[i] === true;
       if (tiers.some((t) => !t.name.trim())) return { error: "All tiers must have a name." };
-      if (tiers.some((t) => t.quantity <= 0)) return { error: "Every tier needs a quantity of at least 1." };
+      // Expired tiers legitimately carry quantity = quantity_sold (possibly 0) -
+      // only ACTIVE tiers need quantity >= 1. The per-tier floor at quantity_sold
+      // is enforced inside updateEvent's tier sync.
+      if (tiers.some((t, i) => !isExpiredTier(i) && t.quantity <= 0)) {
+        return { error: "Every tier needs a quantity of at least 1." };
+      }
+      if (tiers.length > 0 && tiers.every((_, i) => isExpiredTier(i))) {
+        return { error: "At least one active tier is required." };
+      }
       if (tiers.some((t) => t.pricePaise < 0)) return { error: "Tier prices can't be negative." };
 
-      // Phase date validation
+      // Phase date validation - skip expired tiers (their phase window may
+      // legitimately sit in the past now that they're closed for sales).
       const now = Date.now();
       let prevBoundary: number | null = null;
-      for (const tier of tiers) {
+      for (let i = 0; i < tiers.length; i++) {
+        const tier = tiers[i];
+        if (isExpiredTier(i)) continue;
         if (tier.phaseOpensAt) {
           const opens = new Date(tier.phaseOpensAt).getTime();
           if (opens < now) return { error: `Phase "${tier.name}" has an opening date in the past.` };

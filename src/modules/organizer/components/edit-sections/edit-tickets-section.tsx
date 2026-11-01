@@ -71,20 +71,19 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
       price: (t.pricePaise / 100).toFixed(0),
       quantity: String(t.quantity),
       quantitySold: t.quantitySold,
-      isExpired: t.quantity > 0 && t.quantity === t.quantitySold && t.quantitySold > 0,
+      // quantity <= quantitySold means either expired-by-organizer (0/0)
+      // or fully sold out - both read as "no more sales" in the UI.
+      // Active tiers always have quantity > quantitySold.
+      isExpired: t.quantity <= t.quantitySold,
       tierType: t.tierType,
       phaseOpensAt: toLocal(t.phaseOpensAt),
       phaseClosesAt: toLocal(t.phaseClosesAt),
     }));
 
   const [tiers, setTiers] = useState<EditableTier[]>(seedTiers);
-  const [expiredIds, setExpiredIds] = useState<Set<string>>(() => {
-    const ids = new Set<string>();
-    for (const t of event.tiers) {
-      if (t.quantity > 0 && t.quantity === t.quantitySold && t.quantitySold > 0) ids.add(t.id);
-    }
-    return ids;
-  });
+  const [expiredIds, setExpiredIds] = useState<Set<string>>(
+    () => new Set(event.tiers.filter((t) => t.quantity <= t.quantitySold).map((t) => t.id)),
+  );
   const [maxTicketsPerUser, setMaxTicketsPerUser] = useState(String(event.maxTicketsPerUser ?? 5));
   const [phaseError, setPhaseError] = useState<string | null>(null);
 
@@ -400,6 +399,9 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
         ))}
         {effectiveTiers.map((tier) => (
           <input key={`q-${tier.id}`} type="hidden" name="tierQty[]" value={tier.quantity} />
+        ))}
+        {effectiveTiers.map((tier) => (
+          <input key={`e-${tier.id}`} type="hidden" name="tierExpired[]" value={isTierExpired(tier) ? "1" : ""} />
         ))}
         {hasPhases && effectiveTiers.map((tier) => (
           <input key={`po-${tier.id}`} type="hidden" name="tierPhaseOpensAt[]" value={tier.phaseOpensAt ?? ""} />
