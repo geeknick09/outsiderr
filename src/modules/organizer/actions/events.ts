@@ -802,6 +802,18 @@ export async function updateEventAction(
 export interface UpdateEventSectionState {
   error: string | null;
   saved?: string | null;
+  /** Fresh tier rows after a tickets save - lets the client swap its
+   * `new-*` placeholder IDs for real DB IDs without a page reload. */
+  tiers?: {
+    id: string;
+    name: string;
+    pricePaise: number;
+    quantity: number;
+    quantitySold: number;
+    tierType: string;
+    phaseOpensAt: string | null;
+    phaseClosesAt: string | null;
+  }[];
 }
 
 const EDIT_SECTIONS = new Set([
@@ -871,6 +883,7 @@ export async function updateEventSectionAction(
 
     let input: typeof base & {
       tiers?: TicketTierInput[];
+      preserveMissingTiers?: boolean;
       communityId?: string | null;
       visibility?: "OPEN" | "MEMBERS_ONLY" | "INVITE_ONLY";
       inviteToken?: string | null;
@@ -1010,6 +1023,7 @@ export async function updateEventSectionAction(
       input = {
         ...input,
         tiers,
+        preserveMissingTiers: true,
         maxTicketsPerUser: Math.min(10, Math.max(1, Number(formData.get("maxTicketsPerUser") ?? 5) || 5)),
       };
     } else if (section === "community") {
@@ -1135,6 +1149,36 @@ export async function updateEventSectionAction(
   // visitor request (ISR / on-demand). If we ever need instant public-side
   // freshness, call revalidate from a separate API route that doesn't re-render
   // the organizer page.
+
+  // Tickets save → return fresh tier rows so the client can swap `new-*`
+  // placeholder IDs for real DB IDs (prevents duplicate inserts + accidental
+  // auto-deletion of previously saved tiers on the next save).
+  if (section === "tickets") {
+    try {
+      const { createServiceClient } = await import("@/modules/shared/auth/service");
+      const service = createServiceClient();
+      const { data: freshTiers } = await service
+        .from("ticket_tiers")
+        .select("id, name, price_paise, quantity, quantity_sold, tier_type, phase_opens_at, phase_closes_at")
+        .eq("event_id", eventId)
+        .order("sort_order", { ascending: true });
+      return {
+        error: null,
+        saved: section,
+        tiers: (freshTiers ?? []).map((t) => ({
+          id: t.id,
+          name: t.name,
+          pricePaise: t.price_paise,
+          quantity: t.quantity,
+          quantitySold: t.quantity_sold,
+          tierType: t.tier_type,
+          phaseOpensAt: t.phase_opens_at,
+          phaseClosesAt: t.phase_closes_at,
+        })),
+      };
+    } catch { /* fall through to plain saved response */ }
+  }
+
   return { error: null, saved: section };
 }
 

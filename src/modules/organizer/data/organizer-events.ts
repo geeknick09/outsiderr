@@ -472,6 +472,11 @@ export interface UpdateEventInput {
   promoterCommissionBps?: number;
   promoBuyerDiscountBps?: number;
   promoPromoterBps?: number;
+  /** Skip the auto-delete of existing tiers absent from input.tiers. The
+   * section editor only expires tiers (never deletes), so a stale client
+   * submission must not silently destroy tier rows. The draft/full-form
+   * path leaves this unset to keep true tier-removal working. */
+  preserveMissingTiers?: boolean;
 }
 
 
@@ -677,8 +682,10 @@ export async function updateEvent(
     const keptIds = input.tiers.filter((t) => t.id).map((t) => t.id as string);
     const deletedIds = existingIds.filter((id) => !keptIds.includes(id));
 
-    // Delete tiers that were removed from the form (only if no tickets sold)
-    if (deletedIds.length > 0) {
+    // Delete tiers that were removed from the form (only if no tickets sold).
+    // Skipped when preserveMissingTiers is set - the section editor can only
+    // expire tiers, so absent IDs mean a stale submission, not a removal.
+    if (deletedIds.length > 0 && !input.preserveMissingTiers) {
       // Check if any of the deleted tiers have sold tickets
       const { data: soldTiers } = await supabase
         .from("ticket_tiers")

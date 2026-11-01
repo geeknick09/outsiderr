@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { CollapsibleSection, utcToISTInput, cn } from "@/modules/shared";
 import { Plus, Ban } from "lucide-react";
 import { updateEventSectionAction, type UpdateEventSectionState } from "../../actions/events";
@@ -86,12 +86,38 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
   );
   const [maxTicketsPerUser, setMaxTicketsPerUser] = useState(String(event.maxTicketsPerUser ?? 5));
   const [phaseError, setPhaseError] = useState<string | null>(null);
+  // Snapshot of the last server-confirmed state — `event` props go stale after
+  // a save (no revalidation), so Cancel restores from this instead of seedTiers.
+  const lastSynced = useRef<{ tiers: EditableTier[]; expiredIds: Set<string>; maxPerUser: string } | null>(null);
 
   useEffect(() => {
     // Depend on `state` (new object per submission), not `state.saved` —
     // a second save returns saved:"tickets" again, and an unchanged
     // primitive dep would skip this effect and trap the section in edit mode.
-    if (state.saved === "tickets") setIsEditing(false);
+    if (state.saved === "tickets") {
+      // The action returns fresh tier rows with real DB IDs — swap out the
+      // `new-*` placeholders so a follow-up save updates instead of
+      // re-inserting (which would also trigger auto-deletion of the first
+      // insert's rows).
+      if (state.tiers) {
+        const fresh = state.tiers.map((t) => ({
+          id: t.id,
+          name: t.name,
+          price: (t.pricePaise / 100).toFixed(0),
+          quantity: String(t.quantity),
+          quantitySold: t.quantitySold,
+          isExpired: t.quantity <= t.quantitySold,
+          tierType: t.tierType,
+          phaseOpensAt: toLocal(t.phaseOpensAt),
+          phaseClosesAt: toLocal(t.phaseClosesAt),
+        }));
+        const freshExpired = new Set(fresh.filter((t) => t.isExpired).map((t) => t.id));
+        setTiers(fresh);
+        setExpiredIds(freshExpired);
+        lastSynced.current = { tiers: fresh, expiredIds: freshExpired, maxPerUser: maxTicketsPerUser };
+      }
+      setIsEditing(false);
+    }
   }, [state]);
 
   const isTierExpired = (tier: EditableTier) => expiredIds.has(tier.id);
@@ -175,9 +201,16 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
   }
 
   function handleCancel() {
-    setTiers(seedTiers());
-    setExpiredIds(new Set());
-    setMaxTicketsPerUser(String(event.maxTicketsPerUser ?? 5));
+    if (lastSynced.current) {
+      // Restore last server-confirmed state - event props are stale post-save.
+      setTiers(lastSynced.current.tiers);
+      setExpiredIds(new Set(lastSynced.current.expiredIds));
+      setMaxTicketsPerUser(lastSynced.current.maxPerUser);
+    } else {
+      setTiers(seedTiers());
+      setExpiredIds(new Set(event.tiers.filter((t) => t.quantity <= t.quantitySold).map((t) => t.id)));
+      setMaxTicketsPerUser(String(event.maxTicketsPerUser ?? 5));
+    }
     setPhaseError(null);
     setIsEditing(false);
   }
