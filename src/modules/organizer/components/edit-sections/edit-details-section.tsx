@@ -86,9 +86,13 @@ export function EditDetailsSection({ event, lockLogistics = false }: { event: Ev
                   key={cat.value}
                   disabled={!isEditing}
                   onClick={() =>
-                    setSelectedCategories((prev) =>
-                      isSelected ? prev.filter((c) => c !== cat.value) : [...prev, cat.value as string],
-                    )
+                    setSelectedCategories((prev) => {
+                      if (isSelected) {
+                        if (prev.length <= 1) return prev; // keep at least one
+                        return prev.filter((c) => c !== cat.value);
+                      }
+                      return [...prev, cat.value as string];
+                    })
                   }
                   className={cn(
                     "rounded-full border px-3 py-1.5 text-xs font-semibold transition-all",

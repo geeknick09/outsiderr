@@ -631,9 +631,13 @@ export function EventForm({
                       checked={isSelected}
                       className="hidden"
                       onChange={() =>
-                        setSelCategories((prev) =>
-                          isSelected ? prev.filter((c) => c !== cat.value) : [...prev, cat.value],
-                        )
+                        setSelCategories((prev) => {
+                          if (isSelected) {
+                            if (prev.length <= 1) return prev; // keep at least one
+                            return prev.filter((c) => c !== cat.value);
+                          }
+                          return [...prev, cat.value];
+                        })
                       }
                     />
                     {cat.label}
