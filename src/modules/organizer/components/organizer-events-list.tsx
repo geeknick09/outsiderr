@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowDownUp, BarChart3, ChevronLeft, ChevronRight, Search, Settings2, Users, X } from "lucide-react";
 
 import { Badge } from "@/modules/shared";
-import { formatDateTime, isEventEnded } from "@/modules/shared";
+import { formatDateTime, isEventEnded, cityLabel } from "@/modules/shared";
 import type { EventAnalytics, EventSummary } from "@/modules/shared";
 
 type SortKey = "date" | "title" | "popularity" | "waitlist" | "revenue";
@@ -72,7 +72,10 @@ function EventListRow({ event }: { event: EventRow }) {
     <div className="glass flex flex-wrap items-center justify-between gap-3 rounded-3xl p-4">
       <Link href={`/organizer/events/${event.id}`} className="min-w-0 flex-1">
         <p className="truncate font-semibold">{event.title}</p>
-        <p className="text-xs text-muted">{formatDateTime(event.startsAt)}</p>
+        <p className="text-xs text-muted">
+          {formatDateTime(event.startsAt)}
+          {event.city ? <> · {cityLabel(event.city)}</> : null}
+        </p>
       </Link>
       <div className="flex items-center gap-2">
         {event.collaboratorPermission ? (
