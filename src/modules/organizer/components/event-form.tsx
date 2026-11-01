@@ -296,7 +296,7 @@ export function EventForm({
   const maxTicketsError = !maxTickets || Number(maxTickets) < 1 || Number(maxTickets) > 10;
   const promoError =
     (promoterMode === "LINK" &&
-      (Number(promoCommission) < 5 || Number(promoCommission) > 30 || !promoCommission)) ||
+      (Number(promoCommission) < 1 || Number(promoCommission) > 100 || !promoCommission)) ||
     (promoterMode === "PROMO_CODE" &&
       (Number(promoBuyer) < 0 || Number(promoBuyer) > 15 || !promoBuyer ||
         Number(promoPromoter) < 0 || Number(promoPromoter) > 15 || !promoPromoter));
@@ -1491,7 +1491,7 @@ export function EventForm({
           </Field>
           {promoterMode === "LINK" ? (
             <Field label="Promoter commission %">
-              <input name="promoterCommissionBps" type="number" min={5} max={30} step={0.5}
+              <input name="promoterCommissionBps" type="number" min={1} max={100} step={0.5}
                 value={promoCommission} onChange={(e) => setPromoCommission(sanitizeNumeric(e.target.value, true))}
                 onKeyDown={(e) => blockNonNumericKeys(e, true)} className={INPUT} />
             </Field>

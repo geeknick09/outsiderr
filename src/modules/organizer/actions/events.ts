@@ -469,7 +469,7 @@ export async function createEventAction(
         payoutAccountId: String(formData.get("payoutAccountId") ?? "").trim() || null,
         promoterMode: (["LINK", "PROMO_CODE"].includes(String(formData.get("promoterMode")))
           ? String(formData.get("promoterMode")) : "NONE") as "NONE" | "LINK" | "PROMO_CODE",
-        promoterCommissionBps: Math.min(3000, Math.max(500, Math.round(Number(formData.get("promoterCommissionBps") ?? 10) * 100) || 1000)),
+        promoterCommissionBps: Math.min(10000, Math.max(100, Math.round(Number(formData.get("promoterCommissionBps") ?? 10) * 100) || 1000)),
         promoBuyerDiscountBps: Math.min(1500, Math.max(0, Math.round(Number(formData.get("promoBuyerDiscountBps") ?? 5) * 100) || 0)),
         promoPromoterBps: Math.min(1500, Math.max(0, Math.round(Number(formData.get("promoPromoterBps") ?? 5) * 100) || 0)),
       });
@@ -533,7 +533,7 @@ export async function createEventAction(
       recurrence: communityId && formData.get("recurrence") === "WEEKLY" ? "WEEKLY" : null,
       promoterMode: (["LINK", "PROMO_CODE"].includes(String(formData.get("promoterMode")))
         ? String(formData.get("promoterMode")) : "NONE") as "NONE" | "LINK" | "PROMO_CODE",
-      promoterCommissionBps: Math.min(3000, Math.max(500, Math.round(Number(formData.get("promoterCommissionBps") ?? 10) * 100) || 1000)),
+      promoterCommissionBps: Math.min(10000, Math.max(100, Math.round(Number(formData.get("promoterCommissionBps") ?? 10) * 100) || 1000)),
       promoBuyerDiscountBps: Math.min(1500, Math.max(0, Math.round(Number(formData.get("promoBuyerDiscountBps") ?? 5) * 100) || 0)),
       promoPromoterBps: Math.min(1500, Math.max(0, Math.round(Number(formData.get("promoPromoterBps") ?? 5) * 100) || 0)),
       status: isDraft ? "DRAFT" : "PUBLISHED",
