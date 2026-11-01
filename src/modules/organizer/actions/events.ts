@@ -621,12 +621,15 @@ export async function createEventAction(
   // parallel fetches can crash, surfacing "Could not load event".
   if (isDraft && draftEventId) return { error: null, draftSaved: true };
 
+  // Revalidate discovery / dashboard caches but NOT the organizer layout tree —
+  // revalidatePath("/organizer","layout") re-renders /organizer/events/[id]
+  // (the current page) before the redirect fires, and that re-render crashes.
   revalidatePath("/");
   revalidateTag("events", "expire");
-  revalidatePath("/organizer");
-  revalidatePath("/organizer", "layout");
   if (isDraft) return { error: null, redirectTo: `/organizer/events/${eventId}` };
-  redirect(`/organizer`);
+  // Publishes navigate client-side too — redirect() via the form action mechanism
+  // still races with the layout revalidation and hits the error boundary.
+  return { error: null, redirectTo: `/organizer/events/${eventId}` };
 }
 
 // ---------------------------------------------------------------------------
