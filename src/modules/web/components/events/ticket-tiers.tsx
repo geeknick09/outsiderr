@@ -50,20 +50,39 @@ export function TicketTiers({
   // Local tier state - updated in realtime when tickets are sold
   const [tiers, setTiers] = useState<TicketTier[]>(event.tiers);
 
-  // Realtime: live tier quantity updates when someone books a ticket
+  // Server data refresh (router.refresh from the event-level realtime
+  // wrapper or an INSERT/DELETE below) swaps `event.tiers` wholesale -
+  // useState won't pick that up on its own.
+  useEffect(() => {
+    setTiers(event.tiers);
+  }, [event.tiers]);
+
+  // Realtime: live tier updates - quantity on UPDATE, full sync otherwise
   useRealtime({
     channelName: `event-tiers:${event.id}`,
     table: "ticket_tiers",
-    event: "UPDATE",
+    event: "*",
     filter: `event_id=eq.${event.id}`,
-    onPayload: ({ new: row }) => {
+    onPayload: ({ eventType, new: row }) => {
+      // New tier added / removed by the organizer - local state can't
+      // reconstruct the row, so pull fresh server data.
+      if (eventType !== "UPDATE") {
+        router.refresh();
+        return;
+      }
       setTiers((prev) =>
         prev.map((t) =>
           t.id === row.id
             ? {
                 ...t,
+                name: (row.name as string) ?? t.name,
+                pricePaise: (row.price_paise as number) ?? t.pricePaise,
+                quantity: (row.quantity as number) ?? t.quantity,
                 quantitySold: row.quantity_sold as number,
                 quantityReserved: (row.quantity_reserved as number) ?? 0,
+                expiredAt: (row.expired_at as string | null) ?? null,
+                phaseOpensAt: (row.phase_opens_at as string | null) ?? null,
+                phaseClosesAt: (row.phase_closes_at as string | null) ?? null,
               }
             : t,
         ),
