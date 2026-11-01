@@ -178,8 +178,15 @@ export function EventForm({
   const router = useRouter();
   // Draft saves return a redirect target instead of throwing redirect() -
   // the imperative transition doesn't route NEXT_REDIRECT to the router.
+  // New drafts redirect to the manage page; re-saves stay put (draftSaved).
+  const [draftSavedToast, setDraftSavedToast] = useState(false);
   useEffect(() => {
     if (state?.redirectTo) router.push(state.redirectTo);
+    if ((state as { draftSaved?: boolean })?.draftSaved) {
+      setDraftSavedToast(true);
+      const t = setTimeout(() => setDraftSavedToast(false), 3000);
+      return () => clearTimeout(t);
+    }
   }, [state, router]);
 
   // Load staff already saved on this draft so reopening shows the rows.
@@ -258,6 +265,10 @@ export function EventForm({
       linkedPastEventIds: draftEvent.linkedPastEventIds ?? [],
       maxTicketsPerUser: String(draftEvent.maxTicketsPerUser ?? 5),
       payoutAccountId: draftEvent.payoutAccountId ?? "",
+      promoterMode: draftEvent.promoterMode ?? "NONE",
+      promoterCommissionBps: String(draftEvent.promoterCommissionBps ?? 1000),
+      promoBuyerDiscountBps: String(draftEvent.promoBuyerDiscountBps ?? 500),
+      promoPromoterBps: String(draftEvent.promoPromoterBps ?? 500),
     };
   }, [draftEvent]);
 
@@ -1540,6 +1551,11 @@ export function EventForm({
       </label>
 
       {state.error ? <p className="text-sm text-red-500">{state.error}</p> : null}
+      {draftSavedToast ? (
+        <p className="rounded-xl bg-green-500/10 px-4 py-2.5 text-sm font-semibold text-green-500">
+          Draft saved successfully.
+        </p>
+      ) : null}
 
       {/* saveMode is set by which button is clicked - default to publish */}
       <input type="hidden" name="saveMode" value="publish" />

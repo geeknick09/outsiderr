@@ -13,6 +13,8 @@ export interface CreateEventState {
   /** Set instead of throwing redirect() - draft saves run inside a manual
    * useTransition where NEXT_REDIRECT isn't routed and hits the boundary. */
   redirectTo?: string;
+  /** True when an existing draft was re-saved - form stays on the page. */
+  draftSaved?: boolean;
   values?: {
     title: string;
     category: string;
@@ -618,9 +620,11 @@ export async function createEventAction(
   revalidateTag("events", "expire");
   revalidatePath("/organizer");
   revalidatePath("/organizer", "layout");
-  // Draft saves navigate client-side (see redirectTo note on CreateEventState);
-  // publishes go through the form action where redirect() routes correctly.
-  if (isDraft) return { error: null, redirectTo: "/organizer" };
+  // Draft re-saves stay on the current page; first-time drafts redirect to
+  // the manage page so the organizer can continue editing.
+  // Publishes go through the form action where redirect() routes correctly.
+  if (isDraft && draftEventId) return { error: null, draftSaved: true };
+  if (isDraft) return { error: null, redirectTo: `/organizer/events/${eventId}` };
   redirect(`/organizer`);
 }
 
@@ -771,7 +775,7 @@ export async function updateEventAction(
   revalidateTag("events", "expire");
   revalidatePath("/organizer");
   revalidatePath(`/events/${eventId}`);
-  if (isDraftSave) return { error: null, redirectTo: "/organizer" };
+  if (isDraftSave) return { error: null };
   redirect(`/organizer/events/${eventId}`);
 }
 
