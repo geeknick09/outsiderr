@@ -7,6 +7,7 @@ import { GalleryUploader } from "../gallery-uploader";
 import { PosterGuidelines } from "../poster-guidelines";
 import { PosterField, TeaserVideoField } from "../event-form";
 import { updateEventSectionAction, type UpdateEventSectionState } from "../../actions/events";
+import { useEventEdits } from "../manage-event-context";
 import type { EventDetail } from "@/modules/shared";
 
 export function EditMediaSection({ event }: { event: EventDetail }) {
@@ -15,6 +16,7 @@ export function EditMediaSection({ event }: { event: EventDetail }) {
     { error: null },
   );
   const router = useRouter();
+  const edits = useEventEdits();
   const [isEditing, setIsEditing] = useState(false);
   // Read view renders this, not event.* (stale until router.refresh() lands).
   const [viewMedia, setViewMedia] = useState({
@@ -27,7 +29,13 @@ export function EditMediaSection({ event }: { event: EventDetail }) {
 
   useEffect(() => {
     if (state.saved === "media") {
+      const m = pendingMedia.current ?? viewMedia;
       if (pendingMedia.current) setViewMedia(pendingMedia.current);
+      edits?.patch({
+        cardPosterUrl: m.cardPosterUrl || null,
+        bannerPosterUrl: m.bannerPosterUrl || null,
+        photoUrls: m.photoUrls,
+      });
       setIsEditing(false);
       router.refresh();
     }

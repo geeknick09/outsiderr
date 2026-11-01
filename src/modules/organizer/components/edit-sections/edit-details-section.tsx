@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 import { CollapsibleSection, CATEGORIES, cn, tagsForCategories } from "@/modules/shared";
 import { updateEventSectionAction, type UpdateEventSectionState } from "../../actions/events";
+import { useEventEdits } from "../manage-event-context";
 import type { EventDetail } from "@/modules/shared";
 
 const INPUT =
@@ -15,6 +16,7 @@ export function EditDetailsSection({ event, lockLogistics = false }: { event: Ev
     { error: null },
   );
   const router = useRouter();
+  const edits = useEventEdits();
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(event.title);
   const [description, setDescription] = useState(event.description);
@@ -24,7 +26,17 @@ export function EditDetailsSection({ event, lockLogistics = false }: { event: Ev
   );
 
   useEffect(() => {
-    if (state.saved === "details") { setIsEditing(false); router.refresh(); }
+    if (state.saved === "details") {
+      // Push saved fields into the header store so title/category update
+      // instantly instead of waiting for router.refresh().
+      edits?.patch({
+        title,
+        categories: selectedCategories,
+        category: selectedCategories[0],
+      });
+      setIsEditing(false);
+      router.refresh();
+    }
   }, [state]);
 
   function handleCancel() {

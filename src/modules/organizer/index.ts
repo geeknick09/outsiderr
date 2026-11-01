@@ -15,6 +15,8 @@ export * from "./components/edit-organizer-profile";
 export * from "./components/event-form";
 export * from "./components/event-overview";
 export * from "./components/manage-tabs";
+export * from "./components/manage-event-context";
+export * from "./components/manage-event-header";
 export * from "./components/event-staff-manager";
 export * from "./components/gallery-uploader";
 export * from "./components/hero-boost-panel";

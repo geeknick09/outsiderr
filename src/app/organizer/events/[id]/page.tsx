@@ -1,16 +1,13 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { ChevronLeft, LayoutDashboard, Printer } from "lucide-react";
+import { ChevronLeft, Printer } from "lucide-react";
 import { lazy, Suspense } from "react";
 
 import { AnalyticsPanel } from "@/modules/analytics";
 import { AttendeesTable } from "@/modules/organizer";
-import { EditEventForm, CancelPostponeButtons, CollaborationPanel, HeroBoostPanel, PastEventGalleryManager, WaitlistPanel, VerificationQueue, EventOverview, ManageTabs } from "@/modules/organizer";
-import { ShareButton } from "@/modules/web";
+import { EditEventForm, CancelPostponeButtons, CollaborationPanel, HeroBoostPanel, PastEventGalleryManager, WaitlistPanel, VerificationQueue, EventOverview, ManageTabs, EventEditsProvider, ManageEventHeader } from "@/modules/organizer";
 import { Badge } from "@/modules/shared";
-import { Button } from "@/modules/shared";
 import { CollapseAllProvider, CollapsibleSection } from "@/modules/shared";
 
 import { getCurrentUser, createServiceClient } from "@/modules/shared/server";
@@ -30,8 +27,7 @@ import { expireWaitlistOffers, listEventWaitlist } from "@/modules/shared/server
 
 import { getCancellationChargePercent, getPostponementChargePercent, getHeroBoostPrice, getHeroBoostDurationDays } from "@/modules/shared/server";
 import { getHeroBoostForEvent } from "@/modules/shared/server";
-import { formatDateRange, isEventEnded } from "@/modules/shared";
-import { CATEGORY_LABELS } from "@/modules/shared";
+import { isEventEnded } from "@/modules/shared";
 import { getDraftRetentionDays } from "@/modules/shared/server";
 
 // Lazy - EventForm pulls in Leaflet via MapPicker
@@ -189,58 +185,16 @@ export default async function ManageEventPage({
       : "Draft";
 
   return (
+    <EventEditsProvider>
     <div className="space-y-6 py-6">
-      {/* Event banner image */}
-      {(event.bannerPosterUrl || event.cardPosterUrl) ? (
-        <div className="relative -mx-4 aspect-[3/4] max-h-[70vh] w-[calc(100%+2rem)] overflow-hidden sm:aspect-video sm:max-h-[440px] sm:w-full sm:rounded-b-3xl">
-          <Image
-            src={event.bannerPosterUrl ?? event.cardPosterUrl!}
-            alt={event.title}
-            fill
-            sizes="100vw"
-            priority
-            className="object-cover"
-          />
-          <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/55 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-t from-zinc-50 via-zinc-50/20 to-transparent dark:from-ink dark:via-ink/30" />
-        </div>
-      ) : null}
-
-      <div className="flex items-center gap-3">
-        <Link href="/organizer" className="text-muted hover:text-violet-neon">
-          <ChevronLeft className="h-5 w-5" />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-2xl font-black tracking-tight">{event.title}</h1>
-          <p className="text-sm text-muted">{formatDateRange(event.startsAt, event.endsAt)}</p>
-        </div>
-        <Link href="/organizer">
-          <Button variant="secondary" size="sm">
-            <LayoutDashboard className="h-4 w-4" />
-            Dashboard
-          </Button>
-        </Link>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <Badge tone="violet">{CATEGORY_LABELS[event.category as keyof typeof CATEGORY_LABELS] || event.category}</Badge>
-        <Badge tone={statusTone}>{statusLabel}</Badge>
-        {event.isFeatured ? <Badge tone="lime">Boosted</Badge> : null}
-        {!isOwner ? <Badge tone="violet">Co-organizer · {accessLevel}</Badge> : null}
-      </div>
-
-      {/* Actions - scanner/walkin live in the scanner + box-office surfaces */}
-      <div className="flex flex-wrap gap-3">
-        <Link href={`/events/${event.id}`} target="_blank">
-          <Button variant="secondary" size="sm">View event page ↗</Button>
-        </Link>
-        <ShareButton
-          url={`/events/${event.id}`}
-          title={event.title}
-          variant="secondary"
-          size="sm"
-        />
-      </div>
+      {/* Banner + title + dates + badges - merges section saves instantly */}
+      <ManageEventHeader
+        event={event}
+        statusTone={statusTone}
+        statusLabel={statusLabel}
+        isOwner={isOwner}
+        accessLevel={accessLevel}
+      />
 
       {/* Analytics / Attendees / Details tabs */}
       {(() => {
@@ -425,5 +379,6 @@ export default async function ManageEventPage({
         );
       })()}
     </div>
+    </EventEditsProvider>
   );
 }

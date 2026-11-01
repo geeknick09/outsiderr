@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 import { CollapsibleSection, utcToISTInput } from "@/modules/shared";
 import { updateEventSectionAction, type UpdateEventSectionState } from "../../actions/events";
+import { useEventEdits } from "../manage-event-context";
 import type { EventDetail } from "@/modules/shared";
 
 const INPUT =
@@ -15,13 +16,24 @@ export function EditTimeSection({ event, lockLogistics = false }: { event: Event
     { error: null },
   );
   const router = useRouter();
+  const edits = useEventEdits();
   const [isEditing, setIsEditing] = useState(false);
   const [startsAt, setStartsAt] = useState(utcToISTInput(event.startsAt));
   const [endsAt, setEndsAt] = useState(event.endsAt ? utcToISTInput(event.endsAt) : "");
   const [dateError, setDateError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (state.saved === "schedule") { setIsEditing(false); router.refresh(); }
+    if (state.saved === "schedule") {
+      // Input values are IST "YYYY-MM-DDTHH:mm" - convert back to UTC ISO
+      // so the header's date range matches what was just saved.
+      const toUTC = (s: string) => new Date(/[Z+-]/.test(s.slice(-6)) ? s : `${s}+05:30`).toISOString();
+      edits?.patch({
+        startsAt: toUTC(startsAt),
+        endsAt: endsAt ? toUTC(endsAt) : null,
+      });
+      setIsEditing(false);
+      router.refresh();
+    }
   }, [state]);
 
   function validateDates(start: string, end: string) {
