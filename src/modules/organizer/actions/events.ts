@@ -813,6 +813,7 @@ export interface UpdateEventSectionState {
     tierType: string;
     phaseOpensAt: string | null;
     phaseClosesAt: string | null;
+    expiredAt: string | null;
   }[];
 }
 
@@ -884,7 +885,7 @@ export async function updateEventSectionAction(
     let input: typeof base & {
       tiers?: TicketTierInput[];
       preserveMissingTiers?: boolean;
-      deleteTierIds?: string[];
+      expiredTierIds?: string[];
       communityId?: string | null;
       visibility?: "OPEN" | "MEMBERS_ONLY" | "INVITE_ONLY";
       inviteToken?: string | null;
@@ -989,34 +990,20 @@ export async function updateEventSectionAction(
       }));
       const isExpiredTier = (i: number) => tierExpiredFlags[i] === true;
 
-      // Expired tiers split two ways based on actual sales:
-      //  - 0 sold → delete the row outright (nothing to preserve, and a
-      //    quantity=0 write would hit the column's CHECK constraint anyway)
-      //  - sold > 0 → keep the row at quantity = quantity_sold (sold-out,
-      //    preserves ticket/waitlist data for buyers)
+      // Expired tiers keep their rows — expired_at hides them from buyers
+      // while preserving order/ticket/waitlist references. Restore clears
+      // the flag, so unsold expired tiers come back fully intact.
       const dbIdAt = (i: number) =>
         tierIds[i] && !tierIds[i].startsWith("new-") ? tierIds[i] : undefined;
-      const expiredDbIds = tierIds.filter((id, i) => isExpiredTier(i) && dbIdAt(i)).map((id) => id as string);
-      let deleteTierIds: string[] = [];
-      if (expiredDbIds.length > 0) {
-        const { createServiceClient } = await import("@/modules/shared/auth/service");
-        const service = createServiceClient();
-        const { data: soldRows } = await service
-          .from("ticket_tiers")
-          .select("id, quantity_sold")
-          .in("id", expiredDbIds);
-        const soldMap = new Map((soldRows ?? []).map((r) => [r.id, r.quantity_sold]));
-        deleteTierIds = expiredDbIds.filter((id) => (soldMap.get(id) ?? 0) === 0);
-      }
-      const keptTiers = tiers.filter(
-        (_t, i) => !isExpiredTier(i) || !dbIdAt(i) || !deleteTierIds.includes(dbIdAt(i)!),
-      );
+      const expiredTierIds = tierIds
+        .filter((id, i) => isExpiredTier(i) && dbIdAt(i))
+        .map((id) => id as string);
+      const keptTiers = tiers;
       const expiredKeptSet = new Set(tiers.filter((_, i) => isExpiredTier(i)));
 
       if (keptTiers.some((t) => !t.name.trim())) return { error: "All tiers must have a name." };
-      // Only ACTIVE tiers need quantity >= 1. Expired-but-sold tiers carry
-      // quantity = quantity_sold; the per-tier floor is enforced in
-      // updateEvent's tier sync.
+      // Only ACTIVE tiers need quantity >= 1 - expired tiers are hidden by
+      // expired_at regardless of their quantity value.
       if (keptTiers.some((t, i) => !isExpiredTier(i) && t.quantity <= 0)) {
         return { error: "Every tier needs a quantity of at least 1." };
       }
@@ -1049,7 +1036,7 @@ export async function updateEventSectionAction(
         ...input,
         tiers: keptTiers,
         preserveMissingTiers: true,
-        deleteTierIds,
+        expiredTierIds,
         maxTicketsPerUser: Math.min(10, Math.max(1, Number(formData.get("maxTicketsPerUser") ?? 5) || 5)),
       };
     } else if (section === "community") {
@@ -1185,7 +1172,7 @@ export async function updateEventSectionAction(
       const service = createServiceClient();
       const { data: freshTiers } = await service
         .from("ticket_tiers")
-        .select("id, name, price_paise, quantity, quantity_sold, tier_type, phase_opens_at, phase_closes_at")
+        .select("id, name, price_paise, quantity, quantity_sold, tier_type, phase_opens_at, phase_closes_at, expired_at")
         .eq("event_id", eventId)
         .order("sort_order", { ascending: true });
       return {
@@ -1200,6 +1187,7 @@ export async function updateEventSectionAction(
           tierType: t.tier_type,
           phaseOpensAt: t.phase_opens_at,
           phaseClosesAt: t.phase_closes_at,
+          expiredAt: (t as { expired_at?: string | null }).expired_at ?? null,
         })),
       };
     } catch { /* fall through to plain saved response */ }

@@ -477,10 +477,10 @@ export interface UpdateEventInput {
    * submission must not silently destroy tier rows. The draft/full-form
    * path leaves this unset to keep true tier-removal working. */
   preserveMissingTiers?: boolean;
-  /** Explicit tier IDs to delete — used by the section editor for expired
-   * tiers with zero sales (nothing to preserve). Only rows with
-   * quantity_sold = 0 are actually removed. */
-  deleteTierIds?: string[];
+  /** IDs of tiers the organizer expired — expired_at is set on those and
+   * cleared on every other submitted tier (restore). No rows are deleted,
+   * so order/ticket/waitlist references always stay valid. */
+  expiredTierIds?: string[];
 }
 
 
@@ -709,23 +709,28 @@ export async function updateEvent(
       }
     }
 
-    // Explicit deletes (section editor's expire-unsold flow). Re-checks
-    // quantity_sold server-side so a forged ID can't nuke a sold tier.
-    if (input.deleteTierIds?.length) {
-      const { data: unsold } = await supabase
-        .from("ticket_tiers")
-        .select("id")
-        .in("id", input.deleteTierIds)
-        .eq("event_id", eventId)
-        .eq("quantity_sold", 0);
-      const safeIds = (unsold ?? []).map((r) => r.id);
-      if (safeIds.length > 0) {
-        const { error: delError } = await supabase
+    // Expiry flags (section editor). Set expired_at on flagged tiers, clear
+    // it on the rest (restore). Rows are never deleted here - references
+    // from orders/tickets/waitlist must survive.
+    if (input.expiredTierIds !== undefined) {
+      const expiredSet = new Set(input.expiredTierIds);
+      const toExpire = existingIds.filter((id) => expiredSet.has(id));
+      const toRestore = existingIds.filter((id) => !expiredSet.has(id));
+      if (toExpire.length > 0) {
+        const { error } = await supabase
           .from("ticket_tiers")
-          .delete()
-          .in("id", safeIds)
+          .update({ expired_at: new Date().toISOString() } as never)
+          .in("id", toExpire)
           .eq("event_id", eventId);
-        if (delError) throw delError;
+        if (error) throw error;
+      }
+      if (toRestore.length > 0) {
+        const { error } = await supabase
+          .from("ticket_tiers")
+          .update({ expired_at: null } as never)
+          .in("id", toRestore)
+          .eq("event_id", eventId);
+        if (error) throw error;
       }
     }
 

@@ -170,6 +170,9 @@ export interface TicketTier {
   phaseOrder?: number | null;
   phaseOpensAt?: string | null;
   phaseClosesAt?: string | null;
+  /** Set when the organizer expired the tier - hidden from buyers but all
+   * order/ticket/waitlist references stay intact (soft-retire, never delete). */
+  expiredAt?: string | null;
 }
 
 export interface EventSummary {

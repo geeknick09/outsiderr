@@ -73,6 +73,7 @@ function toTier(row: TicketTierRow): TicketTier {
     phaseOrder: (row as { phase_order?: number | null }).phase_order ?? null,
     phaseOpensAt: (row as { phase_opens_at?: string | null }).phase_opens_at ?? null,
     phaseClosesAt: (row as { phase_closes_at?: string | null }).phase_closes_at ?? null,
+    expiredAt: (row as { expired_at?: string | null }).expired_at ?? null,
   };
 }
 

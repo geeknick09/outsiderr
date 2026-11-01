@@ -71,9 +71,10 @@ export function TicketTiers({
     },
   });
 
-  // All derived state memoized - nothing recalculates on every render
-  const phaseTiers = useMemo(() => tiers.filter((t) => t.tierType === "FLAT_PHASE"), [tiers]);
-  const namedTiers = useMemo(() => tiers.filter((t) => t.tierType !== "FLAT_PHASE"), [tiers]);
+  // All derived state memoized - nothing recalculates on every render.
+  // Expired tiers (organizer-retired) are invisible to buyers entirely.
+  const phaseTiers = useMemo(() => tiers.filter((t) => t.tierType === "FLAT_PHASE" && !t.expiredAt), [tiers]);
+  const namedTiers = useMemo(() => tiers.filter((t) => t.tierType !== "FLAT_PHASE" && !t.expiredAt), [tiers]);
   const phaseAvailability = useMemo(
     () => computePhaseAvailability(phaseTiers, new Date(nowTick)),
     [phaseTiers, nowTick],
@@ -116,7 +117,10 @@ export function TicketTiers({
   const [qtyRaw, setQty] = useState(1);
 
   const isFreeEvent = useMemo(
-    () => tiers.length > 0 && tiers.every((t) => t.pricePaise === 0),
+    () => {
+      const live = tiers.filter((t) => !t.expiredAt);
+      return live.length > 0 && live.every((t) => t.pricePaise === 0);
+    },
     [tiers],
   );
 

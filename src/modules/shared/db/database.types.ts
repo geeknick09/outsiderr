@@ -144,6 +144,7 @@ export type TicketTierRow = {
   phase_order: number | null;
   phase_opens_at: string | null;
   phase_closes_at: string | null;
+  expired_at: string | null;
 }
 
 export type OrderRow = {

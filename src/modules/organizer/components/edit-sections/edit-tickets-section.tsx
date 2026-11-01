@@ -71,10 +71,9 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
       price: (t.pricePaise / 100).toFixed(0),
       quantity: String(t.quantity),
       quantitySold: t.quantitySold,
-      // quantity <= quantitySold means either expired-by-organizer (0/0)
-      // or fully sold out - both read as "no more sales" in the UI.
-      // Active tiers always have quantity > quantitySold.
-      isExpired: t.quantity <= t.quantitySold,
+      // expired_at is the real flag — a naturally sold-out tier (qty=sold)
+      // is NOT expired; it just needs a quantity bump to sell again.
+      isExpired: Boolean(t.expiredAt),
       tierType: t.tierType,
       phaseOpensAt: toLocal(t.phaseOpensAt),
       phaseClosesAt: toLocal(t.phaseClosesAt),
@@ -82,7 +81,7 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
 
   const [tiers, setTiers] = useState<EditableTier[]>(seedTiers);
   const [expiredIds, setExpiredIds] = useState<Set<string>>(
-    () => new Set(event.tiers.filter((t) => t.quantity <= t.quantitySold).map((t) => t.id)),
+    () => new Set(event.tiers.filter((t) => t.expiredAt).map((t) => t.id)),
   );
   const [maxTicketsPerUser, setMaxTicketsPerUser] = useState(String(event.maxTicketsPerUser ?? 5));
   const [phaseError, setPhaseError] = useState<string | null>(null);
@@ -106,7 +105,7 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
           price: (t.pricePaise / 100).toFixed(0),
           quantity: String(t.quantity),
           quantitySold: t.quantitySold,
-          isExpired: t.quantity <= t.quantitySold,
+          isExpired: Boolean(t.expiredAt),
           tierType: t.tierType,
           phaseOpensAt: toLocal(t.phaseOpensAt),
           phaseClosesAt: toLocal(t.phaseClosesAt),
@@ -208,7 +207,7 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
       setMaxTicketsPerUser(lastSynced.current.maxPerUser);
     } else {
       setTiers(seedTiers());
-      setExpiredIds(new Set(event.tiers.filter((t) => t.quantity <= t.quantitySold).map((t) => t.id)));
+      setExpiredIds(new Set(event.tiers.filter((t) => t.expiredAt).map((t) => t.id)));
       setMaxTicketsPerUser(String(event.maxTicketsPerUser ?? 5));
     }
     setPhaseError(null);
@@ -219,10 +218,10 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
   const showPrice = mode !== "FREE";
   const canAddTiers = mode !== "FREE";
 
-  // For saving: expired tiers get quantity = quantitySold (caps them, preserves data)
-  const effectiveTiers = tiers.map((t) =>
-    isTierExpired(t) ? { ...t, quantity: String(t.quantitySold || 0) } : t,
-  );
+  // Expired tiers keep their original quantity — expiry is recorded via the
+  // tierExpired[] flag → expired_at column, not by zeroing quantity (which
+  // would violate the CHECK constraint for unsold tiers anyway).
+  const effectiveTiers = tiers;
 
   return (
     <CollapsibleSection
@@ -256,13 +255,15 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
             <p><strong>Max tickets per user:</strong> {maxTicketsPerUser}</p>
             <ul className="space-y-1">
               {tiers.map((t) => {
-                const expired = t.quantity === String(t.quantitySold) && t.quantitySold > 0 && Number(t.quantity) === t.quantitySold;
+                const expired = isTierExpired(t);
+                const soldOut = !expired && t.quantitySold > 0 && Number(t.quantity) <= t.quantitySold;
                 return (
                   <li key={t.id} className={expired ? "opacity-50" : ""}>
                     <strong>{t.name || "Unnamed"}</strong>
                     {showPrice ? ` - ₹${t.price || "0"}` : " - Free"}
                     {" · "}{t.quantity} qty · {t.quantitySold} sold
-                    {expired ? <span className="ml-1 text-[10px] font-semibold text-amber-500">Sold out</span> : null}
+                    {expired ? <span className="ml-1 text-[10px] font-semibold text-amber-500">Expired</span> : null}
+                    {soldOut ? <span className="ml-1 text-[10px] font-semibold text-zinc-400">Sold out</span> : null}
                   </li>
                 );
               })}
@@ -304,7 +305,7 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
                         <span className="text-[10px] font-bold uppercase tracking-wide text-amber-500">
                           {tier.quantitySold > 0
                             ? `Expired — no more sales · ${tier.quantitySold} tickets preserved`
-                            : "Expired — will be removed on save (no tickets sold)"}
+                            : "Expired — hidden from buyers · restore to reopen"}
                         </span>
                         <button
                           type="button"
