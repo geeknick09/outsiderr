@@ -95,14 +95,14 @@ export default async function ManageEventPage({
   // Check access level - owner or accepted collaborator. Note: analytics is
   // null for collaborators without ANALYTICS/FULL permission - that's not a
   // 404, they still get the event view.
-  const promoters = event ? await getEventPromoters(event.organizer.id, id) : [];
+  const promoters = await safe(getEventPromoters(event.organizer.id, id), []);
 
-  const accessLevel = await getEventAccessLevel(user, id);
+  const accessLevel = await getEventAccessLevel(user, id).catch(() => null);
   if (!accessLevel) notFound();
   const isOwner = accessLevel === "OWNER";
   const eventInviteToken =
     isOwner && event.visibility === "INVITE_ONLY"
-      ? await createServiceClient().rpc("get_event_invite_token", { p_event_id: event.id, p_actor_id: user.id }).then((r) => (typeof r.data === "string" ? r.data : null))
+      ? await Promise.resolve(createServiceClient().rpc("get_event_invite_token", { p_event_id: event.id, p_actor_id: user.id }).then((r) => (typeof r.data === "string" ? r.data : null))).catch(() => null)
       : null;
   const canView = canViewAnalytics(accessLevel);
   const canScan = canScanTickets(accessLevel);
@@ -113,8 +113,8 @@ export default async function ManageEventPage({
   // manage UI (walk-in registration, orders, analytics don't apply to drafts).
   if (event.status === "DRAFT") {
     const [pastEventsForLinking, draftRetentionDays] = await Promise.all([
-      getOrganizerPastEventsForLinking(event.organizer.id, id),
-      getDraftRetentionDays(),
+      safe(getOrganizerPastEventsForLinking(event.organizer.id, id), []),
+      safe(getDraftRetentionDays(), 30),
     ]);
     return (
       <div className="space-y-6 py-6">
@@ -153,8 +153,8 @@ export default async function ManageEventPage({
     );
   }
 
-  const pastEventsForLinking = await getOrganizerPastEventsForLinking(event.organizer.id, id);
-  const myCommunities = await listMyCommunities(user);
+  const pastEventsForLinking = await safe(getOrganizerPastEventsForLinking(event.organizer.id, id), []);
+  const myCommunities = await safe(listMyCommunities(user), []);
 
   const eventPast = isEventEnded(event.startsAt, event.endsAt);
 

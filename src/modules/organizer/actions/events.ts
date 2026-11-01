@@ -1111,13 +1111,17 @@ export async function updateEventSectionAction(
     };
   }
 
-  // Only revalidate discovery + public event page. Do NOT revalidate the
-  // organizer layout or the manage page — the 15+ parallel fetches crash
-  // during the server re-render (Ref: 2468244401). The section form already
-  // reflects the new state client-side.
-  revalidatePath("/");
-  revalidateTag("events", "expire");
-  revalidatePath(`/events/${eventId}`);
+  // NO revalidation here. In Next.js App Router, ANY revalidatePath/Tag in a
+  // server action triggers a full re-render of the CURRENT page's RSC tree.
+  // The manage page has 20+ sequential awaits (Promise.all + access checks +
+  // communities + promoters) — any single failure during re-render crashes the
+  // error boundary → "Could not load event" (Ref: 2468244401).
+  //
+  // The section form already reflects the new state client-side (controlled
+  // inputs). The public event page + discovery will pick up changes on next
+  // visitor request (ISR / on-demand). If we ever need instant public-side
+  // freshness, call revalidate from a separate API route that doesn't re-render
+  // the organizer page.
   return { error: null, saved: section };
 }
 
