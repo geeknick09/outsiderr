@@ -1043,6 +1043,51 @@ export async function updateEventSectionAction(
 
     await updateEvent(user, eventId, input);
 
+    // Venue/city change on a published event → notify ticket holders + subscribers.
+    if (section === "venue" && current.status === "PUBLISHED") {
+      const cityChanged = input.city && input.city !== current.city;
+      const venueChanged = input.venueName && input.venueName !== current.venueName;
+      if (cityChanged || venueChanged) {
+        try {
+          const { sendNotifications } = await import("@/modules/shared/notifications");
+          const { getEventSubscriberUserIds } = await import("@/modules/shared/data/engagement");
+          const { createServiceClient } = await import("@/modules/shared/auth/service");
+          const service = createServiceClient();
+
+          // Ticket holders (confirmed orders)
+          const { data: orderRows } = await service
+            .from("orders")
+            .select("user_id")
+            .eq("event_id", eventId)
+            .in("status", ["CONFIRMED", "RESERVED"]);
+          const holderIds = new Set((orderRows ?? []).map((r) => r.user_id).filter(Boolean));
+
+          // "Update Me" subscribers
+          const subIds = await getEventSubscriberUserIds(eventId);
+          for (const id of subIds) holderIds.add(id);
+
+          // Remove the organizer themselves
+          holderIds.delete(user.id);
+
+          if (holderIds.size > 0) {
+            const { cityLabel } = await import("@/modules/shared");
+            const parts: string[] = [];
+            if (venueChanged) parts.push(`venue is now "${input.venueName}"`);
+            if (cityChanged) parts.push(`city changed to ${cityLabel(input.city as string)}`);
+            const message = `"${current.title}" updated: ${parts.join(" and ")}.`;
+            await sendNotifications(
+              [...holderIds].map((uid) => ({
+                userId: uid,
+                type: "EVENT_UPDATE",
+                message,
+                eventId,
+              })),
+            );
+          }
+        } catch { /* best-effort - don't fail the save */ }
+      }
+    }
+
     // Attaching a published event to a community notifies its members (deduped).
     if (input.communityId && current.status === "PUBLISHED") {
       try {

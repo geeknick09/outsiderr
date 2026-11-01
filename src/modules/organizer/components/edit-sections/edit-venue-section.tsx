@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { CollapsibleSection, CityPicker, cn, isGoogleMapsLink } from "@/modules/shared";
+import { CollapsibleSection, CityPicker, cn, isGoogleMapsLink, cityLabel } from "@/modules/shared";
 import { updateEventSectionAction, type UpdateEventSectionState } from "../../actions/events";
 import type { EventDetail } from "@/modules/shared";
 
@@ -60,6 +60,7 @@ export function EditVenueSection({ event, lockLogistics = false }: { event: Even
         {!isEditing ? (
           <div className="space-y-2 text-sm text-muted">
             <p><strong>Mode:</strong> {venueMode === "TBA" ? "Venue TBA" : "Venue confirmed"}</p>
+            <p><strong>City:</strong> {cityLabel(city) || "-"}</p>
             {venueMode === "NOW" ? (
               <>
                 <p><strong>Name:</strong> {venueName || "-"}</p>
