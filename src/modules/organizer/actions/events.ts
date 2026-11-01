@@ -616,14 +616,15 @@ export async function createEventAction(
     };
   }
 
+  // Draft re-saves: skip revalidation — the form state is already current and
+  // revalidatePath triggers a server re-render of the manage page whose 15+
+  // parallel fetches can crash, surfacing "Could not load event".
+  if (isDraft && draftEventId) return { error: null, draftSaved: true };
+
   revalidatePath("/");
   revalidateTag("events", "expire");
   revalidatePath("/organizer");
   revalidatePath("/organizer", "layout");
-  // Draft re-saves stay on the current page; first-time drafts redirect to
-  // the manage page so the organizer can continue editing.
-  // Publishes go through the form action where redirect() routes correctly.
-  if (isDraft && draftEventId) return { error: null, draftSaved: true };
   if (isDraft) return { error: null, redirectTo: `/organizer/events/${eventId}` };
   redirect(`/organizer`);
 }

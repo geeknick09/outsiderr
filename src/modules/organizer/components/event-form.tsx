@@ -355,15 +355,41 @@ export function EventForm({
   // Draft save → confirm retention notice, then submit programmatically so
   // native `required` validation never blocks an incomplete draft.
   const [showDraftConfirm, setShowDraftConfirm] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [, startDraftTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
 
-  function saveAsDraft() {
+  // Existing-draft re-saves call the action directly (not via formAction/useTransition)
+  // to avoid the revalidatePath re-render that crashes the manage page.
+  async function saveDraftDirect() {
+    const form = formRef.current;
+    if (!form) return;
+    setSaving(true);
+    try {
+      const fd = new FormData(form);
+      fd.set("saveMode", "draft");
+      fd.set("draftEventId", draftEvent!.id);
+      const result = await createEventAction({ error: null }, fd);
+      if (result.error) {
+        setDraftSavedToast(false);
+        alert(result.error);
+      } else {
+        setDraftSavedToast(true);
+        setTimeout(() => setDraftSavedToast(false), 3000);
+      }
+    } catch {
+      alert("Something went wrong. Try saving again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // New drafts (from /organizer/create) still go through formAction for the redirect.
+  function saveAsNewDraft() {
     const form = formRef.current;
     if (!form) return;
     const fd = new FormData(form);
     fd.set("saveMode", "draft");
-    if (draftEvent) fd.set("draftEventId", draftEvent.id);
     setShowDraftConfirm(false);
     startDraftTransition(() => formAction(fd));
   }
@@ -1564,17 +1590,31 @@ export function EventForm({
         <Button type="submit" size="lg" disabled={pending || uploadsInFlight > 0 || !termsAccepted || !!dateError || !!mapsError || contactError || !!phaseError || staffError || communityError || tierError || maxTicketsError || promoError} loading={pending} loadingText="Publishing…">
           Publish event
         </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          size="lg"
-          disabled={pending}
-          loading={pending}
-          loadingText="Saving…"
-          onClick={() => setShowDraftConfirm(true)}
-        >
-          Save as draft
-        </Button>
+        {draftEvent ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="lg"
+            disabled={pending || saving}
+            loading={saving}
+            loadingText="Saving…"
+            onClick={saveDraftDirect}
+          >
+            Save
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="secondary"
+            size="lg"
+            disabled={pending || saving}
+            loading={saving}
+            loadingText="Saving…"
+            onClick={() => setShowDraftConfirm(true)}
+          >
+            Save as draft
+          </Button>
+        )}
       </div>
       </div>
 
@@ -1648,7 +1688,7 @@ export function EventForm({
               >
                 Keep editing
               </Button>
-              <Button type="button" className="flex-1" onClick={saveAsDraft}>
+              <Button type="button" className="flex-1" onClick={saveAsNewDraft}>
                 Save draft
               </Button>
             </div>
