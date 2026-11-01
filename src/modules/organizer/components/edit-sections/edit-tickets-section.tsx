@@ -12,6 +12,26 @@ const INPUT =
 const SMALL_INPUT =
   "w-full min-w-0 box-border rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-neon [color-scheme:light] dark:[color-scheme:dark] dark:border-white/10 dark:bg-white/5 dark:text-white";
 
+/** Block negative signs, e, E on numeric inputs; sanitize pasted text. */
+function numericProps(allowDecimal = false) {
+  return {
+    onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (["-", "+", "e", "E"].includes(e.key)) e.preventDefault();
+      if (!allowDecimal && e.key === ".") e.preventDefault();
+    },
+    onPaste: (e: React.ClipboardEvent<HTMLInputElement>) => {
+      const text = e.clipboardData.getData("text");
+      const cleaned = allowDecimal ? text.replace(/[^0-9.]/g, "") : text.replace(/[^0-9]/g, "");
+      if (cleaned !== text) {
+        e.preventDefault();
+        const input = e.currentTarget;
+        input.value = cleaned;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    },
+  };
+}
+
 interface EditableTier {
   id: string;
   name: string;
@@ -216,8 +236,12 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
                 min={1}
                 max={10}
                 value={maxTicketsPerUser}
-                onChange={(e) => setMaxTicketsPerUser(e.target.value)}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^0-9]/g, "");
+                  setMaxTicketsPerUser(v);
+                }}
                 className={INPUT}
+                {...numericProps(false)}
               />
             </div>
 
@@ -267,9 +291,13 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
                           placeholder="Price (₹)"
                           min={0}
                           value={tier.price}
-                          onChange={(e) => updateTier(tier.id, { price: e.target.value })}
+                          onChange={(e) => {
+                            const v = e.target.value.replace(/[^0-9.]/g, "");
+                            updateTier(tier.id, { price: v });
+                          }}
                           disabled={expired}
                           className={SMALL_INPUT}
+                          {...numericProps(true)}
                         />
                       ) : null}
                       <input
@@ -277,9 +305,13 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
                         placeholder="Qty"
                         min={tier.quantitySold || 1}
                         value={expired ? tier.quantitySold : tier.quantity}
-                        onChange={(e) => updateTier(tier.id, { quantity: e.target.value })}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/[^0-9]/g, "");
+                          updateTier(tier.id, { quantity: v });
+                        }}
                         disabled={expired}
                         className={SMALL_INPUT}
+                        {...numericProps(false)}
                       />
                       {/* Expire / Remove button */}
                       {!expired && !tier.isNew ? (
