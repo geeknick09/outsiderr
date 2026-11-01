@@ -78,7 +78,13 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
     }));
 
   const [tiers, setTiers] = useState<EditableTier[]>(seedTiers);
-  const [expiredIds, setExpiredIds] = useState<Set<string>>(new Set());
+  const [expiredIds, setExpiredIds] = useState<Set<string>>(() => {
+    const ids = new Set<string>();
+    for (const t of event.tiers) {
+      if (t.quantity > 0 && t.quantity === t.quantitySold && t.quantitySold > 0) ids.add(t.id);
+    }
+    return ids;
+  });
   const [maxTicketsPerUser, setMaxTicketsPerUser] = useState(String(event.maxTicketsPerUser ?? 5));
   const [phaseError, setPhaseError] = useState<string | null>(null);
 
