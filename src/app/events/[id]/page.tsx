@@ -647,7 +647,7 @@ export default async function EventDetailsPage({
                 Join the community
               </Link>
             </section>
-          ) : (
+          ) : eventEnded ? null : (
             <TicketTiers
               event={event}
               waitlistData={waitlistData}
