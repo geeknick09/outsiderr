@@ -156,7 +156,7 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
 
   const hasPhases = mode === "PHASED" || tiers.some((t) => t.tierType === "FLAT_PHASE");
   const showPrice = mode !== "FREE";
-  const canAddTiers = mode === "PAID" || mode === "PHASED";
+  const canAddTiers = mode !== "FREE";
 
   // For saving: expired tiers get quantity = quantitySold (caps them, preserves data)
   const effectiveTiers = tiers.map((t) =>
