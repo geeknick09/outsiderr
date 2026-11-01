@@ -184,8 +184,6 @@ export function EventForm({
     if (state?.redirectTo) router.push(state.redirectTo);
     if ((state as { draftSaved?: boolean })?.draftSaved) {
       setDraftSavedToast(true);
-      const t = setTimeout(() => setDraftSavedToast(false), 3000);
-      return () => clearTimeout(t);
     }
   }, [state, router]);
 
@@ -365,6 +363,7 @@ export function EventForm({
     const form = formRef.current;
     if (!form) return;
     setSaving(true);
+    setDraftSavedToast(false);
     try {
       const fd = new FormData(form);
       fd.set("saveMode", "draft");
@@ -375,7 +374,6 @@ export function EventForm({
         alert(result.error);
       } else {
         setDraftSavedToast(true);
-        setTimeout(() => setDraftSavedToast(false), 3000);
       }
     } catch {
       alert("Something went wrong. Try saving again.");
