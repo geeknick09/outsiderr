@@ -23,7 +23,7 @@ export function EditDetailsSection({ event, lockLogistics = false }: { event: Ev
 
   useEffect(() => {
     if (state.saved === "details") setIsEditing(false);
-  }, [state.saved]);
+  }, [state]);
 
   function handleCancel() {
     setTitle(event.title);

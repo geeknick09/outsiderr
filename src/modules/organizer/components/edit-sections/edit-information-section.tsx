@@ -19,7 +19,7 @@ export function EditInformationSection({ event }: { event: EventDetail }) {
 
   useEffect(() => {
     if (state.saved === "information") setIsEditing(false);
-  }, [state.saved]);
+  }, [state]);
 
   function handleCancel() {
     setThingsToKnow(event.thingsToKnow.join("\n"));

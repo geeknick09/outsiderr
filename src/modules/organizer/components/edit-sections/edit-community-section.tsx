@@ -30,7 +30,7 @@ export function EditCommunitySection({
 
   useEffect(() => {
     if (state.saved === "community") setIsEditing(false);
-  }, [state.saved]);
+  }, [state]);
 
   function handleCancel() {
     setCommunityId(event.communityId ?? "");

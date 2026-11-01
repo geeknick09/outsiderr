@@ -25,7 +25,7 @@ export function EditVenueSection({ event, lockLogistics = false }: { event: Even
 
   useEffect(() => {
     if (state.saved === "venue") setIsEditing(false);
-  }, [state.saved]);
+  }, [state]);
 
   function handleCancel() {
     setVenueMode(event.venueName === "TBA" ? "TBA" : "NOW");

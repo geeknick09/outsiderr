@@ -17,7 +17,7 @@ export function EditMediaSection({ event }: { event: EventDetail }) {
 
   useEffect(() => {
     if (state.saved === "media") setIsEditing(false);
-  }, [state.saved]);
+  }, [state]);
 
   return (
     <CollapsibleSection

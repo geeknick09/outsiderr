@@ -88,8 +88,11 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
   const [phaseError, setPhaseError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Depend on `state` (new object per submission), not `state.saved` —
+    // a second save returns saved:"tickets" again, and an unchanged
+    // primitive dep would skip this effect and trap the section in edit mode.
     if (state.saved === "tickets") setIsEditing(false);
-  }, [state.saved]);
+  }, [state]);
 
   const isTierExpired = (tier: EditableTier) => expiredIds.has(tier.id);
 

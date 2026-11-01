@@ -24,7 +24,7 @@ export function EditContactSection({ event }: { event: EventDetail }) {
 
   useEffect(() => {
     if (state.saved === "contact") setIsEditing(false);
-  }, [state.saved]);
+  }, [state]);
 
   function handleCancel() {
     setContactEmail(event.contactEmail ?? "");

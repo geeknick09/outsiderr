@@ -20,7 +20,7 @@ export function EditTimeSection({ event, lockLogistics = false }: { event: Event
 
   useEffect(() => {
     if (state.saved === "schedule") setIsEditing(false);
-  }, [state.saved]);
+  }, [state]);
 
   function validateDates(start: string, end: string) {
     const parseIST = (s: string) => new Date(/[Z+-]/.test(s.slice(-6)) ? s : `${s}+05:30`);

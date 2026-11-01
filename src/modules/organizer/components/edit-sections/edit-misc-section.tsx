@@ -26,7 +26,7 @@ export function EditMiscSection({ event, pastEvents, lockLogistics = false }: Ed
 
   useEffect(() => {
     if (state.saved === "misc") setIsEditing(false);
-  }, [state.saved]);
+  }, [state]);
 
   function handleCancel() {
     setWaitlistEnabled(event.waitlistEnabled);
