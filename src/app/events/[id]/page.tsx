@@ -137,6 +137,8 @@ export default async function EventDetailsPage({
   const startMs = new Date(event.startsAt).getTime();
   const endMs = event.endsAt ? new Date(event.endsAt).getTime() : startMs;
   const eventEnded = endMs <= nowMs;
+  const eventStarted = startMs <= nowMs;
+  const bookingClosed = event.allowBookingDuringEvent ? eventEnded : eventStarted;
 
   // Tickets this user already holds - drives the per-user cap in TicketTiers.
   let ticketsHeld = 0;
@@ -603,34 +605,6 @@ export default async function EventDetailsPage({
             <EventReviews reviews={eventReviews} organizerId={event.organizer.id} />
           )}
 
-          {(() => {
-            const nowMs = Date.now();
-            const startMs = new Date(event.startsAt).getTime();
-            const endMs = event.endsAt ? new Date(event.endsAt).getTime() : startMs;
-            const eventStarted = startMs <= nowMs;
-            const eventEnded = endMs <= nowMs;
-            const bookingClosed = event.allowBookingDuringEvent ? eventEnded : eventStarted;
-            if (!bookingClosed) return null;
-            return (
-              <section className="glass rounded-3xl p-5 text-center">
-                <p className="text-sm font-bold">
-                  {eventEnded ? "This event has ended" : "This event has started"}
-                </p>
-                <p className="mt-1 text-xs text-muted">
-                  {eventEnded
-                    ? "Tickets are no longer available."
-                    : "Online booking is closed. Please buy tickets on spot at the venue."}
-                </p>
-                <Link
-                  href={`/?category=${event.category}`}
-                  className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-neon-gradient px-4 py-2 text-sm font-bold text-white"
-                >
-                  <CalendarDays className="h-4 w-4" />
-                  Explore more {CATEGORY_LABELS[event.category]} events
-                </Link>
-              </section>
-            );
-          })()}
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
@@ -647,7 +621,33 @@ export default async function EventDetailsPage({
                 Join the community
               </Link>
             </section>
-          ) : eventEnded ? null : (
+          ) : eventEnded ? (
+            <section className="glass rounded-3xl p-5 text-center">
+              <p className="text-sm font-bold">This event has ended</p>
+              <p className="mt-1 text-xs text-muted">Tickets are no longer available.</p>
+              <Link
+                href={`/?category=${event.category}`}
+                className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-neon-gradient px-4 py-2 text-sm font-bold text-white"
+              >
+                <CalendarDays className="h-4 w-4" />
+                Explore more {CATEGORY_LABELS[event.category]} events
+              </Link>
+            </section>
+          ) : bookingClosed ? (
+            <section className="glass rounded-3xl p-5 text-center">
+              <p className="text-sm font-bold">This event has started</p>
+              <p className="mt-1 text-xs text-muted">
+                Online booking is closed. Please buy tickets on spot at the venue.
+              </p>
+              <Link
+                href={`/?category=${event.category}`}
+                className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-neon-gradient px-4 py-2 text-sm font-bold text-white"
+              >
+                <CalendarDays className="h-4 w-4" />
+                Explore more {CATEGORY_LABELS[event.category]} events
+              </Link>
+            </section>
+          ) : (
             <TicketTiers
               event={event}
               waitlistData={waitlistData}
