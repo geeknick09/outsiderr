@@ -302,7 +302,9 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
                     {expired ? (
                       <div className="mb-2 flex items-center justify-between">
                         <span className="text-[10px] font-bold uppercase tracking-wide text-amber-500">
-                          Expired — no more sales · {tier.quantitySold} tickets preserved
+                          {tier.quantitySold > 0
+                            ? `Expired — no more sales · ${tier.quantitySold} tickets preserved`
+                            : "Expired — will be removed on save (no tickets sold)"}
                         </span>
                         <button
                           type="button"

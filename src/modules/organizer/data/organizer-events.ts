@@ -477,6 +477,10 @@ export interface UpdateEventInput {
    * submission must not silently destroy tier rows. The draft/full-form
    * path leaves this unset to keep true tier-removal working. */
   preserveMissingTiers?: boolean;
+  /** Explicit tier IDs to delete — used by the section editor for expired
+   * tiers with zero sales (nothing to preserve). Only rows with
+   * quantity_sold = 0 are actually removed. */
+  deleteTierIds?: string[];
 }
 
 
@@ -700,6 +704,26 @@ export async function updateEvent(
           .from("ticket_tiers")
           .delete()
           .in("id", safeToDelete)
+          .eq("event_id", eventId);
+        if (delError) throw delError;
+      }
+    }
+
+    // Explicit deletes (section editor's expire-unsold flow). Re-checks
+    // quantity_sold server-side so a forged ID can't nuke a sold tier.
+    if (input.deleteTierIds?.length) {
+      const { data: unsold } = await supabase
+        .from("ticket_tiers")
+        .select("id")
+        .in("id", input.deleteTierIds)
+        .eq("event_id", eventId)
+        .eq("quantity_sold", 0);
+      const safeIds = (unsold ?? []).map((r) => r.id);
+      if (safeIds.length > 0) {
+        const { error: delError } = await supabase
+          .from("ticket_tiers")
+          .delete()
+          .in("id", safeIds)
           .eq("event_id", eventId);
         if (delError) throw delError;
       }
