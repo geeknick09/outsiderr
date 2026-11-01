@@ -670,12 +670,14 @@ export default async function EventDetailsPage({
           {/* Update Me button - only for logged-in non-ticket-holders */}
           {user && !eventEnded ? <UpdateMeButton eventId={event.id} isSubscribed={isSubscribed} /> : null}
 
-          <p className="px-2 text-center text-xs text-muted">
-            Payments are processed securely.{" "}
-            <Link href="/tickets" className="underline hover:text-violet-neon">
-              Track your orders
-            </Link>
-          </p>
+          {!eventEnded ? (
+            <p className="px-2 text-center text-xs text-muted">
+              Payments are processed securely.{" "}
+              <Link href="/tickets" className="underline hover:text-violet-neon">
+                Track your orders
+              </Link>
+            </p>
+          ) : null}
         </aside>
       </div>
     </div>
