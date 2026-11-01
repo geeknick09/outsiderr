@@ -46,10 +46,10 @@ interface EditableTier {
 }
 
 const MODE_LABELS: Record<string, string> = {
-  FREE: "Free Event",
-  FLAT: "Single Price",
-  PAID: "Multiple Tiers",
-  PHASED: "Phased Pricing",
+  FREE: "Free",
+  FLAT: "Flat",
+  PAID: "Tier",
+  PHASED: "Phased",
 };
 
 function toLocal(iso: string | null | undefined): string {
