@@ -57,6 +57,7 @@ export function CollaborationPanel({
   const [pending, startTransition] = useTransition();
   const [selectedPerm, setSelectedPerm] = useState<PermissionLevel>("LIMITED");
   const [changingPerm, setChangingPerm] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
   const [justInvited, setJustInvited] = useState<string[]>([]);
 
   async function handleSearch(q: string) {
@@ -89,11 +90,13 @@ export function CollaborationPanel({
   }
 
   function handleRemove(collaboratorId: string) {
+    setRemovingId(collaboratorId);
     startTransition(async () => {
       const result = await removeCollaboratorAction(eventId, collaboratorId);
       if (result.error) {
         setError(result.error);
       }
+      setRemovingId(null);
     });
   }
 
@@ -285,10 +288,10 @@ export function CollaborationPanel({
                       type="button"
                       onClick={() => handleRemove(c.id)}
                       disabled={pending}
-                      className="rounded-full p-1.5 text-muted hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
+                      className="rounded-full p-1.5 text-muted hover:bg-red-50 hover:text-red-500 disabled:opacity-40 dark:hover:bg-red-500/10"
                       aria-label="Remove collaborator"
                     >
-                      ×
+                      {removingId === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "×"}
                     </button>
                   </div>
                 ) : null}

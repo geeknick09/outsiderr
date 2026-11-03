@@ -28,6 +28,12 @@ export function GuestlistPanel({
 
   function add() {
     setError(null);
+    // Client-side validation
+    const ph = phone.replace(/\D/g, "");
+    const em = email.trim();
+    if (ph && ph.length < 10) { setError("Phone must be at least 10 digits."); return; }
+    if (em && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) { setError("Enter a valid email address."); return; }
+    if (!ph && !em) { setError("Add a phone number or email."); return; }
     startTransition(async () => {
       const res = await addGuestEntryAction(eventId, name, phone || null, email || null);
       if (res.error) setError(res.error);

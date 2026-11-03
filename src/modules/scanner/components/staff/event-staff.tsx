@@ -44,7 +44,10 @@ export function EventStaff({
     setError(null);
     setNotice(null);
     if (!name.trim()) return setError("Staff name is required.");
-    if (phone.replace(/\D/g, "").length < 10) return setError("Enter the staff member's 10-digit phone.");
+    const digits = phone.replace(/\D/g, "");
+    if (digits.length < 10) return setError("Enter the staff member's 10-digit phone.");
+    if (digits.length > 10) return setError("Phone must be exactly 10 digits (without country code).");
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError("Enter a valid email address.");
     if (password.length < 6) return setError("Password must be at least 6 characters.");
     const fd = new FormData();
     fd.set("eventId", eventId);

@@ -25,10 +25,10 @@ async function resolveActor(): Promise<Actor | { error: string }> {
   if (profile?.is_admin === true) return { userId: user.id, ownerType: "ADMIN", organizerId: null };
 
   const organizer = await getOrganizerProfile(user);
-  if (organizer && organizer.kycStatus === "APPROVED") {
+  if (organizer) {
     return { userId: user.id, ownerType: "ORGANIZER", organizerId: organizer.id };
   }
-  return { error: "Not authorised." };
+  return { error: "Not authorised — you need an organizer profile." };
 }
 
 /** Returns an error unless the actor owns this staff member. */
