@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { INDIAN_STATES_CITIES, normalizeCityKey } from "../../lib/india-cities";
 
@@ -46,10 +46,12 @@ export function CityPicker({
   const stateDef = INDIAN_STATES_CITIES.find((s) => s.state === state);
   const cityKey = city === OTHER ? normalizeCityKey(custom) : city;
 
-  // Notify parent whenever the resolved city changes.
-  useEffect(() => {
-    if (onValueChange && cityKey) onValueChange(cityKey);
-  }, [cityKey, onValueChange]);
+  // Fire callback synchronously so the parent's state is updated before
+  // any save-triggered unmount can discard the new value.
+  const notify = useCallback(
+    (key: string) => { if (onValueChange && key) onValueChange(key); },
+    [onValueChange],
+  );
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -80,7 +82,10 @@ export function CityPicker({
           <input
             type="text"
             value={custom}
-            onChange={(e) => setCustom(e.target.value)}
+            onChange={(e) => {
+              setCustom(e.target.value);
+              notify(normalizeCityKey(e.target.value));
+            }}
             placeholder="Type city name"
             className={INPUT}
             required={required}
@@ -88,7 +93,12 @@ export function CityPicker({
         ) : (
           <select
             value={city}
-            onChange={(e) => setCity(e.target.value)}
+            onChange={(e) => {
+              setCity(e.target.value);
+              // For a regular city e.target.value is the key; for "Other"
+              // the key will be resolved once the user types a name.
+              if (e.target.value && e.target.value !== OTHER) notify(e.target.value);
+            }}
             className={INPUT}
             disabled={!stateDef}
             aria-label="City"
@@ -115,7 +125,10 @@ export function CityPicker({
           <input
             type="text"
             value={custom}
-            onChange={(e) => setCustom(e.target.value)}
+            onChange={(e) => {
+              setCustom(e.target.value);
+              notify(normalizeCityKey(e.target.value));
+            }}
             placeholder="Type city name"
             className={INPUT}
             required={required}
