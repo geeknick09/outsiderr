@@ -50,15 +50,20 @@ export const metadata: Metadata = {
   },
 };
 
+/** Swallow non-critical fetch failures so router.refresh() never crashes layouts. */
+async function safe<T>(p: Promise<T>, fallback: T): Promise<T> {
+  try { return await p; } catch { return fallback; }
+}
+
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const user = await getCurrentUser();
+  const user = await safe(getCurrentUser(), null);
   // Parallelize: fetch footer tagline and organizer profile at the same time
   const [footerTagline, org, rejectionLimit] = await Promise.all([
-    getTaglineFooter(),
-    user ? getOrganizerProfile(user) : Promise.resolve(null),
-    getSettingInt("organizer_rejection_limit"),
+    safe(getTaglineFooter(), null),
+    user ? safe(getOrganizerProfile(user), null) : Promise.resolve(null),
+    safe(getSettingInt("organizer_rejection_limit"), 3),
   ]);
   const isOrganizer = org ? getOrganizerAccessState({
     kycStatus: org.kycStatus,
@@ -81,7 +86,7 @@ if ("serviceWorker" in navigator && location.hostname !== "localhost") navigator
           <NavigationProgress />
           <Navbar mobileNav={<AdminMobileNav />} />
           <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-6">{children}</main>
-          <Footer isOrganizer={isOrganizer} tagline={footerTagline} />
+          <Footer isOrganizer={isOrganizer} tagline={footerTagline ?? undefined} />
           <ServiceWorkerRegister />
           <Analytics />
         </ThemeProvider>
