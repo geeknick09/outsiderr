@@ -276,7 +276,7 @@ export function NotificationBell({
           />
           <div
             role="menu"
-            className="glass absolute right-0 z-50 mt-2 max-h-[60vh] w-[calc(100vw-32px)] overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-2 dark:border-white/10 dark:bg-zinc-900 sm:max-h-96 sm:w-80"
+            className="glass fixed inset-x-4 top-16 z-50 max-h-[60vh] overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-2 dark:border-white/10 dark:bg-zinc-900 sm:absolute sm:inset-auto sm:right-0 sm:top-auto sm:mt-2 sm:max-h-96 sm:w-80"
           >
             {(unreadCount > 0 || notifications.length > 0) ? (
               <div className="flex items-center justify-between border-b border-zinc-200 px-2 py-2 dark:border-white/10">

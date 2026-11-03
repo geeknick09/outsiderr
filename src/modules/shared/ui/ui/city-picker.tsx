@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { INDIAN_STATES_CITIES, normalizeCityKey } from "../../lib/india-cities";
 
@@ -18,11 +18,13 @@ export function CityPicker({
   stateName = "eventState",
   defaultValue,
   required = true,
+  onValueChange,
 }: {
   name?: string;
   stateName?: string;
   defaultValue?: string | null;
   required?: boolean;
+  onValueChange?: (cityKey: string) => void;
 }) {
   // Resolve the initial state from the stored city (or "Other" for customs).
   const initialState = useMemo(() => {
@@ -43,6 +45,11 @@ export function CityPicker({
 
   const stateDef = INDIAN_STATES_CITIES.find((s) => s.state === state);
   const cityKey = city === OTHER ? normalizeCityKey(custom) : city;
+
+  // Notify parent whenever the resolved city changes.
+  useEffect(() => {
+    if (onValueChange && cityKey) onValueChange(cityKey);
+  }, [cityKey, onValueChange]);
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">

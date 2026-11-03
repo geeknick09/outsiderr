@@ -158,7 +158,7 @@ export function EditVenueSection({ event, lockLogistics = false }: { event: Even
             )}
 
             {/* City is editable regardless of venue mode - TBA affects venue, not city */}
-            <CityPicker name="city" defaultValue={city} />
+            <CityPicker name="city" defaultValue={city} onValueChange={setCity} />
           </>
         )}
 
