@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { CollapsibleSection, CATEGORIES, cn, tagsForCategories } from "@/modules/shared";
 import { updateEventSectionAction, type UpdateEventSectionState } from "../../actions/events";
 import { useEventEdits } from "../manage-event-context";
@@ -24,11 +24,11 @@ export function EditDetailsSection({ event, lockLogistics = false }: { event: Ev
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     (event.categories?.length ? event.categories : [event.category]) as string[],
   );
+  const lastSynced = useRef<{ title: string; description: string; tags: Set<string>; categories: string[] } | null>(null);
 
   useEffect(() => {
     if (state.saved === "details") {
-      // Push saved fields into the header store so title/category update
-      // instantly instead of waiting for router.refresh().
+      lastSynced.current = { title, description, tags: new Set(selectedTags), categories: [...selectedCategories] };
       edits?.patch({
         title,
         categories: selectedCategories,
@@ -40,10 +40,11 @@ export function EditDetailsSection({ event, lockLogistics = false }: { event: Ev
   }, [state]);
 
   function handleCancel() {
-    setTitle(event.title);
-    setDescription(event.description);
-    setSelectedTags(new Set(event.tags));
-    setSelectedCategories((event.categories?.length ? event.categories : [event.category]) as string[]);
+    const s = lastSynced.current;
+    setTitle(s ? s.title : event.title);
+    setDescription(s ? s.description : event.description);
+    setSelectedTags(s ? new Set(s.tags) : new Set(event.tags));
+    setSelectedCategories(s ? [...s.categories] : (event.categories?.length ? event.categories : [event.category]) as string[]);
     setIsEditing(false);
   }
 

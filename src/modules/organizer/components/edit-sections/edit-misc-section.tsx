@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { CollapsibleSection, cn } from "@/modules/shared";
 import { updateEventSectionAction, type UpdateEventSectionState } from "../../actions/events";
 import { PastEditionsPicker } from "../past-editions-picker";
@@ -25,14 +25,20 @@ export function EditMiscSection({ event, pastEvents, lockLogistics = false }: Ed
   const linkedIds = event.linkedPastEventIds ?? [];
   // Bump to remount the picker and discard unsaved checkbox changes on cancel.
   const [pickerKey, setPickerKey] = useState(0);
+  const lastSynced = useRef<{ waitlistEnabled: boolean; allowBookingDuringEvent: boolean } | null>(null);
 
   useEffect(() => {
-    if (state.saved === "misc") { setIsEditing(false); router.refresh(); }
+    if (state.saved === "misc") {
+      lastSynced.current = { waitlistEnabled, allowBookingDuringEvent };
+      setIsEditing(false);
+      router.refresh();
+    }
   }, [state]);
 
   function handleCancel() {
-    setWaitlistEnabled(event.waitlistEnabled);
-    setAllowBookingDuringEvent(event.allowBookingDuringEvent);
+    const s = lastSynced.current;
+    setWaitlistEnabled(s ? s.waitlistEnabled : event.waitlistEnabled);
+    setAllowBookingDuringEvent(s ? s.allowBookingDuringEvent : event.allowBookingDuringEvent);
     setPickerKey((k) => k + 1);
     setIsEditing(false);
   }

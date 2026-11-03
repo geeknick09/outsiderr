@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { CollapsibleSection } from "@/modules/shared";
 import { PhoneInput } from "@/modules/shared";
 import { updateEventSectionAction, type UpdateEventSectionState } from "../../actions/events";
@@ -24,19 +24,25 @@ export function EditContactSection({ event }: { event: EventDetail }) {
   const [xUrl, setXUrl] = useState(event.xUrl ?? "");
   const [facebookUrl, setFacebookUrl] = useState(event.facebookUrl ?? "");
   const [linkedinUrl, setLinkedinUrl] = useState(event.linkedinUrl ?? "");
+  const lastSynced = useRef<{ contactEmail: string; contactPhone: string; instagramUrl: string; youtubeUrl: string; xUrl: string; facebookUrl: string; linkedinUrl: string } | null>(null);
 
   useEffect(() => {
-    if (state.saved === "contact") { setIsEditing(false); router.refresh(); }
+    if (state.saved === "contact") {
+      lastSynced.current = { contactEmail, contactPhone, instagramUrl, youtubeUrl, xUrl, facebookUrl, linkedinUrl };
+      setIsEditing(false);
+      router.refresh();
+    }
   }, [state]);
 
   function handleCancel() {
-    setContactEmail(event.contactEmail ?? "");
-    setContactPhone(event.contactPhone ?? "");
-    setInstagramUrl(event.instagramUrl ?? "");
-    setYoutubeUrl(event.youtubeUrl ?? "");
-    setXUrl(event.xUrl ?? "");
-    setFacebookUrl(event.facebookUrl ?? "");
-    setLinkedinUrl(event.linkedinUrl ?? "");
+    const s = lastSynced.current;
+    setContactEmail(s ? s.contactEmail : (event.contactEmail ?? ""));
+    setContactPhone(s ? s.contactPhone : (event.contactPhone ?? ""));
+    setInstagramUrl(s ? s.instagramUrl : (event.instagramUrl ?? ""));
+    setYoutubeUrl(s ? s.youtubeUrl : (event.youtubeUrl ?? ""));
+    setXUrl(s ? s.xUrl : (event.xUrl ?? ""));
+    setFacebookUrl(s ? s.facebookUrl : (event.facebookUrl ?? ""));
+    setLinkedinUrl(s ? s.linkedinUrl : (event.linkedinUrl ?? ""));
     setIsEditing(false);
   }
 
@@ -72,7 +78,7 @@ export function EditContactSection({ event }: { event: EventDetail }) {
           <div>
             <label className="mb-1.5 block text-xs font-semibold text-muted">Contact phone</label>
             {isEditing ? (
-              <PhoneInput name="contactPhone" defaultValue={event.contactPhone ?? ""} onValueChange={setContactPhone} />
+              <PhoneInput name="contactPhone" defaultValue={contactPhone} onValueChange={setContactPhone} />
             ) : (
               <>
                 <p className="py-2.5 text-sm text-muted">{contactPhone || "-"}</p>

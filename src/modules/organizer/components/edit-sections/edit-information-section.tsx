@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { CollapsibleSection } from "@/modules/shared";
 import { updateEventSectionAction, type UpdateEventSectionState } from "../../actions/events";
 import type { EventDetail } from "@/modules/shared";
@@ -18,14 +18,20 @@ export function EditInformationSection({ event }: { event: EventDetail }) {
   const [isEditing, setIsEditing] = useState(false);
   const [thingsToKnow, setThingsToKnow] = useState(event.thingsToKnow.join("\n"));
   const [terms, setTerms] = useState(event.terms.join("\n"));
+  const lastSynced = useRef<{ thingsToKnow: string; terms: string } | null>(null);
 
   useEffect(() => {
-    if (state.saved === "information") { setIsEditing(false); router.refresh(); }
+    if (state.saved === "information") {
+      lastSynced.current = { thingsToKnow, terms };
+      setIsEditing(false);
+      router.refresh();
+    }
   }, [state]);
 
   function handleCancel() {
-    setThingsToKnow(event.thingsToKnow.join("\n"));
-    setTerms(event.terms.join("\n"));
+    const s = lastSynced.current;
+    setThingsToKnow(s ? s.thingsToKnow : event.thingsToKnow.join("\n"));
+    setTerms(s ? s.terms : event.terms.join("\n"));
     setIsEditing(false);
   }
 

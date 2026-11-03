@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { CollapsibleSection, CityPicker, cn, isGoogleMapsLink, cityLabel } from "@/modules/shared";
 import { updateEventSectionAction, type UpdateEventSectionState } from "../../actions/events";
 import type { EventDetail } from "@/modules/shared";
@@ -24,17 +24,23 @@ export function EditVenueSection({ event, lockLogistics = false }: { event: Even
   const [city, setCity] = useState(event.city);
   const [mapsLink, setMapsLink] = useState(event.googleMapsLink ?? "");
   const [mapsError, setMapsError] = useState<string | null>(null);
+  const lastSynced = useRef<{ venueMode: "NOW"|"TBA"; venueName: string; venueAddress: string; city: string; mapsLink: string } | null>(null);
 
   useEffect(() => {
-    if (state.saved === "venue") { setIsEditing(false); router.refresh(); }
+    if (state.saved === "venue") {
+      lastSynced.current = { venueMode, venueName, venueAddress, city, mapsLink };
+      setIsEditing(false);
+      router.refresh();
+    }
   }, [state]);
 
   function handleCancel() {
-    setVenueMode(event.venueName === "TBA" ? "TBA" : "NOW");
-    setVenueName(event.venueName === "TBA" ? "" : event.venueName);
-    setVenueAddress(event.venueAddress);
-    setCity(event.city);
-    setMapsLink(event.googleMapsLink ?? "");
+    const s = lastSynced.current;
+    setVenueMode(s ? s.venueMode : (event.venueName === "TBA" ? "TBA" : "NOW"));
+    setVenueName(s ? s.venueName : (event.venueName === "TBA" ? "" : event.venueName));
+    setVenueAddress(s ? s.venueAddress : event.venueAddress);
+    setCity(s ? s.city : event.city);
+    setMapsLink(s ? s.mapsLink : (event.googleMapsLink ?? ""));
     setMapsError(null);
     setIsEditing(false);
   }

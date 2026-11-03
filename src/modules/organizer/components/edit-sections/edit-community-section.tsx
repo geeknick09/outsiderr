@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { CollapsibleSection } from "@/modules/shared";
 import { updateEventSectionAction, type UpdateEventSectionState } from "../../actions/events";
 import type { Community, EventDetail } from "@/modules/shared";
@@ -29,14 +29,20 @@ export function EditCommunitySection({
   const [isEditing, setIsEditing] = useState(false);
   const [communityId, setCommunityId] = useState(event.communityId ?? "");
   const [visibility, setVisibility] = useState<string>(event.visibility ?? "OPEN");
+  const lastSynced = useRef<{ communityId: string; visibility: string } | null>(null);
 
   useEffect(() => {
-    if (state.saved === "community") { setIsEditing(false); router.refresh(); }
+    if (state.saved === "community") {
+      lastSynced.current = { communityId, visibility };
+      setIsEditing(false);
+      router.refresh();
+    }
   }, [state]);
 
   function handleCancel() {
-    setCommunityId(event.communityId ?? "");
-    setVisibility(event.visibility ?? "OPEN");
+    const s = lastSynced.current;
+    setCommunityId(s ? s.communityId : (event.communityId ?? ""));
+    setVisibility(s ? s.visibility : (event.visibility ?? "OPEN"));
     setIsEditing(false);
   }
 

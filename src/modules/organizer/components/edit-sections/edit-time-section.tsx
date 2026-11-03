@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { CollapsibleSection, utcToISTInput } from "@/modules/shared";
 import { updateEventSectionAction, type UpdateEventSectionState } from "../../actions/events";
 import { useEventEdits } from "../manage-event-context";
@@ -21,11 +21,11 @@ export function EditTimeSection({ event, lockLogistics = false }: { event: Event
   const [startsAt, setStartsAt] = useState(utcToISTInput(event.startsAt));
   const [endsAt, setEndsAt] = useState(event.endsAt ? utcToISTInput(event.endsAt) : "");
   const [dateError, setDateError] = useState<string | null>(null);
+  const lastSynced = useRef<{ startsAt: string; endsAt: string } | null>(null);
 
   useEffect(() => {
     if (state.saved === "schedule") {
-      // Input values are IST "YYYY-MM-DDTHH:mm" - convert back to UTC ISO
-      // so the header's date range matches what was just saved.
+      lastSynced.current = { startsAt, endsAt };
       const toUTC = (s: string) => new Date(/[Z+-]/.test(s.slice(-6)) ? s : `${s}+05:30`).toISOString();
       edits?.patch({
         startsAt: toUTC(startsAt),
@@ -46,8 +46,9 @@ export function EditTimeSection({ event, lockLogistics = false }: { event: Event
   }
 
   function handleCancel() {
-    setStartsAt(utcToISTInput(event.startsAt));
-    setEndsAt(event.endsAt ? utcToISTInput(event.endsAt) : "");
+    const s = lastSynced.current;
+    setStartsAt(s ? s.startsAt : utcToISTInput(event.startsAt));
+    setEndsAt(s ? s.endsAt : (event.endsAt ? utcToISTInput(event.endsAt) : ""));
     setDateError(null);
     setIsEditing(false);
   }
