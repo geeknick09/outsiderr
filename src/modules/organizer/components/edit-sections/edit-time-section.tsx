@@ -23,7 +23,12 @@ export function EditTimeSection({ event, lockLogistics = false }: { event: Event
   const [dateError, setDateError] = useState<string | null>(null);
   const lastSynced = useRef<{ startsAt: string; endsAt: string } | null>(null);
 
+  const lastApplied = useRef(state);
   useEffect(() => {
+    // Act only on a NEW action result — `state.saved` stays truthy after the
+    // first save, so field deps alone would re-run this on every keystroke.
+    if (state === lastApplied.current) return;
+    lastApplied.current = state;
     if (state.saved === "schedule") {
       lastSynced.current = { startsAt, endsAt };
       const toUTC = (s: string) => new Date(/[Z+-]/.test(s.slice(-6)) ? s : `${s}+05:30`).toISOString();

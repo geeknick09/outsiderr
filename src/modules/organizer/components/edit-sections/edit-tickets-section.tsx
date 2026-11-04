@@ -91,10 +91,12 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
   // a save (no revalidation), so Cancel restores from this instead of seedTiers.
   const lastSynced = useRef<{ tiers: EditableTier[]; expiredIds: Set<string>; maxPerUser: string } | null>(null);
 
+  const lastApplied = useRef(state);
   useEffect(() => {
-    // Depend on `state` (new object per submission), not `state.saved` —
-    // a second save returns saved:"tickets" again, and an unchanged
-    // primitive dep would skip this effect and trap the section in edit mode.
+    // Act only on a NEW action result — `state.saved` stays truthy after the
+    // first save, so field deps alone would re-run this on every keystroke.
+    if (state === lastApplied.current) return;
+    lastApplied.current = state;
     if (state.saved === "tickets") {
       // The action returns fresh tier rows with real DB IDs — swap out the
       // `new-*` placeholders so a follow-up save updates instead of

@@ -26,7 +26,12 @@ export function EditDetailsSection({ event, lockLogistics = false }: { event: Ev
   );
   const lastSynced = useRef<{ title: string; description: string; tags: Set<string>; categories: string[] } | null>(null);
 
+  const lastApplied = useRef(state);
   useEffect(() => {
+    // Act only on a NEW action result — `state.saved` stays truthy after the
+    // first save, so field deps alone would re-run this on every keystroke.
+    if (state === lastApplied.current) return;
+    lastApplied.current = state;
     if (state.saved === "details") {
       lastSynced.current = { title, description, tags: new Set(selectedTags), categories: [...selectedCategories] };
       edits?.patch({

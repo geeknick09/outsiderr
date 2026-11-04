@@ -26,7 +26,12 @@ export function EditVenueSection({ event, lockLogistics = false }: { event: Even
   const [mapsError, setMapsError] = useState<string | null>(null);
   const lastSynced = useRef<{ venueMode: "NOW"|"TBA"; venueName: string; venueAddress: string; city: string; mapsLink: string } | null>(null);
 
+  const lastApplied = useRef(state);
   useEffect(() => {
+    // Act only on a NEW action result — `state.saved` stays truthy after the
+    // first save, so field deps alone would re-run this on every keystroke.
+    if (state === lastApplied.current) return;
+    lastApplied.current = state;
     if (state.saved === "venue") {
       lastSynced.current = { venueMode, venueName, venueAddress, city, mapsLink };
       setIsEditing(false);

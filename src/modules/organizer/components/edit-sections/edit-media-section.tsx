@@ -27,7 +27,12 @@ export function EditMediaSection({ event }: { event: EventDetail }) {
   });
   const pendingMedia = useRef<typeof viewMedia | null>(null);
 
+  const lastApplied = useRef(state);
   useEffect(() => {
+    // Act only on a NEW action result — `state.saved` stays truthy after the
+    // first save, so field deps alone would re-run this on every keystroke.
+    if (state === lastApplied.current) return;
+    lastApplied.current = state;
     if (state.saved === "media") {
       const m = pendingMedia.current ?? viewMedia;
       if (pendingMedia.current) setViewMedia(pendingMedia.current);

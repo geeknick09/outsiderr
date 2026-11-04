@@ -31,7 +31,12 @@ export function EditCommunitySection({
   const [visibility, setVisibility] = useState<string>(event.visibility ?? "OPEN");
   const lastSynced = useRef<{ communityId: string; visibility: string } | null>(null);
 
+  const lastApplied = useRef(state);
   useEffect(() => {
+    // Act only on a NEW action result — `state.saved` stays truthy after the
+    // first save, so field deps alone would re-run this on every keystroke.
+    if (state === lastApplied.current) return;
+    lastApplied.current = state;
     if (state.saved === "community") {
       lastSynced.current = { communityId, visibility };
       setIsEditing(false);

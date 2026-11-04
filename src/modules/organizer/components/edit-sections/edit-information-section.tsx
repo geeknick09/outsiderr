@@ -20,7 +20,12 @@ export function EditInformationSection({ event }: { event: EventDetail }) {
   const [terms, setTerms] = useState(event.terms.join("\n"));
   const lastSynced = useRef<{ thingsToKnow: string; terms: string } | null>(null);
 
+  const lastApplied = useRef(state);
   useEffect(() => {
+    // Act only on a NEW action result — `state.saved` stays truthy after the
+    // first save, so field deps alone would re-run this on every keystroke.
+    if (state === lastApplied.current) return;
+    lastApplied.current = state;
     if (state.saved === "information") {
       lastSynced.current = { thingsToKnow, terms };
       setIsEditing(false);

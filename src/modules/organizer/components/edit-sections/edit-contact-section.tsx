@@ -26,7 +26,12 @@ export function EditContactSection({ event }: { event: EventDetail }) {
   const [linkedinUrl, setLinkedinUrl] = useState(event.linkedinUrl ?? "");
   const lastSynced = useRef<{ contactEmail: string; contactPhone: string; instagramUrl: string; youtubeUrl: string; xUrl: string; facebookUrl: string; linkedinUrl: string } | null>(null);
 
+  const lastApplied = useRef(state);
   useEffect(() => {
+    // Act only on a NEW action result — `state.saved` stays truthy after the
+    // first save, so field deps alone would re-run this on every keystroke.
+    if (state === lastApplied.current) return;
+    lastApplied.current = state;
     if (state.saved === "contact") {
       lastSynced.current = { contactEmail, contactPhone, instagramUrl, youtubeUrl, xUrl, facebookUrl, linkedinUrl };
       setIsEditing(false);

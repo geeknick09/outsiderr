@@ -27,7 +27,12 @@ export function EditMiscSection({ event, pastEvents, lockLogistics = false }: Ed
   const [pickerKey, setPickerKey] = useState(0);
   const lastSynced = useRef<{ waitlistEnabled: boolean; allowBookingDuringEvent: boolean } | null>(null);
 
+  const lastApplied = useRef(state);
   useEffect(() => {
+    // Act only on a NEW action result — `state.saved` stays truthy after the
+    // first save, so field deps alone would re-run this on every keystroke.
+    if (state === lastApplied.current) return;
+    lastApplied.current = state;
     if (state.saved === "misc") {
       lastSynced.current = { waitlistEnabled, allowBookingDuringEvent };
       setIsEditing(false);
