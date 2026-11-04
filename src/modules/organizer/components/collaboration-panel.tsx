@@ -81,6 +81,7 @@ export function CollaborationPanel({
   const [selectedPerm, setSelectedPerm] = useState<PermissionLevel>("LIMITED");
   const [changingPerm, setChangingPerm] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [invitingId, setInvitingId] = useState<string | null>(null);
   const [justInvited, setJustInvited] = useState<string[]>([]);
 
   async function handleSearch(q: string) {
@@ -101,6 +102,7 @@ export function CollaborationPanel({
   }
 
   function handleInvite(organizerId: string) {
+    setInvitingId(organizerId);
     startTransition(async () => {
       const result = await inviteCollaboratorAction(eventId, organizerId, selectedPerm);
       if (result.error) {
@@ -109,6 +111,7 @@ export function CollaborationPanel({
         // Leave the row in place - button flips to "Invite sent"
         setJustInvited((prev) => [...prev, organizerId]);
       }
+      setInvitingId(null);
     });
   }
 
@@ -190,7 +193,12 @@ export function CollaborationPanel({
             </div>
           ) : (
             <div className="space-y-2">
-              {results.map((org) => {
+              {results.filter((org) => {
+                // PENDING/ACCEPTED already live in the roster below — showing
+                // them here too renders the same person twice.
+                const existing = collaborators.find((c) => c.organizerId === org.id);
+                return !existing || existing.status === "DECLINED";
+              }).map((org) => {
                 const existing = collaborators.find((c) => c.organizerId === org.id);
                 const invited = !!existing || justInvited.includes(org.id);
                 const label = existing?.status === "ACCEPTED"
@@ -214,13 +222,14 @@ export function CollaborationPanel({
                       type="button"
                       onClick={() => handleInvite(org.id)}
                       disabled={invited || pending}
-                      className={`rounded-full px-3 py-1 text-xs font-bold disabled:opacity-50 ${
+                      className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold disabled:opacity-50 ${
                         invited
                           ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                           : "bg-violet-neon/10 text-violet-neon hover:bg-violet-neon/20"
                       }`}
                     >
-                      {label}
+                      {invitingId === org.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                      {invitingId === org.id ? "Inviting…" : label}
                     </button>
                   </div>
                 );
@@ -283,15 +292,28 @@ export function CollaborationPanel({
                         ))}
                       </select>
                     ) : null}
-                    <button
-                      type="button"
-                      onClick={() => handleRemove(c.id)}
-                      disabled={pending}
-                      className="rounded-full p-1.5 text-muted hover:bg-red-50 hover:text-red-500 disabled:opacity-40 dark:hover:bg-red-500/10"
-                      aria-label="Remove collaborator"
-                    >
-                      {removingId === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "×"}
-                    </button>
+                    {c.status === "PENDING" ? (
+                      <button
+                        type="button"
+                        onClick={() => handleRemove(c.id)}
+                        disabled={pending}
+                        className="flex items-center gap-1.5 rounded-full border border-zinc-200 px-3 py-1 text-xs font-bold text-muted hover:border-red-300 hover:text-red-500 disabled:opacity-40 dark:border-white/10"
+                        aria-label="Cancel invite"
+                      >
+                        {removingId === c.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                        {removingId === c.id ? "Cancelling…" : "Cancel invite"}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleRemove(c.id)}
+                        disabled={pending}
+                        className="rounded-full p-1.5 text-muted hover:bg-red-50 hover:text-red-500 disabled:opacity-40 dark:hover:bg-red-500/10"
+                        aria-label="Remove collaborator"
+                      >
+                        {removingId === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "×"}
+                      </button>
+                    )}
                   </div>
                 ) : null}
               </div>
