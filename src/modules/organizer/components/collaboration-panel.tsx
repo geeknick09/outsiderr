@@ -41,6 +41,29 @@ function statusLabel(status: string): { text: string; tone: string } {
   return { text: "Declined", tone: "text-red-500" };
 }
 
+/** Avatar that falls back to the gradient initial if the stored URL 404s
+ *  (e.g. object deleted from storage while the DB still references it). */
+function OrgAvatar({ url, name }: { url: string | null; name: string }) {
+  const [broken, setBroken] = useState(false);
+  if (!url || broken) {
+    return (
+      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-neon-gradient text-xs font-bold text-white">
+        {name.slice(0, 1).toUpperCase()}
+      </div>
+    );
+  }
+  return (
+    <Image
+      src={url}
+      alt={name}
+      width={32}
+      height={32}
+      className="h-8 w-8 rounded-full object-cover"
+      onError={() => setBroken(true)}
+    />
+  );
+}
+
 export function CollaborationPanel({
   eventId,
   collaborators,
@@ -179,19 +202,7 @@ export function CollaborationPanel({
                     className="flex items-center justify-between rounded-2xl border border-zinc-200 p-3 dark:border-white/10"
                   >
                     <div className="flex items-center gap-2">
-                      {org.avatarUrl ? (
-                        <Image
-                          src={org.avatarUrl}
-                          alt={org.name}
-                          width={32}
-                          height={32}
-                          className="h-8 w-8 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-neon-gradient text-xs font-bold text-white">
-                          {org.name.slice(0, 1).toUpperCase()}
-                        </div>
-                      )}
+                      <OrgAvatar url={org.avatarUrl} name={org.name} />
                       <Link
                         href={`/organizers/${org.id}`}
                         className="text-sm font-semibold hover:text-violet-neon"
@@ -237,19 +248,7 @@ export function CollaborationPanel({
                 className="flex items-center justify-between rounded-2xl border border-zinc-200 p-3 dark:border-white/10"
               >
                 <div className="flex items-center gap-2">
-                  {c.organizerPhotoUrl ? (
-                    <Image
-                      src={c.organizerPhotoUrl}
-                      alt={c.organizerName}
-                      width={32}
-                      height={32}
-                      className="h-8 w-8 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-neon-gradient text-xs font-bold text-white">
-                      {c.organizerName.slice(0, 1).toUpperCase()}
-                    </div>
-                  )}
+                  <OrgAvatar url={c.organizerPhotoUrl} name={c.organizerName} />
                   <div>
                     <Link
                       href={`/organizers/${c.organizerId}`}
