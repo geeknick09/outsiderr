@@ -76,7 +76,7 @@ export default async function OrganizerPage({
 
       {collabInvites.length > 0 ? <CollaborationInvites invites={collabInvites} /> : null}
 
-      <OrganizerEventsList events={allEvents} analyticsMap={analyticsMap} />
+      <OrganizerEventsList events={allEvents} analyticsMap={analyticsMap} myOrganizerId={organizerProfile.id} />
     </div>
   );
 }

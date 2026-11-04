@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowDownUp, BarChart3, ChevronLeft, ChevronRight, Plus, Search, Settings2, Users, X } from "lucide-react";
 
-import { Badge } from "@/modules/shared";
+import { Badge, useRealtime } from "@/modules/shared";
 import { formatDateTime, isEventEnded, cityLabel } from "@/modules/shared";
 import type { EventAnalytics, EventSummary } from "@/modules/shared";
 
@@ -160,10 +161,24 @@ function Pagination({
 export function OrganizerEventsList({
   events,
   analyticsMap = {},
+  myOrganizerId,
 }: {
   events: EventRow[];
   analyticsMap?: Record<string, EventAnalytics>;
+  myOrganizerId?: string;
 }) {
+  const router = useRouter();
+  // The viewer's own collaborator rows decide which co-hosted events show
+  // here — refresh live when they're invited, removed, or their permission
+  // changes. (organizer_id = the invitee's org on each row.)
+  useRealtime({
+    channelName: `collab-events-${myOrganizerId}`,
+    table: "event_collaborators",
+    event: "*",
+    filter: `organizer_id=eq.${myOrganizerId}`,
+    enabled: !!myOrganizerId,
+    onPayload: () => router.refresh(),
+  });
   const [activeTab, setActiveTab] = useState<LifecycleTab>("published");
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortAsc, setSortAsc] = useState(false);
