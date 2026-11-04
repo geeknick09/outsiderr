@@ -138,6 +138,14 @@ export function CollaborationPanel({
         const result = await removeCollaboratorAction(eventId, collaboratorId);
         if (result.error) {
           setError(result.error);
+        } else {
+          // Clear the just-invited marker too — otherwise the cancelled
+          // organizer keeps showing "Invite sent" (disabled) in search
+          // results instead of going back to "Invite".
+          const removedOrgId = collaborators.find((c) => c.id === collaboratorId)?.organizerId;
+          if (removedOrgId) {
+            setJustInvited((prev) => prev.filter((id) => id !== removedOrgId));
+          }
         }
       } catch {
         setError("Couldn't remove the collaborator. Try again.");
