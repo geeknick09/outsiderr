@@ -33,7 +33,6 @@ export async function verifyDoorStaffPaymentAction(
 export async function createDoorStaffOrderAction(
   eventId: string,
   staffCount: number,
-  _serviceAmountPaise: number,
 ): Promise<{ error: string | null }> {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=%2Forganizer");

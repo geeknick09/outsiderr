@@ -39,7 +39,7 @@ export function EditMediaSection({ event }: { event: EventDetail }) {
       setIsEditing(false);
       router.refresh();
     }
-  }, [state]);
+  }, [state, viewMedia, edits, router]);
 
   return (
     <CollapsibleSection

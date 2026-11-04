@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/modules/shared/server";
 import { createEvent, updateEvent, updateEventStatus, type TicketTierInput } from "../data/organizer-events";
 import { istToUTC, normalizeCityKey } from "@/modules/shared";
-import type { City, EventCategory, FeePayer, PricingMode } from "@/modules/shared";
+import type { EventCategory, FeePayer, PricingMode } from "@/modules/shared";
 
 export interface CreateEventState {
   error: string | null;

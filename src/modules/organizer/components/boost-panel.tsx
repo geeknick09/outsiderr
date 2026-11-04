@@ -46,7 +46,7 @@ export function BoostPanel({
   const [placement, setPlacement] = useState<"HOME" | "COMMUNITIES" | "BOTH">("HOME");
   const [session, setSession] = useState<CheckoutSession | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [success] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const selectedPrice = slotPrices.find((p) => p.slot === slot);

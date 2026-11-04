@@ -120,7 +120,7 @@ export function EditTicketsSection({ event, lockLogistics = false }: { event: Ev
       setIsEditing(false);
       router.refresh();
     }
-  }, [state]);
+  }, [state, maxTicketsPerUser, router]);
 
   const isTierExpired = (tier: EditableTier) => expiredIds.has(tier.id);
 

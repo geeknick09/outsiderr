@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import { Analytics } from "@vercel/analytics/next";
 
 import { Footer } from "@/modules/shared";
@@ -83,7 +84,10 @@ if ("serviceWorker" in navigator && location.hostname !== "localhost") navigator
           }}
         />
         <ThemeProvider>
-          <NavigationProgress />
+          {/* useSearchParams() inside needs a boundary for prerendered pages */}
+          <Suspense fallback={null}>
+            <NavigationProgress />
+          </Suspense>
           <Navbar mobileNav={<AdminMobileNav />} />
           <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-6">{children}</main>
           <Footer isOrganizer={isOrganizer} tagline={footerTagline ?? undefined} />

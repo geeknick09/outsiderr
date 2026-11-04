@@ -65,7 +65,7 @@ export async function GET(request: Request) {
         p_success: ok,
         p_error: ok ? null : err,
       });
-      ok ? delivered++ : failedCount++;
+      if (ok) { delivered++; } else { failedCount++; }
     }
 
     logger.info({ claimed: claimed?.length ?? 0, delivered, failedCount }, "notification outbox drained");

@@ -5,7 +5,6 @@ import {
   CalendarDays,
   CreditCard,
   Layers,
-  MapPin,
   Megaphone,
   Rocket,
   ScanLine,

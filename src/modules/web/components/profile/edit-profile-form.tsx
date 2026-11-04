@@ -7,7 +7,7 @@ import { updateProfileAction } from "@/modules/shared/actions/profile";
 import { Button } from "@/modules/shared";
 import { ImageUploadWithCrop } from "@/modules/shared";
 import { PhoneInput } from "@/modules/shared";
-import { CATEGORIES, PREDEFINED_EVENT_TAGS, tagsForCategories } from "@/modules/shared";
+import { CATEGORIES, tagsForCategories } from "@/modules/shared";
 import { uploadPublicFile, compressImage } from "@/modules/shared";
 import { cn } from "@/modules/shared";
 

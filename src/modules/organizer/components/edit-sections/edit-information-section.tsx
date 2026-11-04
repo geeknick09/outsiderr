@@ -26,7 +26,7 @@ export function EditInformationSection({ event }: { event: EventDetail }) {
       setIsEditing(false);
       router.refresh();
     }
-  }, [state]);
+  }, [state, thingsToKnow, terms, router]);
 
   function handleCancel() {
     const s = lastSynced.current;

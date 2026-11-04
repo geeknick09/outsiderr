@@ -4,9 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, LayoutDashboard } from "lucide-react";
 
-import { Badge, Button, CATEGORY_LABELS, formatDateRange } from "@/modules/shared";
+import { Badge, Button, CATEGORY_LABELS, formatDateRange, ShareButton } from "@/modules/shared";
 import type { BadgeTone, EventDetail } from "@/modules/shared";
-import { ShareButton } from "@/modules/web";
 import { useEventEdits } from "./manage-event-context";
 
 /**

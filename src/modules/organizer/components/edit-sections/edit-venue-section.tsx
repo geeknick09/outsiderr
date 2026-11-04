@@ -32,7 +32,7 @@ export function EditVenueSection({ event, lockLogistics = false }: { event: Even
       setIsEditing(false);
       router.refresh();
     }
-  }, [state]);
+  }, [state, venueMode, venueName, venueAddress, city, mapsLink, router]);
 
   function handleCancel() {
     const s = lastSynced.current;

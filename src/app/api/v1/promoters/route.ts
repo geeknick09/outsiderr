@@ -35,7 +35,7 @@ export async function GET(request: Request) {
  * Auth: Bearer <supabase-access-token>
  */
 export async function POST(request: Request) {
-  return withApiUser(request, async (user) => {
+  return withApiUser(request, async () => {
     const h = await headers();
     const rl = rateLimit(`promoter-register:${getRateLimitIdentifier(h)}`, { maxRequests: 20, windowMs: 60_000 });
     if (rl.limited) return apiError("Too many requests.", 429);

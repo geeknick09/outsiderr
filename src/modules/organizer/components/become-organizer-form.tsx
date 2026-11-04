@@ -108,7 +108,6 @@ export function BecomeOrganizerForm() {
   const [agreed, setAgreed] = useState(false);
 
   // Derived
-  const safeOrg = orgName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "organizer";
   const upiValid = upiId ? validateUpiId(upiId) : true;
   const panValid = panNumber ? /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(panNumber.toUpperCase()) : true;
   const ifscValid = bankIfsc ? /^[A-Z]{4}0[A-Z0-9]{6}$/.test(bankIfsc.toUpperCase()) : true;

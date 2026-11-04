@@ -34,7 +34,7 @@ export function EditTimeSection({ event, lockLogistics = false }: { event: Event
       setIsEditing(false);
       router.refresh();
     }
-  }, [state]);
+  }, [state, startsAt, endsAt, edits, router]);
 
   function validateDates(start: string, end: string) {
     const parseIST = (s: string) => new Date(/[Z+-]/.test(s.slice(-6)) ? s : `${s}+05:30`);

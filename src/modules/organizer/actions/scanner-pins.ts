@@ -1,9 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import { getCurrentUser, createClient, getOrganizerProfile } from "@/modules/shared/server";
-import { validate, generatePinsSchema, revokePinSchema, rateLimit, getRateLimitIdentifier, RATE_LIMITS } from "@/modules/shared";
+import { validate, generatePinsSchema, revokePinSchema } from "@/modules/shared";
 
 export interface GeneratePinsResult {
   error: string | null;

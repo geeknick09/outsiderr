@@ -32,7 +32,7 @@ export function EditContactSection({ event }: { event: EventDetail }) {
       setIsEditing(false);
       router.refresh();
     }
-  }, [state]);
+  }, [state, contactEmail, contactPhone, instagramUrl, youtubeUrl, xUrl, facebookUrl, linkedinUrl, router]);
 
   function handleCancel() {
     const s = lastSynced.current;

@@ -37,7 +37,7 @@ export function EditCommunitySection({
       setIsEditing(false);
       router.refresh();
     }
-  }, [state]);
+  }, [state, communityId, visibility, router]);
 
   function handleCancel() {
     const s = lastSynced.current;

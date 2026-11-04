@@ -5,13 +5,11 @@ import { KycStatusBanner } from "@/modules/organizer";
 import { Landmark } from "lucide-react";
 import Link from "next/link";
 import { OrganizerEventsList } from "@/modules/organizer";
-import { OrganizerHeader } from "@/modules/organizer";
 import { OrganizerKycRealtimeRefresher } from "@/modules/organizer";
 import { getPendingCollaborationInvites } from "@/modules/shared/server";
 import { getOrganizerEventAnalytics } from "@/modules/analytics/server";
 import { listOrganizerEvents, listCollaboratedEvents } from "@/modules/organizer/server";
 import { getOrganizerGateContext } from "@/modules/organizer/server";
-import { getOrganizerFollowerCount } from "@/modules/shared/server";
 
 export const dynamic = "force-dynamic";
 

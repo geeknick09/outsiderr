@@ -124,7 +124,7 @@ function MembersTab({
 }) {
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [_, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   if (!members.length) {
     return <p className="glass rounded-3xl p-5 text-sm text-muted">Nothing here yet.</p>;

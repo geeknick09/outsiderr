@@ -60,6 +60,7 @@ export * from "./ui/ui/phone-input";
 export * from "./ui/ui/qr-code";
 export * from "./ui/ui/skeleton";
 export * from "./ui/ui/submit-button";
+export * from "./ui/ui/share-button";
 export * from "./ui/ui/whatsapp-icon";
 
 // ---- layout (presentational / client) - Navbar is server, see server.ts ----

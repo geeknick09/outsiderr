@@ -33,7 +33,7 @@ export function EditMiscSection({ event, pastEvents, lockLogistics = false }: Ed
       setIsEditing(false);
       router.refresh();
     }
-  }, [state]);
+  }, [state, waitlistEnabled, allowBookingDuringEvent, router]);
 
   function handleCancel() {
     const s = lastSynced.current;

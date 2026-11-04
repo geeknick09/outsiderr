@@ -128,7 +128,6 @@ export async function getUserAnalytics(range?: AnalyticsRange): Promise<UserAnal
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
   const [
     { count: totalUsers },

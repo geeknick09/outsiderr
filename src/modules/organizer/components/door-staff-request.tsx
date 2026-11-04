@@ -31,7 +31,7 @@ export function DoorStaffRequest({
     }
     setSubmitting(true);
     setError(null);
-    const result = await createDoorStaffOrderAction(eventId, staffCount, priceForCount * 100);
+    const result = await createDoorStaffOrderAction(eventId, staffCount);
     if (result.error) {
       setError(result.error);
     }

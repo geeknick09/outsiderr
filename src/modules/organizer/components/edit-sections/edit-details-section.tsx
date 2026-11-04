@@ -37,7 +37,7 @@ export function EditDetailsSection({ event, lockLogistics = false }: { event: Ev
       setIsEditing(false);
       router.refresh();
     }
-  }, [state]);
+  }, [state, title, description, selectedTags, selectedCategories, edits, router]);
 
   function handleCancel() {
     const s = lastSynced.current;

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { apiError, apiOk, getPaymentStatus, readJson, withApiUser } from "@/modules/shared/server";
+import { apiError, apiOk, getPaymentStatus, withApiUser } from "@/modules/shared/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

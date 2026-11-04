@@ -193,7 +193,7 @@ export function AnalyticsCharts({
     } finally {
       setExporting(false);
     }
-  }, [signupData, activeData, revenueData, newOrgData, methodData]);
+  }, [userAnalytics, paymentAnalytics, organizerAnalytics]);
 
   return (
     <div className="space-y-6">

@@ -44,13 +44,12 @@ export default async function OrganizerCommunityManagePage({
   ]);
 
   const supabase = createServiceClient();
-  const [{ data: importRows }, { data: nonJoiners }, { data: inviteToken }] = await Promise.all([
+  const [{ data: importRows }, { data: inviteToken }] = await Promise.all([
     supabase
       .from("community_member_imports")
       .select("id, filename, status, valid_rows, invalid_rows, created_at")
       .eq("community_id", community.id)
       .order("created_at", { ascending: false }),
-    supabase.rpc("community_non_joiners", { p_community_id: community.id }),
     supabase.rpc("get_community_invite_token", { p_community_id: community.id, p_actor_id: user.id }),
   ]);
 

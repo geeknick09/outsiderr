@@ -8,7 +8,6 @@ import { Badge } from "@/modules/shared";
 import { getCurrentUser, createClient } from "@/modules/shared/server";
 import { computeBadges, BADGE_TONES } from "@/modules/shared";
 import { getUserAttendanceCount } from "@/modules/shared/server";
-import { getOrganizerProfile } from "@/modules/shared/server";
 import { cityLabel, formatDateTime } from "@/modules/shared";
 import { cn } from "@/modules/shared";
 
