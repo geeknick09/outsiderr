@@ -114,7 +114,9 @@ export async function staffDoorLoginAction(
     .from("staff_event_assignments")
     .select("event_id")
     .eq("staff_id", row.staff_id)
-    .eq("is_active", true);
+    .eq("is_active", true)
+    // Door surface only shows events the staffer may scan for.
+    .or("can_scan.eq.true,is_manager.eq.true");
   const ids = (assigned ?? []).map((a) => a.event_id);
   let events: StaffDoorEvent[] = [];
   if (ids.length) {

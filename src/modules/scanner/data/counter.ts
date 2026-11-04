@@ -31,7 +31,9 @@ export async function listCounterEvents(staffId: string): Promise<CounterEvent[]
     .from("staff_event_assignments")
     .select("event_id")
     .eq("staff_id", staffId)
-    .eq("is_active", true);
+    .eq("is_active", true)
+    // Counter surface only shows events the staffer may sell for.
+    .or("can_sell.eq.true,is_manager.eq.true");
   const eventIds = (assigned ?? []).map((a) => a.event_id);
   if (eventIds.length === 0) return [];
 

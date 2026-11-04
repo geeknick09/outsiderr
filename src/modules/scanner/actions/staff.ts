@@ -123,6 +123,7 @@ export async function setStaffAssignmentAction(
   staffId: string,
   eventId: string,
   active: boolean,
+  roles?: { canScan: boolean; canSell: boolean; isManager: boolean },
 ): Promise<{ error: string | null }> {
   const v = validate(staffIdSchema, { staffId });
   if (!v.success) return { error: v.error };
@@ -136,6 +137,9 @@ export async function setStaffAssignmentAction(
     p_staff_id: v.data.staffId,
     p_event_id: eventId,
     p_active: active,
+    p_can_scan: roles?.canScan ?? true,
+    p_can_sell: roles?.canSell ?? true,
+    p_is_manager: roles?.isManager ?? false,
   });
   if (error) return { error: error.message };
   revalidateStaff();
@@ -225,6 +229,10 @@ export async function upsertEventStaffAction(formData: FormData): Promise<AddEve
     p_staff_id: staffId,
     p_event_id: eventId,
     p_active: true,
+    // Role flags from the checkboxes - default to door + counter access.
+    p_can_scan: formData.get("canScan") !== "false",
+    p_can_sell: formData.get("canSell") !== "false",
+    p_is_manager: formData.get("isManager") === "true",
   });
   if (error) return { error: error.message };
 

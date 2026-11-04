@@ -589,34 +589,84 @@ export async function createEventAction(
     }
     }
 
-    // Staff rows collected in the create form (door scanner + box office share
-    // the event_staff table - phone or email identifies them at sign-in).
-    // Runs on draft saves too - addEventStaff dedupes by email/phone so
-    // resaving a draft can't double-insert.
+    // Staff rows from the create form -> the password staff system
+    // (staff_members + staff_event_assignments with per-event role flags).
+    // staffRoles is a per-row comma flag string ("scan,sell,manager") kept in
+    // index order by always submitting a hidden input per row.
     const staffNames = formData.getAll("staffName").map(String);
     const staffPhones = formData.getAll("staffPhone").map(String);
     const staffEmails = formData.getAll("staffEmail").map(String);
     const staffPasswords = formData.getAll("staffPassword").map(String);
-    for (let i = 0; i < staffNames.length; i++) {
-      const name = staffNames[i]?.trim();
-      const phone = staffPhones[i]?.trim() || null;
-      const email = staffEmails[i]?.trim() || null;
-      const rawPassword = staffPasswords[i]?.trim() || null;
-      if (!name || (!phone && !email)) continue;
-      // Hash the password with SHA-256 + salt (lightweight server-side hash)
-      let passwordHash: string | null = null;
-      if (rawPassword && rawPassword.length >= 6) {
-        const { createHash, randomBytes } = await import("crypto");
-        const salt = randomBytes(16).toString("hex");
-        const hash = createHash("sha256").update(salt + rawPassword).digest("hex");
-        passwordHash = `${salt}:${hash}`;
-      }
-      try {
-        const { addEventStaff } = await import("../data/event-staff");
-        const res = await addEventStaff(user, eventId, email, phone, name, passwordHash);
-        if (!res.success) console.error(`[createEvent] staff save failed for ${name}:`, res.error);
-      } catch (err) {
-        console.error(`[createEvent] staff save threw for ${name}:`, err);
+    const staffRoles = formData.getAll("staffRoles").map(String);
+    if (staffNames.some((n) => n.trim())) {
+      const { createServiceClient } = await import("@/modules/shared/server");
+      const { getOrganizerProfile } = await import("@/modules/shared/server");
+      const svc = createServiceClient();
+      const organizer = await getOrganizerProfile(user);
+      if (organizer) {
+        for (let i = 0; i < staffNames.length; i++) {
+          const name = staffNames[i]?.trim();
+          const phone = (staffPhones[i] ?? "").replace(/\D/g, "").slice(-10);
+          const email = staffEmails[i]?.trim() || "";
+          const password = staffPasswords[i]?.trim() || "";
+          const flags = staffRoles[i] ?? "scansell";
+          if (!name || (!phone && !email) || !phone) continue;
+          try {
+            const roles = {
+              canScan: flags.includes("scan"),
+              canSell: flags.includes("sell"),
+              isManager: flags.includes("manager"),
+            };
+            if (!roles.canScan && !roles.canSell && !roles.isManager) {
+              roles.canScan = true; roles.canSell = true;
+            }
+            // Reuse an existing staff member on this organizer by phone.
+            const { data: existing } = await svc
+              .from("staff_members")
+              .select("id, is_active")
+              .eq("owner_type", "ORGANIZER")
+              .eq("organizer_id", organizer.id)
+              .eq("phone", phone)
+              .maybeSingle();
+            let staffId = existing?.id ?? "";
+            if (existing && !existing.is_active) {
+              await svc.from("staff_members").update({ is_active: true }).eq("id", existing.id);
+            }
+            if (existing && password.length >= 6) {
+              await svc.rpc("staff_set_password", { p_staff_id: existing.id, p_password: password });
+            }
+            if (!existing) {
+              // No usable password -> random unusable one; the organizer can
+              // set a real one from the roster's "Set password" later.
+              const { randomBytes } = await import("crypto");
+              const { data: newId, error: regErr } = await svc.rpc("staff_register", {
+                p_owner_type: "ORGANIZER",
+                p_organizer_id: organizer.id,
+                p_name: name,
+                p_email: email,
+                p_phone: phone,
+                p_password: password.length >= 6 ? password : randomBytes(12).toString("hex"),
+                p_actor: user.id,
+              });
+              if (regErr || !newId) {
+                console.error(`[createEvent] staff register failed for ${name}:`, regErr?.message);
+                continue;
+              }
+              staffId = newId as string;
+            }
+            const { error: asgErr } = await svc.rpc("staff_set_assignment", {
+              p_staff_id: staffId,
+              p_event_id: eventId,
+              p_active: true,
+              p_can_scan: roles.canScan,
+              p_can_sell: roles.canSell,
+              p_is_manager: roles.isManager,
+            });
+            if (asgErr) console.error(`[createEvent] staff assign failed for ${name}:`, asgErr.message);
+          } catch (err) {
+            console.error(`[createEvent] staff save threw for ${name}:`, err);
+          }
+        }
       }
     }
   } catch (error) {

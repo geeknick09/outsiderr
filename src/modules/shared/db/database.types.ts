@@ -424,6 +424,9 @@ export type StaffEventAssignmentRow = {
   staff_id: string;
   event_id: string;
   is_active: boolean;
+  can_scan: boolean;
+  can_sell: boolean;
+  is_manager: boolean;
   created_at: string;
 };
 

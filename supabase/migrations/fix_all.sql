@@ -6586,9 +6586,18 @@ create table if not exists public.staff_event_assignments (
   staff_id   uuid        not null references public.staff_members(id) on delete cascade,
   event_id   uuid        not null references public.events(id) on delete cascade,
   is_active  boolean     not null default true,
+  -- Per-event role flags: door scanning, counter sales, full staff manager.
+  -- A manager can do both surfaces; the flags below also gate them.
+  can_scan   boolean     not null default true,
+  can_sell   boolean     not null default true,
+  is_manager boolean     not null default false,
   created_at timestamptz not null default now(),
   primary key (staff_id, event_id)
 );
+-- Live-DB migration: existing rows get door + counter, not manager.
+alter table public.staff_event_assignments add column if not exists can_scan   boolean not null default true;
+alter table public.staff_event_assignments add column if not exists can_sell   boolean not null default true;
+alter table public.staff_event_assignments add column if not exists is_manager boolean not null default false;
 create index if not exists staff_event_assignments_event_idx on public.staff_event_assignments(event_id);
 
 alter table public.staff_members enable row level security;
@@ -6645,10 +6654,14 @@ begin
 end;
 $$;
 
+drop function if exists public.staff_set_assignment(uuid, uuid, boolean);
 create or replace function public.staff_set_assignment(
   p_staff_id uuid,
   p_event_id uuid,
-  p_active   boolean
+  p_active   boolean,
+  p_can_scan   boolean default true,
+  p_can_sell   boolean default true,
+  p_is_manager boolean default false
 ) returns void
 language plpgsql
 security definer
@@ -6667,9 +6680,13 @@ begin
   if v_owner = 'ORGANIZER' and v_org <> v_event_org then
     raise exception 'This staff member can only be assigned to your own events';
   end if;
-  insert into public.staff_event_assignments (staff_id, event_id, is_active)
-  values (p_staff_id, p_event_id, p_active)
-  on conflict (staff_id, event_id) do update set is_active = excluded.is_active;
+  insert into public.staff_event_assignments (staff_id, event_id, is_active, can_scan, can_sell, is_manager)
+  values (p_staff_id, p_event_id, p_active, p_can_scan, p_can_sell, p_is_manager)
+  on conflict (staff_id, event_id) do update set
+    is_active  = excluded.is_active,
+    can_scan   = excluded.can_scan,
+    can_sell   = excluded.can_sell,
+    is_manager = excluded.is_manager;
 end;
 $$;
 
@@ -6677,10 +6694,10 @@ $$;
 revoke execute on function public._new_staff_pin() from public, anon, authenticated;
 revoke execute on function public.staff_register(text, uuid, text, text, text, uuid) from public, anon, authenticated;
 revoke execute on function public.staff_reset_pin(uuid) from public, anon, authenticated;
-revoke execute on function public.staff_set_assignment(uuid, uuid, boolean) from public, anon, authenticated;
+revoke execute on function public.staff_set_assignment(uuid, uuid, boolean, boolean, boolean, boolean) from public, anon, authenticated;
 grant  execute on function public.staff_register(text, uuid, text, text, text, uuid) to service_role;
 grant  execute on function public.staff_reset_pin(uuid) to service_role;
-grant  execute on function public.staff_set_assignment(uuid, uuid, boolean) to service_role;
+grant  execute on function public.staff_set_assignment(uuid, uuid, boolean, boolean, boolean, boolean) to service_role;
 
 -- ---------------------------------------------------------------------------
 -- Phase 2 (box-office redesign): counter sales by named staff (cash channel).
@@ -6792,6 +6809,7 @@ begin
     select 1 from public.staff_members s
       join public.staff_event_assignments a on a.staff_id = s.id
      where s.id = p_staff_id and s.is_active and a.event_id = p_event_id and a.is_active
+       and (a.can_sell or a.is_manager)
   ) then
     raise exception 'You are not assigned to this event';
   end if;
@@ -7150,11 +7168,12 @@ declare
   v_payout       integer;
   v_fee_payer    public.fee_payer;
 begin
-  -- Staff must be active and assigned to this event.
+  -- Staff must be active, assigned to this event, and hold counter/manager rights.
   if not exists (
     select 1 from public.staff_members s
       join public.staff_event_assignments a on a.staff_id = s.id
      where s.id = p_staff_id and s.is_active and a.event_id = p_event_id and a.is_active
+       and (a.can_sell or a.is_manager)
   ) then
     raise exception 'You are not assigned to this event';
   end if;
@@ -7502,6 +7521,7 @@ begin
   if not exists (
     select 1 from public.staff_event_assignments a
      where a.staff_id = v_staff.id and a.event_id = p_event_id and a.is_active = true
+       and (a.can_scan or a.is_manager)
   ) then
     raise exception 'You are not assigned to this event';
   end if;

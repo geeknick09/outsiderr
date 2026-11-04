@@ -83,6 +83,9 @@ export interface EventCounterStaff {
   email: string | null;
   isActive: boolean;
   ownerType: StaffOwnerType;
+  canScan: boolean;
+  canSell: boolean;
+  isManager: boolean;
   cashOutstandingPaise: number;
 }
 
@@ -91,11 +94,12 @@ export async function listEventCounterStaff(eventId: string): Promise<EventCount
   const svc = createServiceClient();
   const { data: assignments } = await svc
     .from("staff_event_assignments")
-    .select("staff_id")
+    .select("staff_id, can_scan, can_sell, is_manager")
     .eq("event_id", eventId)
     .eq("is_active", true);
   const ids = (assignments ?? []).map((a) => a.staff_id);
   if (ids.length === 0) return [];
+  const roles = new Map((assignments ?? []).map((a) => [a.staff_id, a]));
 
   const { data: staff } = await svc
     .from("staff_members")
@@ -107,6 +111,7 @@ export async function listEventCounterStaff(eventId: string): Promise<EventCount
     (staff ?? []).map(async (s) => {
       const { data } = await svc.rpc("staff_cash_outstanding", { p_staff_id: s.id, p_event_id: eventId });
       const row = data?.[0];
+      const role = roles.get(s.id);
       return {
         id: s.id,
         name: s.name,
@@ -114,6 +119,9 @@ export async function listEventCounterStaff(eventId: string): Promise<EventCount
         email: s.email,
         isActive: s.is_active,
         ownerType: s.owner_type as StaffOwnerType,
+        canScan: role?.can_scan ?? true,
+        canSell: role?.can_sell ?? true,
+        isManager: role?.is_manager ?? false,
         cashOutstandingPaise: Math.max(0, Number(row?.amount_paise ?? 0)),
       };
     }),

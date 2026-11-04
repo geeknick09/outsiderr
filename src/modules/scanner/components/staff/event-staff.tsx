@@ -39,6 +39,9 @@ export function EventStaff({
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [roleScan, setRoleScan] = useState(true);
+  const [roleSell, setRoleSell] = useState(true);
+  const [roleManager, setRoleManager] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [passwordFor, setPasswordFor] = useState<string | null>(null);
@@ -53,12 +56,16 @@ export function EventStaff({
     if (digits.length > 10) return setError("Phone must be exactly 10 digits (without country code).");
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError("Enter a valid email address.");
     if (password.length < 6) return setError("Password must be at least 6 characters.");
+    if (!roleScan && !roleSell && !roleManager) return setError("Pick at least one role - door, box office or manager.");
     const fd = new FormData();
     fd.set("eventId", eventId);
     fd.set("name", name.trim());
     fd.set("email", email.trim());
     fd.set("phone", phone.trim());
     fd.set("password", password);
+    fd.set("canScan", String(roleScan));
+    fd.set("canSell", String(roleSell));
+    fd.set("isManager", String(roleManager));
     startTransition(async () => {
       const res = await upsertEventStaffAction(fd);
       if (res.error) return setError(res.error);
@@ -98,6 +105,17 @@ export function EventStaff({
     });
   }
 
+  function toggleRole(s: EventCounterStaff, key: "canScan" | "canSell" | "isManager") {
+    const next = { canScan: s.canScan, canSell: s.canSell, isManager: s.isManager, [key]: !s[key] };
+    if (!next.canScan && !next.canSell && !next.isManager) {
+      return setError(`${s.name} needs at least one role - door, box office or manager.`);
+    }
+    run(
+      () => setStaffAssignmentAction(s.id, eventId, s.isActive, next),
+      `${s.name}'s roles updated.`,
+    );
+  }
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted">
@@ -131,6 +149,23 @@ export function EventStaff({
         <div>
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Password * (you set it, share it with them)</label>
           <input type="text" autoComplete="off" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 6 characters" className={INPUT} disabled={pending} />
+        </div>
+        <div>
+          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted">Roles * (pick at least one)</p>
+          <div className="flex flex-wrap gap-2">
+            {([
+              ["Door - scanning", roleScan, setRoleScan],
+              ["Box office - sell tickets", roleSell, setRoleSell],
+              ["Manager", roleManager, setRoleManager],
+            ] as const).map(([label, on, set]) => (
+              <label key={label} className={`flex cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-semibold transition-colors ${
+                on ? "border-violet-neon bg-violet-neon/10 text-violet-neon" : "border-zinc-200 text-muted dark:border-white/10"
+              }`}>
+                <input type="checkbox" checked={on} onChange={(e) => set(e.target.checked)} className="accent-violet-neon" disabled={pending} />
+                {label}
+              </label>
+            ))}
+          </div>
         </div>
         <button
           type="button"
@@ -173,6 +208,30 @@ export function EventStaff({
                     {s.ownerType === "ADMIN" ? <span className="ml-2 text-[10px] font-normal text-muted">Outsiderr staff</span> : null}
                   </p>
                   <p className="text-xs text-muted">{s.phone}{s.email ? ` · ${s.email}` : ""}</p>
+                  {s.ownerType === "ADMIN" ? null : (
+                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                      {([
+                        ["canScan", "Door", s.canScan],
+                        ["canSell", "Box office", s.canSell],
+                        ["isManager", "Manager", s.isManager],
+                      ] as const).map(([key, label, on]) => (
+                        <button
+                          key={key}
+                          type="button"
+                          disabled={pending}
+                          onClick={() => toggleRole(s, key)}
+                          title={`Toggle ${label} access`}
+                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold transition-colors disabled:opacity-50 ${
+                            on
+                              ? "bg-violet-neon/15 text-violet-neon"
+                              : "bg-zinc-100 text-zinc-400 dark:bg-white/5 dark:text-zinc-500"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   {s.cashOutstandingPaise > 0 ? (
                     <p className="text-xs font-semibold text-amber-500">
                       {formatPaise(s.cashOutstandingPaise)} cash to collect
@@ -210,7 +269,12 @@ export function EventStaff({
                     disabled={pending}
                     title="Remove from this event"
                     onClick={() =>
-                      run(() => setStaffAssignmentAction(s.id, eventId, false), "Removed from this event.")
+                      run(
+                        () => setStaffAssignmentAction(s.id, eventId, false, {
+                          canScan: s.canScan, canSell: s.canSell, isManager: s.isManager,
+                        }),
+                        "Removed from this event.",
+                      )
                     }
                     className="rounded-xl p-2 text-red-500 hover:bg-red-500/10"
                   >

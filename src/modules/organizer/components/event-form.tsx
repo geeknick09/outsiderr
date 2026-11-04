@@ -178,7 +178,7 @@ export function EventForm({
     (draftEvent?.categories as string[] | undefined) ?? (draftEvent?.category ? [draftEvent.category] : []),
   );
   const [promoterMode, setPromoterMode] = useState<string>((draftEvent?.promoterMode as string | undefined) ?? "NONE");
-  const [staffRows, setStaffRows] = useState<{ name: string; phone: string; email: string; password: string }[]>([]);
+  const [staffRows, setStaffRows] = useState<{ name: string; phone: string; email: string; password: string; canScan: boolean; canSell: boolean; isManager: boolean }[]>([]);
   const [uploadsInFlight, setUploadsInFlight] = useState(0);
 
   // Step change lands the user mid-page otherwise - always reset to top.
@@ -210,7 +210,7 @@ export function EventForm({
         .select("display_name, phone, email")
         .eq("event_id", draftEvent.id);
       if (!cancelled && data?.length) {
-        setStaffRows(data.map((s) => ({ name: s.display_name ?? "", phone: s.phone ?? "", email: s.email ?? "", password: "" })));
+        setStaffRows(data.map((s) => ({ name: s.display_name ?? "", phone: s.phone ?? "", email: s.email ?? "", password: "", canScan: true, canSell: true, isManager: false })));
       }
     })();
     return () => { cancelled = true; };
@@ -1529,6 +1529,22 @@ export function EventForm({
               onClick={() => setStaffRows((rs) => rs.filter((_, j) => j !== i))}>
               Remove
             </button>
+            <input type="hidden" name="staffRoles"
+              value={`${row.canScan ? "scan" : ""}${row.canSell ? "sell" : ""}${row.isManager ? "manager" : ""}` || "none"} />
+            <div className="flex flex-wrap items-center gap-3 sm:col-span-9">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted">Roles:</span>
+              {([
+                ["canScan", "Door - scanning"],
+                ["canSell", "Box office - sell"],
+                ["isManager", "Manager"],
+              ] as const).map(([key, label]) => (
+                <label key={key} className="flex cursor-pointer items-center gap-1.5 text-xs font-semibold">
+                  <input type="checkbox" checked={row[key]} className="accent-violet-neon"
+                    onChange={(e) => setStaffRows((rs) => rs.map((r, j) => (j === i ? { ...r, [key]: e.target.checked } : r)))} />
+                  {label}
+                </label>
+              ))}
+            </div>
           </div>
         ))}
         {staffRows.some((r) => r.name && !r.phone && !r.email) ? (
@@ -1536,7 +1552,7 @@ export function EventForm({
         ) : null}
         {staffRows.length < 5 ? (
           <button type="button" className="text-xs font-semibold text-violet-neon"
-            onClick={() => setStaffRows((rs) => [...rs, { name: "", phone: "", email: "", password: "" }])}>
+            onClick={() => setStaffRows((rs) => [...rs, { name: "", phone: "", email: "", password: "", canScan: true, canSell: true, isManager: false }])}>
             + Add staff member
           </button>
         ) : null}
