@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { Loader2, Search, Check, Clock } from "lucide-react";
 import Image from "next/image";
@@ -86,6 +86,16 @@ export function CollaborationPanel({
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [invitingId, setInvitingId] = useState<string | null>(null);
   const [justInvited, setJustInvited] = useState<string[]>([]);
+
+  // Keep justInvited in sync with the real roster — an invitee declining (or
+  // the owner cancelling) drops their row on the next refresh; prune the
+  // local markers then so the search row reverts to "Invite", not
+  // stuck "Invite sent".
+  useEffect(() => {
+    setJustInvited((prev) =>
+      prev.filter((orgId) => collaborators.some((c) => c.organizerId === orgId)),
+    );
+  }, [collaborators]);
   // Roster realtime sync lives in CollaboratorAccessWatcher (page level) —
   // this panel mounts inside the Details tab, so a subscription here would
   // die whenever the viewer switched tabs.

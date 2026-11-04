@@ -39,13 +39,15 @@ export function CollaboratorAccessWatcher({
   const verifyAccess = useCallback(async () => {
     if (!myOrganizerId) return;
     const supabase = createClient();
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("event_collaborators")
       .select("id, status")
       .eq("event_id", eventId)
       .eq("organizer_id", myOrganizerId)
       .maybeSingle();
-    if (!data || data.status !== "ACCEPTED") setRevoked(true);
+    // Query errors must NOT count as removal — a transient failure would
+    // otherwise flash a false "removed as collaborator" overlay.
+    if (!error && (!data || data.status !== "ACCEPTED")) setRevoked(true);
   }, [eventId, myOrganizerId]);
 
   useRealtime({
