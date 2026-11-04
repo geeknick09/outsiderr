@@ -99,8 +99,10 @@ export default async function ManageEventPage({
   // Collaborator realtime revocation: watchers need the viewer's organizer id
   // and their collaborator row id so a DELETE on it can be matched client-side.
   const myOrg = isOwner ? null : await safe(getOrganizerProfile(user), null);
+  // collaborators can be null on a transient fetch failure — optional chain
+  // so a realtime-triggered re-render doesn't TypeError into the error page.
   const myCollaboratorId = myOrg
-    ? collaborators.find((c) => c.organizerId === myOrg.id)?.id ?? null
+    ? collaborators?.find((c) => c.organizerId === myOrg.id)?.id ?? null
     : null;
   const eventInviteToken =
     isOwner && event.visibility === "INVITE_ONLY"
