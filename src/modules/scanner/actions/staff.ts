@@ -254,8 +254,46 @@ async function ensureOwnsLegacy(actor: Actor, staffId: string, eventId: string):
   return null;
 }
 
-/** Update a legacy event_staff row (name/phone/email) from the unified roster. */
+/** Update a legacy event_staff row (name/phone/email + optional password). */
 export async function updateLegacyStaffAction(
+  eventId: string,
+  staffId: string,
+  name: string,
+  email: string | null,
+  phone: string | null,
+  password?: string,
+): Promise<{ error: string | null }> {
+  const actor = await resolveActor();
+  if ("error" in actor) return { error: actor.error };
+  const denied = await ensureOwnsLegacy(actor, staffId, eventId);
+  if (denied) return { error: denied };
+  if (!name.trim()) return { error: "Name is required." };
+  if (!email?.trim() && !phone?.trim()) return { error: "Email or phone is required." };
+  if (password && password.length < 6) return { error: "Password must be at least 6 characters." };
+
+  const update: { display_name: string; email: string | null; phone: string | null; password_hash?: string } = {
+    display_name: name.trim(),
+    email: email?.trim() || null,
+    phone: phone?.trim() || null,
+  };
+  if (password) {
+    // Legacy rows use the old create-form scheme: "salt:sha256(salt+password)".
+    const { createHash, randomBytes } = await import("crypto");
+    const salt = randomBytes(16).toString("hex");
+    update.password_hash = `${salt}:${createHash("sha256").update(salt + password).digest("hex")}`;
+  }
+
+  const { error } = await createServiceClient()
+    .from("event_staff")
+    .update(update)
+    .eq("id", staffId);
+  if (error) return { error: error.message };
+  revalidatePath(`/organizer/events/${eventId}`);
+  return { error: null };
+}
+
+/** Update a password-staff member's name/phone/email (password via staff_set_password). */
+export async function updateStaffMemberAction(
   eventId: string,
   staffId: string,
   name: string,
@@ -264,20 +302,21 @@ export async function updateLegacyStaffAction(
 ): Promise<{ error: string | null }> {
   const actor = await resolveActor();
   if ("error" in actor) return { error: actor.error };
-  const denied = await ensureOwnsLegacy(actor, staffId, eventId);
+  const denied = await ensureOwns(actor, staffId);
   if (denied) return { error: denied };
   if (!name.trim()) return { error: "Name is required." };
   if (!email?.trim() && !phone?.trim()) return { error: "Email or phone is required." };
 
   const { error } = await createServiceClient()
-    .from("event_staff")
+    .from("staff_members")
     .update({
-      display_name: name.trim(),
+      name: name.trim(),
       email: email?.trim() || null,
-      phone: phone?.trim() || null,
+      phone: phone?.trim() || "",
     })
     .eq("id", staffId);
   if (error) return { error: error.message };
+  revalidateStaff();
   revalidatePath(`/organizer/events/${eventId}`);
   return { error: null };
 }

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { KeyRound, Pencil, Plus, Ticket, Trash2, Users } from "lucide-react";
+import { Pencil, Plus, Ticket, Trash2, Users } from "lucide-react";
 
 import {
   upsertEventStaffAction,
@@ -11,6 +11,7 @@ import {
   setStaffPasswordAction,
   updateLegacyStaffAction,
   removeLegacyStaffAction,
+  updateStaffMemberAction,
 } from "../../actions/staff";
 import type { EventCounterStaff } from "../../data/staff";
 import { formatPaise } from "@/modules/shared";
@@ -48,10 +49,9 @@ export function EventStaff({
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editEmail, setEditEmail] = useState("");
+  const [editPassword, setEditPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [passwordFor, setPasswordFor] = useState<string | null>(null);
-  const [passwordValue, setPasswordValue] = useState("");
 
   function add() {
     setError(null);
@@ -99,32 +99,33 @@ export function EventStaff({
     });
   }
 
-  function savePassword(staffId: string) {
-    setError(null);
-    setNotice(null);
-    startTransition(async () => {
-      const res = await setStaffPasswordAction(staffId, passwordValue);
-      if (res.error) return setError(res.error);
-      setPasswordFor(null);
-      setPasswordValue("");
-      setNotice("Password updated.");
-    });
-  }
-
-  function startLegacyEdit(s: { id: string; displayName: string; phone: string | null; email: string | null }) {
-    setEditId(s.id);
-    setEditName(s.displayName);
-    setEditPhone(s.phone ?? "");
-    setEditEmail(s.email ?? "");
+  function startEdit(id: string, name: string, phone: string | null, email: string | null) {
+    setEditId(id);
+    setEditName(name);
+    setEditPhone(phone ?? "");
+    setEditEmail(email ?? "");
+    setEditPassword("");
   }
 
   function saveLegacyEdit(staffId: string) {
     if (!editName.trim()) return setError("Name is required.");
     run(
-      () => updateLegacyStaffAction(eventId, staffId, editName, editEmail || null, editPhone || null),
+      () => updateLegacyStaffAction(eventId, staffId, editName, editEmail || null, editPhone || null, editPassword || undefined),
       "Staff updated.",
     );
     setEditId(null);
+  }
+
+  async function saveStaffEdit(staffId: string): Promise<{ error: string | null }> {
+    if (!editName.trim()) return { error: "Name is required." };
+    if (editPassword && editPassword.length < 6) return { error: "Password must be at least 6 characters." };
+    const res = await updateStaffMemberAction(eventId, staffId, editName, editEmail || null, editPhone || null);
+    if (res.error) return res;
+    if (editPassword) {
+      const pw = await setStaffPasswordAction(staffId, editPassword);
+      if (pw.error) return pw;
+    }
+    return { error: null };
   }
 
   function removeLegacy(staffId: string) {
@@ -221,10 +222,11 @@ export function EventStaff({
             <div key={`legacy-${s.id}`} className="space-y-2 rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
               {editId === s.id ? (
                 <div className="space-y-2">
-                  <div className="grid gap-2 sm:grid-cols-3">
+                  <div className="grid gap-2 sm:grid-cols-2">
                     <input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Name" className={INPUT} disabled={pending} />
                     <input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="Phone" className={INPUT} disabled={pending} />
                     <input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="Email" className={INPUT} disabled={pending} />
+                    <input value={editPassword} onChange={(e) => setEditPassword(e.target.value)} placeholder="New password (optional)" className={INPUT} disabled={pending} />
                   </div>
                   <div className="flex items-center gap-2">
                     <button type="button" disabled={pending} onClick={() => saveLegacyEdit(s.id)}
@@ -241,7 +243,7 @@ export function EventStaff({
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                   <button type="button" disabled={pending} title="Edit staff"
-                    onClick={() => startLegacyEdit(s)}
+                    onClick={() => startEdit(s.id, s.displayName, s.phone, s.email)}
                     className="rounded-xl p-2 text-violet-neon hover:bg-violet-neon/10">
                     <Pencil className="h-4 w-4" />
                   </button>
@@ -257,6 +259,22 @@ export function EventStaff({
           ))}
           {staff.map((s) => (
             <div key={s.id} className="space-y-2 rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
+              {editId === s.id ? (
+                <div className="space-y-2">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Name" className={INPUT} disabled={pending} />
+                    <input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="Phone" className={INPUT} disabled={pending} />
+                    <input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="Email" className={INPUT} disabled={pending} />
+                    <input value={editPassword} onChange={(e) => setEditPassword(e.target.value)} placeholder="New password (optional)" className={INPUT} disabled={pending} />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button type="button" disabled={pending} onClick={() => run(() => saveStaffEdit(s.id), "Staff updated.")}
+                      className="rounded-full bg-neon-gradient px-4 py-1.5 text-xs font-bold text-white">Save</button>
+                    <button type="button" disabled={pending} onClick={() => setEditId(null)}
+                      className="rounded-full px-3 py-1.5 text-xs font-semibold text-muted hover:text-foreground">Cancel</button>
+                  </div>
+                </div>
+              ) : (
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0 space-y-0.5">
                   <p className="truncate text-sm font-semibold">
@@ -313,13 +331,11 @@ export function EventStaff({
                   <button
                     type="button"
                     disabled={pending}
-                    onClick={() => {
-                      setPasswordFor(passwordFor === s.id ? null : s.id);
-                      setPasswordValue("");
-                    }}
-                    className="rounded-xl px-2.5 py-1.5 text-xs font-semibold text-violet-neon hover:bg-violet-neon/10"
+                    title="Edit staff"
+                    onClick={() => startEdit(s.id, s.name, s.phone, s.email)}
+                    className="rounded-xl p-2 text-violet-neon hover:bg-violet-neon/10"
                   >
-                    <span className="inline-flex items-center gap-1"><KeyRound className="h-3 w-3" />Set password</span>
+                    <Pencil className="h-4 w-4" />
                   </button>
                   <button
                     type="button"
@@ -340,27 +356,7 @@ export function EventStaff({
                 </div>
                 )}
               </div>
-              {passwordFor === s.id ? (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    autoComplete="off"
-                    minLength={6}
-                    value={passwordValue}
-                    onChange={(e) => setPasswordValue(e.target.value)}
-                    placeholder="New password (min 6 chars)"
-                    className={INPUT}
-                  />
-                  <button
-                    type="button"
-                    disabled={passwordValue.length < 6 || pending}
-                    onClick={() => savePassword(s.id)}
-                    className="shrink-0 rounded-xl bg-neon-gradient px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
-                  >
-                    Save
-                  </button>
-                </div>
-              ) : null}
+              )}
             </div>
           ))}
         </div>
