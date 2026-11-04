@@ -448,11 +448,19 @@ export async function changeCollaboratorPermissionAction(
   // their own access) — so the owner's update must go through the service
   // client. Ownership is verified above.
   const service = createServiceClient();
-  const { error } = await service
-    .from("event_collaborators")
-    .update({ permission_level: permissionLevel, updated_at: new Date().toISOString() })
-    .eq("id", collaboratorId)
-    .eq("event_id", eventId);
+  let error;
+  try {
+    const res = await service
+      .from("event_collaborators")
+      .update({ permission_level: permissionLevel, updated_at: new Date().toISOString() })
+      .eq("id", collaboratorId)
+      .eq("event_id", eventId);
+    error = res.error;
+  } catch (e) {
+    // Never throw into a client transition — a thrown action error surfaces
+    // as the route error boundary instead of an inline message.
+    return { error: e instanceof Error ? e.message : "Could not update permission." };
+  }
 
   if (error) return { error: error.message };
 

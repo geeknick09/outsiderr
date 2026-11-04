@@ -95,11 +95,15 @@ export function CollaborationPanel({
     }
     setSearching(true);
     setError(null);
-    const result = await searchOrganizersAction(q.trim());
-    if (result.error) {
-      setError(result.error);
-    } else {
-      setResults(result.organizers);
+    try {
+      const result = await searchOrganizersAction(q.trim());
+      if (result.error) {
+        setError(result.error);
+      } else {
+        setResults(result.organizers);
+      }
+    } catch {
+      setError("Search failed. Try again.");
     }
     setSearching(false);
   }
@@ -107,12 +111,18 @@ export function CollaborationPanel({
   function handleInvite(organizerId: string) {
     setInvitingId(organizerId);
     startTransition(async () => {
-      const result = await inviteCollaboratorAction(eventId, organizerId, selectedPerm);
-      if (result.error) {
-        setError(result.error);
-      } else {
-        // Leave the row in place - button flips to "Invite sent"
-        setJustInvited((prev) => [...prev, organizerId]);
+      try {
+        const result = await inviteCollaboratorAction(eventId, organizerId, selectedPerm);
+        if (result.error) {
+          setError(result.error);
+        } else {
+          // Leave the row in place - button flips to "Invite sent"
+          setJustInvited((prev) => [...prev, organizerId]);
+        }
+      } catch {
+        // A thrown action error in a transition surfaces as the route error
+        // boundary — degrade to an inline message instead.
+        setError("Couldn't send the invite. Try again.");
       }
       setInvitingId(null);
     });
@@ -121,9 +131,13 @@ export function CollaborationPanel({
   function handleRemove(collaboratorId: string) {
     setRemovingId(collaboratorId);
     startTransition(async () => {
-      const result = await removeCollaboratorAction(eventId, collaboratorId);
-      if (result.error) {
-        setError(result.error);
+      try {
+        const result = await removeCollaboratorAction(eventId, collaboratorId);
+        if (result.error) {
+          setError(result.error);
+        }
+      } catch {
+        setError("Couldn't remove the collaborator. Try again.");
       }
       setRemovingId(null);
     });
@@ -132,9 +146,13 @@ export function CollaborationPanel({
   function handleChangePermission(collaboratorId: string, perm: PermissionLevel) {
     setChangingPerm(collaboratorId);
     startTransition(async () => {
-      const result = await changeCollaboratorPermissionAction(eventId, collaboratorId, perm);
-      if (result.error) {
-        setError(result.error);
+      try {
+        const result = await changeCollaboratorPermissionAction(eventId, collaboratorId, perm);
+        if (result.error) {
+          setError(result.error);
+        }
+      } catch {
+        setError("Couldn't change permission. Try again.");
       }
       setChangingPerm(null);
     });
