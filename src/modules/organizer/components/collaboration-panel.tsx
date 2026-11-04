@@ -364,9 +364,9 @@ export function CollaborationPanel({
 
       {/* Permission legend */}
       <div className="border-t border-zinc-200 pt-3 text-[10px] leading-relaxed text-muted dark:border-white/10">
-        <p><span className="font-bold text-foreground">Ops</span> — view event, orders, check-ins &amp; analytics. No money figures.</p>
-        <p><span className="font-bold text-foreground">Ops + Money</span> — everything in Ops, plus revenue, payout and money analytics.</p>
-        <p><span className="font-bold text-foreground">Full access</span> — everything except deleting the event and changing date, venue or city (owner only).</p>
+        <p><span className="font-bold text-foreground">Ops</span> - view event, orders, check-ins &amp; analytics. No money figures.</p>
+        <p><span className="font-bold text-foreground">Ops + Money</span> - everything in Ops, plus revenue, payout and money analytics.</p>
+        <p><span className="font-bold text-foreground">Full access</span> - everything except deleting the event and changing date, venue or city (owner only).</p>
       </div>
     </div>
   );
