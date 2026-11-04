@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowDownUp, BarChart3, ChevronLeft, ChevronRight, Search, Settings2, Users, X } from "lucide-react";
+import { ArrowDownUp, BarChart3, ChevronLeft, ChevronRight, Plus, Search, Settings2, Users, X } from "lucide-react";
 
 import { Badge } from "@/modules/shared";
 import { formatDateTime, isEventEnded, cityLabel } from "@/modules/shared";
@@ -229,9 +229,10 @@ export function OrganizerEventsList({
 
   return (
     <div className="space-y-3">
-      {/* Universal search - across published, drafts, completed and cancelled */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+      <div className="flex gap-2">
+        {/* Universal search - across published, drafts, completed and cancelled */}
+        <div className="relative min-w-0 flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
         <input
           type="text"
           value={query}
@@ -255,6 +256,15 @@ export function OrganizerEventsList({
             <X className="h-4 w-4" />
           </button>
         ) : null}
+        </div>
+        <Link
+          href="/organizer/create"
+          className="flex shrink-0 items-center gap-1.5 rounded-2xl bg-neon-gradient px-4 text-sm font-bold text-white shadow-glow-violet transition-opacity hover:opacity-90"
+        >
+          <Plus className="h-4 w-4" />
+          <span className="hidden sm:inline">Create Event</span>
+          <span className="sm:hidden">Create</span>
+        </Link>
       </div>
 
       {/* Lifecycle tabs - hidden while searching (search covers every state) */}

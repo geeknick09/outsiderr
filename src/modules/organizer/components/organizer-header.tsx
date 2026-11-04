@@ -1,9 +1,9 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { Pencil, Plus, Users } from "lucide-react";
+import { Pencil, Users } from "lucide-react";
 import Link from "next/link";
 
 import { EditOrganizerProfile } from "./edit-organizer-profile";
@@ -55,7 +55,6 @@ function LinkedinIcon({ className }: { className?: string }) {
 
 function OrganizerHeaderInner({ organizer, followerCount }: { organizer: Organizer; followerCount: number }) {
   const [editing, setEditing] = useState(false);
-  const pathname = usePathname();
   const searchParams = useSearchParams();
   // ?edit=1 deep-link opens the profile modal (used by the dashboard
   // bank-account notice).
@@ -163,17 +162,6 @@ function OrganizerHeaderInner({ organizer, followerCount }: { organizer: Organiz
           <span className="hidden sm:inline">Edit profile</span>
         </Button>
       </div>
-
-      {pathname !== "/organizer/create" ? (
-        <div className="flex flex-wrap gap-2">
-          <Link href="/organizer/create">
-            <Button size="sm" className="shadow-glow-violet">
-              <Plus className="h-4 w-4" />
-              Create
-            </Button>
-          </Link>
-        </div>
-      ) : null}
 
       {editing ? (
         <EditOrganizerProfile organizer={organizer} onClose={() => setEditing(false)} />
