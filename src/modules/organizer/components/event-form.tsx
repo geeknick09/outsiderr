@@ -10,7 +10,7 @@ import { PhoneInput } from "@/modules/shared";
 import { GalleryUploader } from "./gallery-uploader";
 import { PosterGuidelines } from "./poster-guidelines";
 import { PastEditionsPicker } from "./past-editions-picker";
-import { CATEGORIES, tagsForCategories, CityPicker, DEFAULT_EVENT_TERMS } from "@/modules/shared";
+import { CATEGORIES, tagsForCategories, pruneTagsForRemovedCategories, CityPicker, DEFAULT_EVENT_TERMS } from "@/modules/shared";
 import { nowISTInput, utcToISTInput } from "@/modules/shared";
 import { uploadPublicFile, compressImage } from "@/modules/shared";
 import { ImageCropper } from "@/modules/shared";
@@ -89,6 +89,17 @@ export function TagPicker({ initialTags = [], categories = [] }: { initialTags?:
   const visible = tagsForCategories(categories);
   // Keep already-selected tags visible even if the category changed.
   const shown = [...new Set([...visible, ...selected])];
+
+  // Deselect tags that were only offered by a category just removed.
+  const prevCats = useRef(categories);
+  useEffect(() => {
+    const prev = prevCats.current;
+    prevCats.current = categories;
+    const removed = prev.filter((c) => !categories.includes(c));
+    if (removed.length) {
+      setSelected((s) => pruneTagsForRemovedCategories(s, removed, categories));
+    }
+  }, [categories]);
 
   function toggle(tag: string) {
     setSelected((prev) => {

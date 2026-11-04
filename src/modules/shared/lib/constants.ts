@@ -113,6 +113,26 @@ export function tagsForCategories(categories: string[]): string[] {
   return [...set];
 }
 
+/**
+ * After categories are removed, deselect tags that were only offered by them.
+ * Shared tags (still offered by a remaining selected category) and generic
+ * tags (Free Entry, 18+, … — not category-bound) stay selected.
+ */
+export function pruneTagsForRemovedCategories(
+  tags: Iterable<string>,
+  removedCategories: string[],
+  remainingCategories: string[],
+): Set<string> {
+  const removed = new Set(
+    removedCategories
+      .flatMap((c) => tagsForCategories([c]))
+      .filter((t) => !GENERIC_EVENT_TAGS.includes(t)),
+  );
+  if (!removed.size) return new Set(tags);
+  const stillOffered = new Set(tagsForCategories(remainingCategories));
+  return new Set([...tags].filter((t) => !removed.has(t) || stillOffered.has(t)));
+}
+
 /** Community discovery categories - drives the home-page chips + community form select. */
 export const COMMUNITY_CATEGORIES = [
   { value: "FITNESS", label: "Fitness & Movements" },

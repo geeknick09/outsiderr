@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState } from "react";
-import { CollapsibleSection, CATEGORIES, cn, tagsForCategories } from "@/modules/shared";
+import { CollapsibleSection, CATEGORIES, cn, tagsForCategories, pruneTagsForRemovedCategories } from "@/modules/shared";
 import { updateEventSectionAction, type UpdateEventSectionState } from "../../actions/events";
 import { useEventEdits } from "../manage-event-context";
 import type { EventDetail } from "@/modules/shared";
@@ -100,15 +100,18 @@ export function EditDetailsSection({ event, lockLogistics = false }: { event: Ev
                   type="button"
                   key={cat.value}
                   disabled={!isEditing}
-                  onClick={() =>
-                    setSelectedCategories((prev) => {
-                      if (isSelected) {
-                        if (prev.length <= 1) return prev; // keep at least one
-                        return prev.filter((c) => c !== cat.value);
-                      }
-                      return [...prev, cat.value as string];
-                    })
-                  }
+                  onClick={() => {
+                    if (isSelected) {
+                      if (selectedCategories.length <= 1) return; // keep at least one
+                      const next = selectedCategories.filter((c) => c !== cat.value);
+                      setSelectedCategories(next);
+                      // Deselect tags only offered by the removed category —
+                      // shared tags and generic tags stay selected.
+                      setSelectedTags((prev) => pruneTagsForRemovedCategories(prev, [cat.value as string], next));
+                    } else {
+                      setSelectedCategories((prev) => [...prev, cat.value as string]);
+                    }
+                  }}
                   className={cn(
                     "rounded-full border px-3 py-1.5 text-xs font-semibold transition-all",
                     isSelected
