@@ -343,7 +343,7 @@ export function CollaborationPanel({
                           title="Change permission level"
                         >
                         {(Object.keys(PERMISSION_LABELS) as PermissionLevel[]).map((perm) => (
-                          <option key={perm} value={perm}>
+                          <option key={perm} value={perm} className="bg-white text-zinc-900 dark:bg-zinc-900 dark:text-white">
                             {PERMISSION_LABELS[perm]}
                           </option>
                         ))}
