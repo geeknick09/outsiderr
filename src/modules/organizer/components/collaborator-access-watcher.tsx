@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UserX } from "lucide-react";
 
-import { Button, useRealtime } from "@/modules/shared";
+import { Button, useRealtime, createClient } from "@/modules/shared";
 
 /**
  * Realtime collaboration watcher for the manage page — mounted at page level
@@ -16,6 +16,11 @@ import { Button, useRealtime } from "@/modules/shared";
  *     like money analytics flips live for BOTH owner and collaborators.
  *  2. Revoke — when the owner's change removes/de-accepts THIS viewer's row,
  *     covers the page with a "removed" overlay and redirects to /organizer.
+ *
+ * Revocation never trusts payload fields: DELETE `old` only carries the PK
+ * unless REPLICA IDENTITY FULL is set, so we re-verify the row with a live
+ * query on every change — plus a 15s poll as backstop if realtime delivery
+ * silently fails in production.
  */
 export function CollaboratorAccessWatcher({
   eventId,
@@ -29,6 +34,20 @@ export function CollaboratorAccessWatcher({
   const router = useRouter();
   const [revoked, setRevoked] = useState(false);
 
+  // Live re-check: does my collaborator row still exist and stay ACCEPTED?
+  // Only meaningful for collaborators (owner has myOrganizerId = null).
+  const verifyAccess = useCallback(async () => {
+    if (!myOrganizerId) return;
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("event_collaborators")
+      .select("id, status")
+      .eq("event_id", eventId)
+      .eq("organizer_id", myOrganizerId)
+      .maybeSingle();
+    if (!data || data.status !== "ACCEPTED") setRevoked(true);
+  }, [eventId, myOrganizerId]);
+
   useRealtime({
     channelName: `collab-access-${eventId}`,
     table: "event_collaborators",
@@ -36,25 +55,32 @@ export function CollaboratorAccessWatcher({
     filter: `event_id=eq.${eventId}`,
     enabled: !revoked,
     onPayload: (p) => {
+      // Fast path — works when the payload carries enough fields.
       if (p.eventType === "DELETE") {
-        // DELETE payloads always carry the PK in `old`; the full row only
-        // when REPLICA IDENTITY FULL is set — check both.
         if (p.old?.id === myCollaboratorId || p.old?.organizer_id === myOrganizerId) {
           setRevoked(true);
           return;
         }
       } else if (p.eventType === "UPDATE" && myOrganizerId) {
-        // Status moving away from ACCEPTED (e.g. rejected) also revokes.
         if (p.new?.organizer_id === myOrganizerId && p.new?.status !== "ACCEPTED") {
           setRevoked(true);
           return;
         }
       }
-      // Permission changes, other rows, accepts/declines — refetch so
-      // accessLevel-gated sections (money, orders) re-render.
+      // Slow path — re-verify my own row (payload fields can't be trusted)
+      // AND refresh so roster/permission changes land for every viewer.
+      void verifyAccess();
       router.refresh();
     },
   });
+
+  // Backstop — if realtime delivery fails silently, a removed collaborator
+  // still gets bounced within ~15s instead of browsing stale data forever.
+  useEffect(() => {
+    if (!myOrganizerId || revoked) return;
+    const t = setInterval(() => void verifyAccess(), 15000);
+    return () => clearInterval(t);
+  }, [myOrganizerId, revoked, verifyAccess]);
 
   useEffect(() => {
     if (!revoked) return;
