@@ -303,17 +303,7 @@ export default async function ManageEventPage({
 
               {canScan && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
                 <CollapsibleSection title="Staff" description="Door + box-office staff. They sign in at /scan and /box-office with the phone or email + password you set here.">
-                  {eventStaff.length > 0 ? (
-                    <ul className="mb-4 space-y-1.5">
-                      {eventStaff.map((s) => (
-                        <li key={s.id} className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-200 px-4 py-2.5 text-sm dark:border-white/10">
-                          <span className="min-w-0 flex-1 truncate font-semibold">{s.displayName}</span>
-                          <span className="truncate text-xs text-muted">{s.phone || s.email || ""}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                  <EventStaff eventId={event.id} staff={counterStaff} />
+                  <EventStaff eventId={event.id} staff={counterStaff} legacyStaff={eventStaff} />
                 </CollapsibleSection>
               ) : null}
 

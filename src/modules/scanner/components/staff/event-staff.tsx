@@ -25,9 +25,13 @@ const INPUT =
 export function EventStaff({
   eventId,
   staff,
+  legacyStaff,
 }: {
   eventId: string;
   staff: EventCounterStaff[];
+  // Legacy event_staff rows — rendered in the same roster so the organizer
+  // sees ONE staff list instead of two separate sections.
+  legacyStaff?: { id: string; displayName: string; phone: string | null; email: string | null }[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -143,12 +147,22 @@ export function EventStaff({
       {notice ? <p className="text-sm text-emerald-500">{notice}</p> : null}
 
       {/* Assigned staff */}
-      {staff.length > 0 ? (
+      {staff.length + (legacyStaff?.length ?? 0) > 0 ? (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-muted" />
-            <h4 className="text-sm font-bold">Staff ({staff.filter((s) => s.isActive).length})</h4>
+            <h4 className="text-sm font-bold">Staff ({staff.filter((s) => s.isActive).length + (legacyStaff?.length ?? 0)})</h4>
           </div>
+          {legacyStaff?.map((s) => (
+            <div key={`legacy-${s.id}`} className="space-y-2 rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0 space-y-0.5">
+                  <p className="truncate text-sm font-semibold">{s.displayName}</p>
+                  <p className="text-xs text-muted">{s.phone}{s.email ? ` · ${s.email}` : ""}</p>
+                </div>
+              </div>
+            </div>
+          ))}
           {staff.map((s) => (
             <div key={s.id} className="space-y-2 rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
               <div className="flex items-center justify-between gap-3">
