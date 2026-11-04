@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Loader2, Search, Check, Clock } from "lucide-react";
 import Image from "next/image";
 import {
@@ -11,7 +10,6 @@ import {
   removeCollaboratorAction,
   changeCollaboratorPermissionAction,
 } from "@/modules/shared/actions/engagement";
-import { useRealtime } from "@/modules/shared";
 
 type PermissionLevel = "LIMITED" | "ANALYTICS" | "FULL";
 
@@ -85,18 +83,9 @@ export function CollaborationPanel({
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [invitingId, setInvitingId] = useState<string | null>(null);
   const [justInvited, setJustInvited] = useState<string[]>([]);
-  const router = useRouter();
-
-  // Realtime roster sync — the collaborator accepting/declining runs in
-  // THEIR session, so the owner's page never revalidates on its own.
-  // Any change to this event's collaborator rows refetches the roster.
-  useRealtime({
-    channelName: `collab-roster-${eventId}`,
-    table: "event_collaborators",
-    event: "*",
-    filter: `event_id=eq.${eventId}`,
-    onPayload: () => router.refresh(),
-  });
+  // Roster realtime sync lives in CollaboratorAccessWatcher (page level) —
+  // this panel mounts inside the Details tab, so a subscription here would
+  // die whenever the viewer switched tabs.
 
   async function handleSearch(q: string) {
     setQuery(q);
@@ -292,19 +281,24 @@ export function CollaborationPanel({
                 {canManage ? (
                   <div className="flex items-center gap-2">
                     {c.status === "ACCEPTED" ? (
-                      <select
-                        value={(c.permissionLevel as PermissionLevel) ?? "LIMITED"}
-                        onChange={(e) => handleChangePermission(c.id, e.target.value as PermissionLevel)}
-                        disabled={changingPerm === c.id || pending}
-                        className="rounded-xl border border-zinc-200 bg-white px-2 py-1 text-[10px] font-bold outline-none focus:border-violet-neon dark:border-white/10 dark:bg-zinc-900 dark:text-white"
-                        title="Change permission level"
-                      >
+                      <span className="flex items-center gap-1.5">
+                        {changingPerm === c.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-neon" aria-label="Saving permission" />
+                        ) : null}
+                        <select
+                          value={(c.permissionLevel as PermissionLevel) ?? "LIMITED"}
+                          onChange={(e) => handleChangePermission(c.id, e.target.value as PermissionLevel)}
+                          disabled={changingPerm === c.id || pending}
+                          className="rounded-xl border border-zinc-200 bg-white px-2 py-1 text-[10px] font-bold outline-none focus:border-violet-neon dark:border-white/10 dark:bg-zinc-900 dark:text-white"
+                          title="Change permission level"
+                        >
                         {(Object.keys(PERMISSION_LABELS) as PermissionLevel[]).map((perm) => (
                           <option key={perm} value={perm}>
                             {PERMISSION_LABELS[perm]}
                           </option>
                         ))}
-                      </select>
+                        </select>
+                      </span>
                     ) : null}
                     {c.status === "PENDING" ? (
                       <button

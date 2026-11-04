@@ -193,15 +193,15 @@ export default async function ManageEventPage({
   return (
     <EventEditsProvider>
     <div className="space-y-6 py-6">
-      {/* Realtime revocation — owner removing this collaborator covers the
-          page with a "removed" overlay and bounces them to the dashboard. */}
-      {!isOwner ? (
-        <CollaboratorAccessWatcher
-          eventId={event.id}
-          myOrganizerId={myOrg?.id ?? null}
-          myCollaboratorId={myCollaboratorId}
-        />
-      ) : null}
+      {/* Realtime collaboration sync — page-level (not inside a tab) so any
+          roster/permission change refreshes regardless of the active tab.
+          For collaborators it also covers the page with a "removed" overlay
+          when the owner revokes their access. */}
+      <CollaboratorAccessWatcher
+        eventId={event.id}
+        myOrganizerId={myOrg?.id ?? null}
+        myCollaboratorId={myCollaboratorId}
+      />
 
       {/* Banner + title + dates + badges - merges section saves instantly */}
       <ManageEventHeader

@@ -7,10 +7,15 @@ import { UserX } from "lucide-react";
 import { Button, useRealtime } from "@/modules/shared";
 
 /**
- * Realtime revocation watcher for collaborators viewing the manage page.
- * When the owner removes their event_collaborators row, this covers the
- * page with a "removed" overlay and redirects to the dashboard — the
- * collaborator never keeps browsing analytics/orders they lost access to.
+ * Realtime collaboration watcher for the manage page — mounted at page level
+ * (not inside a tab) so it stays subscribed no matter which tab is viewed.
+ *
+ * Two jobs:
+ *  1. Sync — any event_collaborators change (invite accepted, permission
+ *     changed, someone removed) refreshes the page, so permission-gated UI
+ *     like money analytics flips live for BOTH owner and collaborators.
+ *  2. Revoke — when the owner's change removes/de-accepts THIS viewer's row,
+ *     covers the page with a "removed" overlay and redirects to /organizer.
  */
 export function CollaboratorAccessWatcher({
   eventId,
@@ -29,20 +34,25 @@ export function CollaboratorAccessWatcher({
     table: "event_collaborators",
     event: "*",
     filter: `event_id=eq.${eventId}`,
-    enabled: !revoked && !!myOrganizerId,
+    enabled: !revoked,
     onPayload: (p) => {
       if (p.eventType === "DELETE") {
         // DELETE payloads always carry the PK in `old`; the full row only
         // when REPLICA IDENTITY FULL is set — check both.
         if (p.old?.id === myCollaboratorId || p.old?.organizer_id === myOrganizerId) {
           setRevoked(true);
+          return;
         }
-      } else if (p.eventType === "UPDATE") {
+      } else if (p.eventType === "UPDATE" && myOrganizerId) {
         // Status moving away from ACCEPTED (e.g. rejected) also revokes.
         if (p.new?.organizer_id === myOrganizerId && p.new?.status !== "ACCEPTED") {
           setRevoked(true);
+          return;
         }
       }
+      // Permission changes, other rows, accepts/declines — refetch so
+      // accessLevel-gated sections (money, orders) re-render.
+      router.refresh();
     },
   });
 
