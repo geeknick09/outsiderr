@@ -66,7 +66,10 @@ export default async function ManageEventPage({
     p.catch((err) => { console.error("[ManageEventPage] non-critical fetch failed for", id, err); return fallback; });
 
   const [event, analytics, cancelChargePct, postponeChargePct, heroBoost, heroBoostPrice, heroBoostDuration, orders, tickets, waitlistEntries, collaborators, eventStaff, guestlist, eventVirality, counterStaff] = await Promise.all([
-    getEvent(id),                                           // critical — checked below
+    // Critical — checked below. Retry once on transient failures: during a
+    // concurrent event update (e.g. owner cancels while a collaborator's
+    // realtime refresh re-renders) a single rejection would crash the page.
+    getEvent(id).catch(() => getEvent(id)),
     safe(getOrganizerEventAnalytics(user, id), null),
     safe(getCancellationChargePercent(), 0),
     safe(getPostponementChargePercent(), 0),

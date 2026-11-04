@@ -26,7 +26,8 @@ export function CollaborationInvites({ invites }: { invites: Invite[] }) {
     setActing({ id: inviteId, action: "accept" });
     startTransition(async () => {
       try {
-        await acceptCollaborationAction(eventId, inviteId);
+        const result = await acceptCollaborationAction(eventId, inviteId);
+        if (result.error) setError(result.error);
       } catch {
         setError("Couldn't accept the invite. Try again.");
       }
@@ -38,7 +39,8 @@ export function CollaborationInvites({ invites }: { invites: Invite[] }) {
     setActing({ id: inviteId, action: "reject" });
     startTransition(async () => {
       try {
-        await rejectCollaborationAction(eventId, inviteId);
+        const result = await rejectCollaborationAction(eventId, inviteId);
+        if (result.error) setError(result.error);
       } catch {
         setError("Couldn't decline the invite. Try again.");
       }

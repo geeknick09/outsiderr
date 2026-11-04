@@ -179,43 +179,21 @@ export async function inviteCollaboratorAction(
 
   const supabase = await createClient();
 
-  // Verify the current user owns this event
-  const { data: event } = await supabase
-    .from("events")
-    .select("organizer_id")
-    .eq("id", eventId)
-    .maybeSingle();
+  // Ownership + invite checks run in parallel — saves two roundtrips.
+  const [{ data: event }, { data: myOrg }, { data: existing }, { count: activeCount }] = await Promise.all([
+    supabase.from("events").select("organizer_id").eq("id", eventId).maybeSingle(),
+    supabase.from("organizers_public").select("id").eq("owner_id", user.id).maybeSingle(),
+    supabase.from("event_collaborators").select("id, status").eq("event_id", eventId).eq("organizer_id", organizerId).maybeSingle(),
+    supabase.from("event_collaborators").select("id", { count: "exact", head: true }).eq("event_id", eventId).in("status", ["PENDING", "ACCEPTED"]),
+  ]);
 
   if (!event) return { error: "Event not found." };
-
-  const { data: myOrg } = await supabase
-    .from("organizers_public")
-    .select("id")
-    .eq("owner_id", user.id)
-    .maybeSingle();
-
   if (!myOrg || myOrg.id !== event.organizer_id) {
     return { error: "Only the event owner can invite collaborators." };
   }
-
-  // Check if already invited
-  const { data: existing } = await supabase
-    .from("event_collaborators")
-    .select("id, status")
-    .eq("event_id", eventId)
-    .eq("organizer_id", organizerId)
-    .maybeSingle();
-
   if (existing) {
     return { error: "Already invited this organizer." };
   }
-
-  // Cap: max 4 collaborators per event (pending invites + accepted collaborators)
-  const { count: activeCount } = await supabase
-    .from("event_collaborators")
-    .select("id", { count: "exact", head: true })
-    .eq("event_id", eventId)
-    .in("status", ["PENDING", "ACCEPTED"]);
   if ((activeCount ?? 0) >= 4) {
     return { error: "Maximum 4 collaborators per event." };
   }
@@ -353,13 +331,20 @@ export async function rejectCollaborationAction(
 
   if (!myOrg) return { error: "Organizer profile not found." };
 
-  const { error } = await supabase
-    .from("event_collaborators")
-    .delete()
-    .eq("id", collaboratorId)
-    .eq("organizer_id", myOrg.id);
-
-  if (error) return { error: error.message };
+  // Service client — same RLS-drift risk as the permission update: the
+  // .eq("organizer_id", myOrg.id) clause already scopes the delete to the
+  // caller's own row, so this can never touch another invitee's row.
+  const service = createServiceClient();
+  try {
+    const { error } = await service
+      .from("event_collaborators")
+      .delete()
+      .eq("id", collaboratorId)
+      .eq("organizer_id", myOrg.id);
+    if (error) return { error: error.message };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Could not decline the invite." };
+  }
 
   revalidatePath(`/organizer/events/${eventId}`);
   revalidatePath(`/events/${eventId}`);
