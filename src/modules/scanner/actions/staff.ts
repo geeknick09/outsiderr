@@ -241,6 +241,66 @@ export async function upsertEventStaffAction(formData: FormData): Promise<AddEve
   return { error: null, name: v.data.name, reused };
 }
 
+/** Verify the actor owns this legacy event_staff row (organizer match). */
+async function ensureOwnsLegacy(actor: Actor, staffId: string, eventId: string): Promise<string | null> {
+  const svc = createServiceClient();
+  const { data: row } = await svc
+    .from("event_staff")
+    .select("organizer_id, event_id")
+    .eq("id", staffId)
+    .maybeSingle();
+  if (!row || row.event_id !== eventId) return "Staff member not found.";
+  if (actor.ownerType === "ORGANIZER" && row.organizer_id !== actor.organizerId) return "Not authorised.";
+  return null;
+}
+
+/** Update a legacy event_staff row (name/phone/email) from the unified roster. */
+export async function updateLegacyStaffAction(
+  eventId: string,
+  staffId: string,
+  name: string,
+  email: string | null,
+  phone: string | null,
+): Promise<{ error: string | null }> {
+  const actor = await resolveActor();
+  if ("error" in actor) return { error: actor.error };
+  const denied = await ensureOwnsLegacy(actor, staffId, eventId);
+  if (denied) return { error: denied };
+  if (!name.trim()) return { error: "Name is required." };
+  if (!email?.trim() && !phone?.trim()) return { error: "Email or phone is required." };
+
+  const { error } = await createServiceClient()
+    .from("event_staff")
+    .update({
+      display_name: name.trim(),
+      email: email?.trim() || null,
+      phone: phone?.trim() || null,
+    })
+    .eq("id", staffId);
+  if (error) return { error: error.message };
+  revalidatePath(`/organizer/events/${eventId}`);
+  return { error: null };
+}
+
+/** Remove a legacy event_staff row from the unified roster. */
+export async function removeLegacyStaffAction(
+  eventId: string,
+  staffId: string,
+): Promise<{ error: string | null }> {
+  const actor = await resolveActor();
+  if ("error" in actor) return { error: actor.error };
+  const denied = await ensureOwnsLegacy(actor, staffId, eventId);
+  if (denied) return { error: denied };
+
+  const { error } = await createServiceClient()
+    .from("event_staff")
+    .delete()
+    .eq("id", staffId);
+  if (error) return { error: error.message };
+  revalidatePath(`/organizer/events/${eventId}`);
+  return { error: null };
+}
+
 /** Organizer/admin confirms cash handed over. The amount is computed on the server. */
 export async function confirmCashHandoverAction(
   staffId: string,

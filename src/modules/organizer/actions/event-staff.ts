@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/modules/shared/server";
-import { addEventStaff, removeEventStaff } from "../data/event-staff";
+import { addEventStaff, removeEventStaff, updateEventStaff } from "../data/event-staff";
 
 export async function addEventStaffAction(
   eventId: string,
@@ -37,6 +37,33 @@ export async function addEventStaffAction(
   } catch (err) {
     console.error(`[event-staff] addEventStaffAction error: eventId=${eventId}, error=`, err);
     return { success: false, error: "Failed to add door staff." };
+  }
+}
+
+export async function updateEventStaffAction(
+  eventId: string,
+  staffId: string,
+  displayName: string,
+  email: string | null,
+  phone: string | null,
+): Promise<{ success: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?next=%2Forganizer");
+
+  if (!displayName.trim()) return { success: false, error: "Name is required." };
+  if (!email?.trim() && !phone?.trim()) return { success: false, error: "Email or phone is required." };
+
+  try {
+    const result = await updateEventStaff(user, staffId, {
+      displayName: displayName.trim(),
+      email: email?.trim() || null,
+      phone: phone?.trim() || null,
+    });
+    if (result.success) revalidatePath(`/organizer/events/${eventId}`);
+    return result;
+  } catch (err) {
+    console.error(`[event-staff] updateEventStaffAction error:`, err);
+    return { success: false, error: "Failed to update staff." };
   }
 }
 

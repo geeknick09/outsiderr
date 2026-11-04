@@ -2,13 +2,15 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { KeyRound, Plus, Ticket, Trash2, Users } from "lucide-react";
+import { KeyRound, Pencil, Plus, Ticket, Trash2, Users } from "lucide-react";
 
 import {
   upsertEventStaffAction,
   confirmCashHandoverAction,
   setStaffAssignmentAction,
   setStaffPasswordAction,
+  updateLegacyStaffAction,
+  removeLegacyStaffAction,
 } from "../../actions/staff";
 import type { EventCounterStaff } from "../../data/staff";
 import { formatPaise } from "@/modules/shared";
@@ -42,6 +44,10 @@ export function EventStaff({
   const [roleScan, setRoleScan] = useState(true);
   const [roleSell, setRoleSell] = useState(true);
   const [roleManager, setRoleManager] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editEmail, setEditEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [passwordFor, setPasswordFor] = useState<string | null>(null);
@@ -103,6 +109,29 @@ export function EventStaff({
       setPasswordValue("");
       setNotice("Password updated.");
     });
+  }
+
+  function startLegacyEdit(s: { id: string; displayName: string; phone: string | null; email: string | null }) {
+    setEditId(s.id);
+    setEditName(s.displayName);
+    setEditPhone(s.phone ?? "");
+    setEditEmail(s.email ?? "");
+  }
+
+  function saveLegacyEdit(staffId: string) {
+    if (!editName.trim()) return setError("Name is required.");
+    run(
+      () => updateLegacyStaffAction(eventId, staffId, editName, editEmail || null, editPhone || null),
+      "Staff updated.",
+    );
+    setEditId(null);
+  }
+
+  function removeLegacy(staffId: string) {
+    run(
+      () => removeLegacyStaffAction(eventId, staffId),
+      "Staff removed.",
+    );
   }
 
   function toggleRole(s: EventCounterStaff, key: "canScan" | "canSell" | "isManager") {
@@ -190,12 +219,40 @@ export function EventStaff({
           </div>
           {legacyStaff?.map((s) => (
             <div key={`legacy-${s.id}`} className="space-y-2 rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
+              {editId === s.id ? (
+                <div className="space-y-2">
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Name" className={INPUT} disabled={pending} />
+                    <input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="Phone" className={INPUT} disabled={pending} />
+                    <input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="Email" className={INPUT} disabled={pending} />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button type="button" disabled={pending} onClick={() => saveLegacyEdit(s.id)}
+                      className="rounded-full bg-neon-gradient px-4 py-1.5 text-xs font-bold text-white">Save</button>
+                    <button type="button" disabled={pending} onClick={() => setEditId(null)}
+                      className="rounded-full px-3 py-1.5 text-xs font-semibold text-muted hover:text-foreground">Cancel</button>
+                  </div>
+                </div>
+              ) : (
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0 space-y-0.5">
                   <p className="truncate text-sm font-semibold">{s.displayName}</p>
                   <p className="text-xs text-muted">{s.phone}{s.email ? ` · ${s.email}` : ""}</p>
                 </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button type="button" disabled={pending} title="Edit staff"
+                    onClick={() => startLegacyEdit(s)}
+                    className="rounded-xl p-2 text-violet-neon hover:bg-violet-neon/10">
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button type="button" disabled={pending} title="Remove staff"
+                    onClick={() => { if (confirm(`Remove ${s.displayName} from this event?`)) removeLegacy(s.id); }}
+                    className="rounded-xl p-2 text-red-500 hover:bg-red-500/10">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
+              )}
             </div>
           ))}
           {staff.map((s) => (

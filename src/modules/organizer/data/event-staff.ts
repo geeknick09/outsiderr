@@ -164,6 +164,33 @@ export async function addEventStaff(
 }
 
 /**
+ * Update a door staff member's name/contact (RLS governs ownership).
+ */
+export async function updateEventStaff(
+  user: CurrentUser,
+  staffId: string,
+  fields: { displayName?: string; email?: string | null; phone?: string | null },
+): Promise<{ success: boolean; error?: string }> {
+  const organizer = await getOrganizerProfile(user);
+  if (!organizer) return { success: false, error: "No organizer profile." };
+
+  const update: { display_name?: string; email?: string | null; phone?: string | null } = {};
+  if (fields.displayName !== undefined) update.display_name = fields.displayName;
+  if (fields.email !== undefined) update.email = fields.email || null;
+  if (fields.phone !== undefined) update.phone = fields.phone || null;
+  if (Object.keys(update).length === 0) return { success: true };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("event_staff")
+    .update(update)
+    .eq("id", staffId);
+
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+/**
  * Remove a door staff member.
  */
 export async function removeEventStaff(
