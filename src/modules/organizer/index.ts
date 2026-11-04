@@ -8,6 +8,7 @@ export * from "./components/campaign-panel";
 export * from "./components/cancel-postpone-buttons";
 export * from "./components/collaboration-invites";
 export * from "./components/collaboration-panel";
+export * from "./components/collaborator-access-watcher";
 export * from "./components/door-staff-payment";
 export * from "./components/door-staff-request";
 export * from "./components/edit-event-form";

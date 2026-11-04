@@ -6,11 +6,11 @@ import { lazy, Suspense } from "react";
 
 import { AnalyticsPanel } from "@/modules/analytics";
 import { AttendeesTable } from "@/modules/organizer";
-import { EditEventForm, CancelPostponeButtons, CollaborationPanel, HeroBoostPanel, PastEventGalleryManager, WaitlistPanel, VerificationQueue, EventOverview, ManageTabs, EventEditsProvider, ManageEventHeader } from "@/modules/organizer";
+import { EditEventForm, CancelPostponeButtons, CollaborationPanel, CollaboratorAccessWatcher, HeroBoostPanel, PastEventGalleryManager, WaitlistPanel, VerificationQueue, EventOverview, ManageTabs, EventEditsProvider, ManageEventHeader } from "@/modules/organizer";
 import { Badge } from "@/modules/shared";
 import { CollapseAllProvider, CollapsibleSection } from "@/modules/shared";
 
-import { getCurrentUser, createServiceClient } from "@/modules/shared/server";
+import { getCurrentUser, createServiceClient, getOrganizerProfile } from "@/modules/shared/server";
 import { getEvent, getOrganizerPastEventsForLinking } from "@/modules/shared/server";
 import { EventStaff } from "@/modules/scanner";
 import { GuestlistPanel } from "@/modules/organizer";
@@ -96,6 +96,12 @@ export default async function ManageEventPage({
   const accessLevel = await getEventAccessLevel(user, id).catch(() => null);
   if (!accessLevel) notFound();
   const isOwner = accessLevel === "OWNER";
+  // Collaborator realtime revocation: watchers need the viewer's organizer id
+  // and their collaborator row id so a DELETE on it can be matched client-side.
+  const myOrg = isOwner ? null : await safe(getOrganizerProfile(user), null);
+  const myCollaboratorId = myOrg
+    ? collaborators.find((c) => c.organizerId === myOrg.id)?.id ?? null
+    : null;
   const eventInviteToken =
     isOwner && event.visibility === "INVITE_ONLY"
       ? await Promise.resolve(createServiceClient().rpc("get_event_invite_token", { p_event_id: event.id, p_actor_id: user.id }).then((r) => (typeof r.data === "string" ? r.data : null))).catch(() => null)
@@ -187,6 +193,16 @@ export default async function ManageEventPage({
   return (
     <EventEditsProvider>
     <div className="space-y-6 py-6">
+      {/* Realtime revocation — owner removing this collaborator covers the
+          page with a "removed" overlay and bounces them to the dashboard. */}
+      {!isOwner ? (
+        <CollaboratorAccessWatcher
+          eventId={event.id}
+          myOrganizerId={myOrg?.id ?? null}
+          myCollaboratorId={myCollaboratorId}
+        />
+      ) : null}
+
       {/* Banner + title + dates + badges - merges section saves instantly */}
       <ManageEventHeader
         event={event}
