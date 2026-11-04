@@ -34,6 +34,10 @@ import type { City, EventCategory } from "@/modules/shared";
 // for immediate invalidation, so listings stay fresh while benefiting from cache.
 export const revalidate = 60;
 
+// Cold Supabase resume can take ~12s - give the function headroom so a
+// cold start degrades to a slow load instead of a 504.
+export const maxDuration = 30;
+
 export default async function DiscoveryPage({
   searchParams,
 }: {

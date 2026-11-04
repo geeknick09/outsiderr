@@ -12,6 +12,14 @@ on:
     - cron: '20 * * * *'      # hourly       — reconcile-payments (missed captures + refund finals)
 
 jobs:
+  keep-warm:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/5 * * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Warm the DB (real query via health endpoint)
+        run: |
+          curl -fsS "${{ secrets.APP_URL }}/api/health" || echo "health check failed (non-fatal)"
+
   expire-reservations:
     if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/5 * * * *'
     runs-on: ubuntu-latest

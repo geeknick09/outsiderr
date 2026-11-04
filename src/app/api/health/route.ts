@@ -19,23 +19,26 @@ const startTime = Date.now();
 export async function GET() {
   const checks: Record<string, { status: string; latencyMs?: number; error?: string }> = {};
 
-  // Check Supabase database connectivity
+  // Check Supabase database connectivity — a REAL query, not a reachability
+  // ping: /rest/v1/ answers in ~400ms even while Postgres is still resuming,
+  // so only an actual table read proves the DB path is warm. This also keeps
+  // the compute warm when a cron pings this endpoint periodically.
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (!supabaseUrl) {
-      checks.supabase = { status: "degraded", error: "NEXT_PUBLIC_SUPABASE_URL not set" };
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !anonKey) {
+      checks.supabase = { status: "degraded", error: "Supabase env vars not set" };
     } else {
       const start = Date.now();
-      // Use the REST API health endpoint - no auth needed.
-      // Any HTTP response (even 404/401) means the API is reachable.
-      // Only network errors (caught below) indicate the service is down.
-      await fetch(`${supabaseUrl}/rest/v1/`, {
+      const res = await fetch(`${supabaseUrl}/rest/v1/events?select=id&limit=1`, {
         method: "GET",
-        signal: AbortSignal.timeout(5000),
+        headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
+        signal: AbortSignal.timeout(15000),
       });
       checks.supabase = {
-        status: "ok",
+        status: res.ok ? "ok" : "degraded",
         latencyMs: Date.now() - start,
+        ...(res.ok ? {} : { error: `HTTP ${res.status}` }),
       };
     }
   } catch (e) {

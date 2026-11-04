@@ -34,6 +34,9 @@ export const dynamic = "force-dynamic";
 // Event detail pages are dynamic (user-specific waitlist, ticket availability),
 // but we tag the page so mutations can invalidate it via revalidateTag.
 export const revalidate = 0;
+// Cold Supabase resume can take ~12s - headroom so a cold start degrades
+// to a slow load instead of a 504.
+export const maxDuration = 30;
 
 export async function generateMetadata({
   params,
