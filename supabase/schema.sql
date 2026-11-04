@@ -3635,7 +3635,13 @@ grant update (title, description, things_to_know, tags, photo_urls, category, ca
 
 -- ---- 9. Sanitized public organizer view ----------------------------------------
 -- Base table select becomes owner/admin-only; public reads use this view.
-create or replace view public.organizers_public as
+-- security_invoker = false is EXPLICIT and intentional (Supabase lint 0010):
+-- the definer (postgres) bypasses the base table's owner/admin-only RLS so
+-- anonymous users get a sanitized column projection. RLS is row-level only -
+-- column filtering requires a view. Only SELECT is granted; write access is
+-- impossible through this view. Suppress the advisor warning, don't "fix" it.
+create or replace view public.organizers_public
+  with (security_invoker = false) as
   select id, owner_id, name, bio, description, avatar_url, cover_url,
          instagram_url, youtube_url, x_url, facebook_url, linkedin_url,
          upi_id, upi_qr_url, verified, created_at
@@ -4955,12 +4961,16 @@ grant select, insert, update, delete on all tables in schema analytics to servic
 
 -- Public views for PostgREST reads — service-role only, so dashboards hit
 -- these via the service client after requireAdmin() (authz in app code).
-create or replace view public.analytics_daily_metrics_v  as select * from analytics.daily_metrics;
-create or replace view public.analytics_user_stats_v     as select * from analytics.user_order_stats;
-create or replace view public.analytics_user_activity_v  as select * from analytics.user_activity_days;
-create or replace view public.analytics_organizer_rollup_v as select * from analytics.organizer_rollup;
-create or replace view public.analytics_event_rollup_v   as select * from analytics.event_rollup;
-create or replace view public.analytics_totals_v         as select * from analytics.totals;
+-- security_invoker = false is explicit/intentional (advisor lint 0010):
+-- the underlying analytics.* tables are revoked from everyone; the definer
+-- view is what lets service_role read them. Grants below keep them
+-- service-role-only — no anon/authenticated path exists.
+create or replace view public.analytics_daily_metrics_v       with (security_invoker = false) as select * from analytics.daily_metrics;
+create or replace view public.analytics_user_stats_v          with (security_invoker = false) as select * from analytics.user_order_stats;
+create or replace view public.analytics_user_activity_v       with (security_invoker = false) as select * from analytics.user_activity_days;
+create or replace view public.analytics_organizer_rollup_v    with (security_invoker = false) as select * from analytics.organizer_rollup;
+create or replace view public.analytics_event_rollup_v        with (security_invoker = false) as select * from analytics.event_rollup;
+create or replace view public.analytics_totals_v              with (security_invoker = false) as select * from analytics.totals;
 
 revoke all on public.analytics_daily_metrics_v      from public, anon, authenticated;
 revoke all on public.analytics_user_stats_v         from public, anon, authenticated;
