@@ -23,8 +23,6 @@ Screenshot? yes/no
 
 Cross-reference `docs/reference/test-scenarios.md` for deep scenario detail per section.
 
- *
-
 ## Day 1 - Accounts: auth, profiles, creator onboarding
 
 **Focus: get every role provisioned. Nothing else is testable until this is done.**
@@ -33,8 +31,8 @@ Cross-reference `docs/reference/test-scenarios.md` for deep scenario detail per 
 
 - [x] Signup (email + Google), login, logout - all work; redirect lands back on the page you were on
 - [ ] Rate limit on repeated login/OTP attempts
-- [ ] `/profile` - edit name/avatar/bio/phone; interested-in categories drive the tag list (no giant wall of tags)
-- [ ] `/badges` - ladder shows earned vs locked with requirements
+- [x] `/profile` - edit name/avatar/bio/phone; interested-in categories drive the tag list (no giant wall of tags)
+- [x] `/badges` - ladder shows earned vs locked with requirements
 
 **Admin account**
 
@@ -43,18 +41,16 @@ Cross-reference `docs/reference/test-scenarios.md` for deep scenario detail per 
 
 **Creator onboarding (Creator A, then repeat for Creator B)**
 
-- [ ] `/list-your-event` - hero, orbit, three CTAs (Communities / Start Creating / Events)
-- [ ] Creator wizard: name + terms required; PAN / GST / bank / UPI all skippable via “Skip - Add Later”
-- [ ] When PAN filled: card photo required before Continue; bank step needs acct+IFSC+name+proof OR skip
-- [ ] Abandon onboarding mid-upload → uploaded media is cleaned up
-- [ ] Submit bare application → dashboard opens, NO admin KYC notification
-- [ ] Fill PAN+bank+GST later via Edit profile → saves directly, auto-verified (no admin review for now)
-- [ ] Dashboard shows “Add your bank account” notice until bank details exist; clicking it opens Edit profile
-- [ ] “Become a Creator” menu item flips to “Creator Dashboard” for creator accounts
+- [x] `/list-your-event` - hero, orbit, three CTAs (Communities / Start Creating / Events)
+- [x] Creator wizard: name + terms required; PAN / GST / bank / UPI all skippable via “Skip - Add Later”
+- [x] When PAN filled: card photo required before Continue; bank step needs acct+IFSC+name+proof OR skip
+- [x] Abandon onboarding mid-upload → uploaded media is cleaned up
+- [x] Submit bare application → dashboard opens, NO admin KYC notification
+- [x] Fill PAN+bank+GST later via Edit profile → saves directly, auto-verified (no admin review for now)
+- [x] Dashboard shows “Add your bank account” notice until bank details exist; clicking it opens Edit profile
+- [x] “Become a Creator” menu item flips to “Creator Dashboard” for creator accounts
 
 **Exit criteria:** admin + Creator A + Creator B + User 1/2/3 all exist and can log in.
-
- *
 
 ## Day 2 - Content: events in every city, communities, collaborators
 
@@ -62,15 +58,15 @@ Cross-reference `docs/reference/test-scenarios.md` for deep scenario detail per 
 
 ### 2A - Events (Creator A - spread across cities; no community needed)
 
-- [ ] Create a PAID event in City 1 (Mumbai): title/dates/venue (TBA + real)/tiers/phased pricing/categories/multi-category/tags/photos
-- [ ] Create a FREE event in City 2 (Delhi)
+- [x] Create a PAID event in City 1 (Mumbai): title/dates/venue (TBA + real)/tiers/phased pricing/categories/multi-category/tags/photos
+- [x] Create a FREE event in City 2 (Delhi)
 - [ ] Create a second PAID event in City 3 (Bengaluru) - needed for the referral window test
-- [ ] Create a DRAFT event (unpublished) - confirm it's invisible to the public
-- [ ] Save draft -> publish later via Publish button AND via edit -> publish
-- [ ] Edit event: every section saves independently; banner/poster/teaser upload
-- [ ] Waitlist toggle + "update me" subscription + max tickets per user
-- [ ] Things-to-know bullets, contact info, terms acceptance on publish
-- [ ] Cancel/postpone buttons notify ticket holders (verify on one event)
+- [x] Create a DRAFT event (unpublished) - confirm it’s invisible to the public
+- [x] Save draft -> publish later via Publish button AND via edit -> publish
+- [x] Edit event: every section saves independently; banner/poster/teaser upload
+- [x] Waitlist toggle + “update me” subscription + max tickets per user
+- [x] Things-to-know bullets, contact info, terms acceptance on publish
+- [x] Cancel/postpone buttons notify ticket holders (verify on one event)
 
 ### 2B - Communities (Creator A + one for Creator B)
 
@@ -83,25 +79,23 @@ Cross-reference `docs/reference/test-scenarios.md` for deep scenario detail per 
 - [ ] Attach a published event to a community, change community, detach to public - all three paths
 - [ ] Visibility: Open / **Members-only** (community exists now) / **Invite-only** - invite link works, broken link rejected
 - [ ] Recurring (weekly) community event creates repeats; linked past events work
-- [ ] Member count toggle -> public page shows/hides "N members"
+- [ ] Member count toggle -> public page shows/hides “N members”
 - [ ] Join questions (private community) - request -> approve -> member list
 - [ ] **Invite-only community**: invite link joins directly
 - [ ] CSV member import: upload, invalid-row surfacing, members appear (admin approval is Day 5)
 
 ### 2D - Collaborators & staff (Creator A + B)
 
-- [ ] Creator A invites Creator B as collaborator on an event
-- [ ] Creator B sees invite (notification + `/organizer` panel), accepts -> gets access
-- [ ] Creator B (LIMITED): sees ops analytics, CANNOT see money, CANNOT edit community attach, CANNOT cancel
-- [ ] Declined invite -> no access; removed collaborator -> access gone
-- [ ] Staff members: add door staff + box office staff (name+phone or email), they can sign in
+- [x] Creator A invites Creator B as collaborator on an event
+- [x] Creator B sees invite (notification + `/organizer` panel), accepts -> gets access
+- [x] Creator B (LIMITED): sees ops analytics, CANNOT see money, CANNOT edit community attach, CANNOT cancel
+- [x] Declined invite -> no access; removed collaborator -> access gone
+- [x] Staff members: add door staff + box office staff (name+phone or email), they can sign in
 - [ ] Box office PIN + scanner PIN generation + revoke
-- [ ] Door-staff paid order: request N staff -> service fee recorded
+- [x] Door-staff paid order: request N staff -> service fee recorded
 - [ ] Guestlist link creation + guest claims free ticket
 
 **Exit criteria:** paid + free + draft events exist across 2-3 cities; communities exist with members; collaborator access verified.
-
-
 
 ## Day 3 - Discovery as a user: browse, filter, join, book
 
@@ -124,9 +118,19 @@ Cross-reference `docs/reference/test-scenarios.md` for deep scenario detail per 
 - [ ] Community event created/published/attached → all ACCEPTED members notified (one notif per member, owner excluded)
 - [ ] Notification bell: realtime update (no refresh); community notifs have View + Join inline; mark read/all read/clear/load more
 
-**Exit criteria:** User 1 has tickets (free + paid) and community memberships; notifications verified.
+**Box office (staff counter sales)**
 
- *
+- [ ] Copy link: `/box-office` link in the Staff section copies with `?event=<id>` - staff open it, sign in, event preselected
+- [ ] Staff sign in at `/box-office` with phone/email + password → only events with **Box office** role appear
+- [ ] Role gating: door-only staff see the event at `/scan` but NOT at `/box-office`; manager sees both
+- [ ] Cash sale → ticket issued instantly, buyer gets order + QR; `quantity_sold` increments live (organizer sees it)
+- [ ] Razorpay counter sale → payment link flow → order confirms + ticket; sale attributed to the staff member
+- [ ] Walk-in + online sale on the same event: inventory counts correctly, sold-out blocks both channels
+- [ ] "Cash to collect" total = sum of cash sales minus confirmed handovers (math-check a few rows)
+- [ ] "Confirm cash" marks the handover; outstanding resets to ₹0
+- [ ] Refund a box-office order → stock returns, ledger entry correct
+
+**Exit criteria:** User 1 has tickets (free + paid) and community memberships; notifications verified; box office sells + attributes correctly.
 
 ## Day 4 - Money + promoters + door ops
 
@@ -178,8 +182,6 @@ Cross-reference `docs/reference/test-scenarios.md` for deep scenario detail per 
 
 **Exit criteria:** money math verified on real orders; refunds + payouts flow; both promoter income types verified; scanner + box office work.
 
- *
-
 ## Day 5 - Admin console: every tab, every feature
 
 **Focus: dedicated admin day - go tab by tab, leave nothing unclicked. Check tab-switch loading spinners everywhere.**
@@ -219,8 +221,6 @@ Cross-reference `docs/reference/test-scenarios.md` for deep scenario detail per 
 
 **Exit criteria:** every admin tab opened, every setting saved once, money strip numbers reconcile with Day 4 activity.
 
- *
-
 ## Day 6 - Edges, regression, mobile, launch checklist
 
 **Focus: break it.**
@@ -249,8 +249,6 @@ Cross-reference `docs/reference/test-scenarios.md` for deep scenario detail per 
 - [ ] Share/copy-link buttons on event + community pages
 - [ ] Offline: kill network → themed offline page + snake game shows
 
- *
-
 **Daily rhythm:** test during the day -> send findings by evening -> fixes overnight -> next morning verify + move on.
 
 ## Day 7 - Infrastructure: staging + production environments + real domain
@@ -260,11 +258,11 @@ Cross-reference `docs/reference/test-scenarios.md` for deep scenario detail per 
 - [ ] **Two environments**: staging (test freely) + production (live users) - separate Vercel deployments
 - [ ] **Separate databases**: staging Supabase project + prod Supabase project - never test writes on prod data (schema mirrored via `fix_all.sql` + migrations)
 - [ ] **Env var split**: `NEXT_PUBLIC_SUPABASE_URL/ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `RAZORPAY_KEY_ID/SECRET`, `NEXT_PUBLIC_APP_URL` - staging keys on staging, live keys on prod only
-- [ ] **Real domain**: register domain (e.g. outsiderr.com / outsiderr.in) -> Vercel Domains -> CNAME/A records -> SSL auto-issues
+- [ ] **Real domain**: register domain (e.g. [outsiderr.com](http://outsiderr.com) / [outsiderr.in](http://outsiderr.in)) -> Vercel Domains -> CNAME/A records -> SSL auto-issues
 - [ ] `NEXT_PUBLIC_APP_URL` = real domain on prod; confirm canonical links, auth redirects (`Site URL` + `Redirect URLs` in Supabase Auth), and OAuth callback domains updated (Google OAuth console -> add domain)
 - [ ] **Subdomain plan** (optional): `app.outsiderr.com` for the app, apex for marketing later
 - [ ] Verify: staging deploy on `staging.<domain>` or Vercel preview URL; prod on apex; env vars confirmed not crossed
-- [ ] Email/SMTP for auth emails + notifications on the real domain (SPF/DKIM) - Supabase custom SMTP (Resend/Postmark/SES) so OTP emails don't land in spam
+- [ ] Email/SMTP for auth emails + notifications on the real domain (SPF/DKIM) - Supabase custom SMTP (Resend/Postmark/SES) so OTP emails don’t land in spam
 
 ## Day 8 - Payments: Razorpay live mode
 
@@ -302,10 +300,10 @@ Cross-reference `docs/reference/test-scenarios.md` for deep scenario detail per 
 
 - [ ] **Go-live checklist**: prod deploy green, domain live, live Razorpay keys, legal pages published (organizer-v1.0 + user terms + privacy + refunds), 44 settings verified, seed/test data purged
 - [ ] **Monitoring**: Vercel logs + alerts; Supabase logs; Sentry or similar for errors; uptime check on `/` + `/api/health` (add if missing)
-- [ ] **Support channel**: support@<domain> or WhatsApp business number; contact links point to it
+- [ ] **Support channel**: support@ or WhatsApp business number; contact links point to it
 - [ ] **First real organizers**: onboard 2-3 known creators manually; walk them through event creation + first ticket sale live
 - [ ] **First real sale**: real customer buys -> whole funnel (order -> payment -> ticket -> scan -> payout) observed live
-- [ ] **Rollback plan**: Vercel instant rollback to last good deploy; DB backup/restore tested once (Supabase PITR or pg_dump)
+- [ ] **Rollback plan**: Vercel instant rollback to last good deploy; DB backup/restore tested once (Supabase PITR or pg\_dump)
 - [ ] **Rate limits + abuse**: login limiter, upload limits, payment webhook signature - all confirmed on prod
 - [ ] **Analytics baseline**: orders/day, signups/day, conversion tracked from day 1
 - [ ] **Post-launch watch**: monitor first 48h closely - refunds, failed payments, error spikes

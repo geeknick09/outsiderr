@@ -99,6 +99,13 @@ export function EventStaff({
     });
   }
 
+  function copyLink(path: string) {
+    navigator.clipboard.writeText(`${window.location.origin}${path}`).then(
+      () => setNotice("Link copied - share it with your staff."),
+      () => setError("Couldn't copy the link."),
+    );
+  }
+
   function startEdit(id: string, name: string, phone: string | null, email: string | null) {
     setEditId(id);
     setEditName(name);
@@ -150,9 +157,13 @@ export function EventStaff({
     <div className="space-y-4">
       <p className="text-sm text-muted">
         Add staff with a password you choose. They sign in at{" "}
-        <span className="font-mono text-violet-neon">/scan</span> (door) or{" "}
-        <span className="font-mono text-violet-neon">/box-office</span> (counter) with their phone or email
-        + password. Sales are attributed to them.
+        <button type="button" title="Copy door link" onClick={() => copyLink("/scan")}
+          className="font-mono text-violet-neon underline underline-offset-2 hover:opacity-80">/scan</button>{" "}
+        (door) or{" "}
+        <button type="button" title="Copy box-office link" onClick={() => copyLink(`/box-office?event=${eventId}`)}
+          className="font-mono text-violet-neon underline underline-offset-2 hover:opacity-80">/box-office</button>{" "}
+        (counter) with their phone or email + password. Click a link to copy it - share with your staff.
+        Sales are attributed to them.
       </p>
 
       <div className="space-y-3">

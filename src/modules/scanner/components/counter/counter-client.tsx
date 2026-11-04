@@ -31,6 +31,14 @@ export function CounterClient() {
   const [pending, startTransition] = useTransition();
 
   const [eventId, setEventId] = useState("");
+  const [preselectTried, setPreselectTried] = useState(false);
+  // Shared box-office links carry ?event=<id> - preselect it once events load.
+  useEffect(() => {
+    if (preselectTried || events.length === 0) return;
+    const id = new URLSearchParams(window.location.search).get("event");
+    if (id && events.some((e) => e.id === id)) setEventId(id);
+    setPreselectTried(true);
+  }, [events, preselectTried]);
   const [tierId, setTierId] = useState("");
   const [mode, setMode] = useState<"WALKIN_QR" | "WALKIN_INSTANT">("WALKIN_QR");
   const [payMethod, setPayMethod] = useState<"CASH" | "RAZORPAY">("CASH");
