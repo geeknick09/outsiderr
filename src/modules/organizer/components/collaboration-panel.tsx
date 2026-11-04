@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Loader2, Search, Check, Clock } from "lucide-react";
 import Image from "next/image";
 import {
@@ -10,6 +11,7 @@ import {
   removeCollaboratorAction,
   changeCollaboratorPermissionAction,
 } from "@/modules/shared/actions/engagement";
+import { useRealtime } from "@/modules/shared";
 
 type PermissionLevel = "LIMITED" | "ANALYTICS" | "FULL";
 
@@ -83,6 +85,18 @@ export function CollaborationPanel({
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [invitingId, setInvitingId] = useState<string | null>(null);
   const [justInvited, setJustInvited] = useState<string[]>([]);
+  const router = useRouter();
+
+  // Realtime roster sync — the collaborator accepting/declining runs in
+  // THEIR session, so the owner's page never revalidates on its own.
+  // Any change to this event's collaborator rows refetches the roster.
+  useRealtime({
+    channelName: `collab-roster-${eventId}`,
+    table: "event_collaborators",
+    event: "*",
+    filter: `event_id=eq.${eventId}`,
+    onPayload: () => router.refresh(),
+  });
 
   async function handleSearch(q: string) {
     setQuery(q);
