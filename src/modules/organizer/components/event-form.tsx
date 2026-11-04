@@ -1494,10 +1494,10 @@ export function EventForm({
             {/* ── Staff & promoters ── */}
       <section className={`glass scroll-mt-36 space-y-4 rounded-3xl p-5 ${step === 5 ? "" : "hidden"}`}>
         <div>
-          <h2 className="text-base font-bold">Door &amp; box office staff</h2>
+          <h2 className="text-base font-bold">Staff</h2>
           <p className="text-xs text-muted">
-            Add people who scan tickets or sell at the box office. They sign in with the phone or
-            email below - up to 5 here, more from the event page later.
+            Add your event staff - they can scan tickets at the door and sell at the box-office counter
+            with the same login. Up to 5 here, more from the event page later.
           </p>
         </div>
         {staffRows.map((row, i) => (

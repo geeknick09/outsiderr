@@ -41,14 +41,14 @@ export function EventStaffManager({
       setEmail("");
       setPhone("");
       setName("");
-      setSuccess("Door staff added successfully.");
+      setSuccess("Staff added successfully.");
     } else {
-      setError(res.error ?? "Failed to add door staff.");
+      setError(res.error ?? "Failed to add staff.");
     }
   }
 
   async function handleRemove(staffId: string) {
-    if (!confirm("Remove this door staff member?")) return;
+    if (!confirm("Remove this staff member?")) return;
     await removeEventStaffAction(eventId, staffId);
   }
 
@@ -59,7 +59,7 @@ export function EventStaffManager({
         <h2 className="text-lg font-bold">Door Staff</h2>
       </div>
       <p className="text-sm text-muted">
-        Assign door staff by email or phone. They will only be able to access the door scanner
+        Assign staff by email or phone. They will only be able to access the door scanner
         at <code className="rounded bg-violet-neon/10 px-1.5 py-0.5 text-xs text-violet-neon">/scan</code> -
         no access to your organizer dashboard or analytics.
       </p>
@@ -102,14 +102,14 @@ export function EventStaffManager({
         {success ? <p className="text-sm text-emerald-500">{success}</p> : null}
         <Button type="submit" size="sm" disabled={loading}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
-          Add door staff
+          Add staff
         </Button>
       </form>
 
       {/* Staff list */}
       {staff.length === 0 ? (
         <div className="glass rounded-2xl p-5 text-sm text-muted">
-          No door staff assigned yet.
+          No staff assigned yet.
         </div>
       ) : (
         <div className="glass overflow-hidden rounded-2xl">

@@ -111,11 +111,17 @@ export function EventStaff({
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Email (optional)</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="rahul@example.com" className={INPUT} disabled={pending} />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="rahul@example.com" className={`${INPUT} ${email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ? "border-red-500" : ""}`} disabled={pending} />
+            {email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ? (
+              <p className="mt-1 text-[11px] text-red-500">Enter a valid email address.</p>
+            ) : null}
           </div>
           <div>
             <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Phone * (their login)</label>
-            <input type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="10-digit phone" className={INPUT} disabled={pending} />
+            <input type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="10-digit phone" className={`${INPUT} ${phone && phone.replace(/\D/g, "").length < 10 ? "border-red-500" : ""}`} disabled={pending} />
+            {phone && phone.replace(/\D/g, "").length < 10 ? (
+              <p className="mt-1 text-[11px] text-red-500">Enter the 10-digit phone number.</p>
+            ) : null}
           </div>
         </div>
         <div>
