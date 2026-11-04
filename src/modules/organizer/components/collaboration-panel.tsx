@@ -211,7 +211,7 @@ export function CollaborationPanel({
                 // PENDING/ACCEPTED already live in the roster below — showing
                 // them here too renders the same person twice.
                 const existing = collaborators.find((c) => c.organizerId === org.id);
-                return !existing || existing.status === "DECLINED";
+                return !existing || (existing.status !== "PENDING" && existing.status !== "ACCEPTED");
               }).map((org) => {
                 const existing = collaborators.find((c) => c.organizerId === org.id);
                 const invited = !!existing || justInvited.includes(org.id);

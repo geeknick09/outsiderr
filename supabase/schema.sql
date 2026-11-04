@@ -3523,7 +3523,14 @@ begin
     new.event_id := old.event_id;
     new.organizer_id := old.organizer_id;
     new.invited_by := old.invited_by;
-    if not public.is_current_user_admin() then
+    -- permission_level may be changed by the event owner or an admin; the
+    -- invitee must not escalate their own access.
+    if not public.is_current_user_admin()
+       and not exists (
+         select 1 from public.events e
+         join public.organizers o on o.id = e.organizer_id
+         where e.id = old.event_id and o.owner_id = auth.uid()
+       ) then
       new.permission_level := old.permission_level;
     end if;
   end if;

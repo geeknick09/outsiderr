@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { getAuthUserId, getCurrentUser } from "../auth/auth";
 import { createClient } from "../auth/server";
+import { createServiceClient } from "../auth/service";
 
 // ================================================================
 // Event Subscriptions ("Update Me")
@@ -442,7 +443,12 @@ export async function changeCollaboratorPermissionAction(
     return { error: "Only the event owner can change collaborator permissions." };
   }
 
-  const { error } = await supabase
+  // The event_collaborators_pin_columns trigger reverts permission_level for
+  // every non-service-role caller (it exists to stop invitees escalating
+  // their own access) — so the owner's update must go through the service
+  // client. Ownership is verified above.
+  const service = createServiceClient();
+  const { error } = await service
     .from("event_collaborators")
     .update({ permission_level: permissionLevel, updated_at: new Date().toISOString() })
     .eq("id", collaboratorId)
