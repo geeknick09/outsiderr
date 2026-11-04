@@ -424,21 +424,13 @@ export async function changeCollaboratorPermissionAction(
 
   const supabase = await createClient();
 
-  // Verify the current user owns this event
-  const { data: event } = await supabase
-    .from("events")
-    .select("organizer_id")
-    .eq("id", eventId)
-    .maybeSingle();
+  // Verify the current user owns this event — both lookups run in parallel.
+  const [{ data: event }, { data: myOrg }] = await Promise.all([
+    supabase.from("events").select("organizer_id").eq("id", eventId).maybeSingle(),
+    supabase.from("organizers_public").select("id").eq("owner_id", user.id).maybeSingle(),
+  ]);
 
   if (!event) return { error: "Event not found." };
-
-  const { data: myOrg } = await supabase
-    .from("organizers_public")
-    .select("id")
-    .eq("owner_id", user.id)
-    .maybeSingle();
-
   if (!myOrg || myOrg.id !== event.organizer_id) {
     return { error: "Only the event owner can change collaborator permissions." };
   }

@@ -80,6 +80,9 @@ export function CollaborationPanel({
   const [pending, startTransition] = useTransition();
   const [selectedPerm, setSelectedPerm] = useState<PermissionLevel>("LIMITED");
   const [changingPerm, setChangingPerm] = useState<string | null>(null);
+  // Optimistic permission display — the select shows the new level instantly
+  // while the action runs; cleared on failure to revert to the server value.
+  const [permOverrides, setPermOverrides] = useState<Record<string, PermissionLevel>>({});
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [invitingId, setInvitingId] = useState<string | null>(null);
   const [justInvited, setJustInvited] = useState<string[]>([]);
@@ -145,14 +148,25 @@ export function CollaborationPanel({
 
   function handleChangePermission(collaboratorId: string, perm: PermissionLevel) {
     setChangingPerm(collaboratorId);
+    setPermOverrides((prev) => ({ ...prev, [collaboratorId]: perm }));
     startTransition(async () => {
       try {
         const result = await changeCollaboratorPermissionAction(eventId, collaboratorId, perm);
         if (result.error) {
           setError(result.error);
+          setPermOverrides((prev) => {
+            const next = { ...prev };
+            delete next[collaboratorId];
+            return next;
+          });
         }
       } catch {
         setError("Couldn't change permission. Try again.");
+        setPermOverrides((prev) => {
+          const next = { ...prev };
+          delete next[collaboratorId];
+          return next;
+        });
       }
       setChangingPerm(null);
     });
@@ -304,7 +318,7 @@ export function CollaborationPanel({
                           <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-neon" aria-label="Saving permission" />
                         ) : null}
                         <select
-                          value={(c.permissionLevel as PermissionLevel) ?? "LIMITED"}
+                          value={permOverrides[c.id] ?? (c.permissionLevel as PermissionLevel) ?? "LIMITED"}
                           onChange={(e) => handleChangePermission(c.id, e.target.value as PermissionLevel)}
                           disabled={changingPerm === c.id || pending}
                           className="rounded-xl border border-zinc-200 bg-white px-2 py-1 text-[10px] font-bold outline-none focus:border-violet-neon dark:border-white/10 dark:bg-zinc-900 dark:text-white"
@@ -346,6 +360,13 @@ export function CollaborationPanel({
             );
           })
         )}
+      </div>
+
+      {/* Permission legend */}
+      <div className="border-t border-zinc-200 pt-3 text-[10px] leading-relaxed text-muted dark:border-white/10">
+        <p><span className="font-bold text-foreground">Ops</span> — view event, orders, check-ins &amp; analytics. No money figures.</p>
+        <p><span className="font-bold text-foreground">Ops + Money</span> — everything in Ops, plus revenue, payout and money analytics.</p>
+        <p><span className="font-bold text-foreground">Full access</span> — everything except deleting the event and changing date, venue or city (owner only).</p>
       </div>
     </div>
   );
