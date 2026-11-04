@@ -28,6 +28,7 @@ import { getCurrentUser } from "@/modules/shared/server";
 import { formatDateTime, isToday, cityLabel, normalizeCityKey } from "@/modules/shared";
 import { partitionSearchEvents } from "@/modules/web";
 import type { City, EventCategory } from "@/modules/shared";
+import { RELEASE_FLAGS } from "@/modules/shared";
 
 // Revalidate the home page every 60 seconds.
 // Event mutations (create/edit/publish/cancel) call revalidatePath("/")
@@ -141,10 +142,10 @@ export default async function DiscoveryPage({
       ) : (
         <>
       {/* Hero Boost carousel - only shown in "All" view (no category filter) */}
-      {!category && heroEvents.length > 0 ? <HeroCarousel events={heroEvents} /> : null}
+      {RELEASE_FLAGS.boost && !category && heroEvents.length > 0 ? <HeroCarousel events={heroEvents} /> : null}
 
       {/* Sponsored slot strip - auto-scrolls, hidden when no boosts */}
-      {!category ? <SlotBoostStrip events={slotBoostEvents} /> : null}
+      {RELEASE_FLAGS.boost && !category ? <SlotBoostStrip events={slotBoostEvents} /> : null}
 
       {/* Discover communities CTA */}
       {!category && !search ? (
@@ -191,7 +192,7 @@ export default async function DiscoveryPage({
         </section>
       ) : null}
 
-      <FeaturedCarousel events={featured} />
+      {RELEASE_FLAGS.boost ? <FeaturedCarousel events={featured} /> : null}
 
       <EventSection
         title="Happening Today"

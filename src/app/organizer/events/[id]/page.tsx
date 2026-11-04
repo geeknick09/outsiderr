@@ -27,7 +27,7 @@ import { expireWaitlistOffers, listEventWaitlist } from "@/modules/shared/server
 
 import { getCancellationChargePercent, getPostponementChargePercent, getHeroBoostPrice, getHeroBoostDurationDays } from "@/modules/shared/server";
 import { getHeroBoostForEvent } from "@/modules/shared/server";
-import { isEventEnded } from "@/modules/shared";
+import { isEventEnded, RELEASE_FLAGS } from "@/modules/shared";
 import { getDraftRetentionDays } from "@/modules/shared/server";
 
 // Lazy - EventForm pulls in Leaflet via MapPicker
@@ -73,15 +73,15 @@ export default async function ManageEventPage({
     safe(getOrganizerEventAnalytics(user, id), null),
     safe(getCancellationChargePercent(), 0),
     safe(getPostponementChargePercent(), 0),
-    safe(getHeroBoostForEvent(user, id), null),
-    safe(getHeroBoostPrice(), 0),
-    safe(getHeroBoostDurationDays(), 7),
+    RELEASE_FLAGS.boost ? safe(getHeroBoostForEvent(user, id), null) : Promise.resolve(null),
+    RELEASE_FLAGS.boost ? safe(getHeroBoostPrice(), 0) : Promise.resolve(0),
+    RELEASE_FLAGS.boost ? safe(getHeroBoostDurationDays(), 7) : Promise.resolve(7),
     safe(listEventOrders(id), []),
     safe(listEventTickets(id), []),
     safe(listEventWaitlist(id), []),
     safe(getEventCollaboratorsForOwner(user, id), []),
     safe(listEventStaff(user, id), []),
-    safe(listGuestlist(id), []),
+    RELEASE_FLAGS.guestlist ? safe(listGuestlist(id), []) : Promise.resolve([]),
     safe(getEventVirality(id), null),
     safe(listEventCounterStaff(id), []),
   ]);
@@ -236,7 +236,7 @@ export default async function ManageEventPage({
                 </div>
               )}
 
-              {canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast ? (
+              {RELEASE_FLAGS.boost && canEdit && event.status !== "CANCELLED" && event.status !== "CANCELLATION_REQUESTED" && !eventPast ? (
                 <CollapsibleSection title="Featured & Boost" description="Hero rotation and homepage slot boosts.">
                   <div className="space-y-4">
                     <HeroBoostPanel
@@ -280,7 +280,7 @@ export default async function ManageEventPage({
                 </CollapsibleSection>
               ) : null}
 
-              {!eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
+              {RELEASE_FLAGS.guestlist && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
                 <CollapsibleSection title="Guestlist">
                   <GuestlistPanel eventId={event.id} guests={guestlist} />
                 </CollapsibleSection>

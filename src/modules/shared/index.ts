@@ -18,6 +18,7 @@ export type { CurrentUser } from "./auth/auth";
 
 // ---- constants & pure helpers ----
 export * from "./lib/constants";
+export * from "./lib/release-flags";
 export * from "./lib/india-cities";
 export * from "./lib/sale-attempt";
 export * from "./lib/format";
