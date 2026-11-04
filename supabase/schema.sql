@@ -3422,6 +3422,16 @@ exception when duplicate_object then null; end $$;
 do $$ begin
   alter publication supabase_realtime add table public.event_collaborators;
 exception when duplicate_object then null; end $$;
+
+-- REPLICA IDENTITY FULL — realtime `filter:` checks the payload, and DELETE
+-- payloads only carry the PK by default, so column-filtered subscriptions
+-- (event_id=eq.X) silently drop DELETE events. With FULL, `old` carries all
+-- columns and DELETEs match the filter. Required for collaborator removal/
+-- decline, order and tier deletions to propagate realtime.
+alter table public.event_collaborators replica identity full;
+alter table public.orders               replica identity full;
+alter table public.ticket_tiers         replica identity full;
+
 -- STEP 21: Security hardening sweep (QA audit fixes, 2026-09-22)
 -- Fixes: RPC lockdown (free-ticket mints), privileged-column writes
 -- (self-admin / self-KYC / fee evasion), staff self-claim, collaborator
