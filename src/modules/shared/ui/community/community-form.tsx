@@ -212,7 +212,10 @@ export function CommunityForm({ existingSubcategories = {}, initial }: { existin
             What kind? (pick one or more - shows on your page)
           </span>
           <div className="flex flex-wrap gap-2">
-            {[...new Set([...(COMMUNITY_SUBCATEGORY_SUGGESTIONS[category as keyof typeof COMMUNITY_SUBCATEGORY_SUGGESTIONS] ?? []), ...(existingSubcategories[category] ?? [])])].map((s) => (
+            {[...new Set([...(COMMUNITY_SUBCATEGORY_SUGGESTIONS[category as keyof typeof COMMUNITY_SUBCATEGORY_SUGGESTIONS] ?? []), ...(existingSubcategories[category] ?? []), ...subcategories])].map((s) => {
+              const selected = subcategories.includes(s);
+              const isCustom = !(COMMUNITY_SUBCATEGORY_SUGGESTIONS[category as keyof typeof COMMUNITY_SUBCATEGORY_SUGGESTIONS] ?? []).includes(s) && !(existingSubcategories[category] ?? []).includes(s);
+              return (
               <button
                 key={s}
                 type="button"
@@ -221,15 +224,17 @@ export function CommunityForm({ existingSubcategories = {}, initial }: { existin
                     prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
                   )
                 }
-                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-all ${
-                  subcategories.includes(s)
+                className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all ${
+                  selected
                     ? "border-violet-neon bg-violet-neon/15 text-violet-600 dark:text-violet-300"
                     : "border-zinc-300 text-muted hover:border-violet-neon/60 dark:border-white/15"
                 }`}
               >
                 {s}
+                {selected ? <span className="text-[10px]">{isCustom ? "×" : "✓"}</span> : null}
               </button>
-            ))}
+              );
+            })}
           </div>
           <div className="flex gap-2">
             <input
