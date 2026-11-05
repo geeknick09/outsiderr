@@ -76,7 +76,7 @@ begin
     raise exception 'This event is not open for sales';
   end if;
   if p_quantity > v_event.max_tickets_per_user then
-    raise exception format('Max %s tickets per order', v_event.max_tickets_per_user);
+    raise exception 'Max % tickets per order', v_event.max_tickets_per_user;
   end if;
 
   select * into v_tier from public.ticket_tiers where id = p_tier_id for update;
