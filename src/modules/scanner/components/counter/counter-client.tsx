@@ -134,6 +134,12 @@ export function CounterClient() {
             <Ticket className="h-4 w-4" /> {done.ticketIds.length} ticket{done.ticketIds.length === 1 ? "" : "s"} issued - collect {formatPaise(done.totalPaise)}
           </p>
           <div className="space-y-2">
+            {done.ticketIds.length > 1 ? (
+              <Link href={`/box-office/order/${done.orderId}/print`} target="_blank"
+                className="block rounded-full border border-neon-gradient py-2 text-center text-xs font-bold text-violet-neon">
+                Print all {done.ticketIds.length} tickets
+              </Link>
+            ) : null}
             {done.ticketIds.map((id, i) => (
               <div key={id} className="flex items-center justify-between rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
                 <p className="text-sm font-semibold">Ticket {i + 1}</p>
