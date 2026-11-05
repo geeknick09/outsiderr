@@ -357,3 +357,53 @@ export async function toggleCommunityMemberCountAction(
   revalidatePath("/communities");
   return { ok: true };
 }
+
+export async function updateCommunityAction(
+  _prev: { error: string | null },
+  formData: FormData,
+): Promise<{ error: string | null }> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const communityId = String(formData.get("communityId") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  if (!communityId) return { error: "Missing community id." };
+  if (!name) return { error: "Give your community a name." };
+
+  const { getOrganizerProfile } = await import("../data/organizer-profile");
+  const organizer = await getOrganizerProfile(user);
+  if (!organizer) return { error: "Organizer profile required." };
+
+  const terms = String(formData.get("terms") ?? "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("communities")
+    .update({
+      name,
+      bio: String(formData.get("bio") ?? "").trim() || null,
+      city: String(formData.get("city") ?? "").trim() ? normalizeCityKey(String(formData.get("city"))) : null,
+      category: String(formData.get("category") ?? "").trim() || null,
+      subcategory: String(formData.get("subcategory") ?? "").trim() || null,
+      avatar_url: String(formData.get("avatarUrl") ?? "").trim() || null,
+      cover_url: String(formData.get("coverUrl") ?? "").trim() || null,
+      mobile_cover_url: String(formData.get("mobileCoverUrl") ?? "").trim() || null,
+      instagram_handle: String(formData.get("instagramHandle") ?? "").trim() || null,
+      youtube_url: String(formData.get("youtubeUrl") ?? "").trim() || null,
+      x_url: String(formData.get("xUrl") ?? "").trim() || null,
+      linkedin_url: String(formData.get("linkedinUrl") ?? "").trim() || null,
+      facebook_url: String(formData.get("facebookUrl") ?? "").trim() || null,
+      website_url: String(formData.get("websiteUrl") ?? "").trim() || null,
+      upi_id: String(formData.get("upiId") ?? "").trim() || null,
+      membership_type: String(formData.get("membershipType") ?? "OPEN"),
+      terms,
+    })
+    .eq("id", communityId)
+    .eq("owner_id", organizer.id);
+  if (error) return { error: error.message };
+  revalidatePath(`/communities/${communityId}`);
+  revalidatePath(`/organizer/communities/${communityId}`);
+  revalidatePath("/organizer/communities");
+  return { error: null };
+}

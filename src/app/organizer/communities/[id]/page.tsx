@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { CommunityManageTabs, MemberCountToggle } from "@/modules/organizer";
+import { CommunityForm } from "@/modules/shared";
 import {
   getCommunity,
   listCommunityMemberDetails,
@@ -147,6 +148,28 @@ export default async function OrganizerCommunityManagePage({
         warmLeads={warmLeads}
         inviteToken={typeof inviteToken === "string" ? inviteToken : null}
         initialTab={["analytics", "requests", "import", "events"].includes(tab ?? "") ? tab as "analytics" | "requests" | "import" | "events" : "members"}
+      />
+      <CommunityForm
+        initial={{
+          id: community.id,
+          name: community.name,
+          bio: community.bio,
+          city: community.city as string | null,
+          category: community.category,
+          subcategory: community.subcategory,
+          avatarUrl: community.avatarUrl,
+          coverUrl: community.coverUrl,
+          mobileCoverUrl: community.mobileCoverUrl,
+          instagramHandle: community.instagramHandle,
+          youtubeUrl: community.youtubeUrl,
+          xUrl: community.xUrl,
+          linkedinUrl: community.linkedinUrl,
+          facebookUrl: community.facebookUrl,
+          websiteUrl: community.websiteUrl,
+          upiId: community.upiId,
+          membershipType: community.membershipType,
+          terms: community.terms,
+        }}
       />
     </div>
   );

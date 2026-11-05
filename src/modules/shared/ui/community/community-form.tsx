@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { AtSign, Plus, Upload } from "lucide-react";
 
-import { createCommunityAction, type CreateCommunityState } from "../../actions/communities";
+import { createCommunityAction, updateCommunityAction, type CreateCommunityState } from "../../actions/communities";
 import { Button } from "../ui/button";
 import { CITIES, COMMUNITY_CATEGORIES, COMMUNITY_SUBCATEGORY_SUGGESTIONS } from "../../lib/constants";
 import { uploadPublicFile } from "../../lib/upload";
@@ -23,19 +23,28 @@ const DEFAULT_COMMUNITY_TERMS = [
   "Break the rules and you may be removed without warning.",
 ].join("\n");
 
-export function CommunityForm({ existingSubcategories = {} }: { existingSubcategories?: Record<string, string[]> }) {
+export interface CommunityFormInitial {
+  id: string; name: string; bio: string | null; city: string | null;
+  category: string | null; subcategory: string | null;
+  avatarUrl: string | null; coverUrl: string | null; mobileCoverUrl: string | null;
+  instagramHandle: string | null; youtubeUrl: string | null; xUrl: string | null;
+  linkedinUrl: string | null; facebookUrl: string | null; websiteUrl: string | null;
+  upiId: string | null; membershipType: string; terms: string[];
+}
+
+export function CommunityForm({ existingSubcategories = {}, initial }: { existingSubcategories?: Record<string, string[]>; initial?: CommunityFormInitial }) {
   const [state, formAction, pending] = useActionState<CreateCommunityState, FormData>(
-    createCommunityAction,
+    initial?.id ? updateCommunityAction : createCommunityAction,
     { error: null },
   );
-  const [membershipType, setMembershipType] = useState("OPEN");
-  const [category, setCategory] = useState("");
-  const [subcategories, setSubcategories] = useState<string[]>([]);
+  const [membershipType, setMembershipType] = useState(initial?.membershipType ?? "OPEN");
+  const [category, setCategory] = useState(initial?.category ?? "");
+  const [subcategories, setSubcategories] = useState<string[]>(initial?.subcategory?.split(",").map((t) => t.trim()).filter(Boolean) ?? []);
   const [customSub, setCustomSub] = useState("");
   const [questions, setQuestions] = useState<{ question: string; isMandatory: boolean }[]>([]);
-  const [avatarUrl, setAvatarUrl] = useState("");
-    const [coverUrl, setCoverUrl] = useState("");
-  const [mobileCoverUrl, setMobileCoverUrl] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState(initial?.avatarUrl ?? "");
+    const [coverUrl, setCoverUrl] = useState(initial?.coverUrl ?? "");
+  const [mobileCoverUrl, setMobileCoverUrl] = useState(initial?.mobileCoverUrl ?? "");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadingMobileCover, setUploadingMobileCover] = useState(false);
@@ -67,16 +76,17 @@ export function CommunityForm({ existingSubcategories = {} }: { existingSubcateg
 
   return (
     <form action={formAction} className="glass space-y-4 rounded-3xl p-5">
-      <h2 className="text-base font-bold">Create a Community or Crew</h2>
+      {initial?.id ? <input type="hidden" name="communityId" value={initial.id} /> : null}
+      <h2 className="text-base font-bold">{initial?.id ? "Edit community" : "Create a Community or Crew"}</h2>
 
       <label className="block space-y-1.5">
         <span className="text-xs font-semibold uppercase tracking-wide text-muted">Name *</span>
-        <input name="name" required placeholder="Kolkata Runners" className={INPUT} />
+        <input name="name" required placeholder="Kolkata Runners" defaultValue={initial?.name ?? ""} className={INPUT} />
       </label>
 
       <label className="block space-y-1.5">
         <span className="text-xs font-semibold uppercase tracking-wide text-muted">Bio</span>
-        <textarea name="bio" rows={3} placeholder="Weekly 5K runs across the city. All paces welcome." className={INPUT} />
+        <textarea name="bio" rows={3} placeholder="Weekly 5K runs across the city. All paces welcome." defaultValue={initial?.bio ?? ""} className={INPUT} />
       </label>
 
       {/* Cover photo - Facebook-style banner */}
@@ -184,6 +194,7 @@ export function CommunityForm({ existingSubcategories = {} }: { existingSubcateg
           <input
             name="city"
             list="indian-cities"
+            defaultValue={initial?.city ?? ""}
             placeholder="Type city (leave blank for all India)"
             className={INPUT}
           />
@@ -258,16 +269,16 @@ export function CommunityForm({ existingSubcategories = {} }: { existingSubcateg
           <AtSign className="h-3.5 w-3.5" />
           Instagram handle (optional)
         </span>
-        <input name="instagramHandle" placeholder="@yourclub or https://instagram.com/yourclub" className={INPUT} />
+        <input name="instagramHandle" placeholder="@yourclub or https://instagram.com/yourclub" defaultValue={initial?.instagramHandle ?? ""} className={INPUT} />
         <span className="text-xs text-muted">So people can check out your community before joining.</span>
       </label>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <input name="youtubeUrl" placeholder="YouTube URL" className={INPUT} />
-        <input name="xUrl" placeholder="X (Twitter) URL" className={INPUT} />
-        <input name="facebookUrl" placeholder="Facebook URL" className={INPUT} />
-        <input name="linkedinUrl" placeholder="LinkedIn URL" className={INPUT} />
-        <input name="websiteUrl" placeholder="Website URL" className={`${INPUT} sm:col-span-2`} />
+        <input name="youtubeUrl" placeholder="YouTube URL" defaultValue={initial?.youtubeUrl ?? ""} className={INPUT} />
+        <input name="xUrl" placeholder="X (Twitter) URL" defaultValue={initial?.xUrl ?? ""} className={INPUT} />
+        <input name="facebookUrl" placeholder="Facebook URL" defaultValue={initial?.facebookUrl ?? ""} className={INPUT} />
+        <input name="linkedinUrl" placeholder="LinkedIn URL" defaultValue={initial?.linkedinUrl ?? ""} className={INPUT} />
+        <input name="websiteUrl" placeholder="Website URL" defaultValue={initial?.websiteUrl ?? ""} className={`${INPUT} sm:col-span-2`} />
       </div>
 
       <label className="block space-y-1.5">
@@ -342,7 +353,7 @@ export function CommunityForm({ existingSubcategories = {} }: { existingSubcateg
 
       <label className="block space-y-1.5">
         <span className="text-xs font-semibold uppercase tracking-wide text-muted">Terms (one per line)</span>
-        <textarea name="terms" rows={5} defaultValue={DEFAULT_COMMUNITY_TERMS} className={INPUT} />
+        <textarea name="terms" rows={5} defaultValue={initial?.terms?.length ? initial.terms.join("\n") : DEFAULT_COMMUNITY_TERMS} className={INPUT} />
         <span className="text-[10px] text-muted">
           Pre-filled with Outsiderr&apos;s default community rules - edit or add your own lines.
         </span>
@@ -350,9 +361,9 @@ export function CommunityForm({ existingSubcategories = {} }: { existingSubcateg
 
       {state.error ? <p className="text-sm text-red-500">{state.error}</p> : null}
 
-      <Button type="submit" size="lg" className="w-full" disabled={pending} loading={pending} loadingText="Creating…">
+      <Button type="submit" size="lg" className="w-full" disabled={pending} loading={pending} loadingText={initial?.id ? "Saving…" : "Creating…"}>
         <Plus className="h-4 w-4" />
-        Create Community
+        {initial?.id ? "Save changes" : "Create Community"}
       </Button>
     </form>
   );
