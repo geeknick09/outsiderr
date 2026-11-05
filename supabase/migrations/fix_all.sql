@@ -7733,6 +7733,14 @@ drop policy if exists "join questions readable by everyone" on public.community_
 create policy "join questions readable by everyone" on public.community_join_questions
   for select using (true);
 
+drop policy if exists "join questions writable by owner" on public.community_join_questions;
+create policy "join questions writable by owner" on public.community_join_questions
+  for all using (
+    exists (select 1 from public.communities c
+              join public.organizers o on o.id = c.owner_id
+             where c.id = community_id and o.owner_id = auth.uid())
+  );
+
 drop policy if exists "join answers readable by owner and self" on public.community_join_answers;
 create policy "join answers readable by owner and self" on public.community_join_answers
   for select using (

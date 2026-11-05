@@ -30,6 +30,7 @@ export interface CommunityFormInitial {
   instagramHandle: string | null; youtubeUrl: string | null; xUrl: string | null;
   linkedinUrl: string | null; facebookUrl: string | null; websiteUrl: string | null;
   upiId: string | null; membershipType: string; terms: string[];
+  joinQuestions?: { question: string; isMandatory: boolean }[];
 }
 
 export function CommunityForm({ existingSubcategories = {}, initial }: { existingSubcategories?: Record<string, string[]>; initial?: CommunityFormInitial }) {
@@ -41,7 +42,7 @@ export function CommunityForm({ existingSubcategories = {}, initial }: { existin
   const [category, setCategory] = useState(initial?.category ?? "");
   const [subcategories, setSubcategories] = useState<string[]>(initial?.subcategory?.split(",").map((t) => t.trim()).filter(Boolean) ?? []);
   const [customSub, setCustomSub] = useState("");
-  const [questions, setQuestions] = useState<{ question: string; isMandatory: boolean }[]>([]);
+  const [questions, setQuestions] = useState<{ question: string; isMandatory: boolean }[]>(initial?.joinQuestions ?? []);
   const [avatarUrl, setAvatarUrl] = useState(initial?.avatarUrl ?? "");
     const [coverUrl, setCoverUrl] = useState(initial?.coverUrl ?? "");
   const [mobileCoverUrl, setMobileCoverUrl] = useState(initial?.mobileCoverUrl ?? "");

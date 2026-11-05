@@ -6,6 +6,7 @@ import { CommunityForm } from "@/modules/shared";
 import {
   getCommunity,
   listCommunityMemberDetails,
+  listJoinQuestions,
 } from "@/modules/shared/server";
 import { getOrganizerGateContext } from "@/modules/organizer/server";
 import { createServiceClient } from "@/modules/shared/server";
@@ -31,7 +32,7 @@ export default async function OrganizerCommunityManagePage({
   const community = await getCommunity(id);
   if (!community || community.ownerId !== organizerProfile.id) notFound();
 
-  const [members, analytics] = await Promise.all([
+  const [members, analytics, joinQuestions] = await Promise.all([
     listCommunityMemberDetails(community.id),
     (async () => {
       const supabase = createServiceClient();
@@ -42,6 +43,7 @@ export default async function OrganizerCommunityManagePage({
         views: number; followers: number;
       } | null;
     })(),
+    listJoinQuestions(community.id),
   ]);
 
   const supabase = createServiceClient();
@@ -169,6 +171,7 @@ export default async function OrganizerCommunityManagePage({
           upiId: community.upiId,
           membershipType: community.membershipType,
           terms: community.terms,
+          joinQuestions: joinQuestions.map((q) => ({ question: q.question, isMandatory: q.isMandatory })),
         }}
       />
     </div>

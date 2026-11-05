@@ -466,7 +466,9 @@ export async function setJoinQuestions(
   communityId: string,
   questions: { question: string; isMandatory: boolean }[],
 ): Promise<void> {
-  const supabase = await createClient();
+  // Ownership is verified by the calling action (community create/update);
+  // RLS has no INSERT/DELETE policy on this table, so use the service client.
+  const supabase = createServiceClient();
   await supabase.from("community_join_questions").delete().eq("community_id", communityId);
   if (questions.length === 0) return;
   const rows = questions.map((q, i) => ({

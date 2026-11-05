@@ -402,6 +402,18 @@ export async function updateCommunityAction(
     .eq("id", communityId)
     .eq("owner_id", organizer.id);
   if (error) return { error: error.message };
+
+  const membershipType = String(formData.get("membershipType") ?? "OPEN");
+  if (membershipType === "PRIVATE") {
+    let questions: { question: string; isMandatory: boolean }[] = [];
+    try {
+      questions = JSON.parse(String(formData.get("questions") ?? "[]"));
+    } catch {
+      questions = [];
+    }
+    await setJoinQuestions(communityId, questions.slice(0, 10));
+  }
+
   revalidatePath(`/communities/${communityId}`);
   revalidatePath(`/organizer/communities/${communityId}`);
   revalidatePath("/organizer/communities");
