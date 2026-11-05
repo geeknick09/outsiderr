@@ -186,6 +186,7 @@ export type OrderRow = {
   sold_by_staff_id: string | null;
   sold_at: string | null;
   sale_channel: string | null;
+  payment_reference: string | null;
   idempotency_key: string | null;
   refund_offered: boolean;
   refund_offer_reason: string | null;
@@ -209,6 +210,7 @@ export type TicketRow = {
   status: TicketStatus;
   checked_in_at: string | null;
   checked_in_by: string | null;
+  checked_in_by_staff_id: string | null;
   created_at: string;
 }
 
@@ -1437,8 +1439,27 @@ export type Database = {
         Returns: undefined;
       };
       staff_set_assignment: {
-        Args: { p_staff_id: string; p_event_id: string; p_active: boolean };
+        Args: { p_staff_id: string; p_event_id: string; p_active: boolean; p_can_scan?: boolean; p_can_sell?: boolean; p_is_manager?: boolean };
         Returns: undefined;
+      };
+      staff_check_in_guest: {
+        Args: { p_staff_id: string; p_event_id: string; p_ticket_id: string };
+        Returns: undefined;
+      };
+      create_counter_sale: {
+        Args: {
+          p_staff_id: string;
+          p_event_id: string;
+          p_tier_id: string;
+          p_buyer_name: string;
+          p_buyer_phone: string;
+          p_buyer_email?: string | null;
+          p_payment_mode?: string;
+          p_quantity?: number;
+          p_idempotency_key?: string | null;
+          p_payment_ref?: string | null;
+        };
+        Returns: { orderId: string; ticketIds: string[]; totalPaise: number; quantity: number; subtotalPaise: number; commissionPaise: number; conveniencePaise: number; gstPaise: number; payoutPaise: number };
       };
       staff_login_session: {
         Args: { p_identifier: string; p_password: string };

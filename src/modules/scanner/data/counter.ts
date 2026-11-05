@@ -12,6 +12,9 @@ export interface CounterEvent {
   id: string;
   title: string;
   startsAt: string;
+  maxTicketsPerOrder: number;
+  organizerUpiId: string | null;
+  organizerUpiQrUrl: string | null;
   tiers: { id: string; name: string; pricePaise: number; remaining: number }[];
 }
 
@@ -39,12 +42,18 @@ export async function listCounterEvents(staffId: string): Promise<CounterEvent[]
 
   const { data: events } = await svc
     .from("events")
-    .select("id, title, starts_at, status")
+    .select("id, title, starts_at, status, max_tickets_per_user, organizer_id")
     .in("id", eventIds)
     .in("status", ["PUBLISHED", "POSTPONED"])
     .order("starts_at", { ascending: true });
   const liveIds = (events ?? []).map((e) => e.id);
   if (liveIds.length === 0) return [];
+
+  const orgIds = [...new Set((events ?? []).map((e) => e.organizer_id))];
+  const { data: orgs } = orgIds.length
+    ? await svc.from("organizers_public").select("id, upi_id, upi_qr_url").in("id", orgIds)
+    : { data: [] };
+  const orgMap = Object.fromEntries((orgs ?? []).map((o) => [o.id, o]));
 
   const { data: tiers } = await svc
     .from("ticket_tiers")
@@ -55,6 +64,9 @@ export async function listCounterEvents(staffId: string): Promise<CounterEvent[]
     id: e.id,
     title: e.title,
     startsAt: e.starts_at,
+    maxTicketsPerOrder: e.max_tickets_per_user ?? 5,
+    organizerUpiId: orgMap[e.organizer_id]?.upi_id ?? null,
+    organizerUpiQrUrl: orgMap[e.organizer_id]?.upi_qr_url ?? null,
     tiers: (tiers ?? [])
       .filter((t) => t.event_id === e.id)
       .map((t) => ({

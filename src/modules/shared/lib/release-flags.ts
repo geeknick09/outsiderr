@@ -4,7 +4,7 @@
  */
 export const RELEASE_FLAGS = {
   /** Guestlist entries + panel (event manage page, guests links). */
-  guestlist: false,
+  guestlist: true,
   /** Featured & Boost: hero rotation, slot boosts, sponsored surfaces. */
   boost: false,
 } as const;

@@ -158,3 +158,66 @@ export async function counterAbandonRazorpayAction(
   if (!staff) return { success: false, error: "Your session has ended. Please sign in again." };
   return abandonCounterRazorpaySale(staff.id, input.razorpayOrderId);
 }
+
+/** Guestlist tickets for one event (orders.order_source='GUESTLIST'), for the door list. */
+export async function listEventGuestlist(eventId: string): Promise<{ id: string; name: string; phone: string | null; used: boolean }[]> {
+  const svc = createServiceClient();
+  const { data: orders } = await svc.from("orders").select("id, buyer_name, buyer_phone").eq("event_id", eventId).eq("order_source", "GUESTLIST");
+  if (!orders?.length) return [];
+  const orderMap = Object.fromEntries(orders.map((o) => [o.id, o]));
+  const { data: tickets } = await svc.from("tickets").select("id, status, order_id").in("order_id", orders.map((o) => o.id));
+  return (tickets ?? []).map((t) => ({ id: t.id, name: orderMap[t.order_id]?.buyer_name ?? "Guest", phone: orderMap[t.order_id]?.buyer_phone ?? null, used: t.status === "USED" }));
+}
+
+/** Door staff checks a guestlist ticket in - irreversible (server enforces). */
+export async function checkInGuestAction(staffToken: string, eventId: string, ticketId: string): Promise<{ error: string | null }> {
+  const staff = await resolveCounterStaff(staffToken);
+  if (!staff) return { error: "Session expired - sign in again." };
+  const { error } = await createServiceClient().rpc("staff_check_in_guest", {
+    p_staff_id: staff.id, p_event_id: eventId, p_ticket_id: ticketId,
+  });
+  if (error) return { error: error.message.includes("already checked in") ? "Already checked in." : error.message };
+  return { error: null };
+}
+
+/** Counter sale: one order + N tickets. Cash or manual-UPI confirm. */
+export async function createCounterSaleAction(formData: FormData): Promise<{ error: string | null; orderId?: string; ticketIds?: string[]; totalPaise?: number }> {
+  const staffToken = String(formData.get("staffToken") ?? "");
+  const staff = await resolveCounterStaff(staffToken);
+  if (!staff) return { error: "Session expired - sign in again." };
+
+  const eventId = String(formData.get("eventId") ?? "");
+  const tierId = String(formData.get("tierId") ?? "");
+  const qty = Number(formData.get("quantity") ?? 1);
+  const mode = String(formData.get("paymentMode") ?? "CASH");
+  const name = String(formData.get("buyerName") ?? "").trim();
+  const phone = String(formData.get("buyerPhone") ?? "").replace(/\D/g, "").slice(-10);
+  const email = String(formData.get("buyerEmail") ?? "").trim();
+  const utr = String(formData.get("paymentRef") ?? "").trim();
+  const idem = String(formData.get("idempotencyKey") ?? "") || null;
+  if (!UUID_RE.test(eventId) || !UUID_RE.test(tierId)) return { error: "Invalid event or tier." };
+  if (!name || phone.length !== 10) return { error: "Buyer name + 10-digit phone required." };
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Invalid buyer email." };
+  if (!Number.isInteger(qty) || qty < 1) return { error: "Invalid quantity." };
+  if (mode !== "CASH" && mode !== "UPI") return { error: "Invalid payment mode." };
+
+  const svc = createServiceClient();
+  const { data, error } = await svc.rpc("create_counter_sale", {
+    p_staff_id: staff.id, p_event_id: eventId, p_tier_id: tierId,
+    p_buyer_name: name, p_buyer_phone: phone, p_buyer_email: email || null,
+    p_payment_mode: mode, p_quantity: qty, p_idempotency_key: idem,
+    p_payment_ref: utr || null,
+  });
+  if (error) return { error: error.message };
+  const row = data as { orderId: string; ticketIds: string[]; totalPaise: number } | null;
+  if (!row?.orderId) return { error: "Sale failed - no order created." };
+
+  // Link to the buyer's account by phone so it shows in their My Tickets.
+  const { data: profile } = await svc.from("profiles").select("id").eq("phone", phone).maybeSingle();
+  if (profile?.id) {
+    await svc.from("orders").update({ user_id: profile.id }).eq("id", row.orderId).is("user_id", null);
+    await svc.from("tickets").update({ user_id: profile.id }).eq("order_id", row.orderId).is("user_id", null);
+  }
+
+  return { error: null, orderId: row.orderId, ticketIds: row.ticketIds ?? [], totalPaise: row.totalPaise };
+}
