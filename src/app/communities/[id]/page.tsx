@@ -127,7 +127,13 @@ export default async function CommunityDetailPage({
             <Badge tone={community.membershipType === "OPEN" ? "success" : community.membershipType === "PRIVATE" ? "warning" : "neutral"}>
               {MEMBERSHIP_LABEL[community.membershipType]}
             </Badge>
-            {community.subcategory ? <Badge tone="lime">{community.subcategory}</Badge> : null}
+            {community.subcategory ? (
+              <span className="flex flex-wrap gap-1.5">
+                {[...new Map(community.subcategory.split(",").map((t) => t.trim()).filter(Boolean).map((t) => [t.toLowerCase(), t])).values()]
+                  .slice(0, 5)
+                  .map((t) => <Badge key={t} tone="lime">{t}</Badge>)}
+              </span>
+            ) : null}
           </div>
           <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
             <BadgeCheck className="h-4 w-4 text-violet-neon" />
