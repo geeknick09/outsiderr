@@ -41,7 +41,7 @@ export function AttendeesTable({
       case "checked_in":
         return checkedInOrderIds.has(order.id);
       case "pending":
-        return order.status === "PENDING_VERIFICATION";
+        return order.status === "PENDING_VERIFICATION" || order.status === "RESERVED";
       case "rejected":
         return order.status === "REJECTED";
       default:
@@ -58,7 +58,7 @@ export function AttendeesTable({
     all: orders.filter((o) => o.status === "CONFIRMED").reduce((s, o) => s + (o.quantity ?? 1), 0),
     confirmed: orders.filter((o) => o.status === "CONFIRMED").reduce((s, o) => s + (o.quantity ?? 1), 0),
     checked_in: tickets.filter((t) => t.status === "USED").length,
-    pending: orders.filter((o) => o.status === "PENDING_VERIFICATION").reduce((s, o) => s + (o.quantity ?? 1), 0),
+    pending: orders.filter((o) => o.status === "PENDING_VERIFICATION" || o.status === "RESERVED").reduce((s, o) => s + (o.quantity ?? 1), 0),
     rejected: orders.filter((o) => o.status === "REJECTED").reduce((s, o) => s + (o.quantity ?? 1), 0),
     cancelled: orders.filter((o) => o.status === "CANCELLED").reduce((s, o) => s + (o.quantity ?? 1), 0),
   };
