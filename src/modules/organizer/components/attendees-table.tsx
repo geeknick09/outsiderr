@@ -55,12 +55,12 @@ export function AttendeesTable({
   const showPagination = filtered.length > pageSize;
 
   const counts: Record<FilterKey, number> = {
-    all: orders.length,
-    confirmed: orders.filter((o) => o.status === "CONFIRMED").length,
-    checked_in: orders.filter((o) => checkedInOrderIds.has(o.id)).length,
-    pending: orders.filter((o) => o.status === "PENDING_VERIFICATION").length,
-    rejected: orders.filter((o) => o.status === "REJECTED").length,
-    cancelled: orders.filter((o) => o.status === "CANCELLED").length,
+    all: orders.reduce((s, o) => s + (o.quantity ?? 1), 0),
+    confirmed: orders.filter((o) => o.status === "CONFIRMED").reduce((s, o) => s + (o.quantity ?? 1), 0),
+    checked_in: tickets.filter((t) => t.status === "USED").length,
+    pending: orders.filter((o) => o.status === "PENDING_VERIFICATION").reduce((s, o) => s + (o.quantity ?? 1), 0),
+    rejected: orders.filter((o) => o.status === "REJECTED").reduce((s, o) => s + (o.quantity ?? 1), 0),
+    cancelled: orders.filter((o) => o.status === "CANCELLED").reduce((s, o) => s + (o.quantity ?? 1), 0),
   };
 
   return (
