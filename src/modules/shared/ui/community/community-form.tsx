@@ -264,7 +264,7 @@ export function CommunityForm({ existingSubcategories = {}, initial }: { existin
               Add
             </button>
           </div>
-          <input type="hidden" name="subcategory" value={subcategories.join(", ")} />
+          <input type="hidden" name="subcategory" value={[...new Map(subcategories.map((t) => [t.toLowerCase(), t])).values()].join(", ")} />
         </div>
       ) : (
         <input type="hidden" name="subcategory" value="" />

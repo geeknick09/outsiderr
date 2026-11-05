@@ -166,6 +166,13 @@ export async function createCommunity(
     if ((count ?? 0) >= cap) {
       throw new Error(`You can own up to ${cap} communities. Ask an admin to raise the limit if you need more.`);
     }
+    const { data: dup } = await supabase
+      .from("communities")
+      .select("id")
+      .eq("owner_id", organizer.id)
+      .ilike("name", input.name)
+      .maybeSingle();
+    if (dup) throw new Error(`You already have a community called "${input.name}".`);
     // Organizer user - link to their organizer profile
     const { data, error } = await supabase
       .from("communities")

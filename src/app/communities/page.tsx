@@ -131,7 +131,7 @@ export default async function CommunitiesPage({
                   </div>
                 )}
                 <Badge tone={community.type === "CREW" ? "violet" : "neutral"}>
-                  {community.subcategory ?? TYPE_LABEL[community.type]}
+                  {TYPE_LABEL[community.type]}
                 </Badge>
               </div>
 
@@ -157,6 +157,18 @@ export default async function CommunitiesPage({
                   </span>
                 ) : null}
               </div>
+
+              {community.subcategory ? (
+                <div className="mt-3 flex flex-wrap gap-1.5 px-5">
+                  {[...new Map(community.subcategory.split(",").map((t) => t.trim()).filter(Boolean).map((t) => [t.toLowerCase(), t])).values()]
+                    .slice(0, 5)
+                    .map((t) => (
+                      <span key={t} className="rounded-full bg-violet-neon/10 px-2.5 py-0.5 text-[10px] font-semibold text-violet-neon">
+                        {t}
+                      </span>
+                    ))}
+                </div>
+              ) : null}
 
               <div className="mt-4 flex items-center justify-between px-5">
                 <Badge tone={MEMBERSHIP_TONE[community.membershipType]}>
