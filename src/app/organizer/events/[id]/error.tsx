@@ -31,7 +31,7 @@ export default function ManageEventError({
         ) : null}
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           <button
-            onClick={reset}
+            onClick={() => window.location.reload()}
             className="rounded-full bg-violet-neon px-5 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
           >
             Try again

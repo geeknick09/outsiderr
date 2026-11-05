@@ -33,7 +33,7 @@ export default function Error({
         ) : null}
         <div className="mt-6 flex justify-center gap-3">
           <button
-            onClick={reset}
+            onClick={() => window.location.reload()}
             className="rounded-full bg-violet-neon px-5 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90"
           >
             Try again
