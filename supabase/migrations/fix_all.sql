@@ -7932,7 +7932,7 @@ begin
   -- snapshot answers (question text at join time)
   for a in select * from jsonb_array_elements(p_answers) loop
     insert into public.community_join_answers (member_id, question, answer)
-    select q.question, a->>'answer'
+    select v_member, q.question, a->>'answer'
       from public.community_join_questions q
      where q.id = (a->>'question_id')::uuid;
   end loop;
