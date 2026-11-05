@@ -359,7 +359,7 @@ export default async function ManageEventPage({
           ...(canOrders
             ? [{
                 id: "attendees",
-                label: `Attendees (${orders.reduce((s, o) => s + (o.quantity ?? 1), 0)})`,
+                label: `Attendees (${orders.filter((o) => o.status === "CONFIRMED").reduce((s, o) => s + (o.quantity ?? 1), 0)})`,
                 content: (
                   <div className="space-y-3">
                     <div className="flex justify-end">
