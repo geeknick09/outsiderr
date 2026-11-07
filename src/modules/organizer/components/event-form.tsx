@@ -589,15 +589,6 @@ export function EventForm({
                   </span>
                 </label>
               ))}
-              <label className="flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-zinc-200 p-3 transition-all has-[:checked]:border-violet-neon has-[:checked]:bg-violet-neon/5 dark:border-white/10">
-                <input type="checkbox" name="recurrence" value="WEEKLY" className="h-4 w-4 accent-violet-neon" />
-                <span>
-                  <span className="block text-sm font-bold">Repeats weekly</span>
-                  <span className="text-xs text-muted">
-                    Same time &amp; venue every week - the next occurrence is auto-created after this one ends.
-                  </span>
-                </span>
-              </label>
               <p className="text-[11px] text-muted">
                 Community events don&apos;t support collaborators yet.
               </p>
@@ -800,6 +791,39 @@ export function EventForm({
           <input type="hidden" name="longitude" value={sv?.longitude ?? ""} />
         </>
       )}
+
+      {eventKind === "COMMUNITY" && communityId ? (
+        <div className="rounded-2xl border border-zinc-200 p-3 dark:border-white/10">
+          <p className="mb-2 text-xs font-semibold text-muted">Repeats</p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {([
+              { value: "", label: "One-time", hint: "This event does not repeat." },
+              { value: "WEEKLY", label: "Repeats weekly", hint: "Same day & time every week - the next occurrence is auto-created after this one ends." },
+              { value: "MONTHLY", label: "Repeats monthly", hint: "Same date & time every month - the next occurrence is auto-created after this one ends." },
+            ] as const).map((o) => (
+              <label
+                key={o.value}
+                className="flex cursor-pointer items-start gap-2.5 rounded-2xl border-2 border-zinc-200 p-3 transition-all has-[:checked]:border-violet-neon has-[:checked]:bg-violet-neon/5 dark:border-white/10"
+              >
+                <input
+                  type="radio"
+                  name="recurrence"
+                  value={o.value}
+                  defaultChecked={(draftEvent?.recurrence ?? "") === o.value}
+                  className="mt-0.5 h-4 w-4 accent-violet-neon"
+                />
+                <span>
+                  <span className="block text-sm font-bold">{o.label}</span>
+                  <span className="text-xs text-muted">{o.hint}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] text-muted">
+            Change the venue or time later and it carries into the next occurrence. Pick &quot;One-time&quot; to stop repeating.
+          </p>
+        </div>
+      ) : null}
 
         <Field label="About the event - one point per line *">
           <textarea

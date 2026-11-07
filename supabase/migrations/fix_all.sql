@@ -8685,7 +8685,7 @@ alter table public.events add column if not exists recurrence_parent_id uuid ref
 do $$ begin
   if not exists (select 1 from pg_constraint where conname = 'events_recurrence_check') then
     alter table public.events add constraint events_recurrence_check
-      check (recurrence is null or recurrence = 'WEEKLY');
+      check (recurrence is null or recurrence in ('WEEKLY', 'MONTHLY'));
   end if;
 end $$;
 -- recurrence only makes sense on community events

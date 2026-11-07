@@ -220,6 +220,8 @@ export interface EventDetail extends EventSummary {
   organizer: Organizer;
   communityId?: string | null;
   payoutAccountId?: string | null;
+  /** Recurring community events - the next occurrence auto-spawns when this one ends. */
+  recurrence?: "WEEKLY" | "MONTHLY" | null;
   visibility?: "OPEN" | "MEMBERS_ONLY" | "INVITE_ONLY";
   promoterMode?: "NONE" | "LINK" | "PROMO_CODE";
   promoterCommissionBps?: number;

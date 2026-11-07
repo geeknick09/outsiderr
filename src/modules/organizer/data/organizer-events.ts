@@ -55,9 +55,9 @@ export interface CreateEventInput {
   maxTicketsPerUser?: number;
   communityId?: string | null;
   visibility?: "OPEN" | "MEMBERS_ONLY" | "INVITE_ONLY";
+  recurrence?: "WEEKLY" | "MONTHLY" | null;
   inviteToken?: string | null;
   payoutAccountId?: string | null;
-  recurrence?: "WEEKLY" | null;
   promoterMode?: "NONE" | "LINK" | "PROMO_CODE";
   promoterCommissionBps?: number;
   promoBuyerDiscountBps?: number;
@@ -466,6 +466,7 @@ export interface UpdateEventInput {
   maxTicketsPerUser?: number;
   communityId?: string | null;
   visibility?: "OPEN" | "MEMBERS_ONLY" | "INVITE_ONLY";
+  recurrence?: "WEEKLY" | "MONTHLY" | null;
   inviteToken?: string | null;
   payoutAccountId?: string | null;
   promoterMode?: "NONE" | "LINK" | "PROMO_CODE";
@@ -571,6 +572,7 @@ export async function updateEvent(
       ...(input.promoBuyerDiscountBps !== undefined ? { promo_buyer_discount_bps: input.promoBuyerDiscountBps } : {}),
       ...(input.promoPromoterBps !== undefined ? { promo_promoter_bps: input.promoPromoterBps } : {}),
       ...(input.visibility !== undefined ? { visibility: input.visibility } : {}),
+      ...(input.recurrence !== undefined ? { recurrence: input.recurrence } : {}),
 
       ...(input.maxTicketsPerUser !== undefined
         ? { max_tickets_per_user: Math.min(10, Math.max(1, input.maxTicketsPerUser)) }
@@ -812,8 +814,9 @@ export async function deleteEvent(
 }
 
 /**
- * Recurring community events (recurrence = "WEEKLY"): once an occurrence has
- * ended, clone it into the next week (same everything, fresh invite token).
+ * Recurring community events (recurrence = "WEEKLY" | "MONTHLY"): once an
+ * occurrence has ended, clone it into the next period (same everything,
+ * fresh invite token).
  * Chain semantics - each event spawns at most one child; the child itself
  * recurs when it ends. Idempotent via the child check.
  */
@@ -823,9 +826,9 @@ export async function spawnDueRecurrences(organizerId: string): Promise<number> 
 
   const { data: due } = await svc
     .from("events")
-    .select("id, starts_at, ends_at, community_id")
+    .select("id, starts_at, ends_at, community_id, recurrence")
     .eq("organizer_id", organizerId)
-    .eq("recurrence", "WEEKLY")
+    .in("recurrence", ["WEEKLY", "MONTHLY"])
     .in("status", ["PUBLISHED"])
     .lt("ends_at", new Date().toISOString());
   if (!due?.length) return 0;
@@ -844,7 +847,12 @@ export async function spawnDueRecurrences(organizerId: string): Promise<number> 
     const { data: full } = await svc.from("events").select("*").eq("id", parent.id).single();
     if (!full || !full.community_id) continue;
 
-    const week = 7 * 24 * 60 * 60 * 1000;
+    const offsetFor = (iso: string | null) => {
+      const d = new Date(iso ?? Date.now());
+      if (parent.recurrence === "MONTHLY") d.setMonth(d.getMonth() + 1);
+      else d.setDate(d.getDate() + 7);
+      return d.toISOString();
+    };
     const { data: child, error } = await svc
       .from("events")
       .insert({
@@ -860,8 +868,8 @@ export async function spawnDueRecurrences(organizerId: string): Promise<number> 
         latitude: full.latitude,
         longitude: full.longitude,
         google_maps_link: full.google_maps_link,
-        starts_at: new Date(new Date(full.starts_at ?? Date.now()).getTime() + week).toISOString(),
-        ends_at: new Date(new Date(full.ends_at ?? Date.now()).getTime() + week).toISOString(),
+        starts_at: offsetFor(full.starts_at),
+        ends_at: offsetFor(full.ends_at),
         card_poster_url: full.card_poster_url,
         banner_poster_url: full.banner_poster_url,
         teaser_video_url: full.teaser_video_url,
@@ -883,7 +891,7 @@ export async function spawnDueRecurrences(organizerId: string): Promise<number> 
         community_id: full.community_id,
         payout_account_id: full.payout_account_id,
         visibility: full.visibility,
-        recurrence: "WEEKLY",
+        recurrence: parent.recurrence,
         recurrence_parent_id: parent.id,
         status: "PUBLISHED",
       } as never)

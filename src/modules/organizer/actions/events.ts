@@ -468,6 +468,8 @@ export async function createEventAction(
         maxTicketsPerUser: Math.min(10, Math.max(1, Number(formData.get("maxTicketsPerUser") ?? 5) || 5)),
         communityId,
         visibility,
+        recurrence: (communityId && ["WEEKLY", "MONTHLY"].includes(String(formData.get("recurrence") ?? ""))
+          ? String(formData.get("recurrence")) : null) as "WEEKLY" | "MONTHLY" | null,
         payoutAccountId: String(formData.get("payoutAccountId") ?? "").trim() || null,
         promoterMode: (["LINK", "PROMO_CODE"].includes(String(formData.get("promoterMode")))
           ? String(formData.get("promoterMode")) : "NONE") as "NONE" | "LINK" | "PROMO_CODE",
@@ -532,7 +534,8 @@ export async function createEventAction(
       visibility: visibility,
       inviteToken: inviteToken,
       payoutAccountId: String(formData.get("payoutAccountId") ?? "").trim() || null,
-      recurrence: communityId && formData.get("recurrence") === "WEEKLY" ? "WEEKLY" : null,
+      recurrence: (communityId && ["WEEKLY", "MONTHLY"].includes(String(formData.get("recurrence") ?? ""))
+        ? String(formData.get("recurrence")) : null) as "WEEKLY" | "MONTHLY" | null,
       promoterMode: (["LINK", "PROMO_CODE"].includes(String(formData.get("promoterMode")))
         ? String(formData.get("promoterMode")) : "NONE") as "NONE" | "LINK" | "PROMO_CODE",
       promoterCommissionBps: Math.min(1500, Math.max(100, Math.round(Number(formData.get("promoterCommissionBps") ?? 10) * 100) || 1000)),
@@ -939,6 +942,7 @@ export async function updateEventSectionAction(
       communityId?: string | null;
       visibility?: "OPEN" | "MEMBERS_ONLY" | "INVITE_ONLY";
       inviteToken?: string | null;
+      recurrence?: "WEEKLY" | "MONTHLY" | null;
     } = { ...base };
 
     if (section === "details") {
@@ -1131,6 +1135,8 @@ export async function updateEventSectionAction(
         communityId,
         visibility,
         inviteToken,
+        recurrence: (communityId && ["WEEKLY", "MONTHLY"].includes(String(formData.get("recurrence") ?? ""))
+          ? String(formData.get("recurrence")) : null) as "WEEKLY" | "MONTHLY" | null,
       };
     } else if (section === "misc") {
       input = {
