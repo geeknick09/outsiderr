@@ -294,7 +294,12 @@ export function CommunityForm({ existingSubcategories = {}, initial }: { existin
           name="membershipType"
           className={INPUT}
           value={membershipType}
-          onChange={(e) => setMembershipType(e.target.value)}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (initial?.membershipType === "PRIVATE" && v === "OPEN"
+                && !confirm("Switching to open will automatically approve ALL pending join requests. Are you sure?")) return;
+            setMembershipType(v);
+          }}
         >
           <option value="OPEN" className={OPTION}>Open - anyone can join</option>
           <option value="PRIVATE" className={OPTION}>Private - members request &amp; you approve</option>
@@ -367,6 +372,7 @@ export function CommunityForm({ existingSubcategories = {}, initial }: { existin
       </label>
 
       {state.error ? <p className="text-sm text-red-500">{state.error}</p> : null}
+      {state.saved ? <p className="text-sm font-semibold text-emerald-500">Saved - your changes are live.</p> : null}
 
       <Button type="submit" size="lg" className="w-full" disabled={pending} loading={pending} loadingText={initial?.id ? "Saving…" : "Creating…"}>
         <Plus className="h-4 w-4" />

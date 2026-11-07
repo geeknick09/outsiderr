@@ -19,6 +19,7 @@ import { normalizeCityKey } from "../lib/india-cities";
 
 export interface CreateCommunityState {
   error: string | null;
+  saved?: boolean;
 }
 
 const MAX_COMMUNITY_TAGS = 6;
@@ -368,9 +369,9 @@ export async function toggleCommunityMemberCountAction(
 }
 
 export async function updateCommunityAction(
-  _prev: { error: string | null },
+  _prev: { error: string | null; saved?: boolean },
   formData: FormData,
-): Promise<{ error: string | null }> {
+): Promise<{ error: string | null; saved?: boolean }> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   const communityId = String(formData.get("communityId") ?? "");
@@ -387,6 +388,12 @@ export async function updateCommunityAction(
     .map((l) => l.trim())
     .filter(Boolean);
   const supabase = await createClient();
+  const { data: current } = await supabase
+    .from("communities")
+    .select("membership_type, member_count")
+    .eq("id", communityId)
+    .eq("owner_id", organizer.id)
+    .maybeSingle();
   const { error } = await supabase
     .from("communities")
     .update({
@@ -423,8 +430,25 @@ export async function updateCommunityAction(
     await setJoinQuestions(communityId, questions.slice(0, 10));
   }
 
+  // Switching PRIVATE -> OPEN auto-approves every pending join request.
+  if (current?.membership_type === "PRIVATE" && membershipType === "OPEN") {
+    const svc = createServiceClient();
+    const { data: approved } = await svc
+      .from("community_members")
+      .update({ status: "ACCEPTED" })
+      .eq("community_id", communityId)
+      .eq("status", "PENDING")
+      .select("id");
+    if (approved?.length) {
+      await svc
+        .from("communities")
+        .update({ member_count: (current.member_count ?? 0) + approved.length })
+        .eq("id", communityId);
+    }
+  }
+
   revalidatePath(`/communities/${communityId}`);
   revalidatePath(`/organizer/communities/${communityId}`);
   revalidatePath("/organizer/communities");
-  return { error: null };
+  return { error: null, saved: true };
 }

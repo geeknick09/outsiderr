@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { CommunityManageTabs, MemberCountToggle } from "@/modules/organizer";
-import { CommunityForm } from "@/modules/shared";
+import { CommunityForm, CollapsibleSection } from "@/modules/shared";
 import {
   getCommunity,
   listCommunityMemberDetails,
@@ -118,7 +118,7 @@ export default async function OrganizerCommunityManagePage({
         ) : (
           <div className="h-28 w-full bg-gradient-to-r from-violet-neon/30 via-fuchsia-500/20 to-lime-neon/20" />
         )}
-        <div className="glass -mt-10 flex items-end gap-4 rounded-t-3xl p-5">
+        <div className="glass mt-4 flex items-start gap-4 rounded-3xl p-5">
           {community.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={community.avatarUrl} alt={community.name} className="h-20 w-20 rounded-2xl border-2 border-white object-cover dark:border-zinc-900" />
@@ -151,6 +151,7 @@ export default async function OrganizerCommunityManagePage({
         inviteToken={typeof inviteToken === "string" ? inviteToken : null}
         initialTab={["analytics", "requests", "import", "events"].includes(tab ?? "") ? tab as "analytics" | "requests" | "import" | "events" : "members"}
       />
+      <CollapsibleSection title="Edit community details" description="Name, photos, links, membership type, terms and join questions.">
       <CommunityForm
         initial={{
           id: community.id,
@@ -174,6 +175,7 @@ export default async function OrganizerCommunityManagePage({
           joinQuestions: joinQuestions.map((q) => ({ question: q.question, isMandatory: q.isMandatory })),
         }}
       />
+      </CollapsibleSection>
     </div>
   );
 }
