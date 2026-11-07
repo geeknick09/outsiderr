@@ -119,10 +119,36 @@ export default async function ManageEventPage({
   // Drafts get a dedicated editor (create-form prefilled) - never the live-event
   // manage UI (walk-in registration, orders, analytics don't apply to drafts).
   if (event.status === "DRAFT") {
-    const [pastEventsForLinking, draftRetentionDays] = await Promise.all([
+    const [pastEventsForLinking, draftRetentionDays, savedStaff] = await Promise.all([
       safe(getOrganizerPastEventsForLinking(event.organizer.id, id), []),
       safe(getDraftRetentionDays(), 30),
+      safe(
+        (async () => {
+          const svc = createServiceClient();
+          const { data: asg } = await svc
+            .from("staff_event_assignments")
+            .select("staff_id, can_scan, can_sell, is_manager")
+            .eq("event_id", id)
+            .eq("is_active", true);
+          if (!asg?.length) return [];
+          const { data: members } = await svc
+            .from("staff_members")
+            .select("id, name, phone, email")
+            .in("id", asg.map((a) => a.staff_id));
+          const byId = new Map((members ?? []).map((m) => [m.id, m]));
+          return asg.map((a) => ({
+            name: byId.get(a.staff_id)?.name ?? "",
+            phone: byId.get(a.staff_id)?.phone ?? "",
+            email: byId.get(a.staff_id)?.email ?? "",
+            canScan: a.can_scan,
+            canSell: a.can_sell,
+            isManager: a.is_manager,
+          }));
+        })(),
+        [],
+      ),
     ]);
+    const initialStaff = savedStaff;
     return (
       <div className="space-y-6 py-6">
         <div className="flex items-center gap-3">
@@ -148,6 +174,7 @@ export default async function ManageEventPage({
               draftRetentionDays={draftRetentionDays}
               organizerName={event.organizer.name}
               pastEvents={pastEventsForLinking}
+              initialStaff={initialStaff}
             />
           </Suspense>
         ) : (

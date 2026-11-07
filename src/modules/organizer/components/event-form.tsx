@@ -152,6 +152,7 @@ export function EventForm({
   draftRetentionDays = 60,
   communities = [],
   bankAccounts = [],
+  initialStaff = [],
 }: {
   organizerName?: string;
   termsVersion?: string;
@@ -164,6 +165,8 @@ export function EventForm({
   communities?: { id: string; name: string; communityId?: string }[];
   /** Payout bank accounts - event picks where its payout lands (default = first). */
   bankAccounts?: { id: string; label: string | null; accountName: string; accountNumber: string; ifsc: string; isDefault: boolean }[];
+  /** Staff already saved on this draft (staff_members + assignments). */
+  initialStaff?: { name: string; phone: string; email: string; canScan: boolean; canSell: boolean; isManager: boolean }[];
 }) {
   const [state, formAction, pending] = useActionState<CreateEventState, FormData>(
     createEventAction,
@@ -178,7 +181,10 @@ export function EventForm({
     (draftEvent?.categories as string[] | undefined) ?? (draftEvent?.category ? [draftEvent.category] : []),
   );
   const [promoterMode, setPromoterMode] = useState<string>((draftEvent?.promoterMode as string | undefined) ?? "NONE");
-  const [staffRows, setStaffRows] = useState<{ name: string; phone: string; email: string; password: string; canScan: boolean; canSell: boolean; isManager: boolean }[]>([]);
+  const [staffRows, setStaffRows] = useState<{ name: string; phone: string; email: string; password: string; canScan: boolean; canSell: boolean; isManager: boolean }[]>(
+    () => initialStaff.map((s) => ({ ...s, password: "" })),
+  );
+  const [staffDupError, setStaffDupError] = useState<string | null>(null);
   const [uploadsInFlight, setUploadsInFlight] = useState(0);
 
   // Step change lands the user mid-page otherwise - always reset to top.
@@ -201,7 +207,9 @@ export function EventForm({
   // Load staff already saved on this draft so reopening shows the rows.
   // Owner read is allowed by the event_staff RLS policies.
   useEffect(() => {
-    if (!draftEvent?.id) return;
+    // Saved staff come via initialStaff (staff_members system); the legacy
+    // event_staff read is only a fallback for very old drafts.
+    if (!draftEvent?.id || initialStaff.length > 0) return;
     let cancelled = false;
     (async () => {
       const { createClient } = await import("@/modules/shared/auth/client");
@@ -467,6 +475,16 @@ export function EventForm({
     <form
       ref={formRef}
       action={formAction}
+      onSubmit={(e) => {
+        const phones = staffRows.map((r) => r.phone.replace(/\D/g, "")).filter(Boolean);
+        const emails = staffRows.map((r) => r.email.trim().toLowerCase()).filter(Boolean);
+        if (new Set(phones).size !== phones.length || new Set(emails).size !== emails.length) {
+          e.preventDefault();
+          setStaffDupError("Two staff rows share the same phone or email - each staff member needs a unique phone and email.");
+        } else {
+          setStaffDupError(null);
+        }
+      }}
       className="space-y-6"
       // Hidden-step required inputs can't be focused - browser blocks submit
       // silently. All real validation is server-side; rely on it instead.
@@ -1524,6 +1542,7 @@ export function EventForm({
             with the same login. Up to 5 here, more from the event page later.
           </p>
         </div>
+        {staffDupError ? <p className="text-sm text-red-500">{staffDupError}</p> : null}
         {staffRows.map((row, i) => (
           <div key={i} className="grid gap-2 rounded-2xl border border-zinc-200 p-3 dark:border-white/10 sm:grid-cols-9">
             <input name="staffName" placeholder="Name" value={row.name} className={`${INPUT} sm:col-span-2`}

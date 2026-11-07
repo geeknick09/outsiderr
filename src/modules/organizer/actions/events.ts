@@ -236,6 +236,10 @@ function actionErrorMessage(error: unknown, friendly: string): string {
         : null;
   if (error) console.error("[event action]", error);
   if (!raw) return friendly;
+  // Recurrence check violation - the live DB hasn't taken step53 yet.
+  if (/events_recurrence/i.test(raw)) {
+    return "The repeat schedule couldn't be saved yet - save with 'One-time' for now, or apply the latest migration.";
+  }
   return /permission denied|database error|violates|constraint|column|relation|does not exist/i.test(raw)
     ? friendly
     : raw;
@@ -602,18 +606,28 @@ export async function createEventAction(
     const staffPasswords = formData.getAll("staffPassword").map(String);
     const staffRoles = formData.getAll("staffRoles").map(String);
     if (staffNames.some((n) => n.trim())) {
+    try {
       const { createServiceClient } = await import("@/modules/shared/server");
       const { getOrganizerProfile } = await import("@/modules/shared/server");
       const svc = createServiceClient();
       const organizer = await getOrganizerProfile(user);
       if (organizer) {
+        const seenPhones = new Set<string>();
+        const seenEmails = new Set<string>();
         for (let i = 0; i < staffNames.length; i++) {
           const name = staffNames[i]?.trim();
           const phone = (staffPhones[i] ?? "").replace(/\D/g, "").slice(-10);
-          const email = staffEmails[i]?.trim() || "";
+          const email = (staffEmails[i]?.trim() || "").toLowerCase();
           const password = staffPasswords[i]?.trim() || "";
           const flags = staffRoles[i] ?? "scansell";
           if (!name || (!phone && !email) || !phone) continue;
+          // One staff login per phone/email - duplicates are skipped, never crash the save.
+          if (seenPhones.has(phone) || (email && seenEmails.has(email))) {
+            console.error(`[createEvent] duplicate staff row skipped for ${name} (${phone})`);
+            continue;
+          }
+          seenPhones.add(phone);
+          if (email) seenEmails.add(email);
           try {
             const roles = {
               canScan: flags.includes("scan"),
@@ -671,6 +685,10 @@ export async function createEventAction(
           }
         }
       }
+    } catch (err) {
+      // Staff must never fail an otherwise-saved event - log and continue.
+      console.error("[createEvent] staff block failed:", err);
+    }
     }
   } catch (error) {
     return {
