@@ -10,16 +10,11 @@ import { getCurrentUser } from "@/modules/shared/server";
 import { listCommunities, getCommunitiesHeader, getCommunitiesSubheader, listSlotBoostEvents } from "@/modules/shared/server";
 import { COMMUNITY_CATEGORIES, cityLabel } from "@/modules/shared";
 import { cn } from "@/modules/shared";
-import type { City, CommunityType, JoinMode } from "@/modules/shared";
+import type { City, JoinMode } from "@/modules/shared";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = { title: "Communities - Outsiderr" };
-
-const TYPE_LABEL: Record<CommunityType, string> = {
-  CLUB: "Community",
-  CREW: "Crew",
-};
 
 const MEMBERSHIP_LABEL: Record<JoinMode, string> = {
   OPEN: "Open",
@@ -130,9 +125,6 @@ export default async function CommunitiesPage({
                     {communityInitials(community.name)}
                   </div>
                 )}
-                <Badge tone={community.type === "CREW" ? "violet" : "neutral"}>
-                  {TYPE_LABEL[community.type]}
-                </Badge>
               </div>
 
               <h3 className="px-5 text-base font-bold">{community.name}</h3>
