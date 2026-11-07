@@ -210,7 +210,7 @@ export function CommunityForm({ existingSubcategories = {}, initial }: { existin
       {category ? (
         <div className="space-y-2">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-            What kind? (pick one or more - shows on your page)
+            What kind? (pick up to 6 - shows on your page)
           </span>
           <div className="flex flex-wrap gap-2">
             {[...new Set([...(COMMUNITY_SUBCATEGORY_SUGGESTIONS[category as keyof typeof COMMUNITY_SUBCATEGORY_SUGGESTIONS] ?? []), ...(existingSubcategories[category] ?? []), ...subcategories])].map((s) => {
@@ -222,7 +222,7 @@ export function CommunityForm({ existingSubcategories = {}, initial }: { existin
                 type="button"
                 onClick={() =>
                   setSubcategories((prev) =>
-                    prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s],
+                    prev.includes(s) ? prev.filter((x) => x !== s) : prev.length < 6 ? [...prev, s] : prev,
                   )
                 }
                 className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all ${
@@ -245,7 +245,7 @@ export function CommunityForm({ existingSubcategories = {}, initial }: { existin
                 if (e.key === "Enter") {
                   e.preventDefault();
                   const v = customSub.trim();
-                  if (v && !subcategories.includes(v)) setSubcategories((prev) => [...prev, v]);
+                  if (v && !subcategories.includes(v) && subcategories.length < 6) setSubcategories((prev) => [...prev, v]);
                   setCustomSub("");
                 }
               }}
@@ -256,10 +256,11 @@ export function CommunityForm({ existingSubcategories = {}, initial }: { existin
               type="button"
               onClick={() => {
                 const v = customSub.trim();
-                if (v && !subcategories.includes(v)) setSubcategories((prev) => [...prev, v]);
+                if (v && !subcategories.includes(v) && subcategories.length < 6) setSubcategories((prev) => [...prev, v]);
                 setCustomSub("");
               }}
-              className="rounded-2xl border border-zinc-300 px-4 text-xs font-semibold text-muted hover:border-violet-neon dark:border-white/15"
+              disabled={subcategories.length >= 6}
+              className="rounded-2xl border border-zinc-300 px-4 text-xs font-semibold text-muted hover:border-violet-neon disabled:opacity-40 dark:border-white/15"
             >
               Add
             </button>

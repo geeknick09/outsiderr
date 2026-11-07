@@ -130,7 +130,7 @@ export default async function CommunityDetailPage({
             {community.subcategory ? (
               <span className="flex flex-wrap gap-1.5">
                 {[...new Map(community.subcategory.split(",").map((t) => t.trim()).filter(Boolean).map((t) => [t.toLowerCase(), t])).values()]
-                  .slice(0, 5)
+                  .slice(0, 6)
                   .map((t) => <Badge key={t} tone="lime">{t}</Badge>)}
               </span>
             ) : null}

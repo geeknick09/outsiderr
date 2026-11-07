@@ -21,6 +21,15 @@ export interface CreateCommunityState {
   error: string | null;
 }
 
+const MAX_COMMUNITY_TAGS = 6;
+
+/** Cap + case-dedupe a comma-joined subcategory tag string. */
+function capCommunityTags(raw: string | null): string | null {
+  const tags = (raw ?? "").split(",").map((t) => t.trim()).filter(Boolean);
+  const deduped = [...new Map(tags.map((t) => [t.toLowerCase(), t])).values()];
+  return deduped.slice(0, MAX_COMMUNITY_TAGS).join(", ") || null;
+}
+
 export async function createCommunityAction(
   _prev: CreateCommunityState,
   formData: FormData,
@@ -52,7 +61,7 @@ export async function createCommunityAction(
     name,
     bio: String(formData.get("bio") ?? "").trim(),
     category: String(formData.get("category") ?? "").trim() || null,
-    subcategory: String(formData.get("subcategory") ?? "").trim() || null,
+    subcategory: capCommunityTags(formData.get("subcategory") as string | null),
     type: String(formData.get("type") ?? "CLUB") as CommunityType,
     city: String(formData.get("city") ?? "").trim()
       ? normalizeCityKey(String(formData.get("city")))
@@ -385,7 +394,7 @@ export async function updateCommunityAction(
       bio: String(formData.get("bio") ?? "").trim() || null,
       city: String(formData.get("city") ?? "").trim() ? normalizeCityKey(String(formData.get("city"))) : null,
       category: String(formData.get("category") ?? "").trim() || null,
-      subcategory: String(formData.get("subcategory") ?? "").trim() || null,
+      subcategory: capCommunityTags(formData.get("subcategory") as string | null),
       avatar_url: String(formData.get("avatarUrl") ?? "").trim() || null,
       cover_url: String(formData.get("coverUrl") ?? "").trim() || null,
       mobile_cover_url: String(formData.get("mobileCoverUrl") ?? "").trim() || null,

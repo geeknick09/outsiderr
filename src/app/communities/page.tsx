@@ -161,7 +161,7 @@ export default async function CommunitiesPage({
               {community.subcategory ? (
                 <div className="mt-3 flex flex-wrap gap-1.5 px-5">
                   {[...new Map(community.subcategory.split(",").map((t) => t.trim()).filter(Boolean).map((t) => [t.toLowerCase(), t])).values()]
-                    .slice(0, 5)
+                    .slice(0, 6)
                     .map((t) => (
                       <span key={t} className="rounded-full bg-violet-neon/10 px-2.5 py-0.5 text-[10px] font-semibold text-violet-neon">
                         {t}
