@@ -182,7 +182,15 @@ export function CommunityForm({ existingSubcategories = {}, initial }: { existin
             required
             className={INPUT}
             value={category}
-            onChange={(e) => { setCategory(e.target.value); setSubcategories([]); }}
+            onChange={(e) => {
+              const v = e.target.value;
+              const oldPool = new Set([
+                ...(COMMUNITY_SUBCATEGORY_SUGGESTIONS[category as keyof typeof COMMUNITY_SUBCATEGORY_SUGGESTIONS] ?? []),
+                ...(existingSubcategories[category] ?? []),
+              ]);
+              setSubcategories((prev) => prev.filter((t) => !oldPool.has(t)));
+              setCategory(v);
+            }}
           >
             <option value="" disabled className={OPTION}>Pick what this community is about</option>
             {COMMUNITY_CATEGORIES.map((c) => (
