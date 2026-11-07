@@ -119,7 +119,7 @@ export default async function ManageEventPage({
   // Drafts get a dedicated editor (create-form prefilled) - never the live-event
   // manage UI (walk-in registration, orders, analytics don't apply to drafts).
   if (event.status === "DRAFT") {
-    const [pastEventsForLinking, draftRetentionDays, savedStaff] = await Promise.all([
+    const [pastEventsForLinking, draftRetentionDays, savedStaff, myCommunities] = await Promise.all([
       safe(getOrganizerPastEventsForLinking(event.organizer.id, id), []),
       safe(getDraftRetentionDays(), 30),
       safe(
@@ -147,6 +147,7 @@ export default async function ManageEventPage({
         })(),
         [],
       ),
+      safe(listMyCommunities(user), []),
     ]);
     const initialStaff = savedStaff;
     return (
@@ -175,6 +176,7 @@ export default async function ManageEventPage({
               organizerName={event.organizer.name}
               pastEvents={pastEventsForLinking}
               initialStaff={initialStaff}
+              communities={myCommunities}
             />
           </Suspense>
         ) : (
