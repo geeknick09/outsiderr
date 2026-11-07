@@ -223,14 +223,12 @@ function MembersTab({
                 <p className="flex items-center gap-1.5 text-muted"><Mail className="h-3 w-3" />{m.email ?? "-"}</p>
                 <p className="flex items-center gap-1.5 text-muted"><Phone className="h-3 w-3" />{m.phone ?? "-"}</p>
                 <Link href={`/members/${m.userId}`} className="text-violet-neon hover:underline">View member profile →</Link>
-                {m.answers.length ? (
-                  <div className="space-y-1">
-                    <p className="font-semibold">Join answers</p>
-                    {m.answers.map((a: { question: string; answer: string }, i: number) => (
-                      <p key={i} className="text-muted"><span className="font-medium text-zinc-700 dark:text-zinc-300">{a.question}:</span> {a.answer}</p>
-                    ))}
-                  </div>
-                ) : null}
+                <div className="space-y-1">
+                  <p className="font-semibold">Join answers</p>
+                  {m.answers.length ? m.answers.map((a: { question: string; answer: string }, i: number) => (
+                    <p key={i} className="text-muted"><span className="font-medium text-zinc-700 dark:text-zinc-300">{a.question}:</span> {a.answer}</p>
+                  )) : <p className="text-muted">No answers - joined without the question flow.</p>}
+                </div>
               </div>
             ) : null}
           </div>

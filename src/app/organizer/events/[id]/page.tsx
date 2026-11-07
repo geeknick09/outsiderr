@@ -6,7 +6,7 @@ import { lazy, Suspense } from "react";
 
 import { AnalyticsPanel } from "@/modules/analytics";
 import { AttendeesTable } from "@/modules/organizer";
-import { EditEventForm, CancelPostponeButtons, CollaborationPanel, CollaboratorAccessWatcher, HeroBoostPanel, PastEventGalleryManager, WaitlistPanel, VerificationQueue, EventOverview, ManageTabs, EventEditsProvider, ManageEventHeader } from "@/modules/organizer";
+import { EditEventForm, CancelPostponeButtons, CollaborationPanel, CollaboratorAccessWatcher, HeroBoostPanel, PastEventGalleryManager, WaitlistPanel, VerificationQueue, EventOverview, ManageTabs, EventEditsProvider, ManageEventHeader, DeleteDraftButton } from "@/modules/organizer";
 import { Badge } from "@/modules/shared";
 import { CollapseAllProvider, CollapsibleSection } from "@/modules/shared";
 
@@ -161,6 +161,7 @@ export default async function ManageEventPage({
             <p className="text-sm text-muted">Draft - finish setup or keep editing</p>
           </div>
           <Badge tone="warning" className="bg-black/60 text-amber-300">Draft</Badge>
+          {isOwner ? <DeleteDraftButton eventId={id} /> : null}
         </div>
         {canEdit ? (
           <Suspense

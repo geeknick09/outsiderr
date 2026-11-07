@@ -547,7 +547,7 @@ export async function listCommunityMemberDetails(communityId: string): Promise<C
       id: m.id,
       communityId,
       userId: m.user_id,
-      userName: p?.full_name ?? "Member",
+      userName: p?.full_name || p?.email?.split("@")[0] || p?.phone || "Member",
       email: p?.email ?? null,
       phone: p?.phone ?? null,
       status: m.status as MembershipStatus,

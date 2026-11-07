@@ -1418,3 +1418,17 @@ export async function postponeEventAction(formData: FormData): Promise<void> {
   revalidatePath(`/events/${eventId}`);
   redirect(`/organizer/events/${eventId}`);
 }
+
+/** Delete a draft (or any owned event) - cascades tiers/orders via FK. */
+export async function deleteEventAction(eventId: string): Promise<{ error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  try {
+    const { deleteEvent } = await import("../data/organizer-events");
+    await deleteEvent(user, eventId);
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Could not delete event." };
+  }
+  revalidatePath("/organizer/events");
+  return {};
+}
