@@ -32,7 +32,7 @@ export default async function OrganizerCommunityManagePage({
   const community = await getCommunity(id);
   if (!community || community.ownerId !== organizerProfile.id) notFound();
 
-  const [members, analytics, joinQuestions] = await Promise.all([
+  const [members, analytics, joinQuestions, demographics] = await Promise.all([
     listCommunityMemberDetails(community.id),
     (async () => {
       const supabase = createServiceClient();
@@ -44,6 +44,35 @@ export default async function OrganizerCommunityManagePage({
       } | null;
     })(),
     listJoinQuestions(community.id),
+    (async () => {
+      const svc = createServiceClient();
+      const now = Date.now();
+      const [dauRes, mauRes, membersRes] = await Promise.all([
+        svc.from("page_views").select("user_id", { count: "exact", head: true })
+          .eq("entity_type", "COMMUNITY").eq("entity_id", community.id)
+          .gte("created_at", new Date(now - 864e5).toISOString()),
+        svc.from("page_views").select("user_id", { count: "exact", head: true })
+          .eq("entity_type", "COMMUNITY").eq("entity_id", community.id)
+          .gte("created_at", new Date(now - 30 * 864e5).toISOString()),
+        svc.from("community_members").select("user_id").eq("community_id", community.id).eq("status", "ACCEPTED"),
+      ]);
+      const memberIds = (membersRes.data ?? []).map((m) => m.user_id);
+      const { data: profiles } = memberIds.length
+        ? await svc.from("profiles").select("id, gender, birth_date").in("id", memberIds)
+        : { data: [] };
+      const gender: Record<string, number> = {};
+      const age: Record<string, number> = {};
+      for (const p of profiles ?? []) {
+        const g = p.gender ?? "Not specified";
+        gender[g] = (gender[g] ?? 0) + 1;
+        if (p.birth_date) {
+          const a = Math.floor((now - new Date(p.birth_date).getTime()) / 31557600000);
+          const b = a < 18 ? "Under 18" : a < 25 ? "18-24" : a < 35 ? "25-34" : a < 45 ? "35-44" : "45+";
+          age[b] = (age[b] ?? 0) + 1;
+        }
+      }
+      return { dau: dauRes.count ?? 0, mau: mauRes.count ?? 0, gender, age };
+    })(),
   ]);
 
   const supabase = createServiceClient();
@@ -146,6 +175,7 @@ export default async function OrganizerCommunityManagePage({
           validRows: i.valid_rows, invalidRows: i.invalid_rows, createdAt: i.created_at,
         }))}
         analytics={analytics}
+        demographics={demographics}
         events={events}
         warmLeads={warmLeads}
         inviteToken={typeof inviteToken === "string" ? inviteToken : null}

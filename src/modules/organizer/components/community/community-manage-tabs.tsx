@@ -52,6 +52,7 @@ export function CommunityManageTabs({
   members,
   imports,
   analytics,
+  demographics = null,
   events = [],
   warmLeads = [],
   inviteToken = null,
@@ -63,6 +64,7 @@ export function CommunityManageTabs({
   members: CommunityMemberDetail[];
   imports: { id: string; filename: string; status: string; validRows: number; invalidRows: number; createdAt: string }[];
   analytics: Analytics | null;
+  demographics?: { dau: number; mau: number; gender: Record<string, number>; age: Record<string, number> } | null;
   events?: CommunityEventRow[];
   warmLeads?: CommunityWarmLead[];
   inviteToken?: string | null;
@@ -117,7 +119,7 @@ export function CommunityManageTabs({
       {tab === "requests" ? <MembersTab community={community} members={pending} showActions /> : null}
       {tab === "import" ? <MemberImportPanel communityId={community.id} imports={imports} /> : null}
       {tab === "events" ? <EventsTab events={events} /> : null}
-      {tab === "analytics" ? <AnalyticsTab community={community} analytics={analytics} warmLeads={warmLeads} /> : null}
+      {tab === "analytics" ? <AnalyticsTab community={community} analytics={analytics} warmLeads={warmLeads} demographics={demographics} /> : null}
     </div>
   );
 }
@@ -251,11 +253,40 @@ function AnalyticsTab({
   community,
   analytics,
   warmLeads,
+  demographics,
 }: {
   community: Community;
   analytics: Analytics | null;
   warmLeads: CommunityWarmLead[];
+  demographics?: { dau: number; mau: number; gender: Record<string, number>; age: Record<string, number> } | null;
 }) {
+  function downloadReport() {
+    if (!analytics) return;
+    const lines = [
+      `Community analytics - ${community.name}`, "",
+      "Metric,Value",
+      `Total members,${analytics.total_members}`,
+      `New members (30d),${analytics.new_members_30d}`,
+      `Pending requests,${analytics.pending_requests}`,
+      `Followers,${analytics.followers}`,
+      `Events,${analytics.events_total}`,
+      `Attendees,${analytics.attendees}`,
+      `Repeat attendees,${analytics.repeat_attendees}`,
+      `Page views,${analytics.views}`,
+      ...(demographics ? [
+        `DAU,${demographics.dau}`,
+        `MAU,${demographics.mau}`,
+        ...Object.entries(demographics.gender).map(([k, v]) => `Gender: ${k},${v}`),
+        ...Object.entries(demographics.age).map(([k, v]) => `Age: ${k},${v}`),
+      ] : []),
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${community.name.replace(/\W+/g, "-")}-analytics.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
 
   if (!analytics) return <p className="glass rounded-3xl p-5 text-sm text-muted">No analytics yet.</p>;
 
@@ -276,10 +307,18 @@ function AnalyticsTab({
     { label: "Page views", value: analytics.views },
     { label: "View→join", value: `${joinConv}%` },
     { label: "Saw, didn't join", value: Math.max(0, analytics.views - analytics.total_members) },
+    ...(demographics ? [
+      { label: "DAU", value: demographics.dau },
+      { label: "MAU", value: demographics.mau },
+    ] : []),
   ];
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted">Community performance</p>
+        <button type="button" onClick={downloadReport} className="rounded-full bg-neon-gradient px-3 py-1.5 text-xs font-bold text-white">Download report</button>
+      </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {stats.map((s) => (
           <div key={s.label} className="glass rounded-2xl p-4">
@@ -288,6 +327,24 @@ function AnalyticsTab({
           </div>
         ))}
       </div>
+
+      {demographics && (Object.keys(demographics.gender).length || Object.keys(demographics.age).length) ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="glass rounded-2xl p-4">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">Gender</p>
+            {Object.entries(demographics.gender).map(([k, v]) => (
+              <p key={k} className="flex justify-between text-sm"><span className="text-muted">{k}</span><span className="font-bold">{v}</span></p>
+            ))}
+          </div>
+          <div className="glass rounded-2xl p-4">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">Age</p>
+            {Object.entries(demographics.age).map(([k, v]) => (
+              <p key={k} className="flex justify-between text-sm"><span className="text-muted">{k}</span><span className="font-bold">{v}</span></p>
+            ))}
+            {Object.keys(demographics.age).length === 0 ? <p className="text-xs text-muted">No birth dates on file yet.</p> : null}
+          </div>
+        </div>
+      ) : null}
 
       <WarmAudienceCard communityId={community.id} communityName={community.name} leads={warmLeads} />
     </div>

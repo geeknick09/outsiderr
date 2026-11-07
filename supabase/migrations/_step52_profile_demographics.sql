@@ -1,0 +1,3 @@
+-- STEP 52: profile demographics for community analytics.
+-- profiles already carries `gender` and `birth_date` - no schema change
+-- needed; analytics aggregates those columns directly.
