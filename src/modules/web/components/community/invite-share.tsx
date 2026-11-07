@@ -1,19 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Share2 } from "lucide-react";
+import { Check, Copy, Share2 } from "lucide-react";
 
-const INPUT_BTN =
-  "flex items-center gap-1.5 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-bold text-muted transition-all hover:border-violet-neon hover:text-violet-neon dark:border-white/15";
+import { logShareAction } from "@/modules/shared/actions/communities";
 
-/** Member invite share — copy link + share to WhatsApp/IG/FB/Gmail. */
-export function InviteShare({ path, communityName }: { path: string; communityName: string }) {
+/** Member invite share - friendly line + copy + single share button. */
+export function InviteShare({ path, communityName, communityId }: { path: string; communityName: string; communityId?: string }) {
   const [copied, setCopied] = useState(false);
+  const [shared, setShared] = useState(false);
 
   function fullUrl() {
     return `${window.location.origin}${path}`;
   }
-  const message = `Join ${communityName} on Outsiderr - come vibe with us!`;
 
   async function copy() {
     try {
@@ -23,22 +22,17 @@ export function InviteShare({ path, communityName }: { path: string; communityNa
     } catch { /* clipboard unavailable */ }
   }
 
-  function shareWhatsApp() {
-    window.open(`https://wa.me/?text=${encodeURIComponent(`${message} ${fullUrl()}`)}`, "_blank");
-  }
-  function shareFacebook() {
-    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(fullUrl())}`, "_blank");
-  }
-  function shareGmail() {
-    window.open(`mailto:?subject=${encodeURIComponent(message)}&body=${encodeURIComponent(`Come join us:\n${fullUrl()}`)}`, "_self");
-  }
-  async function shareInstagram() {
-    const url = fullUrl();
-    if (navigator.share) {
-      try { await navigator.share({ title: communityName, text: message, url }); } catch { /* dismissed */ }
-    } else {
-      await copy();
+  async function share() {
+    if (communityId) void logShareAction("COMMUNITY", communityId, "NATIVE").catch(() => {});
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title: `Join ${communityName}`, url: fullUrl() });
+        return;
+      } catch { /* cancelled - fall through to copy */ }
     }
+    await navigator.clipboard.writeText(fullUrl());
+    setShared(true);
+    setTimeout(() => setShared(false), 2000);
   }
 
   return (
@@ -46,28 +40,28 @@ export function InviteShare({ path, communityName }: { path: string; communityNa
       <p className="text-xs font-bold uppercase tracking-wide text-violet-neon">
         Friends make it better - bring yours.
       </p>
-      <button
-        type="button"
-        onClick={copy}
-        className="mt-2.5 inline-flex max-w-full items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-mono text-muted hover:border-violet-neon dark:border-white/10 dark:bg-white/5"
-        title="Click to copy invite link"
-      >
-        <Copy className="h-3 w-3 shrink-0" />
-        <span className="truncate">{path}</span>
-        <span className="shrink-0 font-sans font-bold text-violet-neon">{copied ? "Copied!" : "Copy"}</span>
-      </button>
-      <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-        <button type="button" onClick={shareWhatsApp} className={INPUT_BTN}>
-          <Share2 className="h-3 w-3" /> WhatsApp
+      <div className="mt-2.5 flex items-center justify-center gap-2">
+        <button
+          type="button"
+          onClick={copy}
+          className="inline-flex max-w-full items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-mono text-muted hover:border-violet-neon dark:border-white/10 dark:bg-white/5"
+          title="Click to copy invite link"
+        >
+          <Copy className="h-3 w-3 shrink-0" />
+          <span className="truncate">{path}</span>
+          <span className="shrink-0 font-sans font-bold text-violet-neon">{copied ? "Copied!" : "Copy"}</span>
         </button>
-        <button type="button" onClick={shareInstagram} className={INPUT_BTN}>
-          <Share2 className="h-3 w-3" /> Instagram
-        </button>
-        <button type="button" onClick={shareFacebook} className={INPUT_BTN}>
-          <Share2 className="h-3 w-3" /> Facebook
-        </button>
-        <button type="button" onClick={shareGmail} className={INPUT_BTN}>
-          <Share2 className="h-3 w-3" /> Gmail
+        <button
+          type="button"
+          onClick={share}
+          aria-label="Share invite link"
+          className="glass flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all hover:shadow-[0_0_16px_rgba(139,92,246,0.4)]"
+        >
+          {shared ? (
+            <Check className="h-4 w-4 text-lime-neon" />
+          ) : (
+            <Share2 className="h-4 w-4 text-violet-neon" />
+          )}
         </button>
       </div>
     </div>
