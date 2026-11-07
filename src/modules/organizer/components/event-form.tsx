@@ -481,8 +481,10 @@ export function EventForm({
         if (new Set(phones).size !== phones.length || new Set(emails).size !== emails.length) {
           e.preventDefault();
           setStaffDupError("Two staff rows share the same phone or email - each staff member needs a unique phone and email.");
+          setStep(5); // Jump to Staff & promoters so the error is visible.
         } else {
           setStaffDupError(null);
+          setDraftSavedToast(false); // Clear the stale draft toast on a real submit.
         }
       }}
       className="space-y-6"
