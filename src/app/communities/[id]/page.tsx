@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import { BadgeCheck, CalendarDays, Globe, Lock, MapPin, Users } from "lucide-react";
 import { FacebookIcon, InstagramIcon, LinkedinIcon, XIcon, YoutubeIcon } from "@/modules/shared";
 
-import { JoinCommunityForm, CommunityTimeline, ShareEventButton } from "@/modules/web";
+import { JoinCommunityForm, CommunityTimeline, ShareEventButton, InviteShare } from "@/modules/web";
 import { Badge } from "@/modules/shared";
 import { getCurrentUser, createClient } from "@/modules/shared/server";
 import {
@@ -268,12 +268,10 @@ export default async function CommunityDetailPage({
                   Welcome to {community.name}. You&apos;ll be notified about every community event.
                 </p>
                 {myMembership.inviteCode ? (
-                  <p className="mt-2 text-xs text-muted">
-                    Invite friends:{" "}
-                    <code className="rounded bg-zinc-100 px-1.5 py-0.5 dark:bg-white/10">
-                      /communities/{community.id}?ref={myMembership.inviteCode}
-                    </code>
-                  </p>
+                  <InviteShare
+                    path={`/communities/${community.id}?ref=${myMembership.inviteCode}`}
+                    communityName={community.name}
+                  />
                 ) : null}
               </>
             ) : myMembership.status === "PENDING" ? (

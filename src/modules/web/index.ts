@@ -46,4 +46,5 @@ export * from "./components/community/join-community-section";
 export * from "./components/promoter/promote-button";
 export * from "./components/promoter/promoter-dashboard";
 export * from "./components/community/community-timeline";
+export { InviteShare } from "./components/community/invite-share";
 export * from "./components/marketing/feature-orbit";
