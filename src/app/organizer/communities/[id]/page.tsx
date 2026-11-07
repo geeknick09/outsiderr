@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { CommunityManageTabs, MemberCountToggle } from "@/modules/organizer";
-import { CommunityForm, CollapsibleSection } from "@/modules/shared";
+
 import {
   getCommunity,
   listCommunityMemberDetails,
@@ -149,11 +149,8 @@ export default async function OrganizerCommunityManagePage({
         events={events}
         warmLeads={warmLeads}
         inviteToken={typeof inviteToken === "string" ? inviteToken : null}
-        initialTab={["analytics", "requests", "import", "events"].includes(tab ?? "") ? tab as "analytics" | "requests" | "import" | "events" : "members"}
-      />
-      <CollapsibleSection title="Edit community details" description="Name, photos, links, membership type, terms and join questions.">
-      <CommunityForm
-        initial={{
+        initialTab={["details", "members", "analytics", "requests", "import", "events"].includes(tab ?? "") ? tab as "details" | "members" | "analytics" | "requests" | "import" | "events" : "details"}
+        editInitial={{
           id: community.id,
           name: community.name,
           bio: community.bio,
@@ -172,10 +169,9 @@ export default async function OrganizerCommunityManagePage({
           upiId: community.upiId,
           membershipType: community.membershipType,
           terms: community.terms,
-          joinQuestions: joinQuestions.map((q) => ({ question: q.question, isMandatory: q.isMandatory })),
         }}
+        joinQuestions={joinQuestions.map((q) => ({ question: q.question, isMandatory: q.isMandatory }))}
       />
-      </CollapsibleSection>
     </div>
   );
 }

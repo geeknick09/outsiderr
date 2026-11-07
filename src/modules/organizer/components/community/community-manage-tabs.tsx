@@ -8,6 +8,7 @@ import { setMemberStatusAction, sendOutreachBlastAction } from "@/modules/shared
 import { Badge, Button, formatDateTime, formatPaise } from "@/modules/shared";
 import { BADGE_TONES, computeBadges } from "@/modules/shared";
 import { MemberImportPanel } from "./member-import-panel";
+import { CommunityForm } from "@/modules/shared";
 import type { Community, CommunityMemberDetail } from "@/modules/shared";
 import { cn } from "@/modules/shared";
 
@@ -54,7 +55,9 @@ export function CommunityManageTabs({
   events = [],
   warmLeads = [],
   inviteToken = null,
-  initialTab = "members",
+  initialTab = "details",
+  editInitial,
+  joinQuestions = [],
 }: {
   community: Community;
   members: CommunityMemberDetail[];
@@ -63,12 +66,15 @@ export function CommunityManageTabs({
   events?: CommunityEventRow[];
   warmLeads?: CommunityWarmLead[];
   inviteToken?: string | null;
-  initialTab?: "members" | "requests" | "import" | "analytics" | "events";
+  initialTab?: "details" | "members" | "requests" | "import" | "analytics" | "events";
+  editInitial?: React.ComponentProps<typeof CommunityForm>["initial"];
+  joinQuestions?: { question: string; isMandatory: boolean }[];
 }) {
-  const [tab, setTab] = useState<"members" | "requests" | "import" | "analytics" | "events">(initialTab);
+  const [tab, setTab] = useState<"details" | "members" | "requests" | "import" | "analytics" | "events">(initialTab);
   const pending = members.filter((m) => m.status === "PENDING");
 
   const tabs = [
+    { key: "details" as const, label: "Details" },
     { key: "members" as const, label: `Members (${members.filter((m) => m.status === "ACCEPTED").length})` },
     { key: "requests" as const, label: `Requests${pending.length ? ` (${pending.length})` : ""}` },
     { key: "import" as const, label: "Import" },
@@ -104,6 +110,9 @@ export function CommunityManageTabs({
         ) : null}
       </div>
 
+      {tab === "details" ? (
+        editInitial ? <CommunityForm initial={{ ...editInitial, joinQuestions }} /> : null
+      ) : null}
       {tab === "members" ? <MembersTab community={community} members={members} showActions={false} /> : null}
       {tab === "requests" ? <MembersTab community={community} members={pending} showActions /> : null}
       {tab === "import" ? <MemberImportPanel communityId={community.id} imports={imports} /> : null}
@@ -124,10 +133,22 @@ function MembersTab({
 }) {
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
   const [, startTransition] = useTransition();
+  const PAGE_SIZE = 20;
 
   if (!members.length) {
     return <p className="glass rounded-3xl p-5 text-sm text-muted">Nothing here yet.</p>;
+  }
+
+  function printMembers() {
+    const rows = members.map((m) =>
+      `<tr><td>${m.userName}</td><td>${m.status}</td><td>${new Date(m.memberSince).toLocaleDateString("en-IN")}</td><td>${m.email ?? "-"}</td><td>${m.phone ?? "-"}</td><td>${m.eventsAttended}</td><td>${(m.answers ?? []).map((a) => `${a.question}: ${a.answer}`).join("; ") || "-"}</td></tr>`,
+    ).join("");
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(`<html><head><title>${community.name} - Members</title><style>body{font-family:sans-serif;padding:24px}h1{font-size:18px}table{width:100%;border-collapse:collapse;font-size:12px}td,th{border:1px solid #ddd;padding:6px;text-align:left}th{background:#f4f4f4}</style></head><body><h1>${community.name} - ${members.length} members</h1><table><tr><th>Name</th><th>Status</th><th>Joined</th><th>Email</th><th>Phone</th><th>Events</th><th>Answers</th></tr>${rows}</table><script>window.print()</scr` + `ipt></body></html>`);
+    w.document.close();
   }
 
   function act(memberId: string, status: "ACCEPTED" | "REJECTED") {
@@ -138,9 +159,17 @@ function MembersTab({
     });
   }
 
+  const totalPages = Math.max(1, Math.ceil(members.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const visible = members.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
   return (
     <div className="space-y-2">
-      {members.map((m) => {
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted">{members.length} member{members.length === 1 ? "" : "s"}</p>
+        <button type="button" onClick={printMembers} className="rounded-full bg-neon-gradient px-3 py-1.5 text-xs font-bold text-white">Print</button>
+      </div>
+      {visible.map((m) => {
         const badges = computeBadges({ attendedTotal: m.eventsAttended });
         return (
           <div key={m.id} className="glass rounded-2xl p-4">
@@ -205,6 +234,15 @@ function MembersTab({
           </div>
         );
       })}
+      {totalPages > 1 ? (
+        <div className="flex items-center justify-center gap-3 pt-2">
+          <button type="button" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}
+            className="rounded-full border border-zinc-200 px-3 py-1 text-xs font-semibold disabled:opacity-40 dark:border-white/10">Prev</button>
+          <span className="text-xs text-muted">Page {currentPage} of {totalPages}</span>
+          <button type="button" disabled={currentPage === totalPages} onClick={() => setPage(currentPage + 1)}
+            className="rounded-full border border-zinc-200 px-3 py-1 text-xs font-semibold disabled:opacity-40 dark:border-white/10">Next</button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -237,6 +275,7 @@ function AnalyticsTab({
     { label: "Repeat rate", value: `${repeatRate}%` },
     { label: "Page views", value: analytics.views },
     { label: "View→join", value: `${joinConv}%` },
+    { label: "Saw, didn't join", value: Math.max(0, analytics.views - analytics.total_members) },
   ];
 
   return (
@@ -256,6 +295,15 @@ function AnalyticsTab({
 }
 
 function EventsTab({ events }: { events: CommunityEventRow[] }) {
+  const [query, setQuery] = useState("");
+  const filtered = events.filter((e) => e.title.toLowerCase().includes(query.toLowerCase()));
+  const groups = new Map<string, CommunityEventRow[]>();
+  for (const e of filtered) {
+    const key = new Date(e.startsAt).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(e);
+  }
+
   return (
     <div className="space-y-4">
       {events.length === 0 ? (
@@ -264,8 +312,18 @@ function EventsTab({ events }: { events: CommunityEventRow[] }) {
           event&apos;s edit page.
         </div>
       ) : (
-        <div className="glass overflow-hidden rounded-3xl">
-          <table className="w-full text-left text-sm">
+        <div className="space-y-4">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search events…"
+            className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 text-sm outline-none placeholder:text-zinc-400 focus:border-violet-neon dark:border-white/10 dark:bg-white/5 dark:text-white"
+          />
+          {[...groups.entries()].map(([month, rows]) => (
+            <div key={month} className="space-y-2">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted">{month}</p>
+              <div className="glass overflow-hidden rounded-3xl">
+                <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-zinc-200 text-[10px] uppercase tracking-wide text-muted dark:border-white/10">
                 <th className="px-4 py-2.5">Event</th>
@@ -277,7 +335,7 @@ function EventsTab({ events }: { events: CommunityEventRow[] }) {
               </tr>
             </thead>
             <tbody>
-              {events.map((e) => (
+              {rows.map((e) => (
                 <tr key={e.id} className="border-b border-zinc-100 last:border-0 dark:border-white/5">
                   <td className="px-4 py-2.5">
                     <Link href={`/organizer/events/${e.id}`} className="font-semibold hover:text-violet-neon">
@@ -298,6 +356,9 @@ function EventsTab({ events }: { events: CommunityEventRow[] }) {
               ))}
             </tbody>
           </table>
+          </div>
+            </div>
+          ))}
         </div>
       )}
 
