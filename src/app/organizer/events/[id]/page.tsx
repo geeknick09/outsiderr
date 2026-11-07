@@ -315,20 +315,18 @@ export default async function ManageEventPage({
                 </CollapsibleSection>
               ) : null}
 
-              {event.promoterMode !== "NONE" ? (
-                <CollapsibleSection title="Promoters" description="People driving sales for this event - links/codes, clicks, earned commission.">
-                  <PromotersPanel
-                    eventId={event.id}
-                    promoters={promoters}
-                    program={{
-                      mode: event.promoterMode ?? "NONE",
-                      commissionBps: event.promoterCommissionBps ?? 1000,
-                      promoBuyerBps: event.promoBuyerDiscountBps ?? 500,
-                      promoPromoterBps: event.promoPromoterBps ?? 500,
-                    }}
-                  />
-                </CollapsibleSection>
-              ) : null}
+              <CollapsibleSection title="Promoters" description="People driving sales for this event - links/codes, clicks, earned commission.">
+                <PromotersPanel
+                  eventId={event.id}
+                  promoters={promoters}
+                  program={{
+                    mode: event.promoterMode ?? "NONE",
+                    commissionBps: event.promoterCommissionBps ?? 1000,
+                    promoBuyerBps: event.promoBuyerDiscountBps ?? 500,
+                    promoPromoterBps: event.promoPromoterBps ?? 500,
+                  }}
+                />
+              </CollapsibleSection>
 
               {canScan && !eventPast && (event.status === "PUBLISHED" || event.status === "POSTPONED") ? (
                 <CollapsibleSection title="Staff" description="Door + box-office staff. They sign in at /scan and /box-office with the phone or email + password you set here.">

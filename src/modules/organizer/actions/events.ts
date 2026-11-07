@@ -897,6 +897,7 @@ const EDIT_SECTIONS = new Set([
   "contact",
   "tickets",
   "community",
+  "promoters",
   "misc",
 ]);
 
@@ -961,6 +962,10 @@ export async function updateEventSectionAction(
       visibility?: "OPEN" | "MEMBERS_ONLY" | "INVITE_ONLY";
       inviteToken?: string | null;
       recurrence?: "WEEKLY" | "MONTHLY" | null;
+      promoterMode?: "NONE" | "LINK" | "PROMO_CODE";
+      promoterCommissionBps?: number;
+      promoBuyerDiscountBps?: number;
+      promoPromoterBps?: number;
     } = { ...base };
 
     if (section === "details") {
@@ -1155,6 +1160,18 @@ export async function updateEventSectionAction(
         inviteToken,
         recurrence: (communityId && ["WEEKLY", "MONTHLY"].includes(String(formData.get("recurrence") ?? ""))
           ? String(formData.get("recurrence")) : null) as "WEEKLY" | "MONTHLY" | null,
+      };
+    } else if (section === "promoters") {
+      const promoterMode = String(formData.get("promoterMode") ?? "NONE");
+      if (!["NONE", "LINK", "PROMO_CODE"].includes(promoterMode)) {
+        return { error: "Invalid promoter mode." };
+      }
+      input = {
+        ...input,
+        promoterMode: promoterMode as "NONE" | "LINK" | "PROMO_CODE",
+        promoterCommissionBps: Math.min(1500, Math.max(100, Math.round(Number(formData.get("promoterCommissionBps") ?? 10) * 100) || 1000)),
+        promoBuyerDiscountBps: Math.min(1500, Math.max(0, Math.round(Number(formData.get("promoBuyerDiscountBps") ?? 5) * 100) || 0)),
+        promoPromoterBps: Math.min(1500, Math.max(0, Math.round(Number(formData.get("promoPromoterBps") ?? 5) * 100) || 0)),
       };
     } else if (section === "misc") {
       input = {
