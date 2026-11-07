@@ -530,7 +530,30 @@ export async function listCommunityMemberDetails(communityId: string): Promise<C
       .in("user_id", userIds),
   ]);
 
-  const profileMap = Object.fromEntries((profiles ?? []).map((p) => [p.id, p]));
+  const profileMap: Record<string, { id: string; full_name: string | null; email: string | null; phone: string | null }> =
+    Object.fromEntries((profiles ?? []).map((p) => [p.id, p]));
+
+  // Profiles created via phone/Google auth can lack email/phone/name - fall
+  // back to the auth identity so organizers see real contact info.
+  const missing = userIds.filter((id) => !profileMap[id]?.email || !profileMap[id]?.phone || !profileMap[id]?.full_name);
+  if (missing.length) {
+    try {
+      const svc = createServiceClient();
+      await Promise.all(
+        missing.map(async (id) => {
+          const { data } = await svc.auth.admin.getUserById(id);
+          const u = data?.user;
+          if (!u) return;
+          const p = (profileMap[id] ??= { id, full_name: null, email: null, phone: null });
+          p.email ??= u.email ?? null;
+          p.phone ??= u.phone ?? null;
+          p.full_name ??= (u.user_metadata as { full_name?: string; display_name?: string } | null)?.full_name
+            ?? (u.user_metadata as { display_name?: string } | null)?.display_name ?? null;
+        }),
+      );
+    } catch { /* best-effort fallback */ }
+  }
+
   const answerMap: Record<string, CommunityJoinAnswer[]> = {};
   for (const a of answers ?? []) {
     (answerMap[a.member_id] ??= []).push({ memberId: a.member_id, question: a.question, answer: a.answer });
