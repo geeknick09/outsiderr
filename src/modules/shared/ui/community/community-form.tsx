@@ -29,6 +29,7 @@ export interface CommunityFormInitial {
   avatarUrl: string | null; coverUrl: string | null; mobileCoverUrl: string | null;
   instagramHandle: string | null; youtubeUrl: string | null; xUrl: string | null;
   linkedinUrl: string | null; facebookUrl: string | null; websiteUrl: string | null;
+    whatsappUrl?: string | null;
   upiId: string | null; membershipType: string; terms: string[];
   joinQuestions?: { question: string; isMandatory: boolean }[];
 }
@@ -293,7 +294,8 @@ export function CommunityForm({ existingSubcategories = {}, initial }: { existin
         <input name="xUrl" placeholder="X (Twitter) URL" defaultValue={initial?.xUrl ?? ""} className={INPUT} />
         <input name="facebookUrl" placeholder="Facebook URL" defaultValue={initial?.facebookUrl ?? ""} className={INPUT} />
         <input name="linkedinUrl" placeholder="LinkedIn URL" defaultValue={initial?.linkedinUrl ?? ""} className={INPUT} />
-        <input name="websiteUrl" placeholder="Website URL" defaultValue={initial?.websiteUrl ?? ""} className={`${INPUT} sm:col-span-2`} />
+        <input name="websiteUrl" placeholder="Website URL" defaultValue={initial?.websiteUrl ?? ""} className={INPUT} />
+        <input name="whatsappUrl" placeholder="WhatsApp group link (optional)" defaultValue={initial?.whatsappUrl ?? ""} className={INPUT} />
       </div>
 
       <label className="block space-y-1.5">

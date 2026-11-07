@@ -190,6 +190,15 @@ export default async function CommunityDetailPage({
             ) : null}
           </div>
         </div>
+        {community.whatsappUrl ? (
+          <div className="glass rounded-3xl p-4">
+            <p className="text-sm font-bold">Join WhatsApp Community</p>
+            <a href={community.whatsappUrl} target="_blank" rel="noreferrer"
+              className="mt-2 inline-flex items-center gap-2 rounded-full bg-emerald-500/15 px-4 py-2 text-xs font-bold text-emerald-500 hover:bg-emerald-500/25">
+              Chat on WhatsApp →
+            </a>
+          </div>
+        ) : null}
         <div className="flex items-center gap-2">
           <ShareEventButton
             title={community.name}

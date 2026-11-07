@@ -116,6 +116,27 @@ export async function joinCommunityAction(
   if (!user) redirect("/login");
   try {
     const result = await joinCommunity(user, communityId, options);
+    // A new PENDING request -> ping the community owner so they can approve.
+    if (result.status === "PENDING" && !result.existing) {
+      try {
+        const svc = createServiceClient();
+        const { data: community } = await svc
+          .from("communities")
+          .select("name, organizer:owner_id(user_id)")
+          .eq("id", communityId)
+          .maybeSingle();
+        const ownerUserId = (community?.organizer as { user_id?: string } | null)?.user_id;
+        const joinerName = "Someone";
+        if (ownerUserId) {
+          const { sendNotifications } = await import("@/modules/shared/server");
+          await sendNotifications(
+            [{ userId: ownerUserId, type: "COMMUNITY_JOIN_REQUEST",
+               message: `${joinerName} requested to join ${community?.name ?? "your community"} - review it at /organizer/communities/${communityId}?tab=requests` }],
+            svc,
+          );
+        }
+      } catch { /* notification is best-effort */ }
+    }
     revalidatePath(`/communities/${communityId}`);
     return result;
   } catch (error) {
@@ -167,6 +188,29 @@ export async function setMemberStatusAction(
     p_status: status,
   });
   if (error) return { error: error.message };
+  // Let the member know the verdict - best-effort.
+  try {
+    const { data: member } = await supabase
+      .from("community_members")
+      .select("user_id")
+      .eq("id", memberId)
+      .maybeSingle();
+    const { data: community } = await supabase
+      .from("communities")
+      .select("name")
+      .eq("id", communityId)
+      .maybeSingle();
+    if (member?.user_id) {
+      const { sendNotifications } = await import("@/modules/shared/server");
+      await sendNotifications(
+        [{ userId: member.user_id, type: "COMMUNITY_MEMBERSHIP",
+           message: status === "ACCEPTED"
+             ? `Your request to join ${community?.name ?? "the community"} was approved - welcome!`
+             : `Your request to join ${community?.name ?? "the community"} was rejected.` }],
+        supabase,
+      );
+    }
+  } catch { /* notification is best-effort */ }
   revalidatePath("/organizer/communities");
   revalidatePath(`/communities/${communityId}`);
   return {};
@@ -411,6 +455,7 @@ export async function updateCommunityAction(
       linkedin_url: String(formData.get("linkedinUrl") ?? "").trim() || null,
       facebook_url: String(formData.get("facebookUrl") ?? "").trim() || null,
       website_url: String(formData.get("websiteUrl") ?? "").trim() || null,
+      whatsapp_url: String(formData.get("whatsappUrl") ?? "").trim() || null,
       upi_id: String(formData.get("upiId") ?? "").trim() || null,
       membership_type: String(formData.get("membershipType") ?? "OPEN"),
       terms,

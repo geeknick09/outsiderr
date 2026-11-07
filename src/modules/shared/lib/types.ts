@@ -498,6 +498,7 @@ export interface Community {
   linkedinUrl: string | null;
   facebookUrl: string | null;
   websiteUrl: string | null;
+  whatsappUrl: string | null;
   upiId: string | null;
   membershipType: JoinMode;
   membershipFeePaise: number;
